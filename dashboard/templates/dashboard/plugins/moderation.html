@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'moderation') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="mod-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="mod-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs nav-tabs-bordered margin" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mod">Moderation</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#logging">Audit Logging</button>
+      </li>
+    </ul>
+    
+    <div class="tab-content">
+      <div id="mod" class="tab-pane pt-2 active show" role="tabpanel">
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Kick Settings</h2>
+              <p>All the settings for kicking</p>
+            </div>
+            
+            <hr>
+            <div>
+              <p class="mb-0">Private Message</p>
+              <p class="mb-1 fs-7 text-muted">Send a private message to the user when they are kicked</p>
+              <div class="kick-dm-wrapper multi">
+                <div class="select">
+                  <div class="select-selected"></div>
+                  <div class="select-options">
+                    <div class="option" data-value="server">Server</div>
+                    <div class="option" data-value="action">Action</div>
+                    <div class="option" data-value="reason">Reason</div>
+                    <div class="option" data-value="moderator">Moderator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Ban Settings</h2>
+              <p>All the settings for baning</p>
+            </div>
+            
+            <hr>
+            <div>
+              <p class="mb-0">Private Message</p>
+              <p class="mb-1 fs-7 text-muted">Send a private message to the user when they are banned</p>
+              <div class="ban-dm-wrapper multi">
+                <div class="select">
+                  <div class="select-selected"></div>
+                  <div class="select-options">
+                    <div class="option" data-value="server">Server</div>
+                    <div class="option" data-value="action">Action</div>
+                    <div class="option" data-value="reason">Reason</div>
+                    <div class="option" data-value="moderator">Moderator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2">
+              <p class="mb-0">Default message purge</p>
+              <p class="mb-1 fs-7 text-muted">Select the messages to purge when a user is banned</p>
+              <div class="ban-delete-wrapper single">
+                <div class="select">
+                  <div class="select-selected"></div>
+                  <div class="select-options">
+                    <div class="option" data-value="0">0</div>
+                    <div class="option" data-value="1">1</div>
+                    <div class="option" data-value="2">2</div>
+                    <div class="option" data-value="3">3</div>
+                    <div class="option" data-value="4">4</div>
+                    <div class="option" data-value="5">5</div>
+                    <div class="option" data-value="6">6</div>
+                    <div class="option" data-value="7">7</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Mute Settings</h2>
+              <p>All the settings for muteing</p>
+            </div>
+            
+            <hr>
+            <div>
+              <p class="mb-0">Private Message</p>
+              <p class="mb-1 fs-7 text-muted">Send a private message to the user when they are muted</p>
+              <div class="mute-dm-wrapper multi">
+                <div class="select">
+                  <div class="select-selected"></div>
+                  <div class="select-options">
+                    <div class="option" data-value="server">Server</div>
+                    <div class="option" data-value="action">Action</div>
+                    <div class="option" data-value="reason">Reason</div>
+                    <div class="option" data-value="moderator">Moderator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2">
+              <p class="mb-0">Mute type</p>
+              <p class="mb-1 fs-7 text-muted">Select the type of mute</p>
+              <div class="mute-type-wrapper single">
+                <div class="select">
+                  <div class="select-selected"></div>
+                  <div class="select-options">
+                    <div class="option" data-value="role">Role</div>
+                    <div class="option" data-value="timeout">Timeout</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2">
+              <p class="mb-0">Default mute duration</p>
+              <p class="mb-1 fs-7 text-muted">Select the mute duration</p>
+              <div class="mute-duration-wrapper single">
+                <div class="select">
+                  <div class="select-selected">Select a time</div>
+                  <div class="select-options">
+                    <div class="option" data-value="60-sec">60 SEC</div>
+                    <div class="option" data-value="5-min">5 MIN</div>
+                    <div class="option" data-value="10-min">10 MIN</div>
+                    <div class="option" data-value="1-hour">1 HOUR</div>
+                    <div class="option" data-value="1-day">1 DAY</div>
+                    <div class="option" data-value="1-week">1 WEEK</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Warn Settings</h2>
+              <p>All the settings for warning</p>
+            </div>
+            
+            <hr>
+            <div>
+              <p class="mb-0">Private Message</p>
+              <p class="mb-1 fs-7 text-muted">Send a private message to the user when they are warned</p>
+              <div class="warn-dm-wrapper multi">
+                <div class="select">
+                  <div class="select-selected">Select an option</div>
+                  <div class="select-options">
+                    <div class="option" data-value="server">Server</div>
+                    <div class="option" data-value="action">Action</div>
+                    <div class="option" data-value="reason">Reason</div>
+                    <div class="option" data-value="moderator">Moderator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    
+    <div class="tab-content">
+      <div id="logging" class="tab-pane pt-2" role="tabpanel">
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Audit Logging</h2>
+              <p>You can set logging channel and events that will be sent to specific channel. Don't miss anything happening in your server, when you are not around!</p>
+            </div>
+
+            <hr>
+            <div>
+              <p class="mb-0">Logging channel</p>
+              <div class="log-chan-wrapper single">
+                <div class="select">
+                  <div class="select-selected">Select an option</div>
+                  <div class="select-options">
+                    {% for channel in guild_models(guild).channels.text %}
+                    <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h2 class="m-0 mt-3 mb-2 fs-5">Events</h2>
+              <div class="d-flex flex-wrap gap">
+                <div class="mod">
+                  <h5 class="m-0 fs-6">Moderation</h5>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationBan" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationBan']}}">
+                    Moderation ban
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationUnban" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationUnban']}}">
+                    Moderation unbaned
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationKick" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationKick']}}">
+                    Moderation kick
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationMute" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationMute']}}">
+                    Moderation muted
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationUnmute" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationUnmute']}}">
+                    Moderation unmuted
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationWarn" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationWarn']}}">
+                    Moderation warned
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ModerationUnwarn" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ModerationUnwarn']}}">
+                    Moderation unwarned
+                  </div>
+                </div>
+                
+                <div class="mod">
+                  <h5 class="m-0 fs-6">Systems</h5>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="Verification" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['Verification']}}">
+                    Verification
+                  </div>
+                </div>
+                
+                <div class="member">
+                  <h5 class="m-0 fs-6">Member</h5>
+                  
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MemberJoin" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MemberJoin']}}">
+                    Member join
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MemberLeave" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MemberLeave']}}">
+                    Member leave
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MemberUpdate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MemberUpdate']}}">
+                    <span title="Edit: Nickname">Member Updated</span>
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MemberBan" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MemberBan']}}">
+                    Member baned
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MemberUnban" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MemberUnban']}}">
+                    Member unbaned
+                  </div>
+                </div>
+                
+                <div class="messages">
+                  <h5 class="m-0 fs-6">Message</h5>
+                  
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MessageEdit" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MessageEdit']}}">
+                    Message edit
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="MessageDelete" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['MessageDelete']}}">
+                    Message delete
+                  </div>
+                </div>
+                
+                <div class="server">
+                  <h5 class="m-0 fs-6">Server</h5>
+                  
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ServerUpdate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ServerUpdate']}}">
+                    <span title="Edit: Icon, Name, Afk, Verification">Server Updated</span>
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ServerEmojis" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ServerEmojis']}}">
+                    Emojis updated
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ServerInviteCreate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ServerInviteCreate']}}">
+                    Server invite created
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ServerInviteDelete" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ServerInviteDelete']}}">
+                    Server invite deleted
+                  </div>
+                </div>
+                
+                <div class="roles">
+                  <h5 class="m-0 fs-6">Roles</h5>
+                  
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="RoleUpdate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['RoleUpdate']}}">
+                    <span title="Edit: Name, Color, Hoist, Mentionable">Roles updated</span>
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="RoleCreate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['RoleCreate']}}">
+                    Roles created
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="RoleDelete" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['RoleDelete']}}">
+                    Roles deleted
+                  </div>
+                </div>
+                
+                <div class="channel">
+                  <h5 class="m-0 fs-6">Channel</h5>
+                  
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ChannelUpdate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ChannelUpdate']}}">
+                    <span title="Edit: Name, Topic, Category, Slowmode">Channel updated</span>
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ChannelCreate" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ChannelCreate']}}">
+                    Channel created
+                  </div>
+                  <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+                    <input type="checkbox" id="ChannelDelete" class="ms-0 form-check-input" role="switch" name="log-event-switch" data-val="{{logging['events']['ChannelDelete']}}">
+                    Channel deleted
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Additional settings</h2>
+            </div>
+
+            <hr>
+            <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+              <input type="checkbox" id="Bots" class="ms-0 form-check-input" role="switch" data-val="{{data['logging']['bots']}}">
+              Don't log actions made by bots
+            </div>
+          </div>
+        </section>
+        
+      </div>
+    </div>
+    
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    document.querySelector('#mod-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "moderation.status": e.target.checked }),
+      });
+    })
+    
+    // Automod
+    
+    // Moderation
+    new Select('.kick-dm-wrapper.multi', {
+      placeholder: "Select dm options",
+      type: '',
+      maxItems: 4,
+      multiple: true,
+      clearAll: true,
+      removeBtn: true,
+      options: JSON.parse('{{data["settings"]["kick"]["dm"] | tojson}}')
+    });
+    
+    new Select('.ban-dm-wrapper.multi', {
+      placeholder: "Select options",
+      type: '',
+      maxItems: 4,
+      multiple: true,
+      clearAll: true,
+      removeBtn: true,
+      options: JSON.parse('{{data["settings"]["ban"]["dm"] | tojson}}')
+    });
+    new Select('.ban-delete-wrapper.single', {
+      placeholder: "Select number of days",
+      type: '',
+      maxItems: 1,
+      multiple: false,
+      options: ["{{data['settings']['ban']['deleteMessageDays']}}"]
+    });
+    
+    new Select('.mute-dm-wrapper.multi', {
+      placeholder: "Select dm options",
+      type: '',
+      maxItems: 4,
+      multiple: true,
+      removeBtn: true,
+      clearAll: true,
+      options: JSON.parse('{{data["settings"]["mute"]["dm"] | tojson}}')
+    });
+    new Select('.mute-type-wrapper.single', {
+      placeholder: "Select a type",
+      type: '',
+      maxItems: 1,
+      multiple: false,
+      options: ['{{data["settings"]["mute"]["type"]}}']
+    });
+    new Select('.mute-duration-wrapper.single', {
+      placeholder: "Select a mute duration",
+      type: '',
+      maxItems: 1,
+      multiple: false,
+      options: ['{{data["settings"]["mute"]["duration"]}}']
+    });
+
+    new Select('.warn-dm-wrapper.multi', {
+      placeholder: "Select dm options",
+      type: '',
+      maxItems: 4,
+      multiple: true,
+      removeBtn: true,
+      clearAll: true,
+      options: JSON.parse('{{data["settings"]["warn"]["dm"] | tojson}}')
+    });
+
+    const kickDmWrapper = document.querySelector('.kick-dm-wrapper.multi');
+    kickDmWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("moderation.settings.kick.dm", "{{data['settings']['kick']['dm']}}", selectedOptions)
+    });
+    
+    const banDmWrapper = document.querySelector('.ban-dm-wrapper.multi');
+    banDmWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("moderation.settings.ban.dm", "{{data['settings']['ban']['dm']}}", selectedOptions)
+    });
+    const banDeleteWrapper = document.querySelector('.ban-delete-wrapper.single');
+    banDeleteWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("moderation.settings.ban.deleteMessageDays", "{{data['settings']['ban']['deleteMessageDays']}}", selectedOptions)
+    });
+    
+    const muteDmWrapper = document.querySelector('.mute-dm-wrapper.multi');
+    muteDmWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("moderation.settings.mute.dm", "{{data['settings']['mute']['dm']}}", selectedOptions)
+    });
+    const muteTypeWrapper = document.querySelector('.mute-type-wrapper.single');
+    muteTypeWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'timeout'
+      
+      show_toast("moderation.settings.mute.type", "{{data['settings']['mute']['type']}}", option)
+    });
+    const muteDurationWrapper = document.querySelector('.mute-duration-wrapper.single');
+    muteDurationWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : '60-sec'
+      
+      show_toast("moderation.settings.mute.duration", "{{data['settings']['mute']['duration']}}", option)
+    });
+    
+    const warnDmWrapper = document.querySelector('.warn-dm-wrapper.multi');
+    warnDmWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("moderation.settings.warn.dm", "{{data['settings']['warn']['dm']}}", selectedOptions)
+    });
+
+    // logging
+    new Select('.log-chan-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      maxItems: 1,
+      multiple: false,
+      options: ['{{data["logging"]["channel"]}}']
+    });
+
+    const logChanWrapper = document.querySelector('.log-chan-wrapper.single');
+    logChanWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null
+
+      show_toast("moderation.logging.channel", "{{data['logging']['channel']}}", option)
+    });
+    
+    const switches = document.querySelectorAll("input[type='checkbox'][name='log-event-switch']")
+    const log_bots = document.querySelector('#Bots')
+    document.addEventListener('DOMContentLoaded', () => {
+      switches.forEach((checkbox) => {
+        if (checkbox.dataset.val == "True") {
+          checkbox.checked = true
+        } else {
+          checkbox.checked = false
+        }
+      })
+
+      if (log_bots.dataset.val == "True") {
+        log_bots.checked = true
+      }
+    })
+    
+    switches.forEach((checkbox) => {
+      checkbox.addEventListener('change', (e) => {
+        var key = 'moderation.logging.events.' + e.target.id
+        
+        show_toast(key, e.target.dataset.val, e.target.checked)
+      })
+    })
+
+    document.querySelector('#Bots').addEventListener('change', (e) => {
+      var val = e.target.checked;
+      
+      show_toast("moderation.logging.bots", "{{data['logging']['bots']}}", val)
+    })
+  </script>
+    
+  <style>
+    .gap {
+      column-gap: 3rem;
+      row-gap: 1rem;
+    }
+  </style>
+</body>
+</html>

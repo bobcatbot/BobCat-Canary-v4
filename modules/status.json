@@ -1,0 +1,19 @@
+{
+  "status": [
+    {
+      "id": "zqEv3mep",
+      "name": "www.bobcatbot.xyz",
+      "type": "Playing"
+    },
+    {
+      "id": "AkErtP6D",
+      "name": "{guilds} servers",
+      "type": "Listening"
+    },
+    {
+      "id": "DKeUrVdM",
+      "name": "{users} users | {guilds} servers",
+      "type": "Watching"
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Form | BobCat Bot</title>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
+</head>
+<body onkeydown="handleKeyPress(event)">
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/Navbar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main ms-0" style="margin-top: 90px;">
+    <div class="section-title">
+      <img src="{{guild.icon.url}}" alt="Server Icon" style="width: 150px;margin-bottom: 5px;border-radius: 20px;">
+      <h1>{{guild.name}}</h1>
+    </div>
+    
+    <section id="form" class="" style="display: block;">
+      <div class="container form">
+        <div class="title">
+          <h2>{{data.name}}</h2>
+          <p>{{data.description}}</p>
+        </div>
+        <hr>
+
+        {% for question in data['questions'] %}
+        <div class="question">
+          <div class="title_desc">
+            <h4>{{question.title}}</h4>
+            {% if question.description %}
+            <p>{{question.description}}</p>
+            {% endif %}
+          </div>
+          <div class="answer">
+            {% if question.type == "paragraph" %}
+            <textarea id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;"></textarea>
+            {% elif question.type == "short" %}
+            <input    id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" />
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+
+        <hr>
+        <div class="d-flex justify-content-end">
+          <button id="submit" class="btn btn-blurple">Submit</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="sub-msg" class="" style="display: none;">
+      <div class="container form">
+        <div class="title">
+          <h2>Thank you for submitting!</h2>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function startConfetii() {
+      const jsConfetti = new JSConfetti();
+
+      jsConfetti.addConfetti({
+        canvas: document.querySelector("#confetti"),
+        confettiNumber: 700,
+      });
+    }
+
+    const submitBtn = document.querySelector('#submit')
+
+    function handleKeyPress(event) {
+      if (event.keyCode === 13) { // 13 code for the "Enter" key
+        event.preventDefault(); // Prevent form submission if the input is within a form
+        submitBtn.click();
+      }
+    }
+    
+    let code = "";
+    function generateCode(length=8) {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      
+      for (let i = 0; i <= length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        code += charset[randomIndex];
+      }
+      return code;
+    }
+    
+    submitBtn.addEventListener('click', (e) => {
+      const questions = document.querySelector('.question').children
+
+      var response = {}
+
+      response['id'] = generateCode(length=8)
+      response['user'] = {
+        'id': '{{user.id}}',
+        'name': '{{user.username}}',
+        'avatar': '{{user.avatar_url}}'
+      }
+      response['answers'] = []
+      response['submitted_at'] = new Date()
+      
+      for (let i=0; i < questions.length; i++) {
+        const answers = document.querySelectorAll('[id^="AnswerInput-"]');
+        response['answers'].push(answers[i].value)
+      }
+
+      fetch('/form/{{guild.id}}/{{data.id}}', {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(response),
+      })
+        .then(res => res.json())
+        .then(data => {
+          code = ""
+          if (data.status == 200) {
+            document.querySelector('#form').style.display = 'none'
+            document.querySelector('#sub-msg').style.display = 'block'
+
+            startConfetii();
+          }
+        })
+    })
+
+    document.querySelector('#new-sub').addEventListener('click', (e) => {
+      document.querySelector('#form').style.display = 'block'
+      document.querySelector('#sub-msg').style.display = 'none'
+    })
+  </script>
+
+  <style>
+    section {
+      padding: 30px 0;
+    }
+    .container.form {
+      padding: 15px;
+      background: #1f2129;
+      border-radius: 10px;
+    }
+
+    .form .title h2 {
+      margin: 0;
+      font-size: 32px;
+    }
+    .form .title p {
+      margin: 0;
+      padding-bottom: 0;
+      font-size: 16px;
+    }
+
+    .question {
+      margin-bottom: 12px;
+    }
+    .question:last-child {
+      margin-bottom: 0;
+    }
+    
+    .question .title_desc h4 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .question .title_desc p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .question .answer {
+      margin-top: 4px;
+    }
+  </style>
+</body>
+</html>

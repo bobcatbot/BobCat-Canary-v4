@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  {% set plugin = get_plugin(guild, 'forms') %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main position-relative">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>{{plugin['title']}}</h1>
+        <p class="m-0">{{plugin['description']}}</p>
+      </div>
+      <div class="form-switch">
+        {% if plugin['status'] == True %}
+        <input type="checkbox" id="form-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="form-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card" style="border: 2px solid var(--color-primary);">
+        <a href="forms/creation" id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
+          <h2>Create form</h2>
+          <div>
+            <i class="bi bi-plus-lg"></i>
+          </div>
+        </div></a>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="title">
+            <h2>Your forms</h2>
+          </div>
+
+          <div class="d-flex gap-1 align-items-end ps-0 user-select-none form-switch">
+            <span id="form-count">{{data | length}}</span>
+            <span>/</span>
+            <span id="form-max-count">{{plugin['max']}}</span>
+          </div>
+        </div>
+        <hr>
+        
+        {% if not data %}
+        <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
+          <!-- <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 300px;"> -->
+          <p class="m-0 mt-2">You have no forms yet.</p>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols">
+          {% for form in data %}
+          <div id="{{form.id}}" class="card">
+            <div class="title mb-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{form.name}}</h5>
+                
+                <div class="form-switch ps-0">
+                  {% if form.status == True %}
+                  <input type="checkbox" id="status" class="form-check-input m-0" role="switch" checked>
+                  {% else %}
+                  <input type="checkbox" id="status" class="form-check-input m-0" role="switch">
+                  {% endif %}
+                </div>
+              </div>
+              
+              <p class="m-0">{{form.description}}</p>
+            </div>
+
+            <div class="controls">
+              <a href="/form/{{guild.id}}/{{form.id}}" class="btn btn-blurple">
+                <i class="bi bi-eye-fill"></i>
+                View
+              </a>
+              <a href="forms/{{form.id}}/edit" class="btn btn-blurple">
+                <i class="bi bi-pencil-square"></i>
+                Edit
+              </a>
+              <a href="/form/{{guild.id}}/{{form.id}}/submissions" class="btn btn-blurple">
+                <i class="bi bi-envelope-fill"></i>
+                Submissions
+              </a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- MaxHubLimit -->
+    <div class="modal fade dark" id="MaxHubLimit" tabindex="-1" aria-labelledby="MaxHubLimitLabel">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="MaxHubLimitLabel">Oops, an error occurred!</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Maximum number of ticket pannels reached.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="toast-container w-100 p-3" style="position: absolute;top: 0;right: 0;">
+      {% for category, message in messages %} 
+        <div id="toastFlash" class="toast show text-bg-{{category}} w-100" data-autohide="10000" role="alert">
+          <div class="d-flex">
+            <div class="toast-body">{{message}}</div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}    
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', (e) => {
+      var formCount = document.querySelector('#form-count')
+      var formMaxCount = document.querySelector('#form-max-count')
+      var createButton = document.querySelector('#create-hub-btn')
+
+      if (formCount.innerText >= formMaxCount.innerText) {
+        formCount.classList.add('text-danger');
+
+        // find the create ticket button and remove href
+        createButton.href = null;
+        createButton.setAttribute('data-bs-toggle', 'modal');
+        createButton.setAttribute('data-bs-target', '#MaxHubLimit');
+      } else {
+        formCount.classList.remove('text-danger');
+
+        // find the create ticket button and remove href
+        createButton.href = 'forms/creation';
+        createButton.removeAttribute('data-bs-toggle');
+        createButton.removeAttribute('data-bs-target');
+      }
+    })
+
+    var toastFlash = document.getElementById('toastFlash')
+    if (toastFlash) {
+      setTimeout(function() {
+        toastFlash.classList.remove('show')
+      }, parseInt(toastFlash.dataset.autohide));
+    }
+
+    document.querySelector('#form-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "forms.status": e.target.checked }),
+      });
+    })
+        
+
+    document.querySelectorAll('#status').forEach((el) => {
+      el.addEventListener('change', (e) => {
+        const formID = e.target.closest('.card').id
+
+        fetch(`/dashboard/{{guild.id}}/forms/${formID}/edit`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ "status": e.target.checked }),
+        });
+      })
+    })
+  </script>
+
+  <style>
+    .card {
+      --bs-card-bg: rgb(23, 24, 30);
+      --bs-card-border-color: rgb(23, 24, 30);
+
+      padding: 13px;
+      color: #fff;
+    }
+
+    .card .title h5 {
+      font-weight: 700;
+      
+      width: 65%;
+      white-space: nowrap;
+      word-wrap: break-word;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .card .title p {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-clamp: 4;
+    }
+    
+    .card .controls {
+      margin-bottom: 0;
+      display: flex;
+      gap: 5px;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    
+    .grid {
+      display: grid;
+      gap: 8px;
+    }
+    .grid-cols {
+      grid-template-columns: repeat(1, 1fr);
+    }
+    @media (min-width: 1024px) {
+      .grid-cols {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (min-width: 1280px) {
+      .grid-cols {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (min-width: 1536px) {
+      .grid-cols {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+    
+  </style>
+</body>
+</html>

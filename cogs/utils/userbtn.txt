@@ -1,0 +1,189 @@
+class UserButtons(discord.ui.View):
+    def __init__(self, client, ctx, member: discord.Member):
+        super().__init__(timeout=None)
+        self.client = client
+        self.ctx = ctx
+        self.member = member
+    
+    @discord.ui.button(label='General', style=discord.ButtonStyle.gray)
+    async def info(self, button: discord.ui.Button, interaction: discord.Interaction):
+
+        usr = await self.client.fetch_user(self.member.id)
+        colour = usr.accent_color
+        if colour == None: colour = "Default"
+        
+        joined = self.member.joined_at.strftime('%m/%d/%Y')
+        created = self.member.created_at.strftime('%m/%d/%Y')
+        
+        embed = discord.Embed(title=f"{self.member.name}'s Infomation", color=v.style(interaction))
+        try:
+            embed.set_thumbnail(url=self.member.avatar.url)
+        except AttributeError:
+            pass
+        embed.add_field(name="Username", value=f"```{self.member}```", inline=True)
+        embed.add_field(name="Nickname", value=f"```{self.member.display_name}```", inline=True)
+        embed.add_field(name="User ID", value=f"```{self.member.id}```", inline=True)
+        embed.add_field(name="Bot", value=f"```{self.member.bot}```", inline=True)
+        embed.add_field(name="Activity", value=f"```{str(self.member.activity).title()}```", inline=True)
+        embed.add_field(name="Status", value=f"```{str(self.member.status).title()}```", inline=True)
+        embed.add_field(name="Profile Colour", value=f"```{colour}```", inline=True)
+        embed.add_field(name="Roles", value=f"```{len(self.member.roles)}```", inline=True)
+        embed.add_field(name="** **", value="** **", inline=False)
+        embed.add_field(name="Joined at (MM/DD/YYYY)", value=f"```{joined}```", inline=True)
+        embed.add_field(name="Created at (MM/DD/YYYY)", value=f"```{created}```", inline=True)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label='Profile', style=discord.ButtonStyle.gray)
+    async def profile(self, button: discord.ui.Button, interaction: discord.Interaction):
+        con = sqlite3.connect('databases/level.db')
+        cur = con.cursor()
+
+        with open('databases/mainbank.json','r') as f:
+            users = json.load(f)
+        icon = v.dashboard(interaction.guild.id, "EconomyCoin")
+        try:
+            wallet = users[f"{interaction.guild.id}"][f"{self.member.id}"]["wallet"]
+        except KeyError:
+            wallet = "0"
+        
+        try:
+            bank = users[f"{interaction.guild.id}"][f"{self.member.id}"]["bank"]
+        except KeyError:
+            bag = "0"
+
+        try:
+            bag = users[f"{interaction.guild.id}"][f"{self.member.id}"]["bag"]
+        except KeyError:
+            bag = []
+            
+        cur.execute(f"SELECT * FROM GUILD_{interaction.guild.id} WHERE user_id={self.member.id}")
+        result = cur.fetchone()
+        if result:
+            user_data = {
+                "xp": result[1],
+                "level": result[2],
+            }
+
+        bot = self.client
+        ctx = self.ctx
+        member = self.member
+        class Menu(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=None)
+                self.client = bot
+                self.member = member
+
+            @discord.ui.select(
+                options = [
+                    discord.SelectOption(label="Main Profile"),
+                    discord.SelectOption(label="Levels"),
+                    discord.SelectOption(label="Coins")
+                ]
+            )
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                        
+                if select.values[0] == "Main Profile":
+                    embed = discord.Embed(
+                        color=v.style(interaction),
+                        title=f"{member}"
+                    )
+                    embed.add_field(name="Levels", value=f"> Level: {user_data['level']} \n> Xp: {user_data['xp']}", inline=False)
+                    embed.add_field(name="Balance", value=f"> Wallet: {wallet} {icon} \n> Bank: {bank} {icon}", inline=False)
+                    
+                    embed.set_thumbnail(url=member.avatar.url)
+                    await interaction.response.edit_message(embed=embed, view=self)
+
+                if select.values[0] == "Levels":
+                    embed = discord.Embed(
+                        color=v.style(interaction),
+                        title=f"{member.name}'s level stats",
+                        description=(
+                          f"Level: {user_data['level']}"
+                          f"\n XP: {user_data['xp']}"
+                        )
+                    )
+                    embed.set_thumbnail(url=member.avatar.url)
+                    await interaction.response.edit_message(embed=embed, view=self)
+                                
+                if select.values[0] == "Coins":
+                    embed = discord.Embed(
+                        color=v.style(interaction),
+                        title=f"{member.name}'s economy stats",
+                        description=(
+                            f"Wallet: {wallet}"
+                            f"\n Bank: {bank}"
+                        )
+                    )
+
+                    items = ""
+                    if len(bag) >= 1:
+                        for item in users[f"{interaction.guild.id}"]["shop"]:
+                            for product in bag:
+                                if item["name"] == product["item"]:
+                                    items += f'> {item["name"]} x{product["amount"]}' + '\n'
+                    else:
+                        items += "> This user has no items in there inventory"
+
+                    embed.add_field(
+                        name=f"Inventory [{len(bag)}]",
+                        value=f"{items}",
+                    )
+                    
+                    embed.set_thumbnail(url=member.avatar.url)
+                    await interaction.response.edit_message(embed=embed, view=self)
+
+            @discord.ui.button(label='Back', style=discord.ButtonStyle.gray)
+            async def info(self, button: discord.ui.Button, interaction: discord.Interaction):
+                usr = await bot.fetch_user(member.id)
+                
+                if member.display_name != member.name:
+                    userName = f"\n> Username: {member.name}"
+                else:
+                    userName = ""
+                
+                roles = ""
+                for role in member.roles:
+                    roles += f"{role.mention}" + ", "
+                
+                joined = member.joined_at.strftime('%m/%d/%Y')
+                created = member.created_at.strftime('%m/%d/%Y')
+                
+                embed = discord.Embed(
+                    color=v.style(ctx),
+                    title=f"{member.name}'s Infomation",
+                    description=(
+                        "**General Information**"
+                        f"\n**Name:** `{member.display_name}`"
+                            f"{userName} \n> Tag: {member} \n> ID: {member.id}"              
+                        f"\n**Created:** {created} (MM/DD/YYYY)"
+                        f"\n**Joined:** {joined} (MM/DD/YYYY)"
+                        f"\n**Color:** `{usr.accent_color}`"
+                        f"\n**Roles:** `{len(member.roles)}`"
+
+                        
+                        "\n\n**Account Accessories**"
+                        f"\n**Roles**: {roles}"
+                    )
+                )
+                
+                try:
+                    embed.set_thumbnail(url=member.avatar.url)
+                except AttributeError:
+                    pic = "https://media.discordapp.net/attachments/915018131376857138/962350664338522143/noLogo.png"
+                    embed.set_thumbnail(url=pic)
+                await interaction.response.edit_message(embed=embed, view=UserButtons(bot, ctx, member))
+        
+        embed = discord.Embed(
+            color=v.style(interaction),
+            title=f"{member}"
+        )
+        embed.add_field(name="Levels", value=f"> Level: {user_data['level']} \n> Xp: {user_data['xp']}", inline=False)
+        embed.add_field(name="Balance", value=f"> Wallet: {wallet} {icon} \n> Bank: {bank} {icon}", inline=False)
+        
+        embed.set_thumbnail(url=member.avatar.url)
+        await interaction.response.edit_message(embed=embed, view=Menu())
+    
+    async def on_timeout(self):
+        for buttons in self.children:
+            buttons.disabled = True
+        return await self.message.edit_original_message(view=self)

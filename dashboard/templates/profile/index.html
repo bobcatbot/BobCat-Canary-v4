@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <title>My Profile - BobCat Bot</title>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'profile/components/sidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main content">
+    <div class="pagetitle">
+      <h1>My Profile</h1>
+    </div>
+    <hr class="mt-0">
+
+    <section class="section">
+      <div class="row gap-2 align-items-start">
+        <div class="col-md">
+          <div class="grid">
+            <div class="col-md">
+              <a href="/profile">
+                <div class="card">My Profile</div>
+              </a>
+            </div>
+            <div class="col-md">
+              <a href="/profile/devices">
+                <div class="card">Devices</div>
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-5">
+          <div class="user-profile-wrapper">
+            <div class="user-profile">
+              <div class="banner" style="background-color: {{user.banner_color}};"></div>
+              
+              <div class="user">
+                <div class="avatarStack position-relative w-100">
+                  <img 
+                    src="https://cdn.discordapp.com/avatar-decoration-presets/a_a0fafb7c7ee7f1e5b1442f44f3aa14b7.png?size=128&amp;passthrough=false"
+                    class="img-fluid"
+                    alt="Avatar"
+                    style="position: absolute;z-index: 100;left: -5px;top: -10px;display: none;width: 100px;"
+                  >
+                  <div class="avatar">
+                    <img src="{{user.avatar_url}}" alt="Avatar" class="img-fluid">
+                  </div>
+                </div>
+
+                <div class="badges">
+                  {% for flag in discord_user.public_flags.all() %}
+                  <img src="{{flags[flag.name]}}" alt="">
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="info">
+                <div class="user-info">
+                  <h3 class="mb-0">{{user.username}}</h3>
+                  <p class="mb-0">{{user.username}}#{{user.discriminator}}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <style>
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 4px;
+    }
+    
+    .card {
+      padding: 12px;
+      color: var(--text-color);
+      background-color: var(--color-accent);
+      border: 2px solid transparent;
+    }
+    .card:hover {
+      border: 2px solid var(--blurple);
+    }
+
+    .user-profile-wrapper {
+      max-width: 340px;
+      padding: 2px;
+      background: transparent;
+      border-radius: 8px;
+    }
+    .user-profile {
+      display: flex;
+      flex-direction: column;
+      max-width: 340px;
+      /* min-height: 300px; */
+      background-color: #232428;
+      border-radius: 8px;
+    }
+    .user-profile .banner {
+      width: 100%;
+      height: 75px;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+    
+    .user-profile .user {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: end;
+    
+      padding: 0 15px;
+      margin-top: -45px;
+    }
+    .user-profile .user .avatar {
+      width: 90px;
+      height: 90px;
+      padding: 4px;
+      border-radius: 50%;
+      background-color: #232428;
+      overflow: hidden;
+    }
+    .user-profile .user .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .user-profile .user .badges {
+      display: flex;
+      align-items: center;
+      height: max-content;
+      gap: 10px;
+      padding: 6px;
+      background-color: #111214;
+      border-radius: 8px;
+    }
+    .user-profile .user .badges img {
+      width: 18px;
+      height: 18px;
+      object-fit: cover;
+    }
+    
+    .user-profile .info {
+      margin: 20px 15px 15px 15px;
+      /* width: calc(100% - 10px * 2); */
+      /* height: 160px; */
+      padding: 10px;
+      background-color: #111214;
+      border-radius: 8px;
+    }
+    
+    .user-profile .info .about-me {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+    .user-profile .info .about-me h4 {
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .user-profile .info .about-me p {
+      margin: 0;
+      font-size: 14px;
+    }
+  </style>
+</body>
+</html>

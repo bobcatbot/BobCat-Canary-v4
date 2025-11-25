@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Form | BobCat Bot</title>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body onkeydown="handleKeyPress(event)">
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/Navbar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main ms-0" style="margin-top: 90px;">
+    <div class="section-title">
+      <img src="{{guild.icon.url}}" alt="Server Icon" style="width: 150px;margin-bottom: 5px;border-radius: 20px;">
+      <h1>{{guild.name}}</h1>
+    </div>
+    
+    <section class="section">
+      <div class="container form">
+        <div class="title">
+          <h2>{{form.name}}</h2>
+          <p>{{form.description}}</p>
+        </div>
+        <hr>
+
+        <table class="w-100">
+          <thead>
+            <tr>
+              <th class="px-2 py-1">User</th>
+              <th class="px-2 py-1">Submitted At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for submission in form['responses'] %}
+            <tr data-id="{{submission.id}}">
+              <td class="px-2 py-1" data-user-id="{{submission.user.id}}">
+                <div>
+                  <img src="{{submission.user.avatar}}" alt="User Avatar" style="width: 32px;margin-right: 10px;border-radius: 50%;">
+                  <span>{{submission.user.name}}</span>
+                </div>
+              </td>
+              <td class="px-2 py-1">{{submission.submitted_at}}</td>
+              <td class="px-2 py-1">
+                <div class="dropdown">
+                  <button class="btn btn-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dark">
+                    <li><a id="view-submission" class="dropdown-item" data-id="{{submission.id}}">View</a></li>
+                    {% if can_manage %}<li><a id="delete-submission" class="dropdown-item" data-id="{{submission.id}}">Delete</a></li>{% endif %}
+                  </ul>
+                </div>                
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="modal dark" id="user-modal" tabindex="-1" aria-labelledby="userModalTitle" aria-modal="true" role="dialog">
+      <div class="modal-dialog modal-dialog-centerd">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="userModalTitle">Form {{form.id}} submission</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {% for question in form['questions'] %}
+            {% if question.type == "paragraph" %}
+            <h5>{{question.title}}</h5>
+            <textarea 
+              id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;"
+            ></textarea>
+            {% endif %}
+            {% if question.type == "short" %}
+            <h5>{{question.title}}</h5>
+            <input
+              id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" 
+              value=""
+            />
+            {% endif %}
+            {% endfor %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const viewSubmissionBtnAll = document.querySelectorAll('#view-submission');
+    viewSubmissionBtnAll.forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+
+        var viewSubmission = new bootstrap.Modal(document.getElementById('user-modal'));
+        viewSubmission.show();
+
+        const ID = el.dataset.id;
+
+        var responses = JSON.parse('{{form.responses | tojson}}');
+        const response = responses.find(r => r.id === ID);
+
+        // Populate the form fields with the answers
+        document.querySelectorAll('[id^="AnswerInput-"]').forEach((input, index) => {
+          input.value = response.answers[index];
+        });
+      });
+    });
+
+    const allDeleteSubmissionBtn = document.querySelectorAll('#delete-submission')
+    allDeleteSubmissionBtn.forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+
+        fetch(`submissions`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "id": el.dataset.id })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status == 200) {
+              el.closest('tr').remove()
+            }
+          })
+      })
+    })
+  </script>
+
+  <style>
+    section {
+      padding: 30px 0;
+    }
+    .container.form {
+      padding: 15px;
+      background: #1f2129;
+      border-radius: 10px;
+    }
+
+    .form .title h2 {
+      margin: 0;
+      font-size: 32px;
+    }
+    .form .title p {
+      margin: 0;
+      padding-bottom: 0;
+      font-size: 16px;
+    }
+
+    .px-2 {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    .py-1 {
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+
+    .table tr th {
+      font-size: 16px;
+      line-height: 19px;
+      padding: 24px;
+      border-bottom: #2d3343 solid 4px;
+    }
+    .table tr {
+      background-color: #181a20;
+      border-bottom: #2d3343 solid 2px;
+    }
+    .table tr:last-child {
+      border-bottom: transparent solid 2px;
+    }
+    .table > tbody > tr > td {
+      vertical-align: middle;
+    }
+  </style>
+
+  {% if data %}
+  <div class="modal-backdrop show"></div>
+  {% endif %}
+</body>
+</html>

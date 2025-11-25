@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <title>My Profile - BobCat Bot</title>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'profile/components/sidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main content">
+    <div class="pagetitle">
+      <h1>My Devices</h1>
+      <p>All the devices that are currently logged in to BobCat's website</p>
+    </div>
+    <hr class="mt-0">
+
+    <section class="section">
+      <h4 class="fw-bold">Current Device</h4>
+      <div id="current-device" class="card d-flex gap-3 flex-row align-items-center"></div>
+    </section>
+  </main>
+
+  <script>
+    var platformInfo = [
+      { platform: "Windows", value: "Win32", icon: "desktop_windows" },
+      { platform: "Windows", value: "Win64", icon: "desktop_windows" },
+      { platform: "Mac", value: "MacIntel", icon: "desktop_mac" },
+      { platform: "Linux", value: "Linux i686", icon: "devices" },
+      { platform: "Linux", value: "Linux x86_64", icon: "devices" },
+      { platform: "iPhone", value: "iPhone", icon: "phone_iphone" },
+      { platform: "iPod", value: "iPod", icon: "phone_iphone" },
+      { platform: "iPad", value: "iPad", icon: "tablet_mac" },
+      { platform: "Android", value: "Linux armv81", icon: "smartphone" }
+    ];
+    
+    var result = platformInfo.find(function (item) {
+      return navigator.platform.includes(item.value);
+    });
+    
+    var browserRegex = /(Chrome|Edge|Safari)/;
+    var browserMatch = navigator.userAgent.match(browserRegex);
+    var browser = browserMatch ? browserMatch[1] : 'Unknown';
+
+    var info = {
+      icon: result.icon,
+      os: result.platform,
+      browser: browser,
+    };
+
+    fetch('/profile/devices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        os: result.platform,
+        browser: browser,
+        createdAt: new Date(),
+      }),
+    });
+
+    var sec = document.querySelector('#current-device')
+    sec.innerHTML = `
+    <div class="icon">
+      <span class="material-icons">${info.icon}</span>
+    </div>
+    <span class="dev_title">${info.os} - ${info.browser}</span>
+    `
+  </script>
+
+  <style>
+    .card {
+      padding: 12px;
+      color: var(--text-color);
+      background-color: var(--color-accent);
+    }
+    .card:hover {
+      background-color: var(--color-secondary-3);
+    }
+
+    .icon {
+      padding: 4px;
+      background-color: var(--color-secondary-2);
+      border-radius: 50%;
+    }
+    .icon span {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 60px;
+      height: 60px;
+      font-size: 40px;
+    }
+
+    .dev_title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+  </style>
+</body>
+</html>

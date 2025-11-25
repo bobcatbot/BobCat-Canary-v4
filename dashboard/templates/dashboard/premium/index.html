@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  <main id="main" class="main content">
+    <div class="pagetitle" style="padding: 0!important;margin-bottom: 25px;">
+      <h1>Take your server to the next level</h1>
+      <p>Unlock everything BobCat has to offer and get the most out your server!</p>
+    </div>
+
+    <div class="grid">
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title d-flex align-items-center justify-content-start gap-2">
+              <input type="radio" id="radio-183585fe8d28" style="height: 16px;width: 16px;vertical-align: middle;" checked>
+              <h5>Monthly</h5>
+            </div>
+  
+            <div class="mt-3">
+              <h3 class="m-0 fw-bold">{{types['monthly']['price']}}</h3>
+              <p class="text-muted">per month</p>
+            </div>
+            
+            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Access to our premium plugins & features
+              </li>
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Early access
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title d-flex align-items-center justify-content-start gap-2">
+              <input type="radio" id="radio-b6a03dad42c2" style="height: 16px;width: 16px;vertical-align: middle;">
+              <h5>Yearly</h5>
+            </div>
+  
+            <div class="mt-3">
+              <h3 class="m-0 fw-bold">{{types['yearly']['price']}}</h3>
+              <p class="text-muted">per year</p>
+            </div>
+            
+            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Access to our premium plugins & features
+              </li>
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Early access
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title d-flex align-items-center justify-content-start gap-2">
+              <input type="radio" id="radio-3fbbafc6fe6c" style="height: 16px;width: 16px;vertical-align: middle;">
+              <h5>Lifetime</h5>
+            </div>
+
+            <div class="mt-3">
+              <h3 class="m-0 fw-bold">{{types['lifetime']['price']}}</h3>
+              <p class="text-muted">one time payment</p>
+            </div>
+
+            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Access to our premium plugins & features
+              </li>
+              <li class="d-flex align-items-center">
+                <i class="bi bi-check icon"></i>
+                Early access
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prem-btns d-flex gap-2 justify-content-center mt-3">
+      <button id="buy-now-btn" class="btn btn-premium">Continue to payment</button>
+    </div>
+
+    <section id="faq" class="pt-5">
+      <div class="section-title">
+        <h3 class="fw-bold">Frequently asked questions</h3>
+      </div>
+      
+      <div id="accordion" class="accordion mt-2">
+      </div>
+    </section>
+  </main>
+  
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    const cards = document.querySelectorAll('.card')
+    cards.forEach((card) => {
+      var inputRadio = card.querySelector('[id^="radio"]')
+      if (inputRadio.checked) {
+        card.closest('.card-wrapper').classList.add('active');
+      }
+      
+      card.addEventListener('click', (e) => {
+        var inputRadio = card.querySelector('[id^="radio"]')
+
+        // set the previous card back to default
+        cards.forEach((item) => {
+          var input = item.querySelector('[id^="radio"]');
+          if (input.checked) {
+            input.checked = false;
+            item.closest('.card-wrapper').classList.remove('active');
+          }
+        });
+
+        inputRadio.checked = !inputRadio.checked;
+        card.closest('.card-wrapper').classList.add('active');
+      })
+    })
+
+    const radios = document.querySelectorAll('[id^="radio"]')
+    radios.forEach((radio) => {
+      if (radio.checked) {
+        radio.checked = true;
+
+        const card = radio.closest('.card');
+        card.closest('.card-wrapper').classList.add('active');
+      }
+    })
+
+    
+    document.querySelector('#buy-now-btn').addEventListener('click', () => {
+      const radios = document.querySelectorAll('[id^="radio"]')
+
+      const types = {
+        '183585fe8d28': 'monthly',
+        'b6a03dad42c2': 'yearly',
+        '3fbbafc6fe6c': 'lifetime'
+      }
+      
+      radios.forEach((radio) => {
+        if (radio.checked) {
+          const typeID = radio.id.split('-')[1]
+          const type = types[typeID]
+
+          fetch(`/{{guild.id}}/stripe/pay/${type}`)
+            .then((result) => result.json())
+            .then((data) => {
+              var stripe = Stripe(data.checkout_public_key);
+              stripe.redirectToCheckout({
+                sessionId: data.checkout_session_id,
+              }).then(function (result) {
+                // If `redirectToCheckout` fails due to a browser or network
+                // error, display the localized error message to your customer
+                // using `result.error.message`.
+                console.error(result.error.message)
+              });
+            })
+          /**/
+        }
+      })
+    })
+
+    const faqs = JSON.parse('{{faqs | tojson}}')
+    for (let i = 0; i < faqs.length; i++) {
+      const accordion_item = document.createElement("div");
+      accordion_item.classList = "accordion-item";
+
+      const accordion_header = document.createElement("h2");
+      accordion_header.classList = "accordion-header";
+
+      const accordion_button = document.createElement("button");
+      accordion_button.type = "button";
+      accordion_button.classList = "accordion-button collapsed";
+      accordion_button.setAttribute("data-bs-toggle", "collapse");
+      accordion_button.setAttribute("data-bs-target", `#item-${i}`);
+
+      accordion_button.innerText = `${faqs[i].title}`;
+      accordion_header.appendChild(accordion_button);
+      accordion_item.appendChild(accordion_header);
+
+      const accordion_collapse = document.createElement("div");
+      accordion_collapse.id = `item-${i}`;
+      accordion_collapse.classList = "accordion-collapse collapse";
+
+      const accordion_body = document.createElement("div");
+      accordion_body.classList = "accordion-body";
+      accordion_body.innerText = `${faqs[i].desc}`;
+
+      accordion_collapse.appendChild(accordion_body);
+      accordion_item.appendChild(accordion_collapse);
+
+      document.querySelector("#accordion").appendChild(accordion_item);
+    }
+  </script>
+
+  <style>
+    /* .pagetitle {
+    } */
+    .pagetitle h1 {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .pagetitle p {
+      margin: 0;
+    }
+    
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(1, minmax(0, 1fr))!important;
+    }
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))!important;
+      }
+    }
+
+    .icon {
+      display: flex;
+      padding-right: 4px;
+      font-size: 24px;
+      color: green;
+    }
+
+    .card-wrapper {
+      padding: 2px;
+      border-radius: 0.375rem;
+    }
+    .card-wrapper.active {
+      background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
+    }
+    
+    .card {
+      --bs-card-color: var(--text-color);
+      --bs-card-bg: var(--color-secondary-4);
+    }
+    
+    .card-title {
+      display: flex;
+    }
+    .card-title h5 {
+      margin: 0;
+    }
+
+    .accordion {
+      --bs-accordion-color: var(--text-color);
+      --bs-accordion-bg: var(--color-secondary-4);
+      --bs-accordion-btn-bg: var(--color-secondary-4);
+      --bs-accordion-btn-color: var(--text-color);
+
+      --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+      --bs-accordion-btn-active-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e")
+    }
+    
+    .accordion-item {
+      border: 0;
+      border-top: 2px solid #ebeef4 !important;
+    }
+    .accordion-item:first-of-type {
+      border: 0;
+      border-top: 0px !important;
+    }
+
+    .accordion-button:focus {
+      outline: 0;
+      box-shadow: none;
+    }
+    .accordion-button:not(.collapsed) {
+      color: var(--text-color);
+      background-color: var(--color-secondary-4);
+      box-shadow: none;
+    }
+  </style>
+  
+  {% include 'components/PremiumModal.html' %}
+</body>
+</html>

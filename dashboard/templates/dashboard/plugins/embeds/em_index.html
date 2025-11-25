@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'embeds') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="emb-status" class="form-check-input" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="emb-status" class="form-check-input" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <a href="embeds/creation"><div class="title d-flex justify-content-between align-items-center">
+          <h2>New embed message</h2>
+          <div>
+            <i class="bi bi-plus-lg"></i>
+          </div>
+        </div></a>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Your embed messages</h2>
+        </div>
+        <hr>
+        
+        {% if data['embeds'] == [] %}
+        <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
+          <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 300px;">
+          <p class="m-0 mt-2">You have no embed messages yet.</p>
+        </div>
+        {% endif %}
+
+        {% for embed in data['embeds'] %}
+        <div>
+          
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    
+  </main>
+
+  <script>    
+    document.querySelector('#emb-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "verification.status": e.target.checked }),
+      });
+    })
+  </script>
+  
+</body>
+</html>

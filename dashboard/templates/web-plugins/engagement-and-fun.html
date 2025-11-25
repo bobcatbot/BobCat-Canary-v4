@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Plugin - Moderation | BobCat Bot</title>
+  {% include 'include/links.html' %}
+</head>
+<body class="web-plugin">
+  {% include 'components/Navbar.html' %}
+
+  <!-- ======= Hero Section ======= -->
+  <section id="hero-plugin" class="d-flex align-items-center">
+    <div class="container d-flex flex-column align-items-center justify-content-center" data-aos="fade-up">      
+      <h1>Things are better <br> with your friends</h1>
+      <!-- <h2></h2> -->
+    </div>
+  </section><!-- End Hero -->
+
+  <main id="main">
+
+    <!-- ======= Levelling Section ======= -->
+    <section id="levelling" class="" data-aos="fade-up">
+      <div class="container">
+        <div class="section-title">
+          <h2>Boost your server engagement with Leveling</h2>
+          <p>
+            Reward your members with XP points and keep track of the most active members on your customizable leaderboard.
+          </p>
+        </div>
+        <div class="d-flex justify-content-center" data-aos="fade-left">
+          <img src="{{ url_for('static', filename='img/features/2.png') }}" class="img-fluid image" alt="">
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= Economy Section ======= -->
+    <section id="welcome-members" class="" data-aos="fade-up">
+      <div class="container">
+        <div class="section-title">
+          <h2>Gamify your Discord server with BobCat's Economy </h2>
+          <p>
+            Create your own currency and items at the shop. Let your users work for some hard earned cash
+          </p>
+        </div>
+        <div class="d-flex justify-content-center" data-aos="fade-left">
+          <img src="{{ url_for('static', filename='img/features/3.png') }}" class="img-fluid image" alt="">
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= Engagement Section ======= -->
+    <section id="engagement" class="" data-aos="fade-up">
+      <div class="container">
+        <div class="section-title">
+          <h2>User Engagement</h2>
+          <p>
+            Use our starboard system to show off the funniest jokes of all time!
+          </p>
+        </div>
+        <div class="d-flex justify-content-center" data-aos="fade-left">
+          <img src="{{ url_for('static', filename='img/features/4.png') }}" class="img-fluid image" alt="">
+        </div>
+      </div>
+    </section><!-- End Engagement Section -->
+
+  </main><!-- End #main -->
+
+  {% include 'components/footer.html' %}
+  <div id="preloader"></div>
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+</body>
+</html>
+
+<style>
+  .image {
+    width: 50%;
+  }
+  @media (max-width: 992px) {
+    .image {
+      width: 100%;
+    }
+  }
+</style>

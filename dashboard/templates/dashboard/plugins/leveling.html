@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'leveling') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="level-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="level-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Leaderboard</h2>
+          <p>View your servers leaderboard</p>
+        </div>
+        
+        <hr>
+        <div class="mt-2 d-flex gap-1 justify-content-between align-items-center">
+          <label for="lbStatus" class="title">
+            <h5 class="m-0 " style="font-size: 1.125rem;font-weight: 700;">Make my server's leaderboard public</h5>
+            <p class="m-0">Anyone can view your server's leaderboard by visiting the link.</p>
+          </label>
+          <div class="form-switch ps-0">
+            {% if data['leaderboard']['public'] == True %}
+            <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status" checked>
+            {% else %}
+            <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status">
+            {% endif %}
+          </div>
+        </div>
+        <div class="mt-2">
+          <label for="lbLink" class="fw-bold">URL</label><br>
+          <div class="d-flex gap-2">
+            <input type="text" id="lbLink" name="lbLink" class="text-input" value="/leaderboard/{{data.leaderboard.url if data.leaderboard.url != '' else guild.id}}" disabled readonly />
+            <a id="lbLinka" class="btn d-flex align-items-center" href="/leaderboard/{{data.leaderboard.url if data.leaderboard.url != '' else guild.id}}" variant="secondary" target="_blank">
+              <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="mt-2">
+          <label for="lbBanner" class="fw-bold">Banner</label><br>
+          <input type="text" id="lbBanner" name="lbBanner" class="text-input" value="{{data.leaderboard.banner if data.leaderboard.banner!= '' else guild.banner.url}}" />
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Leveling Up</h2>
+          <p>Whenever the user gains a level, BobCat can send a message.</p>
+        </div>
+        
+        <hr>
+        <div>
+          <div class="level-anno-wrapper single">
+            <p class="mb-1">Level up announcement</p>
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                <div class="option" data-value="disabled">Disabled</div>
+                <div class="option" data-value="current">Current Channel</div>
+                <div class="option" data-value="dm">Private Message</div>
+                <div class="option" data-value="custom">Custom Channel</div>
+              </div>
+            </div>
+          </div>
+          <div class="level-chan-wrapper single" style="margin-top: 0.5rem;display: none;">
+            <p class="mb-1">Announcement Channel</p>
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for channel in guild_models(guild).channels.text %}
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}" data-can-send="{{channel.can_send}}">{{channel.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <div class="d-flex gap-2 align-items-center mb-2">
+            <p class="mb-0">Level Up Announcement Message</p>
+            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
+              <i class="bi bi-info-circle" ></i>
+            </button>
+          </div>
+          <textarea id="LevelAnnoMsg" class="text-input" name="LevelAnnoMsg"></textarea>
+          <script>document.querySelector('#LevelAnnoMsg').value = "{{data['message']['content']}}"</script>
+        </div>
+        
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Server rank card</h2>
+          <p>Whenever the user gains a level, BobCat can send a message.</p>
+        </div>
+        
+        <hr>
+        <svg viewBox="0 0 483 161" xmlns="http://www.w3.org/2000/svg" style="max-width: 483px;">
+          <image id="RankCardImg" xlink:href="{{ url_for('static', filename='lvl-cards/' + data.card) }}" x="0" y="0" width="100%" height="161px" preserveAspectRatio="xMidYMid slice" />
+          <image xlink:href="{{user.avatar_url}}" x="0.7%" y="7%" width="20%" />
+          <text x="22%" y="13%" fill="#fff" font-size="32" dominant-baseline="hanging">dinotech_</text>
+          <rect x="22%" y="34%" width="240px" height="2" rx="0" ry="0" fill="#fff" />
+          <text x="22%" y="53%" fill="#fff" class="mb-0">Level</text>
+          <text x="30.5%" y="53%" fill="#fff" class="mb-0">1</text>
+          <text x="34.4%" y="53%" fill="#fff" class="mb-0">XP</text>
+          <text x="39.5%" y="53%" fill="#fff" class="mb-0">1 / 40</text>
+          <rect x="3%" y="77%" width="76%" height="20px" rx="10" ry="10" fill="#fff" />
+        </svg>
+        
+        <div>
+          <button class="mt-2 btn btn-blurple" data-bs-toggle="modal" data-bs-target="#ServerCard">Edit server card</button>
+          
+          <div class="modal dark fade" id="ServerCard">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h1 class="modal-title fs-5" id="staticBackdropLabel">Edit Rank Card</h1>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="position-relative">
+                    <img id="RankCardPrev" src="{{ url_for('static', filename='lvl-cards/' + data.card) }}" style="max-width: 465px;">
+                    <img src="{{user.avatar_url}}" style="position: absolute;top: 12px;left: 12px;max-width: 100px;border-radius: 100%;">
+                    <p class="mb-0" style="position: absolute;top: 10px;left: 125px;font-size: 32px;margin: 0;">{{user.username}}</p>
+                    <div class="d-flex gap-1" style="position: absolute;top: 50px;left: 130px;">
+                      <p class="mb-0">Level</p>
+                      <p class="mb-0">1</p>
+                    </div>
+                    <div class="d-flex gap-1" style="position: absolute;top: 50px;left: 195px;">
+                      <p class="mb-0">XP</p>
+                      <p class="mb-0">1 / 40</p>
+                    </div>
+                    <div style="position: absolute;bottom: 14px;left: 20px;width: 350px;height: 20px;background: #fff;border-radius: 20px;max-width: 425px;"></div>
+                  </div>
+                  
+                  <div class="mt-2">
+                    <p class="m-0 mb-1">Colors</p>
+                    <div class="d-flex flex-wrap color-wrapper" style="gap: 6px;">
+                      {% for img in server_cards['default'] %}
+                      <input type="radio" class="rank-color-card" name="rank-color-card" style="--color: {{img.bar_fill}}" data-card="{{img.card}}">
+                      {% endfor %}
+                    </div>
+                  </div>
+
+                  <div class="mt-2">
+                    <p class="m-0 mb-1">Picture Backgrounds</p>
+                    <div class="d-flex flex-wrap" style="gap: 4px;max-height: 290px;overflow: auto;">
+                      {% for img in server_cards['cards'] %}
+                      <img class="rank-img-card" src="{{ url_for('static', filename='lvl-cards/' + img.card) }}" data-card="{{img.card}}" style="width: 140px;">
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="button" id="RankCardSave" class="btn btn-blurple" data-bs-dismiss="modal">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Role Rewards</h2>
+          <p>Role Rewards are given to users when they hit the respective level.</p>
+          <p>when checked users can have multiple rewards at once but the highest reward will be given. when unchecked only the highest reward will be given and the previous rewards will be removed</p>
+        </div>
+        
+        <hr>
+        <div>
+          <div class="form-check ms-0 mb-1">
+            {% if data.roleRewards.stacked == True %}
+            <input type="radio" id="role-reward-stacked1" name="RoleRewardStacked" class="form-check-input me-2" checked>
+            {% else %}
+            <input type="radio" id="role-reward-stacked1" name="RoleRewardStacked" class="form-check-input me-2">
+            {% endif %}
+            <label for="role-reward-stacked1">Stack rewards</label>
+            <p class="m-0" style="color: #9195ab;font-size: 14px;">Users can have multiple rewards at once</p>
+          </div>
+          <div class="form-check ms-0">
+            {% if data.roleRewards.stacked == False %}
+            <input type="radio" id="role-reward-stacked2" name="RoleRewardStacked" class="form-check-input me-2" checked>
+            {% else %}
+            <input type="radio" id="role-reward-stacked2" name="RoleRewardStacked" class="form-check-input me-2">
+            {% endif %}
+            <label for="role-reward-stacked2">Remove rewards</label>
+            <p class="m-0" style="color: #9195ab;font-size: 14px;">Users can only have the highest reward</p>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <hr>
+          <div class="d-flex justify-content-end mb-2">
+            <button type="button" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#RoleRewardAddModal">
+              <i class="bi bi-plus-lg"></i>
+              Add Role Reward
+            </button>
+          </div>
+          <!-- table -->
+          <table class="tablee">
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Role</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="RoleRewardTableBody">
+              {% for role in data.roleRewards.roles %}
+              <tr data-role-id="{{role.id}}">
+                <td>{{role.level}}</td>
+                <td>{{role.name}}</td>
+                <td class="text-end">
+                  <button type="button" id="RoleRewardEdit" class="btn btn-blurple" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" id="RoleRewardDelete" class="btn btn-danger" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>XP Options & Modifiers</h2>
+          <p>Customize the XP system.</p>
+        </div>
+        
+        <hr>
+        <div>
+          <div>
+            <label for="xp_cooldown">Cooldown (Seconds)</label><br>
+            <input type="number" id="xp_cooldown" class="text-input" name="" pattern="[0-9]+" inputmode="numeric" min="60" value="{{data.cooldown}}" />
+          </div>
+          <div class="mt-2">
+            <label for="xp_max_level">Max level</label><br>
+            <input type="number" id="xp_max_level" class="text-input" name="" pattern="[0-9]+" inputmode="numeric" min="1" value="{{data.max_level}}" />
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <div>
+            <div class="mb-1 title">
+              <h2 class="fs-6">No XP Channels</h2>
+              <p>Prevent your members from gaining XP if they send messages in certain text channels.</p>
+            </div>
+            <div class="NoXpChans-select-wrapper multiple">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                    <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card  d-flex gap-1 justify-content-between align-items-center">
+        <div class="title">
+          <h2>Auto reset</h2>
+          <p>Should the bot reset user's level and XP if they leave the server?</p>
+        </div>
+        <div class="form-switch ps-0">
+          {% if data['auto_reset'] == True %}
+          <input type="checkbox" id="level-auto-reset" class="form-check-input ms-0" role="switch" checked>
+          {% else %}
+          <input type="checkbox" id="level-auto-reset" class="form-check-input ms-0" role="switch">
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card  d-flex gap-1 justify-content-between align-items-center">
+        <div class="title">
+          <h2>Economy integration</h2>
+          <p>Each time a user sends a message or levels up they gain coins.</p>
+        </div>
+        <div class="form-switch ps-0">
+          {% if data['economy'] == True %}
+          <input type="checkbox" id="level-eco-status" class="form-check-input ms-0" role="switch" checked>
+          {% else %}
+          <input type="checkbox" id="level-eco-status" class="form-check-input ms-0" role="switch">
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="modal dark" id="RoleRewardAddModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Add a new role reward</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-start">
+            <div>
+              <label for="level">Level</label>
+              <input type="number" id="level" class="num-input" min="1" value="1">
+            </div>
+            <div class="mt-2">
+              <label for="role">Role</label><br>
+              <select id="role" class="select" name="role">
+                {% for role in guild_models(guild).roles %}
+                  <option value="{{role.id}}">{{role.name}}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="RoleRewardSave" class="btn btn-blurple">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal dark" id="RoleRewardEditModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Edit a new role reward</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-start">
+            <div>
+              <label for="level">Level</label>
+              <input type="number" id="modal-level" class="num-input" min="1" value="1">
+            </div>
+            <div class="mt-2">
+              <label for="role">Role</label><br>
+              <select id="modal-role" class="select" name="role">
+                {% for role in guild_models(guild).roles %}
+                  <option value="{{role.id}}">{{role.name}}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="RoleRewardEditSave" class="btn btn-blurple">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% include 'components/variables.html' %}
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    :root {
+      --color: #ffffff;
+    }
+
+    .rank-img-card {
+      border: 3px solid transparent;
+    }
+    .rank-img-card.selected {
+      border-color: #5ca0e8;
+      border-radius: 8px;
+    }
+    
+    .color-wrapper {
+      width: fit-content;
+      padding: 14px;
+      background: var(--color-secondary-4);
+      border-radius: 12px;
+    }
+
+    input[type="radio"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--color);
+      outline: 2px solid transparent;
+      border-radius: 50%;
+    }
+
+    input[type="radio"]:checked {
+      outline-color: var(--color);
+      outline-offset: 1px;
+    }
+
+    .tablee {
+      width: 100%;
+      background: #181a20;
+      color: var(--text-color);
+      border-color: transparent;
+    }
+        
+    .tablee tr th {
+      font-size: 16px;
+      line-height: 19px;
+      padding: 14px;
+      border-bottom: #2d3343 solid 2px;
+    }
+    .tablee tr {
+      background-color: #181a20;
+      border-bottom: #2d3343 solid 2px;
+    }
+    .tablee tr:last-child {
+      border-bottom: transparent solid 2px;
+    }
+    .tablee > tbody > tr > td {
+      vertical-align: middle;
+      padding: 14px;
+    }
+  </style>
+
+  <script>
+    new Select('.level-anno-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['message']['status']}}"]
+    });
+    new Select('.level-chan-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['channel']}}"]
+    });
+
+    new Select('.NoXpChans-select-wrapper.multiple', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: true,
+      maxItems: 0,
+      removeBtn: true,
+      options: JSON.parse(`{{data['noXP'] | tojson}}`)
+    });
+    
+    document.querySelector('#level-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "leveling.status": e.target.checked }),
+      });
+    })
+
+    /* Leaderboard */
+    document.querySelector('#lbStatus').addEventListener('change', (e) => {
+      var val = e.target.checked;
+
+      show_toast("leveling.leaderboard.public", "{{data['leaderboard']['public']}}", val)
+    })
+    document.querySelector('#lbLink').addEventListener('change', (e) => {
+      var val = e.target.value.split('/').pop()
+      
+      if (val == '') {
+        val = '{{guild.id}}'
+        e.target.value = `/leaderboard/${val}`
+        document.querySelector('#lbLinka').href = `/leaderboard/${val}`
+      } else {
+        e.target.value = `/leaderboard/${val}`
+        document.querySelector('#lbLinka').href = `/leaderboard/${val}`
+      }
+
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "leveling.leaderboard.url": val }),
+      });
+    })
+    document.querySelector('#lbBanner').addEventListener('change', (e) => {
+      var val = e.target.value;
+      
+      if (val == '') {
+        val = '{{guild.banner.url}}'
+        e.target.value = val
+      } else {
+        e.target.value = val
+      }
+
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "leveling.leaderboard.banner": val }),
+      });
+    })
+
+    /* Level announcement */
+    const levelAnnoWrapper = document.querySelector('.level-anno-wrapper.single');
+    levelAnnoWrapper.addEventListener('select:update', (event) => {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'current'
+
+      if (option == 'custom') {
+        document.querySelector('.level-chan-wrapper.single').style.display = 'block'
+      } else {
+        document.querySelector('.level-chan-wrapper.single').style.display = 'none'
+      }
+      
+      show_toast("leveling.message.status", "{{data['message']['status']}}", option)
+    });
+
+    /* Level channel */
+    const levelChanWrapper = document.querySelector('.level-chan-wrapper.single');
+    if (levelChanWrapper) {
+      levelChanWrapper.addEventListener('select:update', function (event) {
+        const selectedOptions = event.detail.selectedOptions;
+        const option = selectedOptions[0] ? selectedOptions[0] : null
+        
+        show_toast("leveling.channel", "{{data['channel']}}", option)
+      });
+    }
+
+    /* Level Announcement message */
+    document.querySelector('#LevelAnnoMsg').addEventListener('input', (e) => {
+      var val = e.target.value;
+      
+      show_toast("leveling.message.content", `{{data['message']['content']}}`, val)
+    })
+
+    /* Sever rank card */
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.rank-color-card').forEach((card) => {
+        if (card.dataset.card == "{{data['card']}}") {
+          card.checked = true
+          card.classList.add('selected')
+        }
+      })
+
+      document.querySelectorAll('.rank-img-card').forEach((card) => {
+        if (card.dataset.card == "{{data['card']}}") {
+          card.classList.add('selected')
+        }
+      })
+    })
+    document.querySelectorAll('.rank-color-card').forEach((card) => {
+      card.addEventListener('change', (e) => {
+        document.querySelectorAll('.rank-img-card').forEach((prevCard) => {
+          prevCard.classList.remove('selected')
+        });
+        document.querySelectorAll('.rank-color-card').forEach((prevCard) => {
+          prevCard.checked = false
+          prevCard.classList.remove('selected')
+        });
+        card.checked = true
+        card.classList.add('selected')
+
+        var data = e.target.dataset.card
+        document.querySelector('#RankCardPrev').src = `/static/lvl-cards/${data}`
+      })
+    })
+    document.querySelectorAll('.rank-img-card').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        document.querySelectorAll('.rank-color-card').forEach((prevCard) => {
+          prevCard.checked = false
+          prevCard.classList.remove('selected')
+        });
+        document.querySelectorAll('.rank-img-card').forEach((prevCard) => {
+          prevCard.classList.remove('selected')
+        });
+        card.classList.add('selected')
+
+        var data = e.target.dataset.card
+        document.querySelector('#RankCardPrev').src = `/static/lvl-cards/${data}`
+      })
+    })
+    document.querySelector('#RankCardSave').addEventListener('click', (e) => {
+      const rankCardImg = document.querySelector('#RankCardImg')
+      rankCardImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', document.querySelector('#RankCardPrev').src)
+
+      var card = document.querySelector('.rank-color-card.selected, .rank-img-card.selected').dataset.card
+      
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "leveling.card": card }),
+      });
+    })
+
+    /* Role rewards */
+    const stackedInput = document.querySelector('#role-reward-stacked1');
+    const removedInput = document.querySelector('#role-reward-stacked2');
+
+    // Attach event to both
+    stackedInput.addEventListener('change', () => {
+      if (stackedInput.checked) {
+        show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", true);
+      }
+    });
+
+    removedInput.addEventListener('change', () => {
+      if (removedInput.checked) {
+        show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", false);
+      }
+    });
+
+    var save_rr_btn = document.querySelector('#RoleRewardSave')
+    save_rr_btn.addEventListener('click', (e) => {
+      var level = document.querySelector('#level').value
+      var roleID = document.querySelector('#role').value
+      var role = document.querySelector(`#role option[value="${roleID}"]`).innerHTML
+
+      // close modal
+      var modal = bootstrap.Modal.getInstance('#RoleRewardAddModal')
+      modal.hide()
+
+      // add to table
+      var table = document.querySelector('#RoleRewardTableBody')
+      var row = document.createElement('tr')
+      row.setAttribute('data-role-id', roleID)
+      row.innerHTML = `
+        <td>${level}</td>
+        <td>${role}</td>
+        <td class="text-end">
+          <button type="button" id="RoleRewardEdit" class="btn btn-blurple" title="Edit">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button type="button" id="RoleRewardDelete" class="btn btn-danger" title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      `
+      table.appendChild(row)
+      
+      // save data
+      roles = []
+      for (var i=0; i < table.children.length; i++) {
+        roles.push({
+          "id": table.children[i].dataset.roleId,
+          "name": table.children[i].children[1].innerHTML,
+          "level": table.children[i].children[0].innerHTML,
+        })
+      }
+
+      show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", roles)
+
+      editRoleReward()
+      deleteRoleReward()
+    })
+
+    // edit
+    function editRoleReward() {
+      var rrEditModal = document.querySelector('#RoleRewardEditModal')
+
+      var rr_edit_btns = document.querySelectorAll('#RoleRewardEdit')
+      rr_edit_btns.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          var roleID = e.target.closest('tr').dataset.roleId
+
+          document.querySelector('#modal-level').value = e.target.closest('tr').children[0].innerHTML
+          document.querySelector('#modal-role').value = roleID
+
+          // open modal
+          var modal = bootstrap.Modal.getOrCreateInstance('#RoleRewardEditModal')
+          modal.show()
+        })
+      })
+
+      var save_rr_edit_btn = document.querySelector('#RoleRewardEditSave')
+      save_rr_edit_btn.addEventListener('click', (e) => {
+        var level = document.querySelector('#modal-level').value
+        var roleID = document.querySelector('#modal-role').value
+        var role = document.querySelector(`#modal-role option[value="${roleID}"]`).innerHTML
+
+        // close modal
+        var modal = bootstrap.Modal.getInstance('#RoleRewardEditModal')
+        modal.hide()
+
+        // edit table
+        var table = document.querySelector('#RoleRewardTableBody')
+        var row = table.querySelector(`tr[data-role-id="${roleID}"]`)
+        row.children[0].innerHTML = level
+        row.children[1].innerHTML = role
+
+        // save data
+        roles = []
+        for (var i=0; i < table.children.length; i++) {
+          roles.push({
+            "id": table.children[i].dataset.roleId,
+            "name": table.children[i].children[1].innerHTML,
+            "level": table.children[i].children[0].innerHTML,
+          })
+        }
+        
+        show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", roles)
+      })
+    }
+    editRoleReward()
+
+    // delete
+    function deleteRoleReward() {
+      var rr_delete_btns = document.querySelectorAll('#RoleRewardDelete')
+      rr_delete_btns.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          var roleID = e.target.closest('tr').dataset.roleId
+          var role = document.querySelector(`#role option[value="${roleID}"]`).innerHTML
+          var level = e.target.closest('tr').children[0].innerHTML
+
+          // remove from table
+          var table = document.querySelector('#RoleRewardTableBody')
+          e.target.closest('tr').remove()
+          
+          // save data
+          roles = []
+          for (var i=0; i < table.children.length; i++) {
+            roles.push({
+              "id": table.children[i].dataset.roleId,
+              "name": table.children[i].children[1].innerHTML,
+              "level": table.children[i].children[0].innerHTML,
+            })
+          }
+          
+          show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", roles)
+        })
+      })
+    }
+    deleteRoleReward()
+
+    /* XP Options */
+    document.querySelector('#xp_cooldown').addEventListener('input', (e) => {
+      var val = e.target.value;
+      
+      show_toast("leveling.cooldown", "{{data['cooldown']}}", val)
+    })
+
+    document.querySelector('#xp_max_level').addEventListener('input', (e) => {
+      var val = e.target.value;
+      
+      show_toast("leveling.max_level", "{{data['max_level']}}", val)
+    })
+
+    // No XP channels
+    const NoXpChansSelectWrapper = document.querySelector('.NoXpChans-select-wrapper.multiple');
+    NoXpChansSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+
+      console.log(selectedOptions)
+    });
+
+    /* Auto reset */
+    document.querySelector('#level-auto-reset').addEventListener('change', (e) => {
+      var val = e.target.checked;
+      
+      show_toast("leveling.auto_reset", "{{data['auto_reset']}}", val)
+    })
+
+    /* Economy integration */
+    document.querySelector('#level-eco-status').addEventListener('change', (e) => {
+      var val = e.target.checked;
+      
+      show_toast("leveling.economy", "{{data['economy']}}", val)
+    })
+  </script>
+
+</body>
+</html>

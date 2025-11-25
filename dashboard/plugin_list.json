@@ -1,0 +1,127 @@
+{
+  "welcome": {
+    "title": "Welcome & Goodbye",
+    "description": "Automatically send messages and give roles to your new members and send a message when a members leaves your server",
+    "db_key": "welcome",
+    "icon": "waving_hand",
+    "url": "welcome",
+    "badge": "",
+    "category": "management",
+    "premium": false,
+    "status": false
+  },
+  "moderation": {
+    "title": "Moderator",
+    "description": "Keep your server safe with auto-moderation & empower your mods with powerful moderation tools",
+    "db_key": "moderation",
+    "icon": "construction",
+    "url": "moderator",
+    "badge": "",
+    "category": "management",
+    "premium": false,
+    "status": false
+  },
+  "verification": {
+    "title": "Verification",
+    "description": "Verification gate that your new members need to pass in order to get access to your server.",
+    "db_key": "verification",
+    "icon": "verified_user",
+    "url": "verification",
+    "badge": "",
+    "category": "management",
+    "premium": false,
+    "status": false
+  },
+  "starboard": {
+    "title": "Starboard",
+    "description": "Allows users to react to a message with ⭐️ and send the message to a channel",
+    "db_key": "starboard",
+    "icon": "star",
+    "url": "starboard",
+    "badge": "",
+    "category": "utilities",
+    "premium": false,
+    "status": false
+  },
+  "forms": {
+    "title": "Forms",
+    "description": "Create forms or applications",
+    "db_key": "forms",
+    "icon": "description",
+    "url": "forms",
+    "badge": "beta",
+    "category": "utilities",
+    "premium": false,
+    "status": false,
+    "max": 5
+  },
+  "temporary_channels": {
+    "title": "Temporary Channels",
+    "description": "Allow your members to create temporary voice channels in one click in your server",
+    "db_key": "temporary_channels",
+    "icon": "campaign",
+    "url": "temporary-channels",
+    "badge": "prem",
+    "category": "utilities",
+    "premium": true,
+    "status": false,
+    "max": 5
+  },
+  "ticketing": {
+    "title": "Ticketing",
+    "description": "Allow your members to submit tickets for support, reports and requests.",
+    "db_key": "ticketing",
+    "icon": "forum",
+    "url": "ticketing",
+    "badge": "beta",
+    "category": "utilities",
+    "premium": true,
+    "status": false,
+    "max": 5
+  },
+  "leveling": {
+    "title": "Leveling",
+    "description": "Give your members XP and Levels when they send messages",
+    "db_key": "leveling",
+    "icon": "emoji_events",
+    "url": "leveling",
+    "badge": "",
+    "category": "fun",
+    "premium": false,
+    "status": false
+  },
+  "birthdays": { 
+    "title": "Birthdays",
+    "description": "Track your members birthdays and wish them a happy birthday",
+    "db_key": "birthdays",
+    "icon": "cake",
+    "url": "birthdays",
+    "badge": "beta",
+    "category": "fun",
+    "premium": false,
+    "status": false
+  },
+  "giveaway": { 
+    "title": "Giveaways",
+    "description": "Launch giveaways and lotteries in your server in one click",
+    "db_key": "giveaway",
+    "icon": "casino",
+    "url": "giveaways",
+    "badge": "beta",
+    "category": "fun",
+    "premium": false,
+    "status": false,
+    "max": 100
+  },
+  "economy": {
+    "title": "Economy",
+    "description": "Players can gain coins everyday. Players can stake their coins in games. Use your coins to buy items from the shop",
+    "db_key": "economy",
+    "icon": "account_balance",
+    "url": "economy",
+    "badge": "",
+    "category": "fun",
+    "premium": false,
+    "status": false
+  }
+}

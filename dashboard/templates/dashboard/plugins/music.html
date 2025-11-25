@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>Music</h1>
+        <p class="m-0">Add music to your server</p>
+      </div>
+      <div class="form-switch">
+        <input type="checkbox" id="birthday-status" class="form-check-input" name="plugin-status" role="switch">
+      </div>
+    </div>
+  </main>
+
+  <script>
+    
+  </script>
+
+  <style>
+    #searchInput {
+      padding: 10px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    #dropdown {
+      width: 90%;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #dropdown option {
+      padding: 5px;
+      cursor: pointer;
+    }
+  </style>
+</body>
+</html>

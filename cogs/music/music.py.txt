@@ -1,0 +1,382 @@
+import discord
+import mafic
+import asyncio
+import datetime
+from discord.ext import commands
+from modules import bot as v
+
+DISCONNECT = "<:disconnect:1141039007774539907>"
+QUEUE = "<:menu:1141038966712311930>"
+LINK = "🔗"
+PLAY = "▶"
+PAUSE = "⏸"
+SKIPNEXT = "⏭"
+SKIPBACK = "⏮"
+VOLUMEDOWN = "🔉"
+VOLUMEUP = "🔊"
+
+VOLUME = 100
+
+class MusicPlayer:
+    def __init__(self, player):
+        self.player: mafic.Player = player
+        self.playing = False
+        self.volume = VOLUME # Stored as 0-100
+        self.queue: asyncio.Queue = asyncio.Queue()
+
+    @property
+    def voice_client(self):
+        return self.player
+    
+    @property
+    def current(self):
+        return self.player.current
+    
+    def clear_queue(self):
+        self.queue._queue.clear()
+    
+    async def add_track(self, track: mafic.Track):
+        await self.queue.put(track)
+        if not self.playing:
+            await self.play_next()
+    
+    async def play_next(self) -> mafic.Track | None:
+        if self.queue.empty():
+            self.playing = False
+            return
+        self.playing = True
+        track = await self.queue.get()
+        await self.player.play(track)
+
+        return track
+
+    async def on_track_end(self):
+        await self.play_next()
+
+class ControlPanel(discord.ui.View):
+    def __init__(self, vc, player, ctx):
+        super().__init__()
+        self.vc: mafic.Player = vc
+        self.player: MusicPlayer = player
+        self.ctx: commands.Context = ctx
+
+        self.music_cog = ctx.bot.get_cog("MusicMain")
+
+    @discord.ui.button(emoji=LINK, style=discord.ButtonStyle.blurple, custom_id="link", row=0)
+    async def link(self, button: discord.ui.Button, interaction: discord.Interaction):
+        player = self.player
+
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        url = player.current.uri
+        await interaction.response.send_message(f"{url}", ephemeral=True)
+
+    @discord.ui.button(emoji=SKIPBACK, style=discord.ButtonStyle.gray, custom_id="skipback", row=0, disabled=True)
+    async def skip_previs(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        if self.player.queue.empty():
+            return await interaction.response.send_message("the queue is empty smh", ephemeral=True)
+
+        try:
+            next_song = self.player.queue.get()
+            await self.vc.play(next_song)
+            await interaction.message.edit(content=f"Now Playing `{next_song}`", view=self)
+        except Exception:
+            return await interaction.response.send_message("The queue is empty!", ephemeral=True)
+    
+    @discord.ui.button(emoji=PAUSE, style=discord.ButtonStyle.gray, custom_id="play_pause", row=0)
+    async def resume_and_pause(self, button: discord.ui.Button, interaction: discord.Interaction):
+        player = self.player.player
+        ctx = self.ctx
+
+        if interaction.user != ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        if not player.paused:
+            await player.pause()
+
+            button.emoji = PLAY
+        else:
+            await player.resume()
+
+            button.emoji = PAUSE
+        
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.button(emoji=SKIPNEXT, style=discord.ButtonStyle.gray, custom_id="skipnext", row=0, disabled=True)
+    async def skip_next(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. Run the command yourself to use these buttons.", ephemeral=True)
+
+        if self.player.queue.empty():
+            return await interaction.response.send_message("The queue is empty smh", ephemeral=True)
+
+        # Uses your custom play_next
+        next_song = await self.player.queue.get()
+
+        print(f"Skipping to next song: {next_song.title}")
+
+        await self.player.player.play(next_song)
+
+        # Format time
+        song_length = str(datetime.timedelta(seconds=next_song.length / 1000))
+        if song_length.startswith("0:"):
+            song_length = song_length[2:]
+
+        embed = discord.Embed(
+            title=next_song.title,
+            description=next_song.author,
+            url=next_song.uri,
+            color=discord.Color.blurple()
+        )
+        embed.set_thumbnail(url=next_song.artwork_url)
+        embed.add_field(name="Duration", value=f"`{song_length}`")
+        embed.set_footer(text=f"Requested by {self.ctx.author}", icon_url=self.ctx.author.display_avatar.url)
+
+        # Disable if queue is now empty
+        for child in self.children:
+            if child.custom_id == "skipnext":
+                child.disabled = self.player.queue.empty()
+
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(emoji=QUEUE, style=discord.ButtonStyle.blurple, custom_id="queue", row=0)
+    async def queue(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        if self.player.queue.empty():
+            return await interaction.response.send_message("the queue is empty smh", ephemeral=True)
+    
+        em = discord.Embed(title="Queue")
+        queue: list[mafic.Track] = self.player.queue._queue
+
+        for index, song in enumerate(queue, start=1):
+            em.add_field(name=f"#{index}", value=f"`{song.title}`", inline=False)
+
+        await interaction.response.send_message(embed=em, ephemeral=True)
+
+    @discord.ui.button(label=f"-", style=discord.ButtonStyle.gray, custom_id="blank", row=1, disabled=True)
+    async def blank_btn(self, button: discord.ui.Button, interaction: discord.Interaction):
+        ...
+
+    @discord.ui.button(emoji=VOLUMEDOWN, style=discord.ButtonStyle.green, custom_id="volume_down", row=1)
+    async def volume_down(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        self.player.volume = max(self.player.volume - 10, 0)
+
+        await self.player.player.set_volume(self.player.volume)
+
+        for child in self.children:
+            if child.custom_id != "volume_display":
+                continue
+            
+            child.label = str(self.player.volume)
+
+            child.disabled = self.player.volume <= 0
+
+            # Update the volume up button
+            if child.custom_id == "volume_up":
+                child.disabled = self.player.volume >= 100
+        
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.button(label=f"{VOLUME}", style=discord.ButtonStyle.gray, custom_id="volume_display", row=1, disabled=True)
+    async def volume_display(self, button: discord.ui.Button, interaction: discord.Interaction):
+        ...
+
+    @discord.ui.button(emoji=VOLUMEUP, style=discord.ButtonStyle.green, custom_id="volume_up", row=1, disabled=VOLUME >= 100)
+    async def volume_up(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        self.player.volume = max(self.player.volume + 10, 0)
+
+        await self.player.player.set_volume(self.player.volume)
+
+        for child in self.children:
+            if child.custom_id != "volume_display":
+                continue
+            
+            child.label = str(self.player.volume)
+
+            child.disabled = self.player.volume >= 100
+
+            # Update the volume down button
+            if child.custom_id == "volume_down":
+                child.disabled = self.player.volume <= 0
+        
+        await interaction.response.edit_message(view=self)
+    
+    @discord.ui.button(emoji=DISCONNECT, style=discord.ButtonStyle.red, custom_id="disconnect", row=1)
+    async def disconnect(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("You can't do that. run the command yourself to use these buttons", ephemeral=True)
+        
+        await self.ctx.voice_client.disconnect()
+
+        # Clear queue
+        self.player.queue._queue.clear()
+
+        # Remove MusicPlayer from memory
+        guild_id = self.ctx.guild.id
+        if guild_id in self.music_cog.players:
+            del self.music_cog.players[guild_id]
+
+        embed = discord.Embed(
+            title="Destroyed the player and left the voice channel"
+        )
+        await interaction.message.edit(embed=embed, view=None)
+
+class MusicMain(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+        self.players: dict[int, MusicPlayer] = {}
+
+    async def add_nodes(self):
+        await mafic.NodePool(self.client).create_node(
+            host='lavalinkv3-id.serenetia.com',
+            port=443,
+            password='https://dsc.gg/ajidevserver',
+            secure=True,
+            label='BobCatLavalink',
+        )
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.add_nodes()
+
+    @commands.Cog.listener()
+    async def on_node_ready(self, node: mafic.Node):
+        print(f"Node {node.label} is ready.")
+
+    @commands.Cog.listener()
+    async def on_track_end(self, event: mafic.TrackEndEvent):
+        player = event.player
+        reason = event.reason
+
+        music_player = self.players.get(player.guild.id)
+        if not music_player:
+            return
+
+        if reason == mafic.EndReason.REPLACED:
+            return # A track was skipped manually
+        
+        if reason == mafic.EndReason.FINISHED:
+            await music_player.on_track_end()
+
+        print(f"Track ended {player.guild.name} with reason {reason}")
+    
+    @commands.command(name='play', aliases=['p'])
+    async def play(self, ctx: commands.Context, *, search: str=None):
+        if not search:
+            return await ctx.send("You must provide a search query.")
+
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            return await ctx.send("You must be connected to a voice channel to use this command.")
+
+        player = ctx.voice_client
+        if not player:
+            player = await ctx.author.voice.channel.connect(cls=mafic.Player)
+
+        if ctx.guild.id not in self.players:
+            self.players[ctx.guild.id] = MusicPlayer(player)
+
+        music_player = self.players[ctx.guild.id]
+        tracks = await player.fetch_tracks(search)
+        if not tracks:
+            return await ctx.send("No tracks found.")
+        
+        song = tracks[0]
+
+        # Play first track immediately if nothing is playing
+        if not music_player.playing:
+            music_player.volume = VOLUME # Convert to 0-100 scale
+            await music_player.player.set_volume(music_player.volume)
+            
+            await music_player.queue.put(song)
+            await music_player.play_next()
+            
+            song_length = str(datetime.timedelta(seconds=song.length / 1000)) # milliseconds to seconds then convert to hh:mm:ss
+            if song_length.startswith("0:"):
+                song_length = song_length[2:]
+            
+            embed = discord.Embed(
+                title=f"{song.title}",
+                description=f"{song.author}",
+                url=song.uri
+            )
+            embed.set_thumbnail(url=song.artwork_url)
+            embed.add_field(name="Duration", value=f"`{song_length}`")
+            embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+
+            self.control: discord.ui.View = ControlPanel(player, music_player, ctx)
+            self.message: discord.Message = await ctx.send(embed=embed, view=self.control)
+        else:
+            await music_player.queue.put(song)
+            
+            for child in self.control.children:
+                if child.custom_id == "skipnext":
+                    child.disabled = False
+            await self.message.edit(view=self.control)
+            
+            em = discord.Embed(
+                title=f"Queued at position #{len(music_player.queue._queue)}",
+                description=f"[{song.title}]({song.uri}) by **{song.author}**"
+            )
+            await ctx.send(embed=em)
+                   
+        player.ctx = ctx  # Store context in voice client for later use
+        player.music_player = music_player
+
+    @commands.command()
+    async def queue(self, ctx: commands.Context):
+        player = self.players.get(ctx.guild.id)
+        if not player or player.queue.empty():
+            return await ctx.send("🎶 The queue is empty.")
+
+        queue_list = list(player.queue._queue)
+        embed = discord.Embed(title="🎵 Music Queue", color=discord.Color.blurple())
+        for i, track in enumerate(queue_list[:10], 1):
+            embed.add_field(name=f"{i}.", value=track.title, inline=False)
+
+        if len(queue_list) > 10:
+            embed.set_footer(text=f"...and {len(queue_list) - 10} more")
+
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def stop(self, ctx: commands.Context):
+        vc = ctx.voice_client
+        if not vc:
+            return await ctx.send("I'm not connected to a voice channel.")
+
+        await vc.stop()
+        await vc.disconnect()
+        self.players.pop(ctx.guild.id, None)
+        await ctx.send("⏹️ Playback stopped and disconnected.")
+
+    @commands.command()
+    async def pause(self, ctx: commands.Context):
+        vc = ctx.voice_client
+        if not vc or not vc.is_playing:
+            return await ctx.send("There's nothing playing.")
+        await vc.pause()
+        await ctx.send("⏸️ Playback paused.")
+
+    @commands.command()
+    async def resume(self, ctx: commands.Context):
+        vc = ctx.voice_client
+        if not vc or vc.is_paused is False:
+            return await ctx.send("There's nothing to resume.")
+        await vc.resume()
+        await ctx.send("▶️ Playback resumed.")
+
+
+def setup(client):
+    client.add_cog(MusicMain(client))

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Plugin - Moderation | BobCat Bot</title>
+  {% include 'include/links.html' %}
+</head>
+<body class="web-plugin">
+  {% include 'components/Navbar.html' %}
+
+  <!-- ======= Hero Section ======= -->
+  <section id="hero-plugin" class="d-flex align-items-center">
+    <div class="container d-flex flex-column align-items-center justify-content-center" data-aos="fade-up">      
+      <h1>All the tools you need in a single bot</h1>
+      <h2>Sometimes all you need is a small & handy utility for your server.<br>BobCat got it all - From Embed messages to fun commands</h2>
+    </div>
+  </section><!-- End Hero -->
+
+  <main id="main">
+
+    <!-- ======= Appearance Section ======= -->
+    <section id="appearance" class="" data-aos="fade-up">
+      <div class="container">
+        <div class="section-title">
+          <h2>Customize the looks of BobCat in your server</h2>
+          <p>
+            Find a way make your discord server your own! were you can change the color of BobCat messages, 
+            <br>How cool is that? head over to the dashboard and give it a go.
+          </p>
+        </div>
+        <div class="d-flex justify-content-center" data-aos="fade-left">
+          <img src="{{ url_for('static', filename='img/features/3.png') }}" class="img-fluid image" alt="">
+        </div>
+      </div>
+    </section><!-- End Appearance Section -->
+
+    <!-- ======= Commands Section ======= -->
+    <section id="cmds" class="" data-aos="fade-up" style="padding: 60px 0px 0px;">
+      <div class="container">
+        <div class="section-title">
+          <h2>Useful Commands At Hand</h2>
+          <p>
+            Equip Your Server With Some Useful And Powerful Commands
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div id="content-desktop">
+      <section id="features" class="features" data-aos="fade-up" style="padding: 5px 0px;">
+        <div class="container">
+          <div class="row content">
+            <div class="col-md-6 pt-5 order-1 order-md-1 order-lg-1 aos-init aos-animate" data-aos="fade-right">
+              <h3>Help Command</h3>
+              <p>Lost in commands? The /help command will help you out and list all BobCats commands.</p>
+            </div>
+            <div class="col-md-5 order-md-2" data-aos="fade-left">
+              <img src="{{ url_for('static', filename='img/features/1.png') }}" class="img-fluid" alt="">
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div id="content-mobile">
+      <section id="features" class="features" data-aos="fade-up" style="padding: 5px 0px 60px;">
+        <div class="container">
+          <div id="carouselExampleCaptions" class="carousel slide" data-bs-ride="false">
+            <div class="carousel-indicators">
+              <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+            </div>
+            <div class="carousel-inner">
+              <div class="carousel-item active">
+                <img src="{{ url_for('static', filename='img/features/1.png') }}" class="d-block w-100" alt="fake image">
+                <div class="carousel-caption position-static">
+                  <h3>Help Command</h3>
+                  <p>Lost in commands? The /help command will help you out and list all BobCats commands.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+    <!-- ======= Embeds Section ======= -->
+    <section id="embeds" class="" data-aos="fade-up">
+      <div class="container">
+        <div class="section-title">
+          <h2>Send Rich Embeds In Your Discord Server</h2>
+          <p>
+            Create, design, edit & send embed messages in your server.
+          </p>
+        </div>
+        <div class="d-flex justify-content-center" data-aos="fade-left">
+          <img src="{{ url_for('static', filename='img/features/3.png') }}" class="img-fluid image" alt="">
+        </div>
+      </div>
+    </section><!-- End Embeds Section -->
+    
+  </main><!-- End #main -->
+
+  {% include 'components/footer.html' %}
+  <div id="preloader"></div>
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+</body>
+</html>
+
+<style>
+  .image {
+    width: 50%;
+  }
+  @media (max-width: 992px) {
+    .image {
+      width: 100%;
+    }
+  }
+</style>

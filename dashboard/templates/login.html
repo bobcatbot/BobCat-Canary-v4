@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/links.html' %}
+</head>
+<body style="height: 100dvh;display: flex;flex-direction: column;justify-content: center;">
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/Navbar.html' %}
+
+  <main class="mainn" align="center">
+    <img src="{{url_for('static', filename='img/bobcat.png')}}" alt="">
+    
+    <div>
+      <h2>Welcome to BobCat's dashboard</h2>
+      <p>You need to login with your Discord account to access this feature.</p>
+    </div>
+    
+    <a href="{{logInWithDiscord}}" class="btn btn-blurple">Login with Discord</a>
+  </main>
+</body>
+</html>

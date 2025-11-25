@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+  
+  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'verification') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="verify-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="verify-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Verification Message</h2>
+          <p>This is verification message</p>
+        </div>
+
+        <hr>
+        <div class="d-flex gap-2">
+          <div class="con color-picker full">
+            <div class="clr-field" style="color: {{data.message.embed.color}};">
+              <button aria-labelledby="clr-open-label"></button>
+              <input type="text" class="coloris" name="color" value="{{data.message.embed.color}}">
+            </div>
+          </div>
+          
+          <div class="w-100">
+            <div class="embed" style="border-color: {{data.message.embed.color}};">
+              <div class="e-bdFBtt">
+                <div class="author">
+                  <div class="icon"></div>
+                  <input type="text" id="author-name" placeholder="Author" value="{{data.message.embed.author.name if data.message.embed.author else ''}}">
+                </div>
+
+                <div class="title embedMargin-2PsaQ4">
+                  <input type="text" id="title" placeholder="Title" value="{{data.message.embed.title}}">
+                </div>
+                <div class="desc embedMargin-2PsaQ4">
+                  <textarea type="text" id="desc" placeholder="Description" oninput="auto_grow(this)"></textarea>
+                  <script>
+                    document.querySelector('#desc').value = `{{data.message.embed.desc}}`;
+                    auto_grow(document.querySelector('#desc'));
+
+                    function auto_grow(element) {
+                      element.style.height = "5px";
+                      element.style.height = (element.scrollHeight + 2) + "px";
+                    }
+                  </script>
+                </div>
+
+                <div class="foter">
+                  <div class="icon"></div>
+                  <input type="text" id="footer-name" placeholder="Footer" value="{{data.message.embed.footer.text if data.message.embed.footer else ''}}">
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-1">
+              <button id="btn-preview" class="position-relative btn btn-secondary" style="max-width: 250px;overflow: hidden;text-overflow: ellipsis;">
+                <span id="emoji">{{data.message.btn.emoji}}</span>
+                <span id="label">{{data.message.btn.title}}</span>
+
+                <div class="position-absolute top-50 start-50 translate-middle gap-1  edit">
+                  <i class="bi bi-pencil-fill"></i>
+                  Edit
+                </div>
+              </button>
+
+              <div id="btn-edit" class="mt-2" style="display: none;">
+                <div class="d-flex" style="flex-wrap: wrap;border-left: 2px solid gray;padding-left: 16px;column-gap: 1rem;row-gap: 0.5rem;">
+                  <div>
+                    <p class="mb-0">Emoji</p>
+                    <div class="btn-wrapper">
+                      <div id="embed-emoji" style="cursor: context-menu;" trigger>
+                        {{data.message.btn.emoji if data.message.btn.emoji != "" else '+' }}
+                      </div>
+                      {% if data.message.btn.emoji != "" %}
+                      <i class="bi bi-trash-fill"></i>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p class="mb-0">label</p>
+                    <input type="text" id="btn-label" class="text-input" placeholder="Title" value="{{data.message.btn.title}}">
+                  </div>
+
+                  <div>
+                    <p class="mb-0">Colors</p>
+                    <div class="d-flex gap-1 btn-wrapper">
+                      <div class="radio-wrapper">
+                        <input type="radio" id="btn-color-picker-gray" name="btn-color" data-color="gray">
+                      </div>
+                      <div class="radio-wrapper">
+                        <input type="radio" id="btn-color-picker-b" name="btn-color" data-color="blurple">
+                      </div>
+                      <div class="radio-wrapper">
+                        <input type="radio" id="btn-color-picker-r" name="btn-color" data-color="red">
+                      </div>
+                      <div class="radio-wrapper">
+                        <input type="radio" id="btn-color-picker-green" name="btn-color" data-color="green">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        <div class="d-flex gap-2 align-items-center">
+          <button id="publish" class="btn btn-blurple">
+            Publish
+          </button>
+
+          <div id="verify-wwh" style="display: none; position: relative;">
+            <div aria-describedby="verify_wwh">What will happen?</div>
+
+            <div id="verify_wwh" role="tooltip">
+              <h5 class="tt-title">In details BobCat will:</h5>
+              <ul class="tt-ul">
+                <li>Create a <b id="tt-chan">#</b> channel with <b>View Channels</b> allowed for <b>@everyone</b></li>
+                <li id="set-role">Set the <b id="tt-role">@</b> role as the verification role</li>
+                <li id="enable-perm">Enable <b>View Channels</b> permission for the <b id="tt-role">@</b> role</li>
+                <li id="create-role">Create a <b id="tt-role">@</b> role with <b>View Channels</b> allowed</li>
+                <li>Deny <b>View Channel</b> to role <b id="tt-role">@</b> for the <b id="tt-chan">#</b> channel</li>
+                <li>Deny <b>View Channels</b> for <b>@everyone</b></li>
+                <li>Post the verification embed and button to the <b id="tt-chan">#</b> channel</li>
+                <li>Activate the verification service</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Verification Channel</h2>
+          <p>This is where your users will be able to verify</p>
+        </div>
+
+        <hr>
+        <div>
+          <div class="chan-message-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for channel in guild_models(guild).channels.text %}
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}" data-can-send="{{channel.can_send}}">{{channel.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Verified Role</h2>
+          <p>This is where your users will be able to received a role when they are verified</p>
+        </div>
+
+        <hr>
+        <div>
+          <div class="verify-role-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for role in guild_models(guild).roles %}
+                <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Verification Mode</h2>
+          <p>What kind of verification method do you want</p>
+        </div>
+
+        <hr>
+        <div>
+          <div class="verify-mode-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                <div class="option" data-value="instant">Instant Access</div>
+                <div class="option" data-value="captcha_dm">Captcha (DMs)</div>
+                <div class="option" data-value="captcha_channel">Captcha (Channel)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Fail Action</h2>
+          <p>What would happen if the user fails verification</p>
+        </div>
+
+        <hr>
+        <div>
+          <div class="fail-action-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                <div class="option" data-value="unverified">Keep Unverified</div>
+                <div class="option" data-value="kick">Kick</div>
+                <div class="option" data-value="ban">Ban</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    new Select('.chan-message-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['channel']}}"]
+    });
+    new Select('.verify-role-wrapper.single', {
+      placeholder: "Select a role",
+      type: 'role',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['role']}}"]
+    });
+    new Select('.verify-mode-wrapper.single', {
+      placeholder: "Select a mode",
+      type: '',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['mode']}}"]
+    });
+    new Select('.fail-action-wrapper.single', {
+      placeholder: "Select an action",
+      type: '',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['failAction']}}"]
+    });
+
+    Coloris({
+      el: '.coloris',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    });
+
+    new EmojiPicker({
+      trigger: '#embed-emoji',
+      position: ['bottom', 'right'],
+      emit(emoji) {
+        console.log(emoji)
+        emojiButton(emoji);
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', (e) => {
+      document.querySelector('#set-role').style.display = 'none';
+      document.querySelector('#enable-perm').style.display = 'none';
+
+      document.querySelectorAll('#tt-chan').forEach(chan => {
+        chan.innerHTML = 
+          "#" + document.querySelector('.chan-message-wrapper .select-options .option.selected').innerHTML || 
+          '#verification';
+      })
+
+      document.querySelectorAll('#tt-role').forEach(role => {
+        var option = document.querySelector('.verify-role-wrapper .select-options .option.selected');
+
+        if (option) {
+          document.querySelector('#set-role').style.display = 'list-item';
+          document.querySelector('#enable-perm').style.display = 'list-item';
+          document.querySelector('#create-role').style.display = 'none';
+        } else {
+          document.querySelector('#create-role').style.display = 'list-item';
+        }
+
+        role.innerHTML = 
+          "@" + option.innerHTML || 
+          '@verified';
+        role.style.color = option.style.getPropertyValue('--color');
+      })
+
+      // Tooltip
+      var ttt = document.querySelector('#verify_wwh');
+      var aria = document.querySelector('[aria-describedby="verify_wwh"]');
+      ttt.style.left = aria.offsetWidth + 12 + 'px';
+      ttt.style.top = aria.offsetHeight - 30 / 2 + 'px';
+    })
+
+    document.querySelector('#verify-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "verification.status": e.target.checked }),
+      });
+
+      // if checked went from true to false
+      if (!e.target.checked) {
+        fetch("verification", {
+          method: "DELETE",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ }),
+        })
+      }
+    })
+
+    var verify_data = {}
+
+    var publish = document.querySelector('#publish');
+
+    function togglePublish() {
+      if (publish.innerHTML == 'Published') {
+        publish.disabled = false;
+        publish.innerHTML = 'Publish'
+        publish.classList.replace('btn-success', 'btn-blurple');
+        publish.style.pointerEvents = 'all';
+        verify_wwh.style.display = 'block';
+      }
+      // else {
+      //   publish.disabled = false;
+      //   publish.innerHTML = 'Published'
+      //   publish.classList.replace('btn-blurple', 'btn-success');
+      //   publish.style.pointerEvents = 'none';
+      //   verify_wwh.style.display = 'none';
+      // }
+    }
+
+    document.addEventListener('DOMContentLoaded', (e) => {
+      if ('{{data.message_published}}' == 'True') {
+        publish.innerHTML = 'Published'
+        publish.classList.replace('btn-blurple', 'btn-success');
+        publish.style.pointerEvents = 'none';
+      }
+    })
+
+    publish.addEventListener('click', () => {
+      publish.disabled = true;
+      publish.innerHTML = 'Publishing...'
+
+      const currentButtonColor = () => {
+        const btn = document.querySelector('#btn-preview');
+        const classes = btn.classList;
+        var color = '';
+        classes.forEach(cls => {
+          if (cls.startsWith('btn-')) {
+            color = cls.split('-')[1];
+          }
+        })
+        return color;
+      }
+
+      var embed = document.querySelector('.embed');
+
+      fetch("verification", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          "embed": {
+            "color": parseInt(String(document.querySelector('.color-picker .coloris').value).replace('#', ''), 16),
+            "title": embed.querySelector('#title').value,
+            "description": embed.querySelector('#desc').value,
+            "author": {
+              "name": embed.querySelector('#author-name').value,
+            },
+            "footer": {
+              "text": embed.querySelector('#footer-name').value,
+            }
+          },
+          "btn": {
+            "emoji": document.querySelector('#emoji').innerHTML,
+            "title": document.querySelector('#label').innerHTML,
+            "color": currentButtonColor(),
+          }
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status == 'success') {
+            publish.disabled = false;
+            publish.innerHTML = 'Published'
+            publish.classList.replace('btn-blurple', 'btn-success');
+          }
+        })
+
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(verify_data),
+      });
+    })
+
+    /* Verification Message */
+    const embed = document.querySelector('.embed');
+    const embedColor = document.querySelector('.color-picker .coloris');
+    const embedTitle = embed.querySelector('#title');
+    const embedDesc = embed.querySelector('#desc');
+    const embedAuthorName = embed.querySelector('.author #author-name');
+    const embedFooterTitle = embed.querySelector('.foter #footer-name');
+
+    embedColor.addEventListener('change', (e) => {
+      var value = e.target.value;
+
+      embed.style.borderColor = value;
+
+      togglePublish()
+      verify_data["verification.message.embed.color"] = parseInt(value.replace("#", ""), 16);
+    })
+
+    embedTitle.addEventListener('input', (e) => {
+      var value = e.target.value;
+      
+      togglePublish()
+      verify_data["verification.message.embed.title"] = value;
+    })
+
+    embedDesc.addEventListener('input', (e) => {
+      var value = e.target.value;
+      
+      togglePublish()
+      verify_data["verification.message.embed.desc"] = value;
+    })
+
+    embedAuthorName.addEventListener('input', (e) => {
+      var value = e.target.value;
+      
+      togglePublish()
+      verify_data["verification.message.embed.author.name"] = value;
+    })
+
+    embedFooterTitle.addEventListener('input', (e) => {
+      var value = e.target.value;
+      
+      togglePublish()
+      verify_data["verification.message.embed.footer.text"] = value;
+    })
+
+    // button
+    const btnPreview = document.querySelector('#btn-preview');
+    const btnEdit = document.querySelector('#btn-edit');
+    const emojiBtn = document.querySelector('#embed-emoji');
+
+    function emojiButton(emoji) {
+      btnPreview.querySelector('#emoji').innerHTML = emoji.icon;
+      emojiBtn.innerHTML = '';
+      emojiBtn.insertAdjacentHTML('afterbegin', emoji.icon);
+
+      if (!btnEdit.querySelector('.btn-wrapper i')) {
+        btnEdit.querySelector('.btn-wrapper').insertAdjacentHTML('beforeend', '<i class="bi bi-trash-fill"></i>');
+      }
+
+      togglePublish()
+      verify_data["verification.message.btn.emoji"] = emoji.icon;
+      return ;
+    }
+
+    btnPreview.addEventListener('click', () => {
+      if (btnEdit.style.display == 'block') {
+        btnEdit.style.display = 'none';
+      } else {
+        btnEdit.style.display = 'block';
+      }
+    })
+
+    const deleteBtnEmoji = btnEdit.querySelector('.btn-wrapper i');
+    if (deleteBtnEmoji) {
+      deleteBtnEmoji.addEventListener('click', () => {
+        emojiBtn.innerHTML = '+';
+        deleteBtnEmoji.remove();
+
+        btnPreview.querySelector('#emoji').innerHTML = '';
+        
+        togglePublish()
+        verify_data["verification.message.btn.emoji"] = '';
+      })
+    }
+
+    // button label
+    const btnLabel = btnEdit.querySelector('.text-input');
+    btnLabel.addEventListener('input', (e) => {
+      var value = e.target.value;
+
+      btnPreview.querySelector('#label').innerHTML = value;
+      
+      togglePublish()
+      verify_data["verification.message.btn.title"] = value;
+    })
+
+    // button color
+    var data = {
+      "gray": "secondary",
+      "blurple": "blurple",
+      "red": "danger",
+      "green": "success"
+    }
+
+    const btnColor = btnEdit.querySelectorAll('input[name="btn-color"]');
+    btnColor.forEach(color => {
+      color.addEventListener('change', (e) => {
+        var value = e.target.dataset.color;
+
+        btnPreview.classList.forEach(cls => {
+          if (cls.startsWith('btn-')) {
+            btnPreview.classList.remove(cls);
+          }
+        })
+
+        btnPreview.classList.add(`btn-${data[value]}`);
+        
+        togglePublish()
+        verify_data["verification.message.btn.color"] = value;
+      })
+    })
+
+    document.addEventListener('DOMContentLoaded', (e) => {
+      var value = "{{data['message']['btn']['color']}}"
+
+      btnPreview.classList.forEach(cls => {
+        if (cls.startsWith('btn-')) {
+          btnPreview.classList.remove(cls);
+        }
+      })
+
+      btnPreview.classList.add(`btn-${data[value]}`);
+
+      document.querySelectorAll('[name="btn-color"]').forEach(color => {
+        if (color.dataset.color == value) {
+          color.checked = true;
+        }
+      })
+    })
+
+    /* Verify Channel */
+    const channelMessageWrapper = document.querySelector('.chan-message-wrapper.single');
+    channelMessageWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+
+      show_toast("verification.channel", "{{data['channel']}}", option)
+    });
+
+    /* Verify Role */
+    const channelRoleWrapper = document.querySelector('.verify-role-wrapper.single');
+    channelRoleWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+
+      show_toast("verification.role", "{{data['role']}}", option)
+    });
+
+    /* Verify Mode */
+    const channelModeWrapper = document.querySelector('.verify-mode-wrapper.single');
+    channelModeWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'instant'
+
+      show_toast("verification.mode", "{{data['mode']}}", option)
+    });
+
+    /* Fail Action */
+    const failActionWrapper = document.querySelector('.fail-action-wrapper.single');
+    failActionWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'unverified'
+
+      show_toast("verification.failAction", "{{data['failAction']}}", option)
+    });
+  </script>
+
+  <style>
+    .alert {
+      margin: 0 25px var(--bs-alert-margin-bottom) 25px;
+    }
+    .alert-primary {
+      --bs-alert-color: #6ea8fe;
+      --bs-alert-bg: #031633;
+      --bs-alert-border-color: #084298;
+      --bs-alert-link-color: #6ea8fe;
+    }
+
+    .active {
+      display: block;
+    }
+
+    .btn-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+
+      height: 43px;
+      padding: 6px 8px;
+      background: black;
+      border-radius: 8px;
+    }
+
+    #btn-preview .edit {
+      display: none;
+    }
+    #btn-preview:hover .edit {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--bs-btn-bg);
+      width: 100%;
+      height: 100%;
+      border-radius: var(--bs-btn-border-radius);
+    }
+
+    .radio-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .radio-wrapper:hover {
+      background: rgb(49 52 66 / 0.7);
+    }
+
+    input[type="radio"][data-color="gray"] {
+      --color: #4E5058;
+    }
+    input[type="radio"][data-color="blurple"] {
+      --color: #5865f2;
+    }
+    input[type="radio"][data-color="red"] {
+      --color: #ED4245;
+    }
+    input[type="radio"][data-color="green"] {
+      --color: #57F287;
+    }
+
+    input[type="radio"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--color);
+      outline: 2px solid transparent;
+      border-radius: 50%;
+    }
+
+    input[type="radio"]:checked {
+      outline-color: var(--color);
+      outline-offset: 1px;
+    }
+
+    [role="tooltip"],
+    .hidetooltip + [role="tooltip"] {
+      visibility: hidden;
+      position: absolute;
+      top: 50%;
+      left: 0rem;
+      z-index: 1;
+      width: max-content;
+      max-width: 480px;
+      padding: 6px;
+      background: black;
+      color: rgb(221 221 221);
+      font-size: 13px;
+      border-radius: 8px;
+      transform: translate(0, -50%);
+    }
+    [aria-describedby]:hover,
+    [aria-describedby]:focus {
+      position: relative;
+    }
+    [aria-describedby]:hover + [role="tooltip"],
+    [aria-describedby]:focus + [role="tooltip"] {
+      visibility: visible;
+    }
+
+    [role="tooltip"]::before,
+    .hidetooltip + [role="tooltip"]::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: -15px;
+      z-index: 1;
+      width: 0;
+      height: 0;
+      transform: translate(0, -50%);
+      /* make a triangle */
+      border-width: 5px;
+      border-style: solid;
+      border-color: #ff0000 transparent transparent transparent;
+      rotate: 90deg;
+    }
+
+    .tt-title {
+      font-weight: 800;
+      margin-bottom: 2px;
+      margin-top: 4px;
+      color: #fff;
+    }
+
+    .tt-ul {
+      margin-top: 0;
+      margin-bottom: 0;
+      padding-left: 22px;
+      text-align: left;
+    }
+
+    b {
+      color: #fff;
+    }
+  </style>
+</body>
+</html>

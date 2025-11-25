@@ -1,0 +1,232 @@
+import requests
+import json
+import discord
+import itertools
+from datetime import datetime
+from modules import bot as v
+from discord.ext import commands, tasks
+
+class FreeStuffMain(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+
+    @commands.command(name='free', help='Get a list of games that are currently 100% off')
+    async def free(self, ctx):
+        embed = discord.Embed(
+            title="Currently free to keep (100% off)",
+            description="finding the best deals...",
+            color=0x2B2D31,  # Green color
+        )
+        msg = await ctx.send(embed=embed)
+        
+        response_steam = requests.get('https://gamerpower.com/api/giveaways?type=game&platform=steam') # Fetch data from the Steam API
+        response_epic = requests.get('https://gamerpower.com/api/giveaways?type=game&platform=epic-games-store') # Fetch data from the Epic Games API
+        
+        giveaways = list(itertools.chain(response_steam.json(), response_epic.json()))
+
+        # Filter out only games with type, worth, and end_date
+        filtered_games = [
+            {
+                "title": 
+                    game["title"].split(" (Steam) Giveaway")[0] if " (Steam) Giveaway" in game["title"] else 
+                    game["title"].split(" Steam Giveaway")[0] if " Steam Giveaway" in game["title"] else
+                    game["title"].split(" (Epic Games) Giveaway")[0] if " (Epic Games) Giveaway" in game["title"] else
+                    game["title"].split(" Epic Games Giveaway")[0],
+                "link": game["open_giveaway_url"],
+                "worth": game["worth"],
+                "end_date": game["end_date"],
+                "platforms": game["platforms"],
+                "provider_ico": 
+                    "<:steam:1353397889191247922>" if " (Steam) Giveaway" in game["title"] else
+                    "<:steam:1353397889191247922>" if " Steam Giveaway" in game["title"] else
+                    "<:epic:1353397994636054619>" if " (Epic Games) Giveaway" in game["title"] else
+                    "N/A",
+            }
+            for game in giveaways if game["type"] == "Game" and game['end_date'] != 'N/A'
+        ]
+
+        desc = ""
+        for game in filtered_games:
+            dt = datetime.strptime(game['end_date'], "%Y-%m-%d %H:%M:%S")
+            unix_timestamp = int(dt.timestamp())
+
+            desc += f"{game['provider_ico']} [{game['title']}]({game['link']}) \n{game['worth']} • until <t:{unix_timestamp}:d> \n\n"
+
+        embed.description = desc
+
+        await msg.edit(embed=embed)
+
+# ==========================================================
+
+class FreeStuffSteam(commands.Cog):
+    def __init__(self, client):
+        self.client: commands.Bot = client
+        self.GamerPowerUrl = "https://gamerpower.com/api/giveaways?type=game&platform=steam"
+        self.icon = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/512px-Steam_icon_logo.svg.png"
+        self.platform = "steam"
+        self.hideParenthesis1 = " (Steam) Giveaway"
+        self.hideParenthesis2 = " Steam Giveaway"
+
+        # self.check_steam_games.start()
+
+    @tasks.loop(minutes=1)
+    async def check_steam_games(self):
+        giveaways = requests.get(self.GamerPowerUrl).json() # Fetch data from the API
+
+        # Filter out only games with type, worth, and end_date
+        filtered_games = [
+            {
+                "title": 
+                    game["title"].split(self.hideParenthesis1)[0] if self.hideParenthesis1 in game["title"] else 
+                    game["title"].split(self.hideParenthesis2)[0],
+                "link": game["open_giveaway_url"],
+                "worth": game["worth"],
+                "end_date": game["end_date"],
+                "image": game["image"]
+            }
+            for game in giveaways if game["type"] == "Game" and game['end_date'] != 'N/A'
+        ]
+        filtered_games.reverse()
+
+        with open('databases/games.json', 'r') as f:
+            sent_games = json.load(f)
+        
+        new_games = [game for game in filtered_games if game['title'] not in sent_games['games']]
+        
+        # Print the results
+        for guild in self.client.guilds:
+            if not v.db.get_dash(guild.id):
+                continue
+
+            data = json.load(open('server.json'))['Dash']['free_stuff']['games']
+            sent_games_to_channels: list = json.load(open('server.json'))
+            
+            if not data[self.platform]:
+                continue # Skip if the server has disabled the feature
+
+            for game in new_games:
+                if game['title'] in sent_games_to_channels['Bot']['free_stuff']['games']:
+                    continue  # Skip if the game has already been sent to this channel
+
+                print(f"{game['title']} - {game['worth']} Free until {game['end_date']}")
+
+                dt = datetime.strptime(game['end_date'], "%Y-%m-%d %H:%M:%S")
+                unix_timestamp = int(dt.timestamp())
+
+                embed = {
+                    "title": game["title"],
+                    "url": game["link"],
+                    "color": 0x2B2D31,  # Green color
+                    "description": f"~~{game['worth']}~~ **Free** until <t:{unix_timestamp}:d>",
+                    "thumbnail": {  "url": self.icon },
+                    "image": { "url": game["image"] }
+                }
+
+                channel = self.client.get_channel(int(data['channel_id']))
+                if channel:
+                    await channel.send(embed=discord.Embed.from_dict(embed))
+                    
+                    sent_games_to_channels['Bot']['free_stuff']['games'].append(game['title'])  # Mark this game as sent to this channel
+                    # v.db.update_server_config(guild, False, 'free_stuff', sent_games_to_channels)
+                    with open('server.json', 'w') as f:
+                        json.dump(sent_games_to_channels, f)
+
+                # Update sent_games with the new games
+                with open('databases/games.json', 'r') as f:
+                    g = json.load(f)
+                g['games'].append(game['title'])
+                with open('databases/games.json', 'w') as f:
+                    json.dump(g, f)
+        #####
+    @check_steam_games.before_loop
+    async def before_check_steam_games(self):
+        await self.client.wait_until_ready()
+
+class FreeStuffEpic(commands.Cog):
+    def __init__(self, client):
+        self.client: commands.Bot = client
+        self.GamerPowerUrl = "https://gamerpower.com/api/giveaways?type=game&platform=epic-games-store"
+        self.icon = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Epic_Games_logo.svg/1764px-Epic_Games_logo.svg.png"
+        self.platform = "epic"
+        self.hideParenthesis1 = " (Epic Games) Giveaway"
+        self.hideParenthesis2 = " Epic Games Giveaway"
+
+        # self.check_epicstore_games.start()
+
+    @tasks.loop(minutes=1)
+    async def check_epicstore_games(self):
+        giveaways = requests.get(self.GamerPowerUrl).json() # Fetch data from the API
+
+        # Filter out only games with type, worth, and end_date
+        filtered_games = [
+            {
+                "title": 
+                    game["title"].split(self.hideParenthesis1)[0] if self.hideParenthesis1 in game["title"] else 
+                    game["title"].split(self.hideParenthesis2)[0],
+                "link": game["open_giveaway_url"],
+                "worth": game["worth"],
+                "end_date": game["end_date"],
+                "image": game["image"]
+            }
+            for game in giveaways if game["type"] == "Game" and game['end_date'] != 'N/A'
+        ]
+        filtered_games.reverse()
+
+        with open('databases/games.json', 'r') as f:
+            sent_games = json.load(f)
+        
+        new_games = [game for game in filtered_games if game['title'] not in sent_games['games']]
+        
+        # Print the results
+        for guild in self.client.guilds:
+            if not v.db.get_dash(guild.id):
+                continue
+
+            data = json.load(open('server.json'))['Dash']['free_stuff']['games']
+            sent_games_to_channels: list = json.load(open('server.json'))
+            
+            if not data[self.platform]:
+                continue # Skip if the server has disabled the feature
+
+            for game in new_games:
+                if game['title'] in sent_games_to_channels['Bot']['free_stuff']['games']:
+                    continue  # Skip if the game has already been sent to this channel
+
+                print(f"{game['title']} - {game['worth']} Free until {game['end_date']}")
+
+                dt = datetime.strptime(game['end_date'], "%Y-%m-%d %H:%M:%S")
+                unix_timestamp = int(dt.timestamp())
+
+                embed = {
+                    "title": game["title"],
+                    "url": game["link"],
+                    "color": 0x2B2D31,  # Green color
+                    "description": f"~~{game['worth']}~~ **Free** until <t:{unix_timestamp}:d>",
+                    "thumbnail": {  "url": self.icon },
+                    "image": { "url": game["image"] }
+                }
+
+                channel = self.client.get_channel(int(data['channel_id']))
+                if channel:
+                    await channel.send(embed=discord.Embed.from_dict(embed))
+                    
+                    sent_games_to_channels['Bot']['free_stuff']['games'].append(game['title'])  # Mark this game as sent to this channel
+                    # v.db.update_server_config(guild, False, 'free_stuff', sent_games_to_channels)
+                    with open('server.json', 'w') as f:
+                        json.dump(sent_games_to_channels, f)
+
+                # Update sent_games with the new games
+                with open('databases/games.json', 'r') as f:
+                    g = json.load(f)
+                g['games'].append(game['title'])
+                with open('databases/games.json', 'w') as f:
+                    json.dump(g, f)
+        #####
+    @check_epicstore_games.before_loop
+    async def before_check_epicstore(self):
+        await self.client.wait_until_ready()
+
+def setup(client):
+    client.add_cog(FreeStuffMain(client))
+    client.add_cog(FreeStuffSteam(client)) 
+    client.add_cog(FreeStuffEpic(client))

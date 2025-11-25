@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'birthdays') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="birthday-status" class="form-check-input" name="plugin-status" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="birthday-status" class="form-check-input" name="plugin-status" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card join">
+        <div class="title">
+          <h2>Birthday Message</h2>
+          <p>BobCat can remember users' birthdays and wish them a happy one in a specific channel.</p>
+        </div>
+        
+        <hr>
+        <div>
+          <p class="mb-0">Happy Birthday Channel</p>
+          <p class="mb-1 fs-7 text-muted">Choose the channel for the messages to be sent in.</p>
+          <div class="bday-chan-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for channel in guild_models(guild).channels.text %}
+                <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <p class="mb-0">Happy Birthday Wishing Hour</p>
+          <p class="mb-1 fs-7 text-muted">Change the hour at which the birthday messages should be sent with respect to the timezone of your server.</p>
+          <div class="bday-hour-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                <div class="option" data-value="0">00:00 - 12am</div>
+                <div class="option" data-value="1">01:00 - 1am</div>
+                <div class="option" data-value="2">02:00 - 2am</div>
+                <div class="option" data-value="3">03:00 - 3am</div>
+                <div class="option" data-value="4">04:00 - 4am</div>
+                <div class="option" data-value="5">05:00 - 5am</div>
+                <div class="option" data-value="6">06:00 - 6am</div>
+                <div class="option" data-value="7">07:00 - 7am</div>
+                <div class="option" data-value="8">08:00 - 8am</div>
+                <div class="option" data-value="9">09:00 - 9am</div>
+                <div class="option" data-value="10">10:00 - 10am</div>
+                <div class="option" data-value="11">11:00 - 11am</div>
+                <div class="option" data-value="12">12:00 - 12pm</div>
+                <div class="option" data-value="13">13:00 - 1pm</div>
+                <div class="option" data-value="14">14:00 - 2pm</div>
+                <div class="option" data-value="15">15:00 - 3pm</div>
+                <div class="option" data-value="16">16:00 - 4pm</div>
+                <div class="option" data-value="17">17:00 - 5pm</div>
+                <div class="option" data-value="18">18:00 - 6pm</div>
+                <div class="option" data-value="19">19:00 - 7pm</div>
+                <div class="option" data-value="20">20:00 - 8pm</div>
+                <div class="option" data-value="21">21:00 - 9pm</div>
+                <div class="option" data-value="22">22:00 - 10pm</div>
+                <div class="option" data-value="23">23:00 - 11pm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mt-2">
+            <p class="mb-0">Happy Birthday Message</p>
+            <p class="mb-1 fs-7 text-muted">Send a message to the user when on their sepcial day</p>
+  
+            <textarea id="b-msg" class="text-input"></textarea>
+            <script>
+              document.getElementById("b-msg").value = '{{data["message"]}}'
+            </script>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card join">
+        <div class="title">
+          <h2>Birthday Role</h2>
+          <p>Give a role to members celebrating their birthday.</p>
+        </div>
+        
+        <hr>
+        <div class="bday-role-wrapper single">
+          <div class="select">
+            <div class="select-selected">Select an option</div>
+            <div class="select-options">
+              {% for role in guild_models(guild).roles %}
+              <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    .embed input, 
+    .embed textarea {
+      color: #fff;
+      width: 100%;
+      background: none;
+      border: none;
+    }
+    .embed input:focus-visible,
+    .embed textarea:focus-visible {
+      outline: none;
+      border: none;
+    }
+
+    .nav-tabs-bordered {
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    new Select('.bday-chan-wrapper.single',{
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["channel_id"]}}']
+    });
+
+    new Select('.bday-hour-wrapper.single',{
+      placeholder: "Select a time",
+      type: '',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["message_hour"]}}']
+    });
+
+    new Select('.bday-role-wrapper.single',{
+      placeholder: "Select a role",
+      type: 'role',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["birthday_role"]}}']
+    });
+    
+    var save_data = {}
+    
+    document.querySelector('#birthday-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "birthdays.status": e.target.checked }),
+      });
+    })
+    
+    /* Channel */
+    const bdayChanWrapper = document.querySelector('.bday-chan-wrapper.single');
+    bdayChanWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+      
+      show_toast("birthdays.channel_id", "{{data['channel_id']}}", option)
+    });
+
+    /* Hour */
+    const bdayHourWrapper = document.querySelector('.bday-hour-wrapper.single');
+    bdayHourWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+      
+      show_toast("birthdays.message_hour", "{{data['message_hour']}}", parseInt(option))
+    });
+
+    /* Message */
+    document.querySelector('#b-msg').addEventListener('input', (e) => {
+      var val = e.target.value;
+      
+      show_toast("birthdays.message", "{{data['message']}}", val)
+    })
+
+    /* Role */
+    const bdayRoleWrapper = document.querySelector('.bday-role-wrapper.single');
+    bdayRoleWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+      
+      show_toast("birthdays.birthday_role", "{{data['birthday_role']}}", option)
+    });
+  </script>
+</body>
+</html>

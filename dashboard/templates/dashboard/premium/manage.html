@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  <main id="main" class="main">
+    <div class="pagetitle">
+      <h1>Premium</h1>
+      <p>Manage your premium subscription</p>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Subscription</h2>
+        </div>
+        <hr>
+
+        <div class="plan-info">
+          <h2 class="plan-title m-0"><span class="text-capitalize">{{data.plan}}</span> plan</h2>
+          {% if data.plan == 'monthly' %}
+          <p class="text-muted">{{types['monthly']['price']}} / month</p>
+          {% elif data.plan == 'yearly' %}
+          <p class="text-muted">{{types['yearly']['price']}} / year</p>
+          {% elif data.plan == 'lifetime' %}
+          <p class="text-muted">{{types['lifetime']['price']}} / one time payment</p>
+          {% endif %}
+        </div>
+        
+        <div class="info">
+          <div class="field">
+            <h6 class="title">Next payment</h6>
+            <p>{{data.next_bill}} (in {{data.countdown}} days)</p>
+          </div>
+          <div class="field">
+            <h6 class="title">Amount</h6>
+            <p>{{types[data.plan]['price']}}</p>
+          </div>
+          <div class="field">
+            <h6 class="title">Paid by</h6>
+            <div class="d-flex align-items-center">
+              <img src="{{data.user.avatar}}" class="me-1" style="width: 32px;height: 32px;border-radius: 100%;" alt="Paid user avatar">
+              <p class="m-0">{{data.user.name}}</p>
+            </div>
+          </div>
+          <div class="field">
+            <h6 class="title">Guild ID</h6>
+            <p>{{guild.id}}</p>
+          </div>
+          <div class="field">
+            <h6 class="title">Guild Name</h6>
+            <p>{{guild.name}}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% if data.customer != '' %}
+    <div class="manage-sub-wrapper">
+      <button id="manage-sub" class="alert alert-custom  d-flex justify-content-between" role="alert">
+        <span>
+          Manage your subscription
+        </span>
+        <i class="bi bi-arrow-right"></i>
+      </button>
+      <script>
+        // #manage-sub
+        document.querySelector('#manage-sub').addEventListener('click', () => {
+          fetch(`/stripe/portal/{{data['customer']}}`, {
+            method: "POST",
+            body: JSON.stringify({
+              guild_id: '{{guild.id}}'  
+            }),
+          })
+            .then((result) => result.json())
+            .then((data) => {
+              location.href = data.url
+            })
+          /**/
+        })
+      </script>
+    </div>
+    {% endif %}
+  </main>
+
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    .plan-title {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .info {
+      background-color: var(--color-secondary-4);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    
+    .info .field {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+      margin-top: 8px;
+    }
+    .info .field:first-child {
+      margin-top: 0;
+    }
+    
+    .info .field .title {
+      margin: 0;
+      color: #6c757d;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .info .field p {
+      margin: 0;
+    }
+
+    .manage-sub-wrapper {
+      padding: 3px;
+      margin: 0 25px 25px 25px;
+      background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
+      border-radius: 0.375rem;
+    }
+    
+    .alert-custom {
+      --bs-alert-color: #fff;
+      --bs-alert-bg: #17181e;
+    }
+    .alert {
+      width: 100%;
+      margin-bottom: 0;
+      border: none;
+    }
+
+  </style>
+
+  {% include 'components/PremiumModal.html' %}
+</body>
+</html>

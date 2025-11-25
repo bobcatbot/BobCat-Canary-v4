@@ -1,0 +1,59 @@
+<aside id="sidebar" class="sidebar">
+  <div class="guild-selector">
+    <div class="info">
+      <div class="d-flex align-items-center" style="gap: 5px;">
+        <img src="{{user.avatar_url}}" alt="">
+        My Profile
+      </div>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="content">
+      <a href="/profile" class="user active">
+        <img src="{{user.avatar_url}}" alt="">
+        My Profile
+      </a>
+      <hr>
+      {% for _guild in guilds() %}
+        {% if _guild.id == guild.id %}
+        <a href="/dashboard/{{_guild.id}}" class="guild">
+          <img src="{{_guild.icon_url}}" alt="">
+          {{_guild.name}}
+        </a>
+        {% else %}
+        <a href="/dashboard/{{_guild.id}}" class="guild">
+          <img src="{{_guild.icon_url}}" alt="">
+          {{_guild.name}}
+        </a>
+        {% endif %}
+      {% endfor %}
+      <hr>
+      <a href="/dashboard">
+        <i class="bi bi-plus-lg"></i>
+        Add a new server
+      </a>
+    </div>
+  </div>
+
+  <ul class="sidebar-nav" id="sidebar-nav">
+
+    <li class="navbar-heading">
+      User Settings
+    </li>
+    <li class="navbar-item" data-active="False">
+      <a href="/profile" class="navbar-link dashboard">
+        <div class="d-flex">
+          <span class="material-icons">dashboard</span>
+          <p class="m-0">My Profile</p>
+        </div>
+      </a>
+    </li>
+    <li class="navbar-item" data-active="False">
+      <a href="/profile/devices" class="navbar-link">
+        <div class="d-flex">
+          <span class="material-icons">devices</span>
+          <p class="m-0">Devices</p>
+        </div>
+      </a>
+    </li>
+  </ul>
+</aside>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'welcome') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="welcome-status" class="form-check-input" name="plugin-status" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="welcome-status" class="form-check-input" name="plugin-status" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card join">
+        <div class="title d-flex justify-content-between align-items-center">
+          <div class="d-flex gap-2 align-items-center">
+            <h2>Send a message when a user joins the server</h2>
+            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
+              <i class="bi bi-info-circle" ></i>
+            </button>
+          </div>
+          <div class="form-switch">
+            {% if data['join']['status'] == True %}
+            <input type="checkbox" id="join-status" class="form-check-input" role="switch" name="welcome-join-switch" style="font-size: 19px;" checked>
+            {% else %}
+            <input type="checkbox" id="join-status" class="form-check-input" role="switch" name="welcome-join-switch" style="font-size: 19px;">
+            {% endif %}
+          </div>
+        </div>
+        
+        <div id="join-data">
+          <hr>
+          <div>
+            <p class="mb-2">Welcome message channel</p>
+            <div class="join-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                    <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}">{{channel.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr>
+        
+          <div>
+            <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link join-msg active" data-bs-toggle="tab" data-bs-target="#text">Text Message</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link join-msg" data-bs-toggle="tab" data-bs-target="#embed" disabled>Embed Message</button>
+              </li>
+            </ul>
+            <div class="tab-content pt-2">
+              <div id="text" class="tab-pane active show" role="tabpanel">
+                <div>
+                  <textarea id="join-message" class="text-input" name="" placeholder="Write your message here"></textarea>
+                  <script>document.querySelector('#join-message').value = "{{data['join']['message']['content']}}"</script>
+                </div>
+                <!-- <hr>
+                <div>
+                  <p>Send a welcome card when a user joins the server</p>
+                </div> -->
+              </div>
+              <div id="embed" class="tab-pane embed" role="tabpanel">
+                <div id="join-embed" class="e-bdFBtt">
+                  <div class="author">
+                    <div class="icon"></div>
+                    <input type="text" id="author" name="" placeholder="Header">
+                  </div>
+
+                  <div class="title embedMargin-2PsaQ4">
+                    <input type="text" id="title" name="title" placeholder="Title text">
+                  </div>
+                  <div class="desc embedMargin-2PsaQ4">
+                    <textarea id="message" name="" rows="3" placeholder="Write your message here"></textarea>
+                    <script>document.querySelector('#join-message').value = "{{data['join']['message']['content']}}"</script>
+                  </div>
+
+                  <div class="footer">
+                    <div class="icon"></div>
+                    <input type="text" name="" id="" placeholder="Footer">
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card dm">
+        <div class="title d-flex justify-content-between align-items-center">
+          <div class="d-flex gap-2 align-items-center">
+            <h2>Send a private message to new users</h2>
+            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
+              <i class="bi bi-info-circle" ></i>
+            </button>
+          </div>
+          <div class="form-switch">
+            {% if data['dm']['status'] == True %}
+            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch" style="font-size: 19px;" checked>
+            {% else %}
+            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch" style="font-size: 19px;">
+            {% endif %}
+          </div>
+          
+        </div>
+        
+        <div id="dm-data">
+          <hr>
+          
+          <div>
+            <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link dm-msg active" data-bs-toggle="tab" data-bs-target="#text">Text Message</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link dm-msg" data-bs-toggle="tab" data-bs-target="#embed" disabled>Embed Message</button>
+              </li>
+            </ul>
+            <div class="tab-content pt-2">
+              <div id="text" class="tab-pane active show" role="tabpanel">
+                <div>
+                  <textarea id="dm-message" class="text-input" placeholder="Write your message here"></textarea>
+                  <script>document.querySelector('#dm-message').value = "{{data['dm']['message']['content']}}"</script>
+                </div>
+              </div>
+              
+              <div id="embed" class="tab-pane" role="tabpanel">
+                <p>Coming soon...</p>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card leave">
+        <div class="title d-flex justify-content-between align-items-center">
+          <div class="d-flex gap-2 align-items-center">
+            <h2>Send a message when a user leaves the server</h2>
+            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
+              <i class="bi bi-info-circle" ></i>
+            </button>
+          </div>
+          <div class="form-switch">
+            {% if data['leave']['status'] == True %}
+            <input type="checkbox" id="leave-status" class="form-check-input" role="switch" name="welcome-leave" style="font-size: 19px;" checked>
+            {% else %}
+            <input type="checkbox" id="leave-status" class="form-check-input" role="switch" name="welcome-leave" style="font-size: 19px;">
+            {% endif %}
+          </div>
+        </div>
+        
+        <div id="leave-data">
+          <hr>
+          <div>
+            <p class="mb-2">Goodbye message channel</p>
+            <div id="leave-dropdown" class="leave-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                    <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr>
+          
+          <div>
+            <textarea id="leave-message" class="text-input" placeholder="Write your message here"></textarea>
+            <script>document.querySelector('#leave-message').value = "{{data['leave']['message']['content']}}"</script>
+          </div>
+          
+        </div>
+        
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card autoroles">
+        <div class="title d-flex justify-content-between align-items-center">
+          <h2>Give a role to new users</h2>
+          <div class="form-switch">
+            {% if data['leave']['status'] == True %}
+            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles" style="font-size: 19px;" checked>
+            {% else %}
+            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles" style="font-size: 19px;">
+            {% endif %}
+          </div>
+        </div>
+        
+        <div id="autoroles-data">
+          <hr>
+          <div>
+            <p class="mb-1">Roles to give</p>
+            <div class="autoroles-select-wrapper multiple">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for role in guild_models(guild).roles %}
+                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+
+    {% include 'components/variables.html' %}
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    .embed input, 
+    .embed textarea {
+      color: #fff;
+      width: 100%;
+      background: none;
+      border: none;
+    }
+    .embed input:focus-visible,
+    .embed textarea:focus-visible {
+      outline: none;
+      border: none;
+    }
+
+    .nav-tabs-bordered {
+      margin: 0;
+    }
+  </style>
+
+  <script>
+    new Select('.join-select-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['join']['channel']}}"]
+    });
+    new Select('.leave-select-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['leave']['channel']}}"]
+    });
+    new Select('.autoroles-select-wrapper.multiple', {
+      placeholder: "Select a role",
+      type: 'role',
+      multiple: true,
+      maxItems: 5,
+      options: JSON.parse(`{{data['autoRoles']['roles'] | tojson}}`)
+    });
+    
+    var save_data = {}
+    
+    document.querySelector('#welcome-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "welcome.status": e.target.checked }),
+      });
+    })
+    
+    // join
+    const joinStatus = document.querySelector('#join-status');
+    const joinData = document.querySelector('#join-data');
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!joinStatus.checked) {
+        joinData.remove()
+      } else {
+        document.querySelector('.feature_card.join').appendChild(joinData);
+      }
+    })
+    document.querySelector('#join-status').addEventListener('change', (e) => {
+      if (!joinStatus.checked) {
+        joinData.remove()
+      } else {
+        document.querySelector('.feature_card.join').appendChild(joinData);
+      }
+
+      show_toast("welcome.join.status", "{{data['join']['status']}}", joinStatus.checked)
+    })
+    document.querySelectorAll('button.nav-link.join-msg').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('active')) return
+        var tab = e.target.dataset.bsTarget.replace('#', '')
+
+        show_toast("welcome.join.message.type", "{{data['join']['message']['type']}}", tab)
+      })
+    })
+    document.querySelector('#join-message').addEventListener('input', (e) => {
+      var tabs = document.querySelector('button.nav-link.join-msg.active').dataset.bsTarget.replace('#', '')
+      
+      if (tabs == "text") {
+        var val = e.target.value;
+        show_toast("welcome.join.message.content", `{{data['join']['message']['content']}}`, val)
+      }
+    })
+    
+    const welcomeSelectWrapper = document.querySelector('.join-select-wrapper.single');
+    welcomeSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null
+
+      show_toast("welcome.join.channel", "{{data['join']['channel']}}", option)
+    });
+
+    // dm
+    const dmStatus = document.querySelector('#dm-status');
+    const dmData = document.querySelector('#dm-data');
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!dmStatus.checked) {
+        dmData.remove()
+      } else {
+        document.querySelector('.feature_card.dm').appendChild(dmData);
+      }
+    })
+    document.querySelector('#dm-status').addEventListener('change', (e) => {
+      if (!dmStatus.checked) {
+        dmData.remove()
+      } else {
+        document.querySelector('.feature_card.dm').appendChild(dmData);
+      }
+      
+      show_toast("welcome.dm.status", "{{data['dm']['status']}}", dmStatus.checked)
+    })
+    document.querySelectorAll('button.nav-link.dm-msg').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('active')) return
+        var tab = e.target.dataset.bsTarget.replace('#', '')
+
+        show_toast("welcome.join.message.type", "{{data['join']['message']['type']}}", tab)
+      })
+    })
+    document.querySelector('#dm-message').addEventListener('input', (e) => {
+      var tabs = document.querySelector('button.nav-link.dm-msg.active').dataset.bsTarget.replace('#', '')
+      
+      if (tabs == "text") {
+        var val = e.target.value;
+        show_toast("welcome.dm.message.content", `{{data['dm']['message']['content']}}`, val)
+      }
+    })
+    /* Message embed */
+    
+        
+    // Leave
+    const leaveStatus = document.querySelector('#leave-status')
+    const leaveData = document.querySelector('#leave-data')
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!leaveStatus.checked) {
+        leaveData.remove()
+      } else {
+        document.querySelector('.feature_card.leave').appendChild(leaveData);
+      }
+    })
+    document.querySelector('#leave-status').addEventListener('change', (e) => {
+      if (!leaveStatus.checked) {
+        leaveData.remove()
+      } else {
+        document.querySelector('.feature_card.leave').appendChild(leaveData);
+      }
+      
+      show_toast("welcome.leave.status", "{{data['leave']['status']}}", leaveStatus.checked)
+    })
+    document.querySelector('#leave-message').addEventListener('input', (e) => {
+      var val = e.target.value;
+      
+      show_toast("welcome.leave.message.content", `{{data['leave']['message']['content']}}`, val)
+    })
+    
+    const leaveSelectWrapper = document.querySelector('.leave-select-wrapper.single');
+    leaveSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null
+      
+      show_toast("welcome.leave.channel", "{{data['leave']['channel']}}", option)
+    });
+
+    // Autoroles
+    const autorolesStatus = document.querySelector('#autoroles-status')
+    const autorolesData = document.querySelector('#autoroles-data')
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!autorolesStatus.checked) {
+        autorolesData.remove()
+      } else {
+        document.querySelector('.feature_card.autoroles').appendChild(autorolesData);
+      }
+    })
+    document.querySelector('#autoroles-status').addEventListener('change', (e) => {
+      if (!autorolesStatus.checked) {
+        autorolesData.remove()
+      } else {
+        document.querySelector('.feature_card.autoroles').appendChild(autorolesData);
+      }
+      
+      show_toast("welcome.autoRoles.status", "{{data['autoRoles']['status']}}", autorolesStatus.checked)
+    })
+
+    const autorolesSelectWrapper = document.querySelector('.autoroles-select-wrapper.multiple');
+    autorolesSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("welcome.autoRoles.roles", "{{data['autoRoles']['roles']}}", selectedOptions)
+    });
+  </script>
+</body>
+</html>

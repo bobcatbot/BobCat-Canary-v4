@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        <h1 class="em-title" onclick="convertToInput(this)">Hub - Join to create</h1>
+      </div>
+
+      <div class="buttons">
+        <button type="button" id="discard-btn" class="btn btn-secondary">Discard</button>
+        <button type="button" id="save-btn" class="btn btn-blurple">Save</button>
+      </div>
+    </div>
+  
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Hub</h2>
+        </div>
+        <hr>
+        <div class="mb-2 em-name">
+          <label for="hub-channel-name">Temporary Channels Name <r style="color: red;">*</r></label><br>
+          <input type="text" id="hub-channel-name" class="text-input" value="#{index} - {username}'s Channel" required/>
+        </div>
+        
+        <div>
+          <p class="mb-0">Preview:</p>
+          <button class="btn btn-secondary" disabled>
+            <i class="bi bi-volume-up-fill"></i>
+            <span>#1 - {{user.username}}'s Channel</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Settings</h2>
+        </div>
+        <hr>
+        
+        <div class="user-limit">
+          <p class="mb-1">User limit</p>
+          <p class="mb-1 text-muted fs-7">Default user limit for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
+          <div class="slider-container">
+            <input type="range" id="user-limit-slider" class="slider" min="0" max="99" value="5" data-value="5" />
+            <div class="slider-value" id="user-limit-sliderValue"></div>
+
+            <div class="labels">
+              <span>&infin;</span>
+              <span>20</span>
+              <span>40</span>
+              <span>60</span>
+              <span>80</span>
+              <span>99</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bitrate mt-3">
+          <p class="mb-1">Bitrate</p>
+          <p class="mb-1 text-muted fs-7">Default bitrate in kbps for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
+          <div class="slider-container">
+            {% if guild.premium_tier == 0 %}
+            <input type="range" id="bitrate-slider" class="slider" min="8" max="96" value="64" data-value="64" />
+            {% elif guild.premium_tier == 1 %}
+            <input type="range" id="bitrate-slider" class="slider" min="8" max="128" value="128" data-value="128" />
+            {% elif guild.premium_tier == 2 %}
+            <input type="range" id="bitrate-slider" class="slider" min="8" max="256" value="256" data-value="256" />
+            {% elif guild.premium_tier == 3 %}
+            <input type="range" id="bitrate-slider" class="slider" min="8" max="384" value="384" data-value="384" />
+            {% endif %}
+            
+            <div class="slider-value" id="sliderValue"></div>
+            
+            <div class="labels">
+              <span>8</span>
+              <span>64</span>
+              
+              {% if guild.premium_tier == 0 %}
+              <span>96</span>
+              {% elif guild.premium_tier == 1 %}
+              <span>96</span>
+              <span>128</span>
+              {% elif guild.premium_tier == 2 %}
+              <span>96</span>
+              <span>128</span>
+              <span>256</span>
+              {% elif guild.premium_tier == 3 %}
+              <span>96</span>
+              <span>128</span>
+              <span>256</span>
+              <span>384</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Permissions</h2>
+        </div>
+        <hr>
+
+        <div>
+          <div class="sync-hub-category  d-flex justify-content-start gap-3">
+            <div class="form-switch" style="padding-left: 0;">
+              <input type="checkbox" id="sync-hub-category" class="form-check-input" role="switch" style="margin-left: 0;">
+            </div>
+            <div>
+              <label for="sync-hub-category">Synchronize permissions with Hub category</label>
+              <p class="m-0 text-muted fs-7">Synchronize the permissions of the temporary channels when they are created with the permissions of the Hub category.</p>
+            </div>
+          </div>
+          
+          <div class="hub-categories-select-wrapper single mt-2 d-none">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for category in guild_models(guild).channels.categories %}
+                  <div class="option" data-type="channel" data-id="{{category.id}}" data-name="{{category.name}}">{{category.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hub-channel-perms mt-3">
+          <h6 class="fs-5 fw-bold">Owner Permissions</h6>
+
+          <div class="d-flex justify-content-start gap-3">
+            <div class="form-switch" style="padding-left: 0;">
+              <input type="checkbox" id="hub-channel-manage_channels" class="form-check-input" role="switch" style="margin-left: 0;">
+            </div>
+            <div>
+              <label for="hub-channel-manage_channels">Manage Channels</label>
+              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.</p>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-start gap-3 mt-2">
+            <div class="form-switch" style="padding-left: 0;">
+              <input type="checkbox" id="hub-channel-manage_permissions" class="form-check-input" role="switch" style="margin-left: 0;">
+            </div>
+            <div>
+              <label for="hub-channel-manage_permissions">Manage Permissions</label>
+              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can manage their advanced permissions on Discord.</p>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-start gap-3 mt-2">
+            <div class="form-switch" style="padding-left: 0;">
+              <input type="checkbox" id="hub-channel-priority_speaker" class="form-check-input" role="switch" style="margin-left: 0;">
+            </div>
+            <div>
+              <label for="hub-channel-priority_speaker">Priority Speaker</label>
+              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation will be the only priority speaker of the temporary voice channel on Discord.</p>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-start gap-3 mt-2">
+            <div class="form-switch" style="padding-left: 0;">
+              <input type="checkbox" id="hub-channel-move_members" class="form-check-input" role="switch" style="margin-left: 0;">
+            </div>
+            <div>
+              <label for="hub-channel-move_members">Move Members</label>
+              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can disconnect other users from the temporary voice channel on Discord.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    new Select('.hub-categories-select-wrapper.single', {
+      placeholder: "Select a channel",
+      type: '',
+      multiple: false,
+      maxItems: 1,
+      options: []
+    });
+
+    let tempchan_data = {};
+
+    document.querySelector('#discard-btn').addEventListener('click', (e) => {
+      if (Object.keys(tempchan_data).length > 0) {
+        var res = confirm("Are you sure you want to discard changes?")
+        if (res) {
+          window.location.href = '/dashboard/{{guild.id}}/temporary-channels'
+        }
+      } else {
+        window.location.href = '/dashboard/{{guild.id}}/temporary-channels'
+      }
+    })
+
+    document.querySelector('#save-btn').addEventListener('click', (e) => {
+      fetch("creation", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(tempchan_data),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status == 'success') {
+            window.location.href = '/dashboard/{{guild.id}}/temporary-channels'
+          }
+        })
+    })
+
+    function convertToInput(element) {
+      // Create an input element
+      const input = document.createElement("input");
+      input.className = "em-title-input";
+      input.type = "text";
+      input.value = element.innerText; // Set input value to current text
+
+      // Add event listener to handle when the user presses Enter
+      input.addEventListener("blur", () => {
+        revertToText(element, input);
+      });
+
+      // Replace the <h1> element with the input
+      element.replaceWith(input);
+      input.focus();
+    }
+
+    function revertToText(element, input) {
+      const h1 = document.createElement("h1");
+      h1.className = element.className;
+      h1.onclick = () => convertToInput(h1);
+      h1.innerText = input.value || "Hub - Join to create"; // Set text to input value or default text
+      input.replaceWith(h1);
+
+      tempchan_data['hub_name'] = input.value;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      tempchan_data['hub_name'] = document.querySelector('.em-title').innerText
+    })
+
+    var hubChannelName = document.querySelector('#hub-channel-name')
+    document.addEventListener('DOMContentLoaded', () => {
+      tempchan_data['name'] = hubChannelName.value
+    })
+    hubChannelName.addEventListener('input', (e) => {
+      tempchan_data['name'] = e.target.value
+    })
+
+    // User Limit slider
+    const userLimitSlider = document.querySelector('#user-limit-slider');
+    const userLimitOutput = document.getElementById("user-limit-sliderValue");
+
+    function updateUserLimitSliderValuePosition() {
+      // Update the displayed value
+      userLimitOutput.innerHTML = userLimitSlider.value;
+
+      // Calculate the position of the sliderValue above the thumb
+      const sliderWidth = userLimitSlider.offsetWidth;
+      const thumbWidth = 20; // Match the width of the thumb
+      const min = userLimitSlider.min;
+      const max = userLimitSlider.max;
+      const value = userLimitSlider.value;
+
+      // Calculate the percentage position of the thumb
+      const percent = (value - min) / (max - min);
+      const offsetX = percent * (sliderWidth - thumbWidth) + thumbWidth / 2;
+
+      // Set the position of the sliderValue
+      userLimitOutput.style.left = `${offsetX}px`;
+
+      // Update the slider background to show fill effect dynamically
+      userLimitSlider.style.background = `linear-gradient(to right, #3a9eea ${percent * 100}%, #333 ${percent * 100}%)`;
+    }
+
+    window.addEventListener('load', () => {
+      updateUserLimitSliderValuePosition();
+
+      tempchan_data['user_limit'] = userLimitSlider.value
+    });
+
+    userLimitSlider.addEventListener("input", function() {
+      updateUserLimitSliderValuePosition();
+
+      userLimitOutput.innerHTML = this.value;
+
+      tempchan_data['user_limit'] = this.value
+    })
+
+
+    // Bitrate slider
+    const bitrateSlider = document.querySelector('#bitrate-slider');
+    const bitrateOutput = document.getElementById("sliderValue");
+
+    function updateBitrateSliderValuePosition() {
+      // Update the displayed value
+      bitrateOutput.innerHTML = `${bitrateSlider.value} kbps`;
+
+      // Calculate the position of the sliderValue above the thumb
+      const sliderWidth = bitrateSlider.offsetWidth;
+      const thumbWidth = 20; // Match the width of the thumb
+      const min = bitrateSlider.min;
+      const max = bitrateSlider.max;
+      const value = bitrateSlider.value;
+
+      // Calculate the percentage position of the thumb
+      const percent = (value - min) / (max - min);
+      const offsetX = percent * (sliderWidth - thumbWidth) + thumbWidth / 2;
+
+      // Set the position of the sliderValue
+      bitrateOutput.style.left = `${offsetX}px`;
+
+      // Update the slider background to show fill effect dynamically
+      bitrateSlider.style.background = `linear-gradient(to right, #3a9eea ${percent * 100}%, #333 ${percent * 100}%)`;
+    }
+
+    window.addEventListener('load', () => {
+      updateBitrateSliderValuePosition();
+
+      tempchan_data['bitrate'] = bitrateSlider.value * 1000
+    });
+
+    bitrateSlider.addEventListener("input", function() {
+      updateBitrateSliderValuePosition();
+
+      bitrateOutput.innerHTML = `${this.value} kbps`;
+
+      tempchan_data['bitrate'] = this.value * 1000
+    })
+
+
+    // Permissions - Sync Hub Category
+    var syncHubCategory = document.querySelector('#sync-hub-category')
+    var syncHubCategorySelectWrapper = document.querySelector('.hub-categories-select-wrapper')
+
+    document.addEventListener('DOMContentLoaded', () => {
+      tempchan_data['sync_hub_category'] = syncHubCategory.checked;
+
+      if (syncHubCategory.checked) {
+        syncHubCategorySelectWrapper.classList.remove('d-none')
+      } else {
+        syncHubCategorySelectWrapper.classList.add('d-none')
+      }
+    })
+    syncHubCategory.addEventListener('input', (e) => {
+      var val = e.target.checked;
+      
+      console.log(val)
+      tempchan_data['sync_hub_category'] = val
+
+      if (val) {
+        syncHubCategorySelectWrapper.classList.remove('d-none')
+      } else {
+        syncHubCategorySelectWrapper.classList.add('d-none')
+      }
+    })
+
+    syncHubCategorySelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null;
+      
+      tempchan_data['category_id'] = option
+    });
+
+    // Permissions
+    const hubChannelPerms = [
+      'hub-channel-manage_channels',
+      'hub-channel-manage_permissions',
+      'hub-channel-priority_speaker',
+      'hub-channel-move_members',
+    ]
+    hubChannelPerms.forEach(perms => {
+      tempchan_data["permissions"] = {};
+
+      // Remove the 'hub-channel-' prefix
+      const permName = perms.replace('hub-channel-', '');
+      
+      // Set the initial state based on the checkbox (checked or unchecked)
+      const checkbox = document.querySelector(`#${perms}`);
+      if (checkbox) {
+        tempchan_data["permissions"][permName] = checkbox.checked;
+
+        // Add event listener for changes
+        checkbox.addEventListener('change', (e) => {
+          const val = e.target.checked;
+          tempchan_data["permissions"][permName] = val;
+        });
+      }
+
+      console.log(tempchan_data)
+    })
+  </script>
+
+  <style>
+    .em-title {
+      max-width: 40vw;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .em-title-input {
+      background: #3a9eea;
+      color: #fff;
+      padding: 4px 8px;
+      font-size: 18px;
+      max-width: 40vw;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      border: none;
+      border-radius: 8px;
+    }
+    .em-title-input:focus-visible {
+      outline: none;
+    }
+    
+    @media (max-width: 425px) {
+      .em-title {
+        max-width: 90vw;
+      }
+    }
+
+    .fs-7 {
+      font-size: .875rem; /* 14px */
+    }
+
+
+    /* sliders */
+    .slider-container {
+      max-width: var(--input-width);
+      position: relative;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      outline: none;
+      border-radius: 5px;
+      background: linear-gradient(to right, #3a9eea 6%, #333 0%);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      position: absolute;
+      top: -30px;
+      left: 0;
+      color: #fff;
+      font-size: 16px;
+      background-color: #333;
+      padding: 5px;
+      border-radius: 4px;
+      transform: translateX(-50%);
+      opacity: 0;
+    }
+
+    .slider:hover + .slider-value {
+      opacity: 1;
+    }
+
+    .labels {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+    }
+
+    .labels span {
+      color: #aaa;
+      font-size: 14px;
+    }
+  </style>
+
+</body>
+</html>

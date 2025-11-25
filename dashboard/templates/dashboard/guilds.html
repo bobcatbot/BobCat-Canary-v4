@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Dashboard | BobCat Beta</title>
+  {% include 'include/links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/Navbar.html' %}
+
+  <main class="mainn">
+    <h2 class="text-center fs-3 fw-semibold">Select a server</h2>
+    {% if guilds == [] %}
+    <div class="d-flex flex-column justify-content-center align-items-center" style="margin-top: 25px;margin-bottom: 25px;">
+      <p class="mb-1 fs-7">Opps, looks like you don't have any servers.</p>
+      <p class="mb-1 fs-7">Are you sure you are logged in to the correct account?</p>
+    </div>
+    {% else %}
+    <div class="d-flex flex-column justify-content-center align-items-center" style="margin-top: 25px;margin-bottom: 25px;">
+      <div class="server-card grid grid-cols gap-4 lg:gap-6">
+        {% for guild in guilds %}
+        <a href="/dashboard/{{guild.id}}">
+          <div class="card">
+            <div class="d-flex justify-content-center align-items-center">
+              {% if guild.icon_url is not none %}
+              <img src="{{guild.icon_url}}" class="icon" width="70px" alt="Server Icon">
+              {% else %}
+              <img src="{{url_for('static',filename='/discord-logo.png')}}" class="icon" width="70px" alt="Icon">
+              {% endif %}
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div>
+                <h2>{{guild.name}}</h2>
+                <p class="m-0">{{guild.perm}}</p>
+              </div>
+              <span class="button" style="background-color: {{guild.color}}">{{guild.btn_name}}</span>
+            </div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </main>
+  
+  <style>
+.gap {
+  gap: 16px!important;
+}
+
+.p-3 {
+  padding: 0.75rem!important;
+}
+
+.grid {
+  display: grid;
+}
+.grid-cols {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.server-card {
+  width: min(100vw, 850px);
+}
+.server-card a:hover {
+  color: white;
+}
+
+.server-card .card {
+  padding: 12px;
+  background: #18191c;
+  color: var(--text-color);
+  border-radius: 8px;
+}
+.server-card .card .icon {
+  border-radius: 100%;
+  border: 2px solid white;
+}
+.server-card .card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.button {
+  color: white;
+  font-size: 12px;
+  margin-left: 5px;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .server-card {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .grid-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .m-2\.5 {
+    margin: 0.625rem;
+  }
+}
+    
+@media (max-width: 640px) {
+  .server-card {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .grid-cols {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .m-2\.5 {
+    margin: 0.625rem;
+  }
+}
+  </style>
+</body>
+</html>

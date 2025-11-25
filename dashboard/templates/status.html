@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Contact Us | BobCat Bot</title>
+  {% include 'include/links.html' %}
+</head>
+<body>
+  <!-- ======= Header ======= -->
+  {% include 'components/Navbar.html' %}
+
+  <!-- ======= Hero Section ======= -->
+  <section class="page-header d-flex align-items-center">
+    <div class="container d-flex flex-column align-items-center justify-content-center" data-aos="fade-up">      
+      <h1>Bot status</h1>
+      <p class="m-0" id="countdown">This page automatically refreshes every 30 seconds. Next update in: <span id="timer"></span></p>
+    </div>
+  </section><!-- End Hero -->
+
+  <main>
+    <div class="container mt-4">
+      <button class="collapse-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+        What do the letters mean? (click to expand)
+      </button>
+      <div class="collapse" id="collapseExample">
+        <div class="collapse-card collapse-card-body">
+          <p><b style="color: green;">No letter</b> - Working as intentional!</p>
+          <p><b style="color: green;">C</b> - Connected. The bot has connected to discord, but it might not respond to all commands.</p>
+          <p><b style="color: orange;">P</b> - Partially connected. Like connected, except some servers won't have any commands work.</p>
+          <p><b style="color: orange;">L</b> - Currently in the process of logging in.</p>
+          <p><b style="color: red;">Q</b> - Offline and waiting for its turn to log in.</p>
+          <p><b style="color: red;">🔥</b> - Not only is the cluster offline, it hasn't shown any signs it's trying to reconnect.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="container mt-4">
+      <div class="alert" role="alert"></div>
+    </div>
+
+    <!-- ======= Shard list ======= -->
+    <div id="shard-list" class="container my-4 mt-3 d-flex align-items-stretch gap-3">
+      {% for shard in shards %}
+      <div class="position-relative shard-card" data-id="{{ shard.id }}">
+        <div class="card" style="text-align: center;background-color: #223;" data-color="{{shard.color}}" aria-describedby="shard-{{shard.id}}">
+          <div class="card-body">
+            <h5 class="card-title m-0">{{shard.id}}</h5>
+            <p class="card-text"></p>
+          </div>
+        </div>
+      
+        <div id="shard-{{shard.id}}" role="tooltip"></div>
+      </div>{% endfor %}
+    </div><!-- End Shard list -->
+  </main>
+
+  <div id="preloader"></div>
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <script>
+  // Update shard data
+  async function updateShardData() {
+    try {
+      var shards_status = [];
+
+      const response = await fetch('/api/shard_status');
+      const shards = await response.json();
+
+      // Update each shard card
+      shards.forEach(shard => {
+        if (shard.state != 'Ready' && shard.emoji != '') {
+          shards_status.push(shard.id);
+        }
+
+        const shardStatus = document.querySelector(`.alert[role="alert"]`);
+        if (shardStatus) {
+          shardStatus.textContent = shards_status.length > 0 ? `${shards_status.length} shards are misbehaving` : 'All systems are operational!';
+          shardStatus.classList.add(shards_status.length > 0 ? 'alert-danger' : 'alert-success');
+        }
+
+        const shardCard = document.querySelector(`.shard-card[data-id="${shard.id}"]`);
+        if (shardCard) {
+          // Update card color
+          const card = shardCard.querySelector('.card');
+          card.style.backgroundColor = '#223';
+          card.setAttribute('data-color', shard.color);
+
+          if('{{user}}') {
+            card.style.borderColor = shard.color;
+          }
+
+          // Update shard ID and emoji
+          shardCard.querySelector('.card-title').textContent = shard.id;
+          shardCard.querySelector('.card-title').style.color = shard.color;
+          
+          if (shard.emoji) {
+            shardCard.querySelector('.card-text').textContent = shard.emoji;
+            shardCard.querySelector('.card-text').style.color = shard.color;
+          } else {
+            shardCard.querySelector('.card-text').remove();
+          }
+
+          var div_status = `<div class="text"><b class="title">Status:</b> ${shard.state}</div>`
+          var div_latency = `<div class="text"><b class="title">Latency:</b> ${shard.latency}ms</div>`
+          var div_servers = `<div class="text"><b class="title">Servers:</b> ${shard.servers}</div>`
+
+          var div_usersGuilds = `${'{{user}}' ? `<div class="text flex-column"><b class="title">Servers you may know:</b> ${
+            shard.user_in_guilds.map(g => `<span>${g}</span>`).join('')
+          }</div>` : ''}`
+
+          // Update tooltip with the new state
+          const tooltip = shardCard.querySelector(`[role="tooltip"]`);
+          tooltip.innerHTML = div_status + div_latency + div_servers + div_usersGuilds;
+        }
+      });
+    } catch (error) {
+      console.error('Failed to update shard data:', error);
+    }
+  }
+
+  // Timer
+  const timer = document.getElementById('timer');
+  let seconds = 30;
+  
+  const interval = setInterval(() => {
+    seconds--;
+    timer.textContent = seconds;
+    if (seconds === 0) {
+      //updateShardData();
+      seconds = 30;
+    }
+  }, 1000);
+  
+  updateShardData(); // Initial update
+
+  </script>
+</body>
+</html>
+
+<style>
+  .page-header {
+    padding: 120px 0px 70px 0px;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    color: #ffffff;
+    background: #36393F;
+    border-bottom: 2px solid #36393F;
+    text-align: center;
+  }
+
+  [role="tooltip"],
+  .hidetooltip + [role="tooltip"] {
+    visibility: hidden;
+    position: absolute;
+    top: 108%;
+    left: 40%;
+    z-index: 1;
+    width: max-content;
+    padding: 6px;
+    background: black;
+    color: white;
+    border-radius: 8px;
+    transform: translate(-50%, 0);
+  }
+  [aria-describedby]:hover,
+  [aria-describedby]:focus {
+    position: relative;
+  }
+  [aria-describedby]:hover + [role="tooltip"],
+  [aria-describedby]:focus + [role="tooltip"] {
+    visibility: visible;
+  }
+
+  [role="tooltip"]::before,
+  .hidetooltip + [role="tooltip"]::before {
+    content: "";
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    z-index: 1;
+    width: 0;
+    height: 0;
+    transform: translate(0, -50%);
+    /* make a triangle */
+    border-width: 5px;
+    border-style: solid;
+    border-color: black transparent transparent transparent;
+    rotate: 180deg;
+  }
+  @media (max-width: 480px) {
+    [role="tooltip"] {
+      left: 130%;
+      right: 130%;
+    }
+    [role="tooltip"]::before {
+      left: 22px;
+      right: 22px;
+    }
+  }
+
+  .text {
+    display: flex;
+    column-gap: 4px;
+    color: #e4e7ea;
+    font-size: 13px;
+  }
+
+  .title {
+    font-weight: normal;
+    color: #ffffff;
+  }
+
+
+  .collapse-button {
+    padding: 0;
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition-duration: 0.4s;
+  }
+
+  .collapse-card {
+    background: transparent;
+    margin-top: 4px;
+    border: none;
+  }
+  .collapse-card.collapse-card-body p {
+    margin: 0;
+  }
+</style>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+  
+  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>Settings</h1>
+        <p class="m-0">Here you can adjust the bots settings</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Bot masters</h2>
+          <p>Bot masters can access your Dashboard and edit every command and plugin configuration. Bot masters also bypass command role checks, see all tickets from the Ticketing plugin, are automatically considered immune in the Moderator plugin and can reset anyone's XP in the Levels plugin!</p>
+        </div>
+        <hr>
+        
+        <div class="admin-roles">
+          <p class="mb-0">Administrator Roles</p>
+          <p class="mb-1 fs-7 text-muted">Any role with the Administrator permission is considered as a bot master.</p>
+          <div class="botmastersadmin-select-wrapper multiple">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for role in guild_models(guild).roles %}
+                <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-2 addbotmaster-roles">
+          <p class="mb-0">Additional Bot Master Roles</p>
+          <p class="mb-1 fs-7 text-muted">Roles that will also be considered as bot masters, even if they do not have the Administrator permission.</p>
+          <div class="botmastersmod-select-wrapper multiple">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for role in guild_models(guild).roles %}
+                <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Langauge</h2>
+          <p>Change the default language of the bot in your server.</p>
+        </div>
+        <hr>
+        
+        <div>
+          <div class="language-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an language</div>
+              <div id="lang-opts" class="select-options">
+                {% for lang in languages %}
+                  <div class="option" data-value="{{lang.code}}">
+                    <img src="{{lang.flag}}" class="me-2" style="width: 32px;" alt="">
+                    {{lang.name}}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+                
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Timezone</h2>
+          <p>Change the default timezone of the bot in your server.</p>
+        </div>
+        <hr>
+        
+        <div>
+          <div class="timezone-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an Timezone</div>
+              <div class="select-options">
+                {% for tz in timezones %}
+                  <div class="option" data-value="{{tz}}">{{tz}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Default embed color</h2>
+          <p>Change the default colors of the bot in your server.</p>
+        </div>
+        
+        <hr>
+        <div class="d-flex gap-2">
+          <div class="con color-picker full">
+            <div class="clr-field" style="color: {{data.color}};">
+              <button aria-labelledby="clr-open-label"></button>
+              <input type="text" class="coloris" value="{{data.color}}">
+            </div>
+          </div>
+          
+          <div class="embed" style="border-left-color: {{data.color}};">
+            <div class="e-bdFBtt">
+              <div class="title embedMargin-2PsaQ4">
+                Discord embed title
+              </div>
+              <div class="desc embedMargin-2PsaQ4">
+                Discord embed description
+              </div>
+            </div>
+          </div>
+        </div>
+                
+      </div>
+    </section>
+    
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    console.log('{{data["admin_roles"] | tojson}}')
+
+    new Select('.botmastersadmin-select-wrapper.multiple', {
+      placeholder: "Select a channel",
+      type: 'role',
+      multiple: true,
+      maxItems: 100,
+      removeBtn: true,
+      options: JSON.parse('{{data["admin_roles"] | tojson}}')
+    });
+    new Select('.botmastersmod-select-wrapper.multiple', {
+      placeholder: "Select a channel",
+      type: 'role',
+      multiple: true,
+      maxItems: 100,
+      removeBtn: true,
+      options: JSON.parse('{{data["bot_masters"] | tojson}}')
+    });
+
+    new Select('.language-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'flag',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['language']}}"]
+    });
+    new Select('.timezone-wrapper.single', {
+      placeholder: "Select a timezone",
+      type: '',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['timezone']}}"]
+    });
+
+    Coloris({
+      el: '.coloris',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: [ '#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000' ]
+    });
+
+    try {
+      const selectedItem = document.querySelector('.language-wrapper .select-selected')
+      const img = document.createElement('img')
+      img.src = document.querySelector('.language-wrapper .select-options .option.selected').querySelector('img').src
+      img.style.width = '32px'
+      selectedItem.insertAdjacentElement('afterBegin', img)
+    } catch (error) {
+    }
+    
+    var save_data = {}
+
+    // Admin Roles
+    const botMasterAdminSelectWrapper = document.querySelector('.botmastersadmin-select-wrapper.multiple');
+    botMasterAdminSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      console.log(selectedOptions)
+      
+      show_toast("settings.admin_roles", "{{data['admin_roles']}}", selectedOptions)
+    });
+
+    // Bot Masters
+    const botMasterModSelectWrapper = document.querySelector('.botmastersmod-select-wrapper.multiple');
+    botMasterModSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      
+      show_toast("settings.bot_masters", "{{data['bot_masters']}}", selectedOptions)
+    });
+    
+    // Language
+    const channelMessageWrapper = document.querySelector('.language-wrapper.single');
+    channelMessageWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'en-US'
+      
+      const img = document.createElement('img')
+      img.src = document.querySelector('.language-wrapper .select-options .option.selected').querySelector('img').src
+      img.style.width = '32px'
+      document.querySelector('.language-wrapper .select-selected').insertAdjacentElement('afterBegin', img)
+      
+      show_toast("settings.language", "{{data['language']}}", option)
+    });
+
+    // Timezone
+    const channelRoleWrapper = document.querySelector('.timezone-wrapper.single');
+    channelRoleWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : 'UTC'
+      
+      show_toast("settings.timezone", "{{data['timezone']}}", option)
+    });
+
+    // Colors
+    document.addEventListener('coloris:pick', event => {
+      // wait for the color to be picked
+      const color = event.detail.color;
+
+      document.querySelector('.embed').style.borderLeftColor = color
+      
+      show_toast("settings.color", "{{data['timezone']}}", color)
+    });
+  </script>
+  <style>
+    .full .clr-field button {
+      width: 100%;
+      height: 100%;
+      border-radius: 5px;
+    }
+    .full .clr-field input {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .alert-warning {
+      --bs-alert-color: #ffda6a;
+      --bs-alert-bg: #332701;
+      --bs-alert-border-color: #997404;
+      --bs-alert-link-color: #ffda6a;
+    }
+  </style>
+</body>
+</html>

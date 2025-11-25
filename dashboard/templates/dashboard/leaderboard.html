@@ -1,0 +1,404 @@
+<html lang="en">
+<head>
+  {% include 'include/links.html' %}
+</head>
+<body>
+  <hero id="hero" class="d-flex align-items-center">
+    <div class="container position-relative d-flex flex-column align-items-center justify-content-center">
+      <div class="hero-img-container">
+        {% if data.leaderboard.banner %}
+        <img
+          id="banner"
+          class="img-fluid banner"
+          src="{{data.leaderboard.banner}}"
+          alt="Server banner"
+          style="max-height: 364px;border-radius: 16px;"
+        >
+        <img 
+          id="hero-image"
+          class="img-fluid hero-img"
+          src="{{guild.icon.url}}"
+          alt="Server Icon"
+          style="position: absolute;z-index: 5;bottom: -74px;left: 50%;transform: translateX(-50%);"
+        >
+        {% else %}
+        <img 
+          id="hero-image"
+          class="img-fluid hero-img no-banner"
+          src="{{guild.icon.url}}"
+          alt="Server Icon"
+        >
+        {% endif %}
+      </div>
+
+      <h1>{{guild.name}}</h1>
+    </div>
+  </hero>
+  
+  <section class="info-cards pt-0">
+    <div class="container">
+      <div class="row mt-4 justify-center">
+        <div class="col-md-8">
+          <div class="feature_card leaderboard">
+            <div class="title">
+              <h2>Leaderboard</h2>
+            </div>
+            <hr>
+
+            <div class="tittle flex justify-between align-center">
+              <div class="flex" style="gap: 1.4rem!important;margin-left: 8px;">
+                <p>#</p>
+                <p>User</p>
+              </div>
+              <div class="flex gap-2">
+                <p>Exp</p>
+                <p>Level</p>
+                <p>Messages</p>
+              </div>
+            </div>
+            {% for idx, (player, data) in users %}
+            <div id="card-{{player.id}}" class="p-card flex justify-between align-center">
+              <div class="flex gap-3 align-center">
+                <span class="count" data-count="{{idx}}"></span>
+
+                <div class="d-flex align-items-center">
+                  <img src="{{player.display_avatar}}" class="image" alt="Avatar">
+                  <span>{{player.display_name}}</span>
+
+                  {% if guild_permissions.administrator or guild_permissions.bot_master %}
+                  <div class="ms-2">
+                    <button 
+                      class="UserResetXp btn btn-danger" 
+                      data-bs-toggle="modal" data-bs-target="#UserResetXp-{{loop.index}}"
+                      style="--bs-btn-padding-y: 4px;"
+                    >Reset XP</button>
+                    <div id="UserResetXp-{{loop.index}}" class="modal dark">
+                      <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h1 class="modal-title fs-5">
+                              <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
+                              Reset member's XP?
+                            </h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            You are about to reset @{{player}}'s Levels and XP! This action is strictly irreversible!
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" id="user-rest-xp" class="btn btn-danger" data-index="{{loop.index}}" data-player="{{player.id}}">Yes</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="flex gap-2 align-center justify-around" style="width: 175px;">
+                <p id="exp">{{data['exp']}}</p>
+                <p id="lvl">{{data['lvl']}}</p>
+                <p>{{data.msg_count}}</p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <!-- Tools -->
+          {% if guild_permissions.administrator or guild_permissions.bot_master %}
+          <div class="feature_card mb-2">
+            <div class="title">
+              <h2>Admin tools</h2>
+            </div>
+            
+            <hr>
+            <div>
+              <a href="/dashboard/{{guild.id}}/leveling" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #131212;padding: 0;text-decoration: none;">
+                <i class="bi bi-gear-fill pe-2"></i>
+                Leveling Settings
+              </a>
+            </div>
+
+            <hr>
+            <div>
+              <button id="RemoveBanner" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;margin-bottom: 4px;">
+                <i class="bi bi-trash3 pe-2" style="color: rgb(255, 107, 134);"></i>
+                Remove banner
+              </button>
+            </div>
+
+            <hr>
+            <div>
+              <button class="btn btn-link" data-bs-toggle="modal" data-bs-target="#ResetAllXP" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;">
+                <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
+                Reset all users
+              </button>
+              <div class="modal dark fade" id="ResetAllXP" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5" id="exampleModalLabel">
+                        <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
+                        Do you want to reset everyone's XP?
+                      </h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      This action is strictly irreversible! Everyone will lose their XP and Levels.
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nope</button>
+                      <button type="button" id="rest-all-xp" class="btn btn-danger">Reset</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- How it works -->
+          <div class="feature_card">
+            <div class="title">
+              <h2>How it works</h2>
+            </div>
+            <hr>
+            <p class="test-sm mb-2">Every minute that you're messaging, you randomly gain 1 to 10 XP.</p>
+            <p class="test-sm mb-2">To avoid spamming, earning XP is limited to a cooldown per user.</p>
+            <p class="test-sm mt-2">In the server, you type /rank to see your rank and level.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.querySelector('#RemoveBanner').addEventListener('click', () => {
+      document.querySelector('#banner').remove();
+      document.querySelector('#hero-image').removeAttribute('style');
+
+      fetch(window.location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guild_id: '{{guild.id}}',
+          key: 'RemoveBanner'
+        })
+      })
+    })
+
+    document.querySelector('#rest-all-xp').addEventListener('click', () => {
+      fetch(window.location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guild_id: '{{guild.id}}',
+          key: 'rest_all'
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const modal = bootstrap.Modal.getInstance(document.querySelector('#ResetAllXP'));
+        modal.hide();
+
+        if (data.status === 200) {
+          window.location.reload();
+        }
+      })
+    })
+
+    document.querySelectorAll('#user-rest-xp').forEach(btn => {
+      btn.addEventListener('click', () => {
+        var user = btn.dataset.player;
+        console.log(user);
+
+        const idx = btn.dataset.index;
+
+        fetch(window.location.pathname, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: 'reset',
+            guild_id: '{{guild.id}}',
+            user_id: user
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            const modal = bootstrap.Modal.getInstance(document.querySelector(`#UserResetXp-${idx}`));
+            modal.hide();
+
+            if (data.status === 200) {
+              const card = document.querySelector(`#card-${user}`);
+              card.querySelector('#exp').innerHTML = 0;
+              card.querySelector('#lvl').innerHTML = 0;
+            }
+          })
+      })
+    })
+  </script>
+
+  <style>
+    #hero {
+      height: auto;
+      padding: 0px 0;
+    }
+    
+    #hero .container {
+      padding-top: 40px;
+    }
+    
+    #hero .hero-img {
+      width: 160px;
+      height: 160px;
+      margin: 0 0 15px 0;
+      border-radius: 20px;
+    }
+    #hero h1 {
+      font-size: 38px;
+    }
+    
+    #hero .hero-img-container {
+      position: relative;
+      width: 100%;
+      top: -68px;
+      padding-top: 148px;
+    }
+    #hero .hero-img-container:has(#banner) {
+      position: relative;
+      top: -68px;
+      padding-top: 50px;
+    }
+
+    .feature_card {
+      padding: 24px;
+      margin-bottom: 16px;
+      background-color: #1f2129;
+      border-radius: 8px;
+    }
+    .feature_card .title h2 {
+      margin: 0;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .feature_card .title p {
+      margin: 0;
+      color: #9195ab;
+      font-size: 14px;
+    }
+    .feature_card hr {
+      color: #fff;
+      margin: 15px 0;
+      opacity: .25;
+      border: 1px solid #666666;
+    }
+
+    .modal.dark {
+      --bs-modal-color: var(--text-color);
+      --bs-modal-bg: var(--bs-body-color);
+    }
+
+    .modal.dark .btn-close {
+      padding: 8px;
+      background: 
+        transparent 
+        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23FFF'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e") 
+        center / 40%
+        auto 
+        no-repeat !important
+    }
+
+    .modal.dark .btn-close:focus {
+      outline: 0;
+      box-shadow: none;
+    }
+
+    .center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .flex {
+      display: flex;
+    }
+    .justify-center {
+      justify-content: center;
+    }
+    .justify-between {
+      justify-content: space-between;
+    }
+    .justify-around {
+      justify-content: space-around;
+    }
+    .align-center {
+      align-items: center;
+    }
+    .test-sm {
+      font-size: 14px;
+    }
+    
+    .leaderboard .tittle {
+      padding: 0 20px;
+      margin-bottom: 2px;
+    }
+    .leaderboard p {
+      margin: 0;
+    }
+
+    .leaderboard .p-card {
+      height: 60px;
+      padding: 10px 20px;
+      background-color: #272934;
+      margin-bottom: 8px;
+      border-radius: 8px;
+    }
+    .leaderboard .p-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .leaderboard .p-card .count {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      background-color: gray;
+      border-radius: 100%;
+    }
+    .leaderboard .p-card .count::before {
+      content: attr(data-count);
+      position: absolute;
+      top: 55%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .leaderboard .p-card .count[data-count="1"] {
+      background-color: #ff9e03;
+    }
+    .leaderboard .p-card .count[data-count="2"] {
+      background-color: lightslategray;
+    }
+    .leaderboard .p-card .count[data-count="3"] {
+      background-color: #c66e04;
+    }
+    
+    .leaderboard .p-card .image {
+      width: 32px;
+      height: 32px;
+      margin-right: 4px;
+      border-radius: 100%;
+    }
+    
+    .leaderboard .p-card .UserResetXp {
+      display: none;
+    }
+    .leaderboard .p-card:hover .UserResetXp {
+      display: block;
+    }
+  </style>
+</body>
+</html>

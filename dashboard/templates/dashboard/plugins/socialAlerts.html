@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>Social Alerts</h1>
+        <p class="m-0">Get YouTube, Twitch, and different notifications in your server</p>
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="socialAlerts-status" class="form-check-input" name="plugin-status" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="socialAlerts-status" class="form-check-input" name="plugin-status" role="switch">
+        {% endif %}
+      </div>
+    </div>
+    
+    <div>
+      <ul class="nav nav-tabs nav-tabs-bordered margin" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#youtube">YouTube</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#twitch">Twitch</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tiktok">TikTok</button>
+        </li>
+      </ul>
+      <div class="tab-content pt-2">
+        <div id="youtube" class="tab-pane active show" role="tabpanel">
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Your Youtube channel</h2>
+              </div>
+              
+              <hr>
+              {% if data['youtube']['channel']['id'] == "" %}
+              <a href="/logintoyoutube/{{guild.id}}" class="btn btn-blurple">Connect YouTube Channel</a>
+              {% else %}
+              <div class="d-flex gap-2 align-items-center">
+                <img src="{{data['youtube']['channel']['profile_picture']}}" alt="" class="channel-pfp">
+                <div>
+                  <h3 class="c_name">{{data['youtube']['channel']['name']}}</h3>
+                  <h3 class="c_url">{{data['youtube']['channel']['url']}}</h3>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Message</h2>
+              </div>
+              
+              <hr>
+              <div>
+                <p class="mb-0">Channel</p>
+                <p class="mb-1 fs-7 text-muted">Choose the channel for the messages to be sent in.</p>
+                <div class="ytd-chan-wrapper single">
+                  <div class="select">
+                    <div class="select-selected">Select an option</div>
+                    <div class="select-options">
+                      {% for channel in guild_models(guild).channels.text %}
+                      <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="mt-2">
+                  <p class="mb-0">Message</p>
+                  <p class="mb-1 fs-7 text-muted">Send a message when a new video is uploaded.</p>
+
+                  <textarea id="ytd-msg" class="text-input" onload="auto_grow(this)" oninput="auto_grow(this)">{{data["youtube"]["discord"]["vid_message"]}}</textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <!-- End of YouTube tab -->
+
+        <div id="twitch" class="tab-pane" role="tabpanel">
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Your Twitch channel</h2>
+              </div>
+              
+              <hr>
+              {% if data['twitch']['channel']['id'] == "" %}
+              <a href="/logintwitch/{{guild.id}}" class="btn btn-blurple">Connect Twitch Channel</a>
+              {% else %}
+              <div class="d-flex gap-2 align-items-center">
+                <img src="{{data['twitch']['channel']['profile_picture']}}" alt="" class="channel-pfp">
+                <div>
+                  <h3 class="c_name">{{data['twitch']['channel']['name']}}</h3>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Message</h2>
+              </div>
+              
+              <hr>
+              <div>
+                <p class="mb-0">Channel</p>
+                <p class="mb-1 fs-7 text-muted">Choose the channel for the messages to be sent in.</p>
+                <div class="ttv-chan-wrapper single">
+                  <div class="select">
+                    <div class="select-selected">Select an option</div>
+                    <div class="select-options">
+                      {% for channel in guild_models(guild).channels.text %}
+                      <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="mt-2">
+                  <p class="mb-0">Message</p>
+                  <p class="mb-1 fs-7 text-muted">Send a message when a new video is uploaded.</p>
+
+                  <textarea id="ttv-msg" class="text-input" onload="auto_grow_ttv(this)" oninput="auto_grow_ttv(this)">{{data["twitch"]["discord"]["message"]}}</textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <!-- End of Twitch tab -->
+
+        <div id="tiktok" class="tab-pane" role="tabpanel">
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Your Tiktok channel</h2>
+              </div>
+              
+              <hr>
+              {% if data['tiktok']['channel']['id'] == "" %}
+              <a href="/logintotiktok/{{guild.id}}" class="btn btn-blurple">Connect Tiktok Channel</a>
+              {% else %}
+              <div class="d-flex gap-2 align-items-center">
+                <img src="{{data['tiktok']['channel']['profile_picture']}}" alt="" class="channel-pfp">
+                <div>
+                  <h3 class="c_name">{{data['tiktok']['channel']['name']}}</h3>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="feature_card join">
+              <div class="title">
+                <h2>Message</h2>
+              </div>
+              
+              <hr>
+              <div>
+                <p class="mb-0">Channel</p>
+                <p class="mb-1 fs-7 text-muted">Choose the channel for the messages to be sent in.</p>
+                <div class="ttd-chan-wrapper single">
+                  <div class="select">
+                    <div class="select-selected">Select an option</div>
+                    <div class="select-options">
+                      {% for channel in guild_models(guild).channels.text %}
+                      <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="mt-2">
+                  <p class="mb-0">Message</p>
+                  <p class="mb-1 fs-7 text-muted">Send a message when a new video is uploaded.</p>
+
+                  <textarea id="ttd-msg" class="text-input" onload="auto_grow(this)" oninput="auto_grow(this)">{{data["tiktok"]["discord"]["message"]}}</textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <!-- End of Tiktok tab -->
+      </div>
+    </div>
+
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    .channel-pfp {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .c_name {
+      margin: 0;
+      font-size: 1rem; /* 16px */
+      font-weight: 500;
+    }
+
+    .c_url {
+      margin: 0;
+      font-size: 0.875rem; /* 14px */
+    }
+  </style>
+
+  <script>
+    new Select('.ytd-chan-wrapper.single',{
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["youtube"]["discord"]["channel_id"]}}'],
+    });
+
+    new Select('.ttv-chan-wrapper.single',{
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["twitch"]["discord"]["channel_id"]}}'],
+    });
+
+    new Select('.ttd-chan-wrapper.single',{
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ['{{data["tiktok"]["discord"]["channel_id"]}}'],
+    });
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.location.hash) {
+        document.querySelector(`[data-bs-target='${window.location.hash}']`).click()
+      }
+    })
+
+    // document.querySelector('#socialAlerts-status').addEventListener('change', (e) => {
+    //   fetch("/dashboard/{{guild.id}}/data/post", {
+    //     method: "POST",
+    //     headers: {"Content-Type": "application/json"},
+    //     body: JSON.stringify({ "social_alerts.status": e.target.checked }),
+    //   });
+    // })
+
+    const auto_grow = (element) => {
+      element.style.height = 'auto';
+      element.style.height = `${element.scrollHeight}px`;
+      console.log(element.scrollHeight)
+    }
+
+    const debounce = (func, delay) => {
+      let timeoutId;
+      return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          func.apply(this, args);
+        }, delay);
+      };
+    };
+
+    /////////////////// Youtube ///////////////////
+    const ytdChnaWrapper = document.querySelector('.ytd-chan-wrapper.single')
+    ytdChnaWrapper.addEventListener('select:update', (e) => {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "youtube", key: "youtube.discord.channel_id", value: option }),
+      });
+    })
+
+    const ytdMsg = document.querySelector('#ytd-msg');
+  
+    const debouncedFunction = debounce((e) => {
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "youtube", key: "youtube.discord.vid_message", value: ytdMsg.value }),
+      })
+    }, 700);
+
+    ytdMsg.addEventListener('input', debouncedFunction);
+
+    /////////////////// Twitch ///////////////////
+    const ttvChnaWrapper = document.querySelector('.ttv-chan-wrapper.single')
+    ttvChnaWrapper.addEventListener('select:update', (e) => {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "twitch", key: "twitch.discord.channel_id", value: option }),
+      });
+    })
+
+    const ttvMsg = document.querySelector('#ttv-msg');
+  
+    const debouncedFunction2 = debounce((e) => {
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "twitch", key: "twitch.discord.message", value: ttvMsg.value }),
+      })
+    }, 700);
+    ttvMsg.addEventListener('input', debouncedFunction2);
+
+    /////////////////// Tiktok ///////////////////
+    const ttdChnaWrapper = document.querySelector('.ttd-chan-wrapper.single')
+    ttdChnaWrapper.addEventListener('select:update', (e) => {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : ''
+
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "tiktok", key: "tiktok.discord.channel_id", value: option }),      
+      });
+    })
+
+    const ttdMsg = document.querySelector('#ttd-msg');
+  
+    const debouncedFunction3 = debounce((e) => {
+      fetch("alerts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ plugin: "tiktok", key: "tiktok.discord.message", value: ttdMsg.value }),
+      })
+    }, 700);
+
+    ttdMsg.addEventListener('input', debouncedFunction3);
+
+    /////////////////// APPs ///////////////////
+  </script>
+</body>
+</html>

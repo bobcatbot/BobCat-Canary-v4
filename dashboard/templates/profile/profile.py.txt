@@ -1,0 +1,18 @@
+@app.route("/profile")
+@login_required
+async def user_profile():
+  current_user = bearer_client().get_current_user()
+  dis_user = bot.get_user(current_user.id)
+  
+  return render_template('profile/index.html', user=current_user, guild=None, discord_user=dis_user, flags=flags)
+
+@app.route("/profile/devices", methods=["GET", "POST"])
+@login_required
+async def user_profile_devices():
+  current_user = bearer_client().get_current_user()
+  dis_user = bot.get_user(current_user.id)
+
+  if request.method == "POST":
+    return '', 200
+
+  return render_template('profile/devices.html', user=current_user, guild=None, discord_user=dis_user, current_device=session)

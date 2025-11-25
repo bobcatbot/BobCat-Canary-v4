@@ -1,0 +1,82 @@
+<header id="header" class="header fixed-top d-flex align-items-center">
+  <div class="d-flex align-items-center justify-content-between">
+    <i class="bi bi-list toggle-sidebar-btn"></i>
+    
+    <a href="/" class="logo d-flex justify-content-center align-items-center">
+      <img src="{{ url_for('static', filename='img/bobcat.png') }}" alt="">
+      <span class="d-none d-md-block">BobCat</span>
+    </a>
+  </div>
+
+  <nav class="header-nav ms-auto">
+    <ul class="d-flex align-items-center">
+      {% if guild and guild_models(guild).isPremium == False %}
+      <li class="premium-upgrade nav-item me-2 btn" variant="premium">
+        <a href="premium" class="d-flex" style="font-size: 14px;align-items: center;gap: 4px;color: rgb(var(--premium-gold));">
+          <i class="bi bi-star-fill" style="font-size: 16px;color: rgb(var(--premium-gold));"></i>
+          Upgrade to Premium
+        </a>
+      </li>
+      {% endif %}
+
+      <li class="nav-item dropdown">
+        <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-bell" style="display: flex;font-size: 22px;"></i>
+          <span class="badge bg-primary badge-number">{{ notifications(guild).unread_count }}</span>
+        </a><!-- End Notification Icon -->
+
+        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
+          <li class="dropdown-header">
+            You have {{ notifications(guild).unread_count }} new notifications
+            <a href="/dashboard/{{guild.id}}/notifications"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
+          </li>
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+          {% for notification in notifications(guild).unread %}
+          <li class="notification-item">
+            {% if notification.type == "info" %}
+            <i class="bi bi-info-circle text-primary"></i>
+            {% elif notification.type == "warning" %}
+            <i class="bi bi-exclamation-triangle text-warning"></i>
+            {% elif notification.type == "error" %}
+            <i class="bi bi-exclamation-circle text-danger"></i>
+            {% endif %}
+            <div>
+              {% if notification.title %}<p class="notification__info__title">{{ notification.title }}</p>{% endif %}
+              {% if notification.description %}<p class="notification__info__desc">{{ notification.description }}</p>{% endif %}
+            </div>
+          </li>
+          <li>
+            <hr class="dropdown-divider">
+          </li> 
+          {% endfor %}
+        </ul><!-- End Notification Dropdown Items -->
+      </li>
+      
+      <li class="nav-item dropdown pe-4">
+        <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
+          <img src="{{user.avatar_url}}" alt="Profile" class="rounded-circle">
+          <span class="d-none d-md-block dropdown-toggle ps-2">{{user.username}}</span>
+        </a>
+
+        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+          
+          <li style="font-size: 14px;font-weight: 700;">Server Owners</li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center" href="/dashboard">
+              My Servers
+            </a>
+          </li>
+          
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center" href="/oauth/logout/">
+              Sign Out
+            </a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+</header>

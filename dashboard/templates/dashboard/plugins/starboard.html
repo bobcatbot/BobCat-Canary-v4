@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'starboard') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="sb-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="sb-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Starboard Channel</h2>
+          <p>Sets the channel where the starboards are going to show</p>
+        </div>
+        
+        <hr>
+        <div>
+          <div class="sb-chan-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for channel in guild_models(guild).channels.text %}
+                  <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+                
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Star limit</h2>
+          <p>Sets the number of stars required for a message to be posted to the starboard. Between 1 and 25 inclusive.</p>
+        </div>
+        
+        <hr>
+        <div>
+          <input type="number" id="star-limit" class="num-input" min="1" max="25" value="{{data['limit']}}">
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Show Jump Link</h2>
+          <p>Adds a field with a jump link to the original message</p>
+        </div>
+        
+        <hr>
+        <div class="form-switch ps-0">
+          <input type="checkbox" id="jump-link" class="form-check-input ms-0" role="switch" name="check" data-val="{{data['jumpLink']}}">
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Allow Self Starring</h2>
+          <p>Counts stars added to members own messages</p>
+        </div>
+        
+        <hr>
+        <div class="form-switch ps-0">
+          <input type="checkbox" id="self-star" class="form-check-input ms-0" role="switch" name="check" data-val="{{data['selfStar']}}">
+        </div>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Lock Starboard</h2>
+          <p>Temporarily disable the starboard</p>
+        </div>
+        
+        <hr>
+        <div class="form-switch ps-0">
+          <input type="checkbox" id="lock-sb" class="form-check-input ms-0" role="switch" name="lockStarboard" data-val="{{data['locked']}}">
+        </div>
+      </div>
+    </section>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    new Select('.sb-chan-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['channel']}}"]
+    });
+    
+    
+    var save_data = {}
+
+    var switches = document.querySelectorAll("input[type='checkbox'][name='check']")
+    document.addEventListener('DOMContentLoaded', (e) => {
+      switches.forEach((item) => {
+        if (item.dataset.val == "True") {
+          item.checked = true
+        } else {
+          item.checked = false
+        }
+      })
+    })
+    
+    document.querySelector('#sb-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "starboard.status": e.target.checked }),
+      });
+    })
+
+    // verify channel
+    const starboardChanWrapper = document.querySelector('.sb-chan-wrapper.single');
+    starboardChanWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null
+      
+      show_toast("starboard.channel", "{{data['channel']}}", option)
+    });
+
+    document.querySelector('#star-limit').addEventListener('change', (e) => {
+      var val = e.target.value
+      
+      show_toast("starboard.limit", "{{data['limit']}}", val)
+    })
+
+    document.querySelector('#jump-link').addEventListener('change', (e) => {
+      var val = e.target.checked
+      
+      show_toast("starboard.jumpLink", "{{data['jumpLink']}}", val)
+    })
+
+    document.querySelector('#self-star').addEventListener('change', (e) => {
+      var val = e.target.checked
+      
+      show_toast("starboard.selfStar", "{{data['selfStar']}}", val)
+    })
+
+    document.querySelector('#lock-sb').addEventListener('change', (e) => {
+      var val = e.target.checked
+      
+      show_toast("starboard.locked", "{{data['locked']}}", val)
+    })
+  </script>
+  
+</body>
+</html>

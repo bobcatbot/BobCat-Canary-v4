@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>404 | BobCat</title>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <main class="error">
+    <div class="e-card">
+      <h1>404</h1>
+      <h2>The page you are looking for doesn't exist.</h2>
+      <a class="btn" href="/guilds">Back to home</a>
+    </div>
+  </main>
+
+  <style>
+body {
+  color: #fff;
+  background: #272934;
+}
+/*--------------------------------------------------------------
+# Error pages
+--------------------------------------------------------------*/
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100dvh;
+}
+.error .e-card {
+  width: max-content;
+  height: max-content;
+  padding: 36px;
+  color: #fff;
+  background: #1f2129;
+  border-radius: 25px;
+}
+.error .e-card h1 {
+  font-size: 130px;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+.error .e-card h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 30px;
+}
+
+.error .e-card .btn {
+  background: #51678f;
+  color: #fff;
+  padding: 8px 30px;
+}
+
+.error .e-card .btn:hover {
+  background: #3e4f6f;
+}
+
+@media (min-width: 992px) {
+  .error-404 img {
+    max-width: 50%;
+  }
+}
+  </style>
+</body>
+</html>

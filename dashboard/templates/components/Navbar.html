@@ -1,0 +1,54 @@
+<header id="header" class="fixed-top">
+  <div class="container d-flex align-items-center justify-content-between">  
+    <h1 class="logo">
+      <a href="/">BobCat Inc</a>
+    </h1>
+    
+    <nav id="navbar" class="navbar">
+      <i class="bi bi-list mobile-nav-toggle"></i>
+      <ul class="navbar-ul">
+        <li><a class="nav-link scrollto active" href="/">Home</a></li>
+        <li><a class="nav-link scrollto" href="/#about">About</a></li>
+        <li class="dropdown"><a href="/#plugins"><span>Plugins</span> <i class="bi bi-chevron-down"></i></a>
+          <ul>
+            <li><a href="/plugins/management">Moderation & Management</a></li>
+            <li><a href="/plugins/utilities">Utilities</a></li>
+            <li><a href="/plugins/engagement-and-fun">Engagement & Fun</a></li>
+          </ul>
+        </li>
+        <li><a class="nav-link scrollto" href="/#team">Team</a></li>
+        <li><a class="nav-link" target="popup" style="cursor: pointer;"
+          onclick="window.open('https://discord.com/api/oauth2/authorize?client_id=961762686671155240&permissions=1644905889015&scope=bot%20applications.commands', 'Invite | Bobat Inc', 'width=487,height=805')">Invite</a>
+        </li>
+    
+        {% if not user %}
+        <li>
+          <a href="{{logInWithDiscord}}" class="nav-profile getstarted">Login with Discord</a>
+        </li>
+        {% endif %}
+      </ul>
+
+      {% if user %}
+      <div class="dropdown">
+        <a class="nav-profile nav-link gap">
+          <img src="{{user.avatar_url}}" alt="" style="width: 32px;height: 32px;border-radius: 50%;">
+        </a>
+        <ul class="nav-profile user">
+          <li><a href="/dashboard">
+            <span>My servers</span>
+          </a></li>
+          
+          <hr style="color: lightgray;margin: 5px 0px;">
+          <li><a onclick="new bootstrap.Modal(document.getElementById('changelogModal')).show()">
+            <span>Changelog</span>
+          </a></li>
+          
+          <li><a href="/oauth/logout" class="text-danger">
+            <span>Logout</span>
+          </a></li>
+        </ul>
+      </div>
+      {% endif %}
+    </nav>
+  </div>
+</header>

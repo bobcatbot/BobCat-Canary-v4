@@ -1,0 +1,16 @@
+{
+  "version": "3.5.0",
+  "date": "July 6, 2023",
+  "short_date": "2023-01-6",
+  "description": "Some new web changes for you all to enjoy",
+  "added": [
+    { "title": "New changelog", "description": "Added this changelog" },
+    { "title": "Dashboard", "description": "Yes you read that right, a brand new dashboard is here" }
+  ],
+  "updates": [
+    { "title": "Removed", "description": "suggestions temporally" },
+    { "title": "Removed", "description": "ticketing temporally" }
+  ],
+  "bugs": [
+  ]
+}

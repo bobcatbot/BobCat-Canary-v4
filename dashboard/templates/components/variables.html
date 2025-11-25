@@ -1,0 +1,115 @@
+<div class="modal dark fade" id="VariablesModal" aria-labelledby="VariablesModalLabel" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="VariablesModalLabel">
+          Variables
+        </h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <div class="bg-dark-subtle border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{level}</h5>
+            <p class="m-0 fs-7">The user's level (used for level up messages)</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{prize}</h5>
+            <p class="m-0 fs-7">The prize of the giveaway</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{index}</h5>
+            <p class="m-0 fs-7">The current number of opened/closed temporary voice channels</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{age}</h5>
+            <p class="m-0 fs-7">The age of the user (used for birthday messages)</p>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="bg-dark-subtle border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user}</h5>
+            <p class="m-0 fs-7">The user's username and display name</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.mention}</h5>
+            <p class="m-0 fs-7">Mentions the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.id}</h5>
+            <p class="m-0 fs-7">The id of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.name}</h5>
+            <p class="m-0 fs-7">The name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.display_name}</h5>
+            <p class="m-0 fs-7">The display name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.discriminator}</h5>
+            <p class="m-0 fs-7">
+              The Discriminator of the user (0 as of March 4, 2024)
+            </p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.avatar}</h5>
+            <p class="m-0 fs-7">A link to the avatar avatar</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.avatar.url}</h5>
+            <p class="m-0 fs-7">A link to the avatar avatar</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.display_avatar}</h5>
+            <p class="m-0 fs-7">A link to the avatar avatar</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{user.bot}</h5>
+            <p class="m-0 fs-7">Whether the user is a bot</p>
+          </div>
+        </div>
+        <div>
+          <div class="bg-dark-subtle border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server}</h5>
+            <p class="m-0 fs-7">The name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.name}</h5>
+            <p class="m-0 fs-7">The name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.id}</h5>
+            <p class="m-0 fs-7">The id of the server</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.icon}</h5>
+            <p class="m-0 fs-7">The display name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.icon.url}</h5>
+            <p class="m-0 fs-7">The display name of the user</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.owner}</h5>
+            <p class="m-0 fs-7">The username & displayname of the server</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.owner_id}</h5>
+            <p class="m-0 fs-7">The id of the server owner</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.member_count}</h5>
+            <p class="m-0 fs-7">The total member of users on your server</p>
+          </div>
+          <div class="bg-dark-subtle border-top border-2 border-white p-1">
+            <h5 class="mb-0 fs-6">{server.verification_level}</h5>
+            <p class="m-0 fs-7">The verification level of the server</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

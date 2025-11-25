@@ -1,0 +1,117 @@
+<aside id="sidebar" class="sidebar">
+  <div class="guild-selector">
+    <div class="info">
+      <div class="d-flex align-items-center" style="gap: 5px;">
+        <img src="{{guild.icon.url}}" alt="">
+        {{guild.name}}
+      </div>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="content">
+      <a href="/profile" class="user">
+        <img src="{{user.avatar_url}}" alt="">
+        My Profile
+      </a>
+      <hr>
+      {% for _guild in guilds() %}
+        <a href="/dashboard/{{_guild.id}}" class="guild {% if _guild.id == guild.id %}active{% endif %}">
+          <img src="{{_guild.icon_url}}" alt="">
+          {{_guild.name}}
+        </a>
+      {% endfor %}
+      <hr>
+      <a href="/dashboard">
+        <i class="bi bi-plus-lg"></i>
+        Add a new server
+      </a>
+    </div>
+  </div>
+  
+  <ul class="sidebar-nav" id="sidebar-nav">
+    <li class="navbar-item plugin" data-active="False">
+      <a class="navbar-link dashboard" data-href="/dashboard/{{guild.id}}">
+        <div class="d-flex">
+          <span class="material-icons">dashboard</span>
+          <p class="m-0">Dashboard</p>
+        </div>
+      </a>
+    </li>
+    <li class="navbar-item plugin" data-active="False" hidden>
+      <a class="navbar-link" data-href="/dashboard/{{guild.id}}/insights">
+        <div class="d-flex">
+          <span class="material-icons">insights</span>
+          <p class="m-0">insights</p>
+        </div>
+      </a>
+    </li>
+    <li class="navbar-item plugin" data-active="False" hidden>
+      <a class="navbar-link custom-bot" data-href="/dashboard/{{guild.id}}/custom-bot" data-enable="False">
+        <div class="d-flex">
+          <span class="material-icons">mood</span>
+          <p class="m-0">Bot Personalizer</p>
+        </div>
+        {% include 'components/badges/beta.html' %}
+      </a>
+    </li>
+    <li class="navbar-item plugin" data-active="False">
+      <a class="navbar-link settings" data-href="/dashboard/{{guild.id}}/settings" data-enable="False">
+        <div class="d-flex">
+          <span class="material-icons">settings</span>
+          <p class="m-0">Settings</p>
+        </div>
+      </a>
+    </li>
+    <li class="navbar-item plugin" data-active="False">
+      <a class="navbar-link settings" data-href="/dashboard/{{guild.id}}/premium" data-enable="False">
+        <div class="d-flex">
+          <i class="bi bi-star-fill"></i>
+          <p class="m-0">Premium</p>
+        </div>
+      </a>
+    </li>
+
+    {% set plugin_categories = [
+      ('Server Management', 'management'),
+      ('Utilities', 'utilities'),
+      ('Games & Fun', 'fun'),
+    ] %}
+    
+    {% for title, category in plugin_categories %}
+    <li>
+      <a class="navbar-heading" data-bs-target="#nav-{{category}}" data-bs-toggle="collapse">
+        <span>{{ title }}</span><i class="bi bi-chevron-down"></i>
+      </a>
+      <ul id="nav-{{category}}" class="navbar-content collapse show">
+        {% for item, plugin in plugins(guild) %}
+        {% if plugin.category == category %}
+        <li class="navbar-item plugin" data-active="False">
+          <a 
+            class="navbar-link" 
+            data-href="/dashboard/{{guild.id}}/{{plugin.url}}" 
+            data-plugin="{{plugin.title}}" 
+            data-key="{{plugin.db_key}}"
+            data-enable="{{plugin.status}}" 
+            data-module-premium="{{plugin.premium}}"
+            data-is-premium="{{guild_models(guild).isPremium}}"
+          >
+            <div class="d-flex">
+              <div class="position-relative">
+                <span class="material-icons">{{plugin.icon}}</span>
+                <div class="status-indicator"></div>
+              </div>
+              <p class="m-0">{{plugin.title}}</p>
+            </div>
+            {% if plugin.badge == 'new'  %} {% include 'components/badges/new.html' %}
+            {% elif plugin.badge == 'beta' %} {% include 'components/badges/beta.html' %}
+            {% elif plugin.badge == 'soon' %} {% include 'components/badges/soon.html' %}
+            {% elif plugin.badge == 'prem' and plugin.premium == True and not guild_models(guild).isPremium %} {% include 'components/badges/prem.html' %}
+            {% endif %}
+          </a>
+        </li>
+        {% endif %}
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+</aside>

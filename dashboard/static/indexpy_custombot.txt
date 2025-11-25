@@ -1,0 +1,467 @@
+if data["key"] == 'status':
+      # change bot status
+      async def runDiscordTask():
+        bot_status = getattr(discord.Status, data['value'])
+        await bot.change_presence(status=bot_status)
+        return
+      bot.loop.create_task(runDiscordTask())
+      
+      # update config
+      update_config(guild.id, 'custom_bot.status', data["value"])
+      return jsonify({'status': 200})
+
+    if data["key"] == 'activities':
+      # update config
+      update_config(guild.id, f'custom_bot.statuses.{len(status_data["statuses"])}', data["data"])
+
+      # add activity to statuses
+      async def runDiscordTask():
+        while not bot.is_closed():
+          for status in status_data["statuses"]:
+            await bot.change_presence(
+              status=getattr(discord.Status, status_data['status']),
+              activity=discord.Activity(
+                type=getattr(discord.ActivityType, status.get('type')),
+                name=f"{status.get('name')}".format(client=bot, guilds=len(bot.guilds), users=len(bot.users))
+              )
+            )
+
+            await asyncio.sleep(10)
+        return
+      bot.loop.create_task(runDiscordTask())
+      
+      return jsonify({'status': 200})
+
+    if data["key"] == 'activities_delete':
+      # update config to delete key
+      status_data["statuses"].pop(int(data["index"]))
+      update_config(guild.id, f'custom_bot.statuses', status_data["statuses"])
+
+      # remove activity from statuses
+      async def runDiscordTask():
+        while not bot.is_closed():
+          for status in status_data["statuses"]:
+            await bot.change_presence(
+              status=getattr(discord.Status, f"{status_data['status']}"),
+              activity=discord.Activity(
+                type=getattr(discord.ActivityType, status.get('type')),
+                name=f"{status.get('name')}".format(client=bot, guilds=len(bot.guilds), users=len(bot.users))
+              )
+            )
+
+            await asyncio.sleep(10)
+        return
+      bot.loop.create_task(runDiscordTask())
+      
+      return jsonify({'status': 200})
+
+
+
+// html
+<section class="section">
+      <div class="feature_card  d-flex flex-column flex-lg-row" style="gap:2rem;">
+        <div class="title avatar">
+          <img id="avatar-img" src="{{guild.me.avatar.url}}" alt="" srcset="">
+        </div>
+        
+        <div class="info d-flex flex-column w-100">
+          <div class="bot-name">
+            <p class="m-0">Bot name</p>
+            <input type="text" id="bot-name" class="text-input" value="{{data['nick']}}">
+          </div>
+
+          <div class="bot-status mt-2">
+            <p class="m-0">Status</p>
+            <div class="status-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select a status</div>
+                <div class="select-options">
+                  <div class="option  d-flex align-items-center gap-1" data-value="online">
+                    <svg width="16" height="16" class="svg_afd438 mask_c7d26b icon_ad5fac" viewBox="0 0 10 10">
+                      <use href="#svg-symbol-status-online"></use>
+                    </svg>
+
+                    Online
+                  </div>
+                  <div class="option  d-flex align-items-center gap-1" data-value="offline">
+                    <svg width="16" height="16" class="svg_afd438 mask_c7d26b icon_ad5fac" viewBox="0 0 10 10">
+                      <use href="#svg-symbol-status-offline"></use>
+                    </svg>
+                    Invisible
+                  </div>
+                  <div class="option  d-flex align-items-center gap-1" data-value="idle">
+                    <svg width="16" height="16" class="svg_afd438 mask_c7d26b icon_ad5fac" viewBox="0 0 10 10">
+                      <use href="#svg-symbol-status-idle"></use>
+                    </svg>
+                    Idle
+                  </div>
+                  <div class="option  d-flex align-items-center gap-1" data-value="dnd">
+                    <svg width="16" height="16" class="svg_afd438 mask_c7d26b icon_ad5fac" viewBox="0 0 10 10">
+                      <use href="#svg-symbol-status-dnd"></use>
+                    </svg>
+                    Do Not Disturb
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bot-activity mt-2">
+            <p class="m-0">Activity</p>
+
+            <table class="table" style="--bs-table-bg: transparent;--bs-table-color: var(--text-color);">
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Text</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody id="activities">
+                {% for activity in data['statuses'] %}
+                <tr>
+                  <td>{{activity['type'] | titlecase}}</td>
+                  <td>{{activity['name']}}</td>
+                  
+                  <td>
+                    <button type="button" id="delete-activity-{{loop.index0}}" class="btn btn-danger" style="--bs-btn-padding-x: 0.375rem;" name="delete-activity" data-index="{{loop.index0}}">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
+            <button type="button" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#ActivityAddModal">
+              <i class="bi bi-plus-lg"></i>
+              Add Activity
+            </button>
+            <div class="modal fade dark" id="ActivityAddModal" tabindex="-1" aria-labelledby="ActivityAddModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="ActivityAddModalLabel">Add new activity</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div>
+                      <p class="m-0">Activity Type</p>
+                      <div class="activity-type-select-wrapper single">
+                        <div class="select">
+                          <div class="select-selected">Select a status</div>
+                          <div class="select-options">
+                            <div class="option" data-value="watching">
+                              Watching
+                            </div>
+                            <div class="option" data-value="listening">
+                              Listening
+                            </div>
+                            <div class="option" data-value="playing">
+                              Playing
+                            </div>
+                            <div class="option" data-value="compeating">
+                              Compeating
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="mt-2">
+                        <p class="m-0">Text</p>
+                        <input type="text" id="activity-text" class="text-input">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Discard</button>
+                    <button type="button" id="add-activity-btn" class="btn btn-primary" data-bs-dismiss="modal">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <script>
+                let activity_data = {};
+
+                new Select('.activity-type-select-wrapper.single', {
+                  placeholder: "Select an activity type",
+                  type: 'single',
+                  multiple: false,
+                  maxItems: 1,
+                  options: ["watching"]
+                });
+                
+                document.querySelector('[data-bs-target="#ActivityAddModal"]').addEventListener('click', function () {
+                  function generateCode(length) {
+                    let combination = "0123456789" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "abcdefghijklmnopqrstuvwxyz";
+                    let code = Array.from({ length }, () => 
+                      combination[Math.floor(Math.random() * combination.length)]
+                    );
+                    return code.join("");
+                  }
+                  
+                  activity_data["id"] = generateCode(8);
+                });
+
+                const activityTypeSelectElement = document.querySelector('.activity-type-select-wrapper.single');
+                
+                document.addEventListener('DOMContentLoaded', function () {
+                  activity_data["type"] = "watching";
+                })
+
+                activityTypeSelectElement.addEventListener('select:update', function (event) {
+                  const selectedOptions = event.detail.selectedOptions;
+                  const option = selectedOptions[0] ? selectedOptions[0] : "watching";
+
+                  activity_data["type"] = option ?? "watching";
+                });
+
+                const activityTextElement = document.querySelector('#activity-text');
+                activityTextElement.addEventListener('input', function (event) {
+                  const value = event.target.value;
+
+                  activity_data["name"] = value
+                });
+
+
+                document.querySelector('#add-activity-btn').addEventListener('click', function () {
+                  const myModal = new bootstrap.Modal(document.getElementById('ActivityAddModal'));
+
+                  // add activity to the table
+                  const table = document.querySelector('#activities')
+
+                  const row = document.createElement('tr')
+                  const cell1 = document.createElement('td')
+                  const cell2 = document.createElement('td')
+                  const cell3 = document.createElement('td')  
+                  cell1.innerHTML = toTitleCase(activity_data["type"])
+                  cell2.innerHTML = activity_data["name"]
+                  cell3.innerHTML = `
+                    <button type="button" class="btn btn-danger" style="--bs-btn-padding-x: 0.375rem;" name="delete-activity" data-index="${activity_data["id"]}">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  `
+                  row.appendChild(cell1)
+                  row.appendChild(cell2)
+                  row.appendChild(cell3)
+                  table.appendChild(row)
+
+                  fetch('custom-bot', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 'key': 'activities', 'data': activity_data })
+                  })
+                })
+
+                const allDeleteBtns = document.querySelectorAll('[name="delete-activity"]')
+                allDeleteBtns.forEach((btn) => {
+                  btn.addEventListener('click', function () {
+                    const activityId = btn.getAttribute('data-index')
+
+                    // delete activity from the table
+                    const row = btn.closest('tr')
+                    row.remove()
+
+                    fetch('custom-bot', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ 'key': 'activities_delete', 'index': btn.getAttribute('data-index') })
+                    })
+                  })
+                })
+              </script>
+            </div>
+          </div>
+        </div>
+        
+        <div class="preview">
+          <p class="m-0 mb-2">Your personsalalized bot</p>
+
+          <div class="d-flex">
+            <div id="avatarPreview" style="position: relative;width: 34px;height: 34px;margin-right: 12px;">
+              <img id="avatar-img-preview" class="avatar-img">
+
+              <div id="status-preview">
+                <svg width="12" height="12" class="svg_afd438 mask_c7d26b icon_ad5fac" viewBox="0 0 10 10">
+                  <use id="svg-symbol-status-preview" href="#svg-symbol-status-online"></use>
+                </svg>
+              </div>
+            </div>
+
+            <div class="data">
+              <p id="username-preview" style="margin-bottom: -3px;"></p>
+              <div id="bot-status-preview" class="activity m-0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    .avatar {
+      width: 168px;
+      height: 168px;
+      padding: 1.5rem;
+      background-color: #000;
+      border-radius: 8px;
+    }
+
+    .avatar img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+    }
+
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+
+      margin-right: 12px;
+    }
+
+    #status-preview {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+
+      height: 17px;
+    }
+    
+    .preview {
+      min-width: 313px;
+      height: fit-content;
+      padding: 1.25rem;
+      background-color: #2E3036;
+      border-radius: 8px;
+    }
+    
+    .preview #username-preview {
+      font-size: 16px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .preview #bot-status-preview {
+      font-size: 12px;
+
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  </style>
+
+  <script>
+    new Select('.status-select-wrapper.single', {
+      placeholder: "Select a status",
+      type: 'single',
+      multiple: false,
+      maxItems: 1,
+      options: ["{{data['status']}}"]
+    });
+
+    // avatar-img change
+    const avatar = document.querySelector('#avatar-img');
+    const avatarImg = document.querySelector('#avatar-img-preview');
+
+    document.addEventListener('DOMContentLoaded', function () {
+      avatarImg.src = avatar.src;
+    });
+
+    avatar.addEventListener('change', function (e) {
+      avatarImg.src = avatar.src;
+    });
+
+    // name change
+    const name = document.querySelector('#bot-name');
+    const username = document.querySelector('#username-preview');
+
+    document.addEventListener('DOMContentLoaded', function () {
+      username.innerText = name.value
+    });
+
+    name.addEventListener('input', function (e) {
+      var val = e.target.value; 
+      username.innerText = val
+
+      let debounceTimeout;
+
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        fetch("custom-bot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "key": "name", "value": val }),
+        });
+      }, 600); // Adjust the delay as needed
+    });
+
+    // status change
+    const statusPreview = document.querySelector('#svg-symbol-status-preview');
+    
+    document.addEventListener('DOMContentLoaded', function () {
+      if ('{{data["status"]}}' == 'online') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-online')
+      } else if ('{{data["status"]}}' == 'offline') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-offline')
+      } else if ('{{data["status"]}}' == 'idle') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-idle')
+      } else if ('{{data["status"]}}' == 'dnd') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-dnd')
+      }
+    });
+    
+    const statusSelectWrapper = document.querySelector('.status-select-wrapper.single');
+    statusSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null // single
+
+      console.log(option)
+
+      if (option == 'online') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-online')
+      } else if (option == 'offline') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-offline')
+      } else if (option == 'idle') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-idle')
+      } else if (option == 'dnd') {
+        statusPreview.setAttribute('href', '#svg-symbol-status-dnd')
+      }
+
+
+      fetch("custom-bot", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "key": 'status', "value": option }),
+      });
+    });
+
+    // activities
+    const activities = document.querySelector('#bot-status-preview');
+    const activitiesData = JSON.parse('{{data["statuses"] | tojson}}');
+
+    function toTitleCase(str) {
+      return str
+        .toLowerCase()
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      activities.innerHTML += `${activitiesData[0]["type"] === "Listening" ? "Listening to" : toTitleCase(activitiesData[0]["type"])}
+      <span>${activitiesData[0]["name"]}</span>`
+    });
+
+  </script>

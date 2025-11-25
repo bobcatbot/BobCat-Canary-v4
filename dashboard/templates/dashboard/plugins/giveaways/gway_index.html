@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+
+  <!-- {# 
+    config = get_dash_config(guild.id).get('giveaway')
+    data = get_server_config(guild.id).get('giveaways')
+  #} -->
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  {% set plugin = get_plugin(guild, 'giveaway') %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        <div>
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        </div>
+      </div>
+      <div class="form-switch">
+        {% if config['status'] == True %}
+        <input type="checkbox" id="gw-status" class="form-check-input" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="gw-status" class="form-check-input" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="feature_card">
+        <a href="giveaways/creation" id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
+          <h2>New giveaway</h2>
+          <div>
+            <i class="bi bi-plus-lg"></i>
+          </div>
+        </div></a>
+      </div>
+    </section>
+    
+    <section class="section">
+      <div class="feature_card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="title">
+            <h2>Your giveaways</h2>
+          </div>
+
+          <div class="d-flex gap-1 align-items-end ps-0 user-select-none form-switch">
+            <span id="data-count">{{data | length}}</span>
+            <span>/</span>
+            <span id="data-max-count">{{plugin['max']}}</span>
+          </div>
+        </div>
+        <hr>
+        
+        {% if data == [] %}
+        <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
+          <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 90%;max-width: 36rem;">
+          <p class="m-0 mt-2 fs-3">You dont have giveaways created yet.</p>
+        </div>
+        {% endif %}
+
+        {% if data != [] %}
+        <div class="search-container">
+          <i class="bi bi-search"></i>
+          <input
+            type="text"
+            name="search"
+            id="search"
+            placeholder="Search..."
+          />
+        </div>
+        <hr>
+        
+        <div class="gway-header-container">
+          <div class="row m-0">
+            <div class="col-4 col-md-3 text-muted fs-6">Giveaway</div>
+            <div class="col-4 col-md-2 d-none d-md-flex text-muted fs-6">Participants</div>
+            <div class="col-4 col-md-2 d-none d-md-flex text-muted fs-6">Status</div>
+            <div class="col-3 d-none d-md-flex text-muted fs-6">End time (M.D.Y)</div>
+          </div>
+        </div>
+        <div class="row m-0">
+          {% for gway in data %}
+          <div class="card">
+            <a href="giveaways/{{gway['id']}}/edition" class="card-link">
+              <div class="row d-flex flex-column flex-md-row align-items-start align-items-lg-center">
+                <div class="d-flex align-items-center justify-content-between d-md-block col col-md-3 m-0">
+                  <div>
+                    <p id="gway-prize" class="m-0">{{gway['name']}}</p>
+                    <p class="m-0 text-muted fs-7">#{{gway['channel']['name']}}</p>
+                  </div>
+
+                  <div class="d-block d-md-none">
+                    <div class="dropdown">
+                      <button class="btn btn-secondary" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                      </button>
+                      <ul class="dropdown-menu dark" aria-labelledby="dropdownMenuButton">
+                        <li><button class="dropdown-item" id="delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal"><i class="bi bi-trash-fill"></i> Delete</button></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <p class="col col-md-2 m-0"><span class="d-block d-md-none text-muted">Participants:</span> {{gway['participants'] | length}}</p>
+                <p class="col col-md-2 m-0"><span class="d-block d-md-none text-muted">Status:</span> {{gway['status']}}</p>
+                <p class="col m-0"><span class="d-block d-md-none text-muted">End Time:</span> {{gway['time']['timestamp']}}</p>
+                <div class="d-none d-lg-flex align-items-center justify-content-end col m-0">
+                  <div class="dropdown">
+                    <button class="btn btn-secondary" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dark" aria-labelledby="dropdownMenuButton">
+                      <li><button class="dropdown-item" id="delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal"><i class="bi bi-trash-fill"></i> Delete</button></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </a>
+            <!-- DeleteModal -->
+            <div class="modal fade dark" id="DeleteModal" tabindex="-1" aria-labelledby="DeleteModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="DeleteModalLabel">Do you really want to delete this?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    This action is irreversible. If you change your mind later, you will have to create it again from scratch.
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="delete-hub" data-id="{{gway['id']}}">Yes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- DeleteModal -->
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- MaxHubLimit -->
+    <div class="modal fade dark" id="MaxHubLimit" tabindex="-1" aria-labelledby="MaxHubLimitLabel">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="MaxHubLimitLabel">Oops, an error occurred!</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Maximum number of temporary channels reached.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- MaxHubLimit -->
+    
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="toast-container w-100 p-3" style="position: absolute;top: 0;right: 0;">
+      {% for category, message in messages %} 
+        <div id="toastFlash" class="toast show text-bg-{{category}} w-100" data-autohide="10000" role="alert">
+          <div class="d-flex">
+            <div class="toast-body">{{message}}</div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}
+  </main>
+
+  <script>
+    var toastFlash = document.getElementById('toastFlash')
+    if (toastFlash) {
+      setTimeout(function() {
+        toastFlash.classList.remove('show')
+      }, parseInt(toastFlash.dataset.autohide));
+    }
+
+    document.addEventListener('DOMContentLoaded', (e) => {
+      var _count = document.querySelector('#data-count');
+      var _maxCount = document.querySelector('#data-max-count');
+      var createButton = document.querySelector('#create-hub-btn');
+
+      if (parseInt(_count.innerText) >= parseInt(_maxCount.innerText)) {
+        _count.classList.add('text-danger');
+
+        createButton.href = null;
+        createButton.setAttribute('data-bs-toggle', 'modal');
+        createButton.setAttribute('data-bs-target', '#MaxHubLimit');
+      } else {
+        _count.classList.remove('text-danger');
+
+        // find the create ticket button and add href
+        createButton.href = 'giveaways/creation';
+        createButton.removeAttribute('data-bs-toggle');
+        createButton.removeAttribute('data-bs-target');
+      }
+    })
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const dropdownButton = document.getElementById("dropdownMenuButton");
+      if (!dropdownButton) {
+        return;
+      }
+      
+      const dropdownMenu = dropdownButton.nextElementSibling;
+
+      dropdownButton.addEventListener("click", function () {
+        // Get button and window positions
+        const rect = dropdownButton.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        // Check available space and adjust class
+        if (spaceBelow < dropdownMenu.scrollHeight && spaceAbove > spaceBelow) {
+          dropdownMenu.classList.add("dropup");
+        } else {
+          dropdownMenu.classList.remove("dropup");
+        }
+      });
+    });
+
+    // search
+    document.querySelector('#search').addEventListener('input', (e) => {
+      const search = e.target.value.toLowerCase();
+      const cards = document.querySelectorAll('.card');
+      cards.forEach((card) => {
+        const title = card.querySelector('#gway-prize').textContent.toLowerCase();
+        card.style.display = title.includes(search) ? 'block' : 'none';
+      });
+    });
+
+    document.querySelectorAll('#delete-hub-modal').forEach(button => {
+      button.addEventListener('click', function(event) {
+        // Prevent the default action (navigation)
+        event.stopPropagation();
+        event.preventDefault();
+      });
+    });
+
+    document.querySelectorAll('#delete-hub').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        const hubId = e.target.closest('button').dataset.id;
+
+        fetch(`/dashboard/{{guild.id}}/temporary-channels/${hubId}/delete`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "id": hubId })
+        })
+        .then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            console.error("Failed to delete");
+          }
+        })
+        .catch(error => console.error("Error:", error));
+      });
+    });
+
+
+    document.querySelector('#gw-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "giveaway.status": e.target.checked }),
+      });
+    })
+  </script>
+  
+  <style>
+    .search-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .search-container i {
+      margin-right: 1.25rem;
+      color: var(--text-color);
+      font-size: large;
+    }
+
+    .search-container input {
+      width: 100%;
+      background-color: transparent;
+      color: var(--text-color);
+      font-weight: 600;
+      border: none;
+    }
+    .search-container input:focus-visible {
+      border: none;
+      outline: none;
+    }
+    
+    .card {
+      --bs-card-bg: rgb(23, 24, 30);
+      --bs-card-border-color: rgb(23, 24, 30);
+      color: var(--text-color);
+      padding: 13px;
+      margin-bottom: 4px;
+    }
+    .card:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+
+</body>
+</html>
