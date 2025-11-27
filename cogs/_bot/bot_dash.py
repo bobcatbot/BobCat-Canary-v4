@@ -143,7 +143,27 @@ def init_database(guild: discord.Guild):
             'channel': None,
             'role': None,
             'mode': 'instant',
-            'failAction': 'unverified'
+            'failAction': 'unverified',
+            "message": {
+                "embed": {
+                    "title": "Verification",
+                    "desc": "To enter this server and see all channels, you must first prove that you are human. \nClick on the button below to start...",
+                    "color": "#5865f2",
+                    "author": {
+                        "name": ""
+                    },
+                    "footer": {
+                        "text": ""
+                    }
+                },
+                "btn": {
+                    "emoji": "\u2705",
+                    "title": "Verify",
+                    "color": "green"
+                }
+            },
+            "message_id": "",
+            "message_published": False
         },
         "giveaway": {
             'status': False,
