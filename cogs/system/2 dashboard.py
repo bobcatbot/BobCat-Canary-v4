@@ -18,6 +18,77 @@ BUTTON_STYLES = {
     "red": discord.ButtonStyle.red
 }
 
+# Bot Settings
+class BotSettingsMastersAndAdmins(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        data = v.db.get_server_config(guild.id, True)['settings']
+
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Bot Masters & Admins")
+        container.add_text("Here you can adjust the bots settings")
+
+        container.add_text("Administrator Roles")
+        container.add_text("Any role with the Administrator permission is considered as a bot master.")
+        class AdminsSelect(ActionRow):
+            @role_select(
+                placeholder="Select roles",
+                max_values=len(guild.roles),
+                default_values=[ role for role in guild.roles if role.permissions.administrator ],
+            )
+            async def select(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
+                print(select.values)
+                # v.db.update_server_config(guild, True, 'settings.admins', select.values)
+                # v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+
+                # update_at = interaction.view.get_item("SaveSuccess")
+                # update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+
+                await interaction.response.edit_message(view=interaction.view)
+        container.add_item(AdminsSelect())
+
+        container.add_text("Additional Bot Master Roles")
+        container.add_text("Roles that will also be considered as bot masters, even if they do not have the Administrator permission.")
+        class MastersSelect(ActionRow):
+            @role_select(
+                placeholder="Select roles",
+                max_values=len(guild.roles),
+                default_values=[ 
+                    guild.get_role(role)
+                ],
+            )
+            async def select(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
+                print(select.values)
+                # v.db.update_server_config(guild, True, 'settings.masters', select.values)
+                # v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+
+                # update_at = interaction.view.get_item("SaveSuccess")
+                # update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+
+                await interaction.response.edit_message(view=interaction.view)
+        container.add_item(MastersSelect())
+
+        self.add_item(container)
+
+        class ViewButtons(ActionRow):
+            @button(
+                label="Go Back",
+                style=discord.ButtonStyle.primary,
+            )
+            async def goBack(self, button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=PluginBotSettings(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, button, interaction):
+                pass
+        self.add_item(ViewButtons())
 class PluginBotSettings(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
@@ -29,8 +100,18 @@ class PluginBotSettings(DesignerView):
         container.add_text("# Settings")
         container.add_text("Here you can adjust the bots settings")
 
-        
-        
+        class SettingsSelect(ActionRow):
+            @select(
+                placeholder="Select a setting",
+                options=[
+                    discord.SelectOption(label="Bot Masters", description="Bot masters can modify all Dashboard settings."),
+                    # discord.SelectOption(label="Color", description="The color for the bot"),
+                ],
+            )
+            async def select(self, select: discord.ui.Select, interaction: discord.Interaction):
+                if select.values[0] == "Bot Masters":
+                    await interaction.response.edit_message(view=BotSettingsMastersAndAdmins(guild))
+        container.add_item(SettingsSelect())
         self.add_item(container)
 
 # Welcome & Goodbye
