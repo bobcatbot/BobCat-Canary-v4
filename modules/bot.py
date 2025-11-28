@@ -26,6 +26,17 @@ posthog = Posthog(project_api_key=config["posthog_project_api_key"], host='https
 
 db = Database()
 
+premium = "<:premium:1442138047348084806>"
+
+## Colour Codes ##
+blurple = 0x5865F2
+green = 0x57F287
+red = 0xED4245
+white = 0xFFFFFF
+clear = 0x2b2d31
+error = red
+success = green
+
 def dashboard(guild, data):
     try:
         val = db.get_dash(guild)
@@ -38,18 +49,6 @@ def dashboard(guild, data):
     except AttributeError:
         return None
 
-## Colour Codes ##
-blurple = 0x5865F2
-green = 0x57F287
-red = 0xED4245
-white = 0xFFFFFF
-clear = 0x2b2d31
-error = red
-success = green
-
-def ButtonStyle(g):
-    return discord.ButtonStyle.blurple
-
 def style(guild):
     data = db.get_server_config(guild, True)
     color = data["settings"]["color"]
@@ -60,6 +59,7 @@ def datetimes(guild):
     tz = db.get_server_config(guild, True)["settings"]["timezone"]
     dt = pytz.timezone(f'{tz}')
     return dt
+
 
 def uuid(length=8, strCase='upper/lower/nums/special'):
     import random
@@ -119,10 +119,3 @@ def push_notification(
 
     server_config["notifications"].append(notif)
     db.update_server_config(guild, True, key="notifications", value=server_config["notifications"])
-
-
-
-# Security And Safety
-sas = 0x4352f0
-safe = "https://images-ext-1.discordapp.net/external/MMnPtj4FUiplDsTcpXmxMYTKEPJ8z46ET_IBDnarut0/https/cdn.discordapp.com/emojis/911247276175941693.png"
-unsafe ="https://media.discordapp.net/attachments/766378593236287508/902568550609354853/attention.png"

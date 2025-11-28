@@ -5,7 +5,7 @@
     "db_key": "welcome",
     "icon": "waving_hand",
     "url": "welcome",
-    "badge": "",
+    "badge": "new",
     "category": "management",
     "premium": false,
     "status": false
@@ -16,7 +16,7 @@
     "db_key": "moderation",
     "icon": "construction",
     "url": "moderator",
-    "badge": "",
+    "badge": "soon",
     "category": "management",
     "premium": false,
     "status": false

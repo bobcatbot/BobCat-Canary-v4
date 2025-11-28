@@ -5,7 +5,6 @@ from discord.ext import commands
 from modules import bot as v
 from discord.ui import (
     DesignerView, Container, ActionRow, button, select, channel_select, role_select,
-    Section, TextDisplay
 )
 
 PM_Options = [ { "label": "Server", "desc": "Include the server name" }, { "label": "Action", "desc": "Include the action of what happend" }, {  "label": "Reason", "desc": "Include the reason for the kick" }, { "label": "Moderator", "desc": "Include the moderator who kicked the user" } ]
@@ -19,6 +18,21 @@ BUTTON_STYLES = {
     "red": discord.ButtonStyle.red
 }
 
+class PluginBotSettings(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        data = v.db.get_server_config(guild.id, True)['settings']
+
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Settings")
+        container.add_text("Here you can adjust the bots settings")
+
+        
+        
+        self.add_item(container)
+
 # Welcome & Goodbye
 class WelcomeWelcomeContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
@@ -26,7 +40,7 @@ class WelcomeWelcomeContainer(DesignerView):
         data = v.db.get_dash(guild)['welcome']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Welcome")
         container.add_text("Automatically send messages and give roles to your new members")
@@ -227,7 +241,7 @@ class WelcomeGoodbyeContainer(DesignerView):
         data = v.db.get_dash(guild)['welcome']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Goodbye")
         container.add_text("Automatically send messages and give roles to your new members")
@@ -333,7 +347,7 @@ class PluginWelcome(DesignerView):
         data = v.db.get_dash(guild)['welcome']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Welcome & Goodbye")
         container.add_text("Automatically send messages and give roles to your new members and send a message when a members leaves your server")
@@ -387,7 +401,7 @@ class ModeratorKickContainer(DesignerView):
         data = v.db.get_dash(guild.id)['moderation']['settings']['kick']
         
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Kick Settings")
         container.add_text("All the settings for kicking")
@@ -449,7 +463,7 @@ class ModeratorBanContainer(DesignerView):
         data = v.db.get_dash(guild.id)['moderation']['settings']['ban']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Ban Settings")
         container.add_text("All the settings for banning")
@@ -531,11 +545,11 @@ class ModeratorBanContainer(DesignerView):
         self.add_item(ViewButtons())
 class ModeratorMuteContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
         data = v.db.get_dash(guild.id)['moderation']['settings']['mute']
 
-        super().__init__(timeout=None)
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Mute Settings")
         container.add_text("All the settings for muting")
@@ -649,7 +663,7 @@ class ModeratorWarnContainer(DesignerView):
         data = v.db.get_dash(guild)['moderation']['settings']['warn']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Warn Settings")
         container.add_text("All the settings for Warning")
@@ -711,7 +725,7 @@ class PluginModerator(DesignerView):
         data = v.db.get_dash(guild.id)['moderation']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Moderation")
         container.add_text("Keep your server safe with auto-moderation & empower your mods with powerful moderation tools")
@@ -773,7 +787,7 @@ class VerificationMessage(DesignerView):
         data = v.db.get_dash(guild.id)['verification']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Verification Message")
         container.add_text("Set the message that will be sent in the verification channel.")
@@ -1009,7 +1023,7 @@ class VerificationChanRoleOptions(DesignerView):
             role = [ guild.get_role(int(data['role'])) ]
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Verification Channel And Role")
         container.add_text("Configure your verification channel and role.")
@@ -1089,7 +1103,7 @@ class VerificationGeneralOptions(DesignerView):
         data = v.db.get_dash(guild.id)['verification']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# General Verification Options")
         container.add_text("Configure general verification options.")
@@ -1156,7 +1170,7 @@ class PluginVerification(DesignerView):
         data = v.db.get_dash(guild.id)['verification']
         
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Verification")
         container.add_text("Verification gate that your new members need to pass in order to get access to your server.")
@@ -1214,7 +1228,7 @@ class ViewForms(DesignerView):
         data = v.db.get_server_config(guild.id)["forms"][idx]
         
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text(f"# {data['name']} ({data['id']})")
         container.add_text(f"{data['description']}")
@@ -1226,7 +1240,7 @@ class PluginForms(DesignerView):
         data = v.db.get_dash(guild.id)['forms']
         
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Forms")
         container.add_text("Configure forms in the dashboard.")
@@ -2150,7 +2164,7 @@ class LevelingLevelingUpContainer(DesignerView):
         data = v.db.get_dash(guild.id)['leveling']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Leveling Up")
         container.add_text("Whenever the user gains a level, BobCat can send a message.")
@@ -2246,7 +2260,7 @@ class LevelingServerCardContainer(DesignerView):
         data = v.db.get_dash(guild.id)['leveling']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Server Card")
         container.add_text("You can customize the default /rank card in your server. Every member of your server will have that rank card.")
@@ -2327,7 +2341,7 @@ class LevelingRoleRewardsContainer(DesignerView):
         data = v.db.get_dash(guild.id)['leveling']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Role Rewards")
         container.add_text("Role Rewards are given to users when they hit the respective level.")
@@ -2440,7 +2454,7 @@ class LevelingXpOptionsContainer(DesignerView):
         data = v.db.get_dash(guild.id)['leveling']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# XP Options & Modifiers")
         container.add_text("Customize the other options of the XP system.")
@@ -2540,7 +2554,7 @@ class PluginLeveling(DesignerView):
         data = v.db.get_dash(guild.id)['leveling']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Leveling")
         container.add_text("Give your members XP and Levels when they send messages")
@@ -2598,11 +2612,11 @@ class PluginLeveling(DesignerView):
 # Birthdays
 class BirthdaysBirthdayMessageContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
         data = v.db.get_dash(guild.id)['birthdays']
 
-        super().__init__(timeout=None)
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Birthday Message")
         container.add_text("BobCat can remember users' birthdays and wish them a happy one in a specific channel.")
@@ -2716,7 +2730,7 @@ class BirthdaysBirthdayRoleContainer(DesignerView):
         data = v.db.get_dash(guild.id)['birthdays']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Birthday Role")
         container.add_text("Give a role to a user when they have a birthday")
@@ -2764,7 +2778,7 @@ class PluginBirthdays(DesignerView):
         data = v.db.get_dash(guild.id)['birthdays']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Birthdays")
         container.add_text("Track your members birthdays and wish them a happy birthday")
@@ -2817,7 +2831,7 @@ class EconomyCustomizeCoinsContainer(DesignerView):
         data = v.db.get_dash(guild.id)['economy']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Customize your currency")
         container.add_text("Customize your currency icon and name")
@@ -2893,7 +2907,7 @@ class EconomyShopContainer(DesignerView):
         shop_items: list = data["shop"]
         
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Shop Items")
         container.add_text("Customize the items in your shop")
@@ -3017,7 +3031,7 @@ class EconomyRestrictionsContainer(DesignerView):
         data = v.db.get_dash(guild.id)['economy']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Restrictions")
         container.add_text("Handle game restrictions for all games in one place")
@@ -3112,7 +3126,7 @@ class EconomyResetContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Reset Economy")
         container.add_text("This will remove all the coins or shop items from your users")
@@ -3195,7 +3209,7 @@ class PluginEconomy(DesignerView):
         data = v.db.get_dash(guild.id)['economy']
 
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Economy")
         container.add_text("Players can gain coins once a day. A player can stake their coins at games. Use your coins to buy items from the shop.")
@@ -3250,49 +3264,61 @@ class PluginEconomy(DesignerView):
 
 
 PLUGIN_OPTIONS = {
-    "Welcome & Goodbye": PluginWelcome,
-    "Moderator": PluginModerator,
-    "Verification": PluginVerification,
-    # Starboard
-    # "Forms": PluginForms,
-    "Temporary Channels": PluginTempChannels,
-    # Ticketing
-    "Leveling": PluginLeveling,
-    "Birthdays": PluginBirthdays,
-    "Economy": PluginEconomy,
+    "Bot Settings": {"plugin": PluginBotSettings, "premium": False},
+    "Welcome & Goodbye": {"plugin": PluginWelcome, "premium": False},
+    "Moderator": {"plugin": PluginModerator, "premium": False},
+    "Verification": {"plugin": PluginVerification, "premium": False},
+    # "Starboard": {"plugin": PluginStarboard, "premium": False},
+    "Forms": {"plugin": PluginForms, "premium": True},
+    "Temporary Channels": {"plugin": PluginTempChannels, "premium": True},
+    # "Ticketing": {"plugin": PluginTicketing, "premium": True},
+    "Leveling": {"plugin": PluginLeveling, "premium": False},
+    "Birthdays": {"plugin": PluginBirthdays, "premium": False},
+    "Economy": {"plugin": PluginEconomy, "premium": False},
 }
 
-class PluginSelector(ActionRow):
-    @select(
-        placeholder="Select a plugin",
-        options=[
-            discord.SelectOption(label=option) for option in list(PLUGIN_OPTIONS.keys())
-        ],
-        custom_id="PluginSelect",
-    )
-    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-        view_class = PLUGIN_OPTIONS.get(select.values[0])
-        if view_class:
-            await interaction.response.send_message(view=view_class(interaction.guild))
-        else:
-            await interaction.response.send_message("Invalid plugin selected")
-
 class PluginView(DesignerView):
-    def __init__(self):
+    def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
+
         container = Container(
-            color=discord.Color.embed_background(),
+            color=v.style(guild),
         )
         container.add_text("# Pick a plugin")
         container.add_text("Pick a plugin to configure in the dashboard.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        
+        class PluginSelector(ActionRow):
+            @select(
+                placeholder="Select a plugin",
+                options=[
+                    discord.SelectOption(
+                        label=name,
+                        emoji=v.premium if plugin['premium'] and not v.db.get_server_config(guild, True)['premium']['status'] else None,
+                    )
+                    for name, plugin in PLUGIN_OPTIONS.items()
+                ],
+                custom_id="PluginSelect",
+            )
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                data = PLUGIN_OPTIONS.get(select.values[0])
+                view_class = data['plugin']
+
+                if data['premium'] and not v.db.get_server_config(guild, True)['premium']['status']:
+                    return await interaction.response.send_message(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
+
+                if view_class:
+                    await interaction.response.send_message(view=view_class(interaction.guild))
+                else:
+                    await interaction.response.send_message("Invalid plugin selected")
+        
         container.add_item(PluginSelector())
 
         self.add_item(container)
 
 class DiscordDashboard(commands.Cog):
     def __init__(self, client):
-        self.client = client
+        self.client: commands.Bot = client
     
     def author_is_mod(self, guild: discord.Guild, user: discord.Member):
         data = v.db.get_server_config(guild, True)['settings']
@@ -3307,10 +3333,15 @@ class DiscordDashboard(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.client.add_view(PluginView())
+        for guild in self.client.guilds:
+            self.client.add_view(PluginView(guild))
 
     @commands.slash_command(name="dashboard", description="Dashboard", guild_ids=v.guild_ids)
-    @discord.option("plugin", description="The plugin to configure", required=False, choices=list(PLUGIN_OPTIONS.keys()))
+    @discord.option("plugin", 
+        description="The plugin to configure", 
+        required=False, 
+        choices=list(PLUGIN_OPTIONS.keys())
+    )
     async def dashboard(self, ctx: discord.ApplicationContext, plugin: str = None):
         # ADMINS AND BOT MASTERS ONLY
         mod = self.author_is_mod(ctx.guild, ctx.author)
@@ -3319,12 +3350,17 @@ class DiscordDashboard(commands.Cog):
 
         # If a plugin was selected
         if plugin:
-            view_class = PLUGIN_OPTIONS.get(plugin)
+            data = PLUGIN_OPTIONS.get(plugin)
+            view_class = data['plugin']
+            
+            if data['premium'] and not v.db.get_server_config(ctx.guild, True)['premium']['status']:
+                return await ctx.respond(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
+
             if view_class:
                 return await ctx.respond(view=view_class(ctx.guild))
 
         # Default dashboard
-        await ctx.respond(view=PluginView())
+        await ctx.respond(view=PluginView(ctx.guild))
 
 def setup(client):
     client.add_cog(DiscordDashboard(client))
