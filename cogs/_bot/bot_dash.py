@@ -252,9 +252,8 @@ class GuildEvents(commands.Cog):
         mod_roles = []
         for member in guild.members:
             if member.bot:
-                # find the bot role
                 self_role = discord.utils.get(guild.roles, id=guild.me.top_role.id)
-                print(self_role)
+                # print(self_role)
 
         v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
     

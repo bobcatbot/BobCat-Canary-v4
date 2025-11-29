@@ -1,3 +1,4 @@
+import pytz
 import requests
 import discord
 from datetime import datetime
@@ -29,6 +30,7 @@ class BotSettingsMastersAndAdmins(DesignerView):
         )
         container.add_text("# Bot Masters & Admins")
         container.add_text("Here you can adjust the bots settings")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("Administrator Roles")
         container.add_text("Any role with the Administrator permission is considered as a bot master.")
@@ -36,7 +38,10 @@ class BotSettingsMastersAndAdmins(DesignerView):
             @role_select(
                 placeholder="Select roles",
                 max_values=len(guild.roles),
-                default_values=[ role for role in guild.roles if role.permissions.administrator ],
+                default_values=[ 
+                    guild.get_role(int(role))
+                    for role in data['admin_roles']
+                ],
             )
             async def select(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
                 print(select.values)
@@ -49,6 +54,8 @@ class BotSettingsMastersAndAdmins(DesignerView):
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(AdminsSelect())
 
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
         container.add_text("Additional Bot Master Roles")
         container.add_text("Roles that will also be considered as bot masters, even if they do not have the Administrator permission.")
         class MastersSelect(ActionRow):
@@ -56,7 +63,8 @@ class BotSettingsMastersAndAdmins(DesignerView):
                 placeholder="Select roles",
                 max_values=len(guild.roles),
                 default_values=[ 
-                    guild.get_role(role)
+                    guild.get_role(int(role))
+                    for role in data['bot_masters']
                 ],
             )
             async def select(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
@@ -89,11 +97,82 @@ class BotSettingsMastersAndAdmins(DesignerView):
             async def updateStatus(self, button, interaction):
                 pass
         self.add_item(ViewButtons())
-class PluginBotSettings(DesignerView):
+class BotSettingsColor(DesignerView): # TODO: finish 
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
         data = v.db.get_server_config(guild.id, True)['settings']
 
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Color")
+        container.add_text("The color for the bot")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        
+        self.add_item(container)
+
+        class ViewButtons(ActionRow):
+            @button(
+                label="Go Back",
+                style=discord.ButtonStyle.primary,
+            )
+            async def goBack(self, button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=PluginBotSettings(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, button, interaction):
+                pass
+        self.add_item(ViewButtons())
+class BotSettingsOptions(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        from dashboard.consts import langs, tz as timezones
+        data = v.db.get_server_config(guild.id, True)['settings']
+
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Other options")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("## Langauge")
+        container.add_text("Change the default language of the bot in your server.")
+        container.add_text("This feature is a working in progress")
+
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("## Timezone")
+        container.add_text("Change the default timezone of the bot in your server.")
+        container.add_text("This feature is a working in progress")
+
+        self.add_item(container)
+
+        class ViewButtons(ActionRow):
+            @button(
+                label="Go Back",
+                style=discord.ButtonStyle.primary,
+            )
+            async def goBack(self, button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=PluginBotSettings(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, button, interaction):
+                pass
+        self.add_item(ViewButtons())
+class PluginBotSettings(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        
         container = Container(
             color=v.style(guild),
         )
@@ -105,12 +184,17 @@ class PluginBotSettings(DesignerView):
                 placeholder="Select a setting",
                 options=[
                     discord.SelectOption(label="Bot Masters", description="Bot masters can modify all Dashboard settings."),
-                    # discord.SelectOption(label="Color", description="The color for the bot"),
+                    discord.SelectOption(label="Color", description="The color for the bot"),
+                    discord.SelectOption(label="Other Options", description="")
                 ],
             )
             async def select(self, select: discord.ui.Select, interaction: discord.Interaction):
                 if select.values[0] == "Bot Masters":
                     await interaction.response.edit_message(view=BotSettingsMastersAndAdmins(guild))
+                if select.values[0] == "Color":
+                    await interaction.response.edit_message(view=BotSettingsColor(guild))
+                if select.values[0] == "Other Options":
+                    await interaction.response.edit_message(view=BotSettingsOptions(guild))
         container.add_item(SettingsSelect())
         self.add_item(container)
 
@@ -3343,19 +3427,18 @@ class PluginEconomy(DesignerView):
         self.add_item(container)
 
 
-
 PLUGIN_OPTIONS = {
-    "Bot Settings": {"plugin": PluginBotSettings, "premium": False},
-    "Welcome & Goodbye": {"plugin": PluginWelcome, "premium": False},
-    "Moderator": {"plugin": PluginModerator, "premium": False},
-    "Verification": {"plugin": PluginVerification, "premium": False},
+    "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
+    "Welcome & Goodbye": { "plugin": PluginWelcome,  "premium": False },
+    "Moderator": { "plugin": PluginModerator,  "premium": False },
+    "Verification": { "plugin": PluginVerification,  "premium": False },
     # "Starboard": {"plugin": PluginStarboard, "premium": False},
-    "Forms": {"plugin": PluginForms, "premium": True},
-    "Temporary Channels": {"plugin": PluginTempChannels, "premium": True},
+    "Forms": { "plugin": PluginForms,  "premium": True },
+    "Temporary Channels": { "plugin": PluginTempChannels,  "premium": True },
     # "Ticketing": {"plugin": PluginTicketing, "premium": True},
-    "Leveling": {"plugin": PluginLeveling, "premium": False},
-    "Birthdays": {"plugin": PluginBirthdays, "premium": False},
-    "Economy": {"plugin": PluginEconomy, "premium": False},
+    "Leveling": { "plugin": PluginLeveling,  "premium": False },
+    "Birthdays": { "plugin": PluginBirthdays,  "premium": True },
+    "Economy": { "plugin": PluginEconomy,  "premium": False },
 }
 
 class PluginView(DesignerView):
@@ -3429,7 +3512,6 @@ class DiscordDashboard(commands.Cog):
         if not mod:
             return await ctx.respond("You do not have permission to use this command.", ephemeral=True)
 
-        # If a plugin was selected
         if plugin:
             data = PLUGIN_OPTIONS.get(plugin)
             view_class = data['plugin']
@@ -3439,7 +3521,7 @@ class DiscordDashboard(commands.Cog):
 
             if view_class:
                 return await ctx.respond(view=view_class(ctx.guild))
-
+        
         # Default dashboard
         await ctx.respond(view=PluginView(ctx.guild))
 
