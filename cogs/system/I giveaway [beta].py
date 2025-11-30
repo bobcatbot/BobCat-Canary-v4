@@ -209,7 +209,6 @@ class Giveaway(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        
         if not self.persistent_views_added:
             view = discord.ui.View(timeout=None)
             view.add_item(discord.ui.Button(label="Giveaway Summary", style=discord.ButtonStyle.gray, custom_id="GiveawaySummary"))
@@ -417,7 +416,10 @@ class Giveaway(commands.Cog):
             data = v.db.get_server_config(ctx.guild)['giveaways']
             data.append({
                 'id': uuid, 'guild': ctx.guild.id, 'name': 'giveaway', 'channel': { 'id': channel.id, 'name': channel.name }, 'message': msg.id, 'author': ctx.author.id, 'time': { 'epoch': epochEnd, 'timestamp': end_time }, 'prize': prize, 
-                'winners': winners, 'status': 'Ongoing', 'gwinners': [], 'participants': []
+                'winners': winners, 'status': 'Ongoing', 'gwinners': [], 'participants': [],
+                'givexp': { 'enabled': False, 'amount': 0 },
+                'givecoins': { 'enabled': False, 'amount': 0 },
+                'embed_title': embed.title, 'embed_desc': embed.description
             })
             v.db.update_server_config(ctx.guild, key='giveaways', value=data)
 
@@ -452,7 +454,7 @@ class Giveaway(commands.Cog):
         else:
             return await message.reply(content="No valid entrants, so a winner could not be determined!")
     
-    #@giveaway.command(description="End a giveaway")
+    @giveaway.command(description="End a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to end", required=True)
     async def end(self, ctx, giveaway_id):
         gway_data = v.db.get_server_config(ctx.guild)

@@ -1,5 +1,6 @@
 import discord
-
+import asyncio
+import json
 from dashboard.index import run_dashboard
 from startup.loadcogs import loadcogs
 from modules import bot as v
@@ -11,7 +12,6 @@ async def startup(client):
     loadcogs(client)
 
 async def chpr(client):
-    import asyncio, json
     statuses = json.load(open("modules/status.json"))['status']
     
     await client.wait_until_ready()

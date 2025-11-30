@@ -97,7 +97,7 @@ class BotSettingsMastersAndAdmins(DesignerView):
             async def updateStatus(self, button, interaction):
                 pass
         self.add_item(ViewButtons())
-class BotSettingsColor(DesignerView): # TODO: finish 
+class BotSettingsColor(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
         data = v.db.get_server_config(guild.id, True)['settings']
@@ -108,7 +108,34 @@ class BotSettingsColor(DesignerView): # TODO: finish
         container.add_text("# Color")
         container.add_text("The color for the bot")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        class ColorModal(discord.ui.DesignerModal):
+            def __init__(self, guild: discord.Guild):
+                super().__init__(
+                    discord.ui.Label(
+                        "Color",
+                        discord.ui.InputText(
+                            style=discord.InputTextStyle.short,
+                            value=data['color'],
+                        )
+                    ),
+                    title="Color",
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                color = self.children[0].value
+                v.db.update_server_config(self.guild, True, 'settings.color', color)
+                v.db.update_server_config(self.guild, True, 'updated_at', discord.utils.utcnow())
         
+        class ColorButton(ActionRow):
+            @button(
+                label="Change Color",
+                style=discord.ButtonStyle.primary,
+            )
+            async def changeColor(self, button, interaction: discord.Interaction):
+                await interaction.response.send_modal(ColorModal(guild))
+        container.add_item(ColorButton())
+
         self.add_item(container)
 
         class ViewButtons(ActionRow):
@@ -128,7 +155,7 @@ class BotSettingsColor(DesignerView): # TODO: finish
             async def updateStatus(self, button, interaction):
                 pass
         self.add_item(ViewButtons())
-class BotSettingsOptions(DesignerView):
+class BotSettingsOptions(DesignerView):  # TODO: finish 
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
         from dashboard.consts import langs, tz as timezones

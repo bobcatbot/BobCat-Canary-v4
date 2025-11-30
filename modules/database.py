@@ -6,9 +6,6 @@ config = json.load(open('modules/config.json'))
 
 mongoClient = pymongo.MongoClient(
     config['mongoURI_db'],
-    serverSelectionTimeoutMS=50000,  # 50 seconds
-    socketTimeoutMS=50000,
-    connectTimeoutMS=50000,
 )
 db = mongoClient['Bot']['Bot']
 
