@@ -1,12 +1,17 @@
-import pytz
+import asyncio
+import patreon
 import requests
 import discord
 from datetime import datetime
 from discord.ext import commands
+from cogs._bot.patreon.PatreonApi import PatreonApi
 from modules import bot as v
 from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select,
+    DesignerView, Container, ActionRow, button, select, channel_select, role_select
 )
+
+CREATOR_ACCESS_TOKEN = "CeMP33TcR7N3uo0yvTSWywBEvG8ilCPSwSucI-6L6ys"
+papi_client = patreon.API(CREATOR_ACCESS_TOKEN)
 
 PM_Options = [ { "label": "Server", "desc": "Include the server name" }, { "label": "Action", "desc": "Include the action of what happend" }, {  "label": "Reason", "desc": "Include the reason for the kick" }, { "label": "Moderator", "desc": "Include the moderator who kicked the user" } ]
 
@@ -18,6 +23,49 @@ BUTTON_STYLES = {
     "green": discord.ButtonStyle.green,
     "red": discord.ButtonStyle.red
 }
+
+# Premium Settings
+class PluginPremiumSettings(DesignerView):  
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        # data = v.db.get_server_config(guild.id, True)['premium']
+        
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Unlock BobCat Premium")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("1. Buy On Patreon")
+        container.add_text("https://www.patreon.com/cw/bobcatbot/membership")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("2. Check Your Patreon Status")
+        class CheckStatusButton(ActionRow):
+            @button(label="Check Status", style=discord.ButtonStyle.blurple)
+            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+                api = PatreonApi()
+                all_patreons = await api.fetch_all()
+
+                for patron in all_patreons:
+                    if patron.id == interaction.user.id:
+                        button.label = "Patreon Member"
+                        button.style = discord.ButtonStyle.green
+
+                await interaction.response.defer()
+        
+        container.add_item(CheckStatusButton())
+
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("3. Once your a member select a server you want to use premium on")
+        # class SelectServer(ActionRow):
+        #     @button(label="Select Server", style=discord.ButtonStyle.green)
+        #     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #         await interaction.response.defer()
+        #         await interaction.followup.send("Select a server to use premium on", view=PluginPremiumSelectServers(guild))
+        
+        self.add_item(container)
 
 # Bot Settings
 class BotSettingsMastersAndAdmins(DesignerView):
@@ -3455,11 +3503,12 @@ class PluginEconomy(DesignerView):
 
 
 PLUGIN_OPTIONS = {
+    "Premium": { "plugin": PluginPremiumSettings,  "premium": False },
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcome,  "premium": False },
     "Moderator": { "plugin": PluginModerator,  "premium": False },
     "Verification": { "plugin": PluginVerification,  "premium": False },
-    # "Starboard": {"plugin": PluginStarboard, "premium": False},
+    # "Starboard": {"plugin": PluginStarboard, "premium": True},
     "Forms": { "plugin": PluginForms,  "premium": True },
     "Temporary Channels": { "plugin": PluginTempChannels,  "premium": True },
     # "Ticketing": {"plugin": PluginTicketing, "premium": True},
