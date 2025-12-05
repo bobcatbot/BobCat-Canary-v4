@@ -26,7 +26,7 @@ BUTTON_STYLES = {
 
 # Premium Settings
 class PluginPremiumSettings(DesignerView):  
-    def __init__(self, guild: discord.Guild):
+    def __init__(self, guild: discord.Guild, user: discord.Member):
         super().__init__(timeout=None)
         # data = v.db.get_server_config(guild.id, True)['premium']
         
@@ -48,7 +48,7 @@ class PluginPremiumSettings(DesignerView):
                 all_patreons = await api.fetch_all()
 
                 for patron in all_patreons:
-                    if patron.id == interaction.user.id:
+                    if patron['discord'] == str(interaction.user.id):
                         button.label = "Patreon Member"
                         button.style = discord.ButtonStyle.green
 
@@ -59,11 +59,28 @@ class PluginPremiumSettings(DesignerView):
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("3. Once your a member select a server you want to use premium on")
-        # class SelectServer(ActionRow):
-        #     @button(label="Select Server", style=discord.ButtonStyle.green)
-        #     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        #         await interaction.response.defer()
-        #         await interaction.followup.send("Select a server to use premium on", view=PluginPremiumSelectServers(guild))
+        
+        guilds = []
+        mutual_guilds = user.mutual_guilds
+        for guild in mutual_guilds:
+            guilds.append({ "label": guild.name, "value": str(guild.id) })
+
+        class SelectServer(ActionRow):
+            @select(
+                placeholder="Select a server",
+                options=[
+                    discord.SelectOption(label=guild['label'], value=guild['value']) 
+                    for guild in guilds
+                ],
+                min_values=1,
+                max_values=1,
+            )
+            async def select(self, select: discord.ui.Select, interaction: discord.Interaction):
+                print(select.values)
+                # v.db.update_server_config(guild, True, 'premium', select.values)
+                await interaction.response.defer()
+
+        container.add_item(SelectServer())
         
         self.add_item(container)
 
@@ -3548,7 +3565,7 @@ class PluginView(DesignerView):
                     return await interaction.response.send_message(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
                 if view_class:
-                    await interaction.response.send_message(view=view_class(interaction.guild))
+                    await interaction.response.send_message(view=view_class(interaction.guild, interaction.user))
                 else:
                     await interaction.response.send_message("Invalid plugin selected")
         
@@ -3596,10 +3613,10 @@ class DiscordDashboard(commands.Cog):
                 return await ctx.respond(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
             if view_class:
-                return await ctx.respond(view=view_class(ctx.guild))
+                return await ctx.respond(view=view_class(ctx.guild, ctx.user))
         
         # Default dashboard
-        await ctx.respond(view=PluginView(ctx.guild))
+        await ctx.respond(view=PluginView(ctx.guild, ctx.user))
 
 def setup(client):
     client.add_cog(DiscordDashboard(client))
