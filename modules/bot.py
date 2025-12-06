@@ -4,7 +4,6 @@ import pytz
 from datetime import datetime
 from .database import Database
 from discord.ext import commands
-from posthog import Posthog
 
 config = json.load(open('modules/config.json'))
 
@@ -21,8 +20,6 @@ PY_ENV = config["PY_ENV"]
 guild_ids = [903243004544962600]
 btz_gid = 903243004544962600
 web_url = "http://localhost:8000"
-
-posthog = Posthog(project_api_key=config["posthog_project_api_key"], host='https://eu.i.posthog.com')
 
 db = Database()
 
