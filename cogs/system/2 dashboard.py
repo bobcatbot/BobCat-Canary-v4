@@ -1,10 +1,8 @@
-import asyncio
 import patreon
 import requests
 import discord
 from datetime import datetime
 from discord.ext import commands
-from cogs._bot.patreon.PatreonApi import PatreonApi
 from modules import bot as v
 from discord.ui import (
     DesignerView, Container, ActionRow, button, select, channel_select, role_select
@@ -23,66 +21,6 @@ BUTTON_STYLES = {
     "green": discord.ButtonStyle.green,
     "red": discord.ButtonStyle.red
 }
-
-# Premium Settings
-class PluginPremiumSettings(DesignerView):  
-    def __init__(self, guild: discord.Guild, user: discord.Member):
-        super().__init__(timeout=None)
-        # data = v.db.get_server_config(guild.id, True)['premium']
-        
-        container = Container(
-            color=v.style(guild),
-        )
-        container.add_text("# Unlock BobCat Premium")
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("1. Buy On Patreon")
-        container.add_text("https://www.patreon.com/cw/bobcatbot/membership")
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("2. Check Your Patreon Status")
-        class CheckStatusButton(ActionRow):
-            @button(label="Check Status", style=discord.ButtonStyle.blurple)
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                api = PatreonApi()
-                all_patreons = await api.fetch_all()
-
-                for patron in all_patreons:
-                    if patron['discord'] == str(interaction.user.id):
-                        button.label = "Patreon Member"
-                        button.style = discord.ButtonStyle.green
-
-                await interaction.response.defer()
-        
-        container.add_item(CheckStatusButton())
-
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("3. Once your a member select a server you want to use premium on")
-        
-        guilds = []
-        mutual_guilds = user.mutual_guilds
-        for guild in mutual_guilds:
-            guilds.append({ "label": guild.name, "value": str(guild.id) })
-
-        class SelectServer(ActionRow):
-            @select(
-                placeholder="Select a server",
-                options=[
-                    discord.SelectOption(label=guild['label'], value=guild['value']) 
-                    for guild in guilds
-                ],
-                min_values=1,
-                max_values=1,
-            )
-            async def select(self, select: discord.ui.Select, interaction: discord.Interaction):
-                print(select.values)
-                # v.db.update_server_config(guild, True, 'premium', select.values)
-                await interaction.response.defer()
-
-        container.add_item(SelectServer())
-        
-        self.add_item(container)
 
 # Bot Settings
 class BotSettingsMastersAndAdmins(DesignerView):
@@ -3520,7 +3458,6 @@ class PluginEconomy(DesignerView):
 
 
 PLUGIN_OPTIONS = {
-    "Premium": { "plugin": PluginPremiumSettings,  "premium": False },
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcome,  "premium": False },
     "Moderator": { "plugin": PluginModerator,  "premium": False },
