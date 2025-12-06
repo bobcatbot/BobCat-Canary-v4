@@ -5,14 +5,6 @@ from discord.ext import commands
 from cogs.mod._utils.audit_log import audit_log
 from captcha.image import ImageCaptcha
 
-class Verify(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-    
-    # @discord.ui.button(custom_id="Verification")
-    # async def verifybutton(self, button: discord.ui.Button, interaction: discord.Interaction):
-    #     print("Starting verification...")
-
 class Verification(commands.Cog):
     def __init__(self, client):
         self.client: discord.Client = client
@@ -52,6 +44,7 @@ class Verification(commands.Cog):
                 logs.add_field(name="Creation", value=f"<t:{f'{interaction.user.created_at.timestamp()}'.split('.')[0]}:R>", inline=True)
                 logs.add_field(name="Status", value=f"`{interaction.user.name}` has successfully passed verification.", inline=False)
                 await audit_log(v.client, interaction, "Verification", logs)
+                return
             ###
             
             # Captcha
@@ -115,7 +108,7 @@ class Verification(commands.Cog):
                         else:
                             attemp -= 1
                             if attemp != 0:
-                                embed = discord.Embed(title="Incorrect", description=f"**You have {attemp} attempts left.**", error=v.error)
+                                embed = discord.Embed(title="Incorrect", description=f"**You have {attemp} attempts left.**", color=v.error)
                                 await dm.send(embed=embed)
                     
                     else:
@@ -161,8 +154,8 @@ class Verification(commands.Cog):
                 except discord.HTTPException:
                     error = discord.Embed(description="**I wasn't able to DM you.. Open your DMs and try to reverify.**", color=v.error)
                     return await interaction.response.send_message(embed=error, ephemeral=True)
+                return
             ###
-                    
             if mode == "captcha_channel":
                 class CaptchaModal(discord.ui.Modal):
                     def __init__(self):
@@ -196,7 +189,7 @@ class Verification(commands.Cog):
                             else:
                                 attemp -= 1
                                 if attemp != 0:
-                                    embed = discord.Embed(title="Incorrect", description=f"**You have {attemp} attempts left.**", error=v.error)
+                                    embed = discord.Embed(title="Incorrect", description=f"**You have {attemp} attempts left.**", color=v.error)
                                     await interaction.response.send_message(embed=embed, ephemeral=True)
                         else:
                             if attemp == 0:
@@ -275,8 +268,11 @@ class Verification(commands.Cog):
             )
         )
 
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Verify", style=discord.ButtonStyle.green, custom_id="Verification"))
+
         channel = self.client.get_channel(int(chan))
-        await channel.send(embed=emb, view=Verify())
+        await channel.send(embed=emb, view=view)
 
 def setup(client):
     client.add_cog(Verification(client))
