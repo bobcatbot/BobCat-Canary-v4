@@ -40,8 +40,11 @@ class events(commands.Cog):
     
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        bans = await member.guild.bans(limit=None).flatten()
-        if any(ban.user.id == member.id for ban in bans):
+        try:
+            bans = await member.guild.bans(limit=None).flatten()
+            if any(ban.user.id == member.id for ban in bans):
+                return
+        except discord.Forbidden:
             return
         
         status = v.dashboard(member.guild.id, f"{LOGGING_EVENTS}.MemberLeave")

@@ -1,87 +1,140 @@
 import discord
-import json
+import asyncio
 from discord.ext import commands
 from modules import bot as v
 
 class TempVoice(commands.Cog):
-    def __init__(self, bot: commands.bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-    
+        self.channel_creation_lock = {}  # prevents duplicate channels if event fires twice
+
+    # ------------------------------------------------------
+    #   EVENT: Voice state update
+    # ------------------------------------------------------
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
-        
-        ## Create ##
+    async def on_voice_state_update(self, member, before, after):
+
+        # ======================================================
+        # CREATE
+        # ======================================================
         if after.channel:
-            hubs = v.db.get_dash(after.channel.guild)['temporary_channels']['hubs']
-            tempvoice = v.db.get_server_config(after.channel.guild)['temporary_channels']
+            await self.handle_join(member, after.channel)
 
-            hub = next((_hub for _hub in hubs if _hub['channel_id'] == str(after.channel.id)), None)
+        # ======================================================
+        # DELETE
+        # ======================================================
+        if before.channel:
+            await self.handle_leave(before.channel)
 
-            if hub is None:
-                return
-            
-            perms_sync = hub['sync_hub_category']
-            modRoles = []
-            mod_perms = hub['permissions']
 
-            if perms_sync:
-                chan = discord.utils.get(after.channel.guild.categories, id=int(hub['category_id']))
-                perms = chan.overwrites
-                
-                if modRoles is not None:
-                    for role in modRoles:
-                        perms[role] = discord.PermissionOverwrite(**mod_perms)
-                
-                perms[member] = discord.PermissionOverwrite(**mod_perms)
+    # ------------------------------------------------------
+    #   JOINS HUB  → CREATE TEMP CHANNEL
+    # ------------------------------------------------------
+    async def handle_join(self, member: discord.Member, hub_channel: discord.VoiceChannel):
+
+        hubs = v.db.get_dash(hub_channel.guild)['temporary_channels']['hubs']
+        tempvoice_db = v.db.get_server_config(hub_channel.guild)['temporary_channels']
+
+        hub = next((h for h in hubs if h['channel_id'] == str(hub_channel.id)), None)
+        if hub is None:
+            return  # not a tempvoice hub
+
+        # Prevent race-conditions
+        if member.id in self.channel_creation_lock:
+            return
+        self.channel_creation_lock[member.id] = True
+
+        try:
+            # Determine PERMISSIONS
+            if hub['sync_hub_category']:
+                category = discord.utils.get(hub_channel.guild.categories, id=int(hub['category_id']))
+                overwrites = category.overwrites.copy()
             else:
-                chan = after.channel.guild
-                perms = { member: discord.PermissionOverwrite(**mod_perms) }
-            
-            idx = 1
-            for tempchan in tempvoice:
-                if tempchan["guild_id"] == after.channel.guild.id:
-                    idx = tempchan['index'] + 1
+                overwrites = {}
 
-            temp_chan = await chan.create_voice_channel(
+            # Give creator full perms
+            mod_perms = discord.PermissionOverwrite(**hub["permissions"])
+            overwrites[member] = mod_perms
+
+            # Determine index
+            idx = 1
+            guild_tcs = [tc for tc in tempvoice_db if tc["guild_id"] == hub_channel.guild.id]
+            if guild_tcs:
+                idx = guild_tcs[-1]["index"] + 1
+
+            # CREATE VOICE CHANNEL
+            new_chan = await hub_channel.guild.create_voice_channel(
                 name=hub['name'].format(index=idx, username=member.name),
+                category=hub_channel.category,
                 user_limit=hub['user_limit'],
                 bitrate=hub['bitrate'],
-                overwrites=perms
+                overwrites=overwrites
             )
-            await member.move_to(temp_chan)
 
-            v.db.update_server_config(after.channel.guild, key=f"temporary_channels.{len(tempvoice)}", value={
-                "index": idx,
-                "guild_id": after.channel.guild.id,
-                "channel_id": temp_chan.id,
-                "creator": member.id
-            })
-            ###
-        ##
+            await member.move_to(new_chan)
 
-        ## Delete ##
-        if before.channel:
-            for i in v.db.get_server_config(before.channel.guild)['temporary_channels']:
-                if i["channel_id"] == before.channel.id and len(before.channel.members) == 0:
-                    await before.channel.delete()
+            v.db.update_server_config(
+                hub_channel.guild,
+                key=f"temporary_channels.{len(tempvoice_db)}",
+                value={
+                    "index": idx,
+                    "guild_id": hub_channel.guild.id,
+                    "channel_id": new_chan.id,
+                    "creator": member.id
+                }
+            )
+
+        finally:
+            await asyncio.sleep(0.5)
+            self.channel_creation_lock.pop(member.id, None)
+
+
+    # ------------------------------------------------------
+    #   LEAVES CHANNEL → DELETE IF EMPTY
+    # ------------------------------------------------------
+    async def handle_leave(self, channel: discord.VoiceChannel):
+        tcs = v.db.get_server_config(channel.guild)['temporary_channels']
+
+        # Find matching entry
+        entry_idx = None
+        for idx, tc in enumerate(tcs):
+            if tc["channel_id"] == channel.id:
+                entry_idx = idx
+                break
+
+        if entry_idx is None: # not a temp channel
             return
-    
-    # Event listener for when the channel name of the hub is changed
+
+        await asyncio.sleep(0.5) # Wait for member list to update
+
+        # Not empty → do nothing
+        if len(channel.members) > 0:
+            return
+
+        # Delete channel
+        try:
+            await channel.delete()
+        except:
+            pass
+
+    # ------------------------------------------------------
+    #   UPDATE HUB NAME ON CHANNEL RENAME
+    # ------------------------------------------------------
     @commands.Cog.listener()
-    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+    async def on_guild_channel_update(self, before, after):
+
         if not isinstance(after, discord.VoiceChannel):
             return
 
-        channel = after
-        hubs: list = v.db.get_dash(channel.guild)['temporary_channels']['hubs']
+        hubs = v.db.get_dash(after.guild)['temporary_channels']['hubs']
+        hub = next((h for h in hubs if h['channel_id'] == str(after.id)), None)
 
-        hub = next((_hub for _hub in hubs if _hub['channel_id'] == str(channel.id)), None)
-
-        if hub is None:
-            return
-
-        v.db.update_dash(channel.guild, key=f"temporary_channels.hubs.{hubs.index(hub)}.hub_name", value=channel.name)
-
+        if hub:
+            v.db.update_dash(
+                after.guild,
+                key=f"temporary_channels.hubs.{hubs.index(hub)}.hub_name",
+                value=after.name
+            )
 
     # Manage your voice channel pannel
     @commands.slash_command(name="tempvoice-manage", description="Manage your temporary voice channel")
