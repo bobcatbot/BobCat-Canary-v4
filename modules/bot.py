@@ -1,11 +1,20 @@
 import discord
-import json
+import os
 import pytz
+from dotenv import load_dotenv
 from datetime import datetime
 from .database import Database
 from discord.ext import commands
 
-config = json.load(open('modules/config.json'))
+load_dotenv()
+
+config = {
+    "PY_ENV": os.getenv('PY_ENV'),
+    "prefix": os.getenv('PREFIX'),
+    "bot_token": os.getenv('BOT_TOKEN'),
+    "mongoURI_db": os.getenv('mongoURI_db'),
+    "mongoURI_cdn": os.getenv('mongoURI_cdn'),
+}
 
 client = commands.AutoShardedBot(
   command_prefix=config["prefix"],
@@ -21,7 +30,7 @@ guild_ids = [903243004544962600]
 btz_gid = 903243004544962600
 web_url = "http://localhost:8000"
 
-db = Database()
+db = Database(config)
 
 premium = "<:premium:1442138047348084806>"
 

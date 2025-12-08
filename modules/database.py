@@ -1,30 +1,25 @@
-import json
 import discord
 import pymongo
 
-config = json.load(open('modules/config.json'))
-
-mongoClient = pymongo.MongoClient(
-    config['mongoURI_db'],
-)
-db = mongoClient['Bot']['Bot']
-
 # Main DB class #
 class Database:
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
-        self.db = db
+        self.mongoClient = pymongo.MongoClient(
+            config['mongoURI_db'],
+        )
+        self.db = self.mongoClient['Bot']['Bot']
         self.Bot = "Bot"
     
     # Main DB #
     def create_server_config(self, guild_data: dict) -> bool:
-        data = db.insert_one(guild_data)
+        data = self.db.insert_one(guild_data)
         if data:
             return True
         return False
     
     def get_all_server_config(self) -> list[dict]:
-        data = db.find({})
+        data = self.db.find({})
         if data:
             return data
     
@@ -46,7 +41,7 @@ class Database:
         except AttributeError:
             guildID = guild
         
-        data: dict = db.find_one({"_id": str(guildID)})
+        data: dict = self.db.find_one({"_id": str(guildID)})
         if data is None:
             return None
         
@@ -79,7 +74,7 @@ class Database:
         else:
             data = { "Bot." + key: value }
         
-        data = db.update_one(
+        data = self.db.update_one(
             { "_id": str(guildID) }, 
             { "$set": data }
         )
@@ -94,7 +89,7 @@ class Database:
         except AttributeError:
             guildID = guild
         
-        data: dict = db.find_one({"_id": str(guildID)})
+        data: dict = self.db.find_one({"_id": str(guildID)})
         if data is None:
             return None
         return data["Dash"]
@@ -116,7 +111,7 @@ class Database:
         except AttributeError:
             guildID = guild
         
-        data = db.update_one(
+        data = self.db.update_one(
             { "_id": str(guildID) }, 
             { "$set": { "Dash." + key: value } }
         )
