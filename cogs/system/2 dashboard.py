@@ -1,3 +1,4 @@
+import asyncio
 import patreon
 import requests
 import discord
@@ -21,6 +22,86 @@ BUTTON_STYLES = {
     "green": discord.ButtonStyle.green,
     "red": discord.ButtonStyle.red
 }
+
+# Premium Settings
+class PluginPremiumSettings(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        # data = v.db.get_server_config(guild.id, True)['premium']
+        
+        container = Container(
+            color=v.style(guild),
+        )
+        container.add_text("# Unlock BobCat Premium")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("1. Buy On Patreon")
+        container.add_text("https://www.patreon.com/cw/bobcatbot/membership")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("2. Check Your Patreon Status")
+        class CheckStatusButton(ActionRow):
+            @button(label="Check Status", style=discord.ButtonStyle.blurple)
+            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+                import json, aiohttp
+                class PatreonApi():
+                    def __init__(self, campaign_id=None, access_token=None):
+                        self.campaign_id="8188764"
+                        self.access_token="YOUR_TOKEN_HERE"
+                    async def fetch_all(self) -> dict:
+                        url = f'https://www.patreon.com/api/oauth2/v2/campaigns/{self.campaign_id}/members'
+                        params = {'include':'user,currently_entitled_tiers','fields[user]':'social_connections'}
+                        headers = {'Authorization':f'Bearer {self.access_token}'}
+                        patreons={}
+                        end_cursor=False
+                        while not end_cursor:
+                            async with aiohttp.ClientSession() as session:
+                                async with session.get(url,params=params,headers=headers) as response:
+                                    patreon_data=await response.json()
+                                    for data in patreon_data['data']:
+                                        discord_user_id=None
+                                        for patreon_user in patreon_data['included']:
+                                            if patreon_user['type']!='user':
+                                                continue
+                                            if data['relationships']['user']['data']['id']!=patreon_user['id']:
+                                                continue
+                                            patreon_user_data = patreon_user['attributes']
+                                            if 'social_connections' not in patreon_user_data:
+                                                continue
+                                            discord_data = patreon_user['attributes']['social_connections']['discord']
+                                            if not discord_data or 'user_id' not in discord_data:
+                                                continue
+                                            discord_user_id = int(discord_data['user_id'])
+                                        patreons[data['relationships']['user']['data']['id']] = {'tiers':[d['id'] for d in data['relationships']['currently_entitled_tiers']['data']], 'discord':discord_user_id}
+                                    pagination_data = patreon_data['meta']['pagination']
+                                    if not pagination_data.get('cursors') or pagination_data['cursors']['next'] == None:
+                                        end_cursor=True
+                                    else:
+                                        params['page[cursor]'] = pagination_data['cursors']['next']
+                        return patreons
+
+                api = PatreonApi()
+                all_patreons = await api.fetch_all()
+
+                for patron in all_patreons:
+                    if patron['discord'] == interaction.user.id:
+                        button.label = "Patreon Member"
+                        button.style = discord.ButtonStyle.green
+
+                await interaction.response.defer()
+        
+        container.add_item(CheckStatusButton())
+
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        container.add_text("3. Once your a member select a server you want to use premium on")
+        # class SelectServer(ActionRow):
+        #     @button(label="Select Server", style=discord.ButtonStyle.green)
+        #     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #         await interaction.response.defer()
+        #         await interaction.followup.send("Select a server to use premium on", view=PluginPremiumSelectServers(guild))
+        
+        self.add_item(container)
 
 # Bot Settings
 class BotSettingsMastersAndAdmins(DesignerView):
@@ -3458,6 +3539,7 @@ class PluginEconomy(DesignerView):
 
 
 PLUGIN_OPTIONS = {
+    "Premium": { "plugin": PluginPremiumSettings,  "premium": False },
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcome,  "premium": False },
     "Moderator": { "plugin": PluginModerator,  "premium": False },
@@ -3502,7 +3584,7 @@ class PluginView(DesignerView):
                     return await interaction.response.send_message(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
                 if view_class:
-                    await interaction.response.send_message(view=view_class(interaction.guild, interaction.user))
+                    await interaction.response.send_message(view=view_class(interaction.guild))
                 else:
                     await interaction.response.send_message("Invalid plugin selected")
         
@@ -3550,10 +3632,10 @@ class DiscordDashboard(commands.Cog):
                 return await ctx.respond(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
             if view_class:
-                return await ctx.respond(view=view_class(ctx.guild, ctx.user))
+                return await ctx.respond(view=view_class(ctx.guild))
         
         # Default dashboard
-        await ctx.respond(view=PluginView(ctx.guild, ctx.user))
+        await ctx.respond(view=PluginView(ctx.guild))
 
 def setup(client):
     client.add_cog(DiscordDashboard(client))
