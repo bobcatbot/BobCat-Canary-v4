@@ -6,8 +6,6 @@ from discord.ext import commands, tasks
 import pytz
 from modules import bot as v
 
-# dash idea) 24h - 12h
-
 def ordinal(n):
     if 10 <= n % 100 <= 20:
         suffix = 'th'
@@ -97,9 +95,6 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="birthdays", description="Show all birthdays for the current month")
     async def birthdays(self, ctx: discord.ApplicationContext):
-        """
-        Shows all birthdays for the current month
-        """
         bdays = v.db.get_server_config(ctx.guild.id)["birthdays"]
 
         now = datetime.datetime.now()
@@ -127,10 +122,7 @@ class BirthdayCommands(commands.Cog):
         await ctx.respond(embed=embed)
 
     @commands.slash_command(name="next-birthdays", description="Shows the next 10 upcoming birthdays")
-    async def birthdays(self, ctx: discord.ApplicationContext):
-        """
-        Shows the next 10 upcoming birthdays
-        """
+    async def next_birthdays(self, ctx: discord.ApplicationContext):
         bdays = v.db.get_server_config(ctx.guild.id)["birthdays"]
 
         upcoming_birthdays = []
@@ -164,12 +156,6 @@ class BirthdayCommands(commands.Cog):
     @commands.slash_command(name="birthday", description="Show yours or another member's birthday")
     @discord.option("member", description="The member to view the birthday of", required=False)
     async def view_birthday(self, ctx: discord.ApplicationContext, member: discord.Member=None):
-        """
-        Views yours or another member's birthday
-
-        Parameters:
-        - member: The member to view the birthday of, optional
-        """
         bdays = v.db.get_server_config(ctx.guild.id)["birthdays"]
 
         member = ctx.author if not member else member
@@ -203,14 +189,7 @@ class BirthdayCommands(commands.Cog):
     @commands.slash_command(name="set-birthday", description="Sets yours or another member's birthday")
     @discord.option("date", description="Birthday (YYYY-MM-DD)", required=True)
     @discord.option("member", description="The member to set the birthday of", required=False)
-    async def birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member=None):
-        """
-        Sets yours or another member's birthday
-
-        Parameters:
-        - date: Birthday (YYYY-MM-DD or MM/DD), required
-        - member: The member to set the birthday of, optional
-        """
+    async def set_birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member=None):
         member = ctx.author if not member else member
 
         bdays = v.db.get_server_config(ctx.guild.id)["birthdays"]
@@ -248,12 +227,6 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="remove-birthday", description="Removes a member's birthday")
     async def remove_birthday(self, ctx: discord.ApplicationContext):
-        """
-        Removes a member's birthday
-
-        Parameters:
-        - member: The member to remove the birthday of
-        """
         member = ctx.author
         bdays = v.db.get_server_config(ctx.guild.id)["birthdays"]
 
