@@ -1,14 +1,21 @@
 import discord
 import asyncio
 import json
+import argparse
 from dashboard.index import run_dashboard
 from startup.loadcogs import loadcogs
 from modules import bot as v
 
 client = v.client
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--no-dashboard", action="store_true", help="Disable dashboard on startup")
+args = parser.parse_args()
+
 async def startup(client):
-    run_dashboard()
+    if not args.no_dashboard:
+        run_dashboard()
+
     loadcogs(client)
 
 async def chpr(client):
