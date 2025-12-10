@@ -43,7 +43,7 @@ class JoinGiveaway(discord.ui.View):
             
             for em in msg.embeds:
                 embed = em.to_dict()
-                embed["fields"][2]["value"] = f"**{len(participants)}**"
+                embed["fields"][3]["value"] = f"**{len(participants)}**"
             await msg.edit(embed=discord.Embed().from_dict(embed))
 
             await interaction.response.send_message(content=":white_check_mark: You're now participating in this giveaway!", view=None, ephemeral=True)
@@ -58,11 +58,10 @@ class JoinGiveaway(discord.ui.View):
 
             for em in msg.embeds:
                 embed = em.to_dict()
-                embed["fields"][2]["value"] = f"**{len(participants)}**"
+                embed["fields"][3]["value"] = f"**{len(participants)}**"
             await msg.edit(embed=discord.Embed().from_dict(embed))
 
             await interaction.response.send_message(content=":negative_squared_cross_mark: You're not participating in this giveaway anymore!", view=None, ephemeral=True)
-
 class GiveawaySummary(discord.ui.View):
     def __init__(self, client):
         super().__init__(timeout=None)
@@ -203,7 +202,7 @@ class Giveaway(commands.Cog):
                     key=f'giveaways.{idx}.status',
                     value="Ended"
                 )
-    ###          
+    ###
 
     giveaway = discord.SlashCommandGroup("giveaway", "Giveaway Commands")
 
@@ -257,7 +256,7 @@ class Giveaway(commands.Cog):
                 
                 for em in msg.embeds:
                     embed = em.to_dict()
-                    embed["fields"][2]["value"] = f"**{len(participants)}**"
+                    embed["fields"][3]["value"] = f"**{len(participants)}**"
                 await msg.edit(embed=discord.Embed().from_dict(embed))
 
                 await interaction.response.send_message(content=":white_check_mark: You're now participating in this giveaway!", view=None, ephemeral=True)
@@ -272,7 +271,7 @@ class Giveaway(commands.Cog):
 
                 for em in msg.embeds:
                     embed = em.to_dict()
-                    embed["fields"][2]["value"] = f"**{len(participants)}**"
+                    embed["fields"][3]["value"] = f"**{len(participants)}**"
                 await msg.edit(embed=discord.Embed().from_dict(embed))
 
                 await interaction.response.send_message(content=":negative_squared_cross_mark: You're not participating in this giveaway anymore!", view=None, ephemeral=True)
@@ -336,34 +335,39 @@ class Giveaway(commands.Cog):
     async def list(self, ctx):
         data = giveaways_fetchall()
 
-        msgs = {}
-        msgs[f"{ctx.guild.id}"] = {}
-        msgs[f"{ctx.guild.id}"]["msg"] = []
+        active = []
 
         for item in data:
-            guilds = item.get('guild')
-            channels = item.get('channel').get('id')
-            messages = item.get('message')
-            time = item.get('time').get('epoch')
-            prize = item.get('prize')
-            winners = item.get('winners')
+            gid = item.get("id")
+            guild_id = int(item.get("guild"))
+            channel_id = int(item.get("channel").get("id"))
+            message_id = int(item.get("message"))
+            time = int(item.get("time").get("epoch"))
+            prize = item.get("prize")
+            winners = item.get("winners")
+
             status = item.get('status')
             
-            guild = self.client.get_guild(int(guilds))
-            channel = guild.get_channel(int(channels))
-            msg = await channel.fetch_message(int(messages))
-            
-            if status == "Ended" or status == "Draft":
-                return msgs[f"{ctx.guild.id}"]["msg"].append("There are no active giveaways running.")
-            
-            _winners = 'winner' if winners == '1' else 'winners'
-            msgs[f"{ctx.guild.id}"]["msg"].append((
-                f"[`{msg.id}`]({msg.jump_url}) | **{winners}** {_winners} | **Prize:** {prize} | **Ends at:** <t:{int(time)}:f>"
-            ))
+            if status in ("Ended", "Draft"): # Skip ended or draft giveaways
+                continue
 
-        items = ""
-        for _item in msgs[f"{ctx.guild.id}"]["msg"]:
-            items += _item + "\n"
+            guild = self.client.get_guild(guild_id)
+            channel = guild.get_channel(channel_id)
+            
+            msg = await channel.fetch_message(message_id)
+            
+            winner_word = "winner" if winners == "1" else "winners"
+
+            active.append(
+                f"{gid} | [`{msg.id}`]({msg.jump_url}) | **{winners}** {winner_word} | "
+                f"**Prize:** {prize} | **Ends at:** <t:{time}:f>"
+            )
+
+        # If no active giveaways exist
+        if not active:
+            return await ctx.respond("There are **no active giveaways** running.")
+
+        items = "\n".join(active)
 
         return await ctx.respond((
             f"**Active Giveaways**"
@@ -375,15 +379,27 @@ class Giveaway(commands.Cog):
     @discord.option("prize", str, description="The prize for the giveaway", required=True)
     @discord.option("time", str, description="The amount of time the giveaway should go on for i.e 5d, 6h, 30m", required=True)
     @discord.option("winners", str, description="The amount of winners for the giveaway. Default: 1", required=False)
-    @discord.option("channel", discord.TextChannel, description="What text channel should the giveaway be in?", required=False)
     @discord.option("description", str, description="Giveaway embed description", required=False)
+    @discord.option("channel", discord.TextChannel, description="What text channel should the giveaway be in?", required=False)
     @discord.option("ping_role", discord.Role, description="The role to ping for the giveaway", required=False)
-    async def create(self, ctx, prize, time, winners=None, channel=None, description=None, ping_role=None):
+    @discord.option("coins", int, description="The amount of economy coins to give when the user wins the giveaway", required=False)
+    @discord.option("xp", int, description="The amount of leveling xp to give when the user wins the giveaway", required=False)
+    async def create(self, ctx, prize, time, winners=None, description=None, channel=None, ping_role=None, coins=None, xp=None):
         chan: discord.TextChannel = channel if channel else ctx.channel
         if not chan.permissions_for(ctx.author).send_messages:
             return await ctx.respond(f"You dont have the perms to send messages in {channel.mention}")
         if not chan.permissions_for(ctx.me).send_messages:
             return await ctx.respond("It seems that the BobCat permissions for the message you are trying to send are missing!")
+        
+        # Ecoinomy coins
+        coins = v.db.get_dash(ctx.guild.id)['economy']['status']
+        if coins == False:
+            return await ctx.respond("Oh no! it seems that Economy is currently disabled!")
+
+        # Leveling xp
+        xp = v.db.get_dash(ctx.guild.id)['leveling']['status']
+        if xp == False:
+            return await ctx.respond("Oh no! it seems that Leveling is currently disabled!")
         
         winners = "1" if not winners else winners
         channel = ctx.channel if not channel else channel
@@ -405,7 +421,7 @@ class Giveaway(commands.Cog):
         embed.add_field(name="Hosted by", value=f"{ctx.author.mention}", inline=False)
         embed.add_field(name="Winners", value=f"**{winners}**", inline=False)
         embed.add_field(name="Participants", value="**0**", inline=False)
-        embed.set_footer(text="Click on the button below to participate!")
+        embed.set_footer(text=f"Click on the button below to participate! - Giveaway ID: {uuid}")
 
         try:
             view = discord.ui.View()
@@ -417,8 +433,8 @@ class Giveaway(commands.Cog):
             data.append({
                 'id': uuid, 'guild': ctx.guild.id, 'name': 'giveaway', 'channel': { 'id': channel.id, 'name': channel.name }, 'message': msg.id, 'author': ctx.author.id, 'time': { 'epoch': epochEnd, 'timestamp': end_time }, 'prize': prize, 
                 'winners': winners, 'status': 'Ongoing', 'gwinners': [], 'participants': [],
-                'givexp': { 'enabled': False, 'amount': 0 },
-                'givecoins': { 'enabled': False, 'amount': 0 },
+                'givexp': { 'enabled': True if coins else False, 'amount': coins },
+                'givecoins': { 'enabled': True if xp else False, 'amount': xp },
                 'embed_title': embed.title, 'embed_desc': embed.description
             })
             v.db.update_server_config(ctx.guild, key='giveaways', value=data)
@@ -431,14 +447,14 @@ class Giveaway(commands.Cog):
     @giveaway.command(description="Rerolls a new winner from a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to reroll", required=True)
     async def reroll(self, ctx, giveaway_id):
-        data = v.db.get_server_config(ctx.guild)
-        for index, gway in enumerate(data['giveaways']):
-            if gway['message'] == giveaway_id:
+        data = v.db.get_server_config(ctx.guild)['giveaways']
+        for index, gway in enumerate(data):
+            if str(gway['message']) == giveaway_id:
                 idx, data = index, gway
                 break
 
         if not data:
-            pass
+            return await ctx.respond(f"I could not find a giveaway with the ID `{giveaway_id}`", ephemeral=True)
         
         guild = self.client.get_guild(data.get('guild'))
         channel = guild.get_channel(data.get('channel').get('id'))
@@ -457,20 +473,19 @@ class Giveaway(commands.Cog):
     @giveaway.command(description="End a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to end", required=True)
     async def end(self, ctx, giveaway_id):
-        gway_data = v.db.get_server_config(ctx.guild)
-        for index, gway in enumerate(gway_data['giveaways']):
-            if gway['message'] == giveaway_id:
+        gway_data = v.db.get_server_config(ctx.guild)['giveaways']
+        for index, gway in enumerate(gway_data):
+            if str(gway['message']) == giveaway_id:
                 idx, data = index, gway
                 break
-        print(data)
-
+        
         if data is None:
             return await ctx.respond(f"I could not find a giveaway with the ID `{giveaway_id}`", ephemeral=True)
         
-        times = humanfriendly.parse_timespan(str(data.get('time')))
+        times = humanfriendly.parse_timespan(str(data.get('time').get("epoch")))
         epochEnd = pyTime.time() + times
 
-        guild = await v.client.fetch_guild(data.get('guild'))
+        guild = ctx.guild
         channel = await guild.fetch_channel(data.get('channel').get('id'))
         message = await channel.fetch_message(data.get('message'))
 
@@ -491,6 +506,9 @@ class Giveaway(commands.Cog):
             value='Ended'
         )
 
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Giveaway Summary", style=discord.ButtonStyle.gray, custom_id="GiveawaySummary"))
+
         embed = discord.Embed(
             title=f"🎉 {data.get('prize')} 🎉 [ENDED]",
             description=(
@@ -500,10 +518,10 @@ class Giveaway(commands.Cog):
                 f"\nWinners: {winners}"
             )
         )
-        await message.edit(embed=embed, view=None)
+        await message.edit(embed=embed, view=view)
         await ctx.respond(f"Successfully ended giveaway `{giveaway_id}`", ephemeral=True)
 
-    @giveaway.command(description="Delete a giveaway")
+    # @giveaway.command(description="Delete a giveaway")
     @discord.option("giveaway_id", description="ID of giveaway to end", required=True)
     async def delete(self, ctx, giveaway_id):
         gway_data = v.db.get_server_config(ctx.guild)
