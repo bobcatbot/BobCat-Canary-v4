@@ -24,7 +24,7 @@ client = commands.AutoShardedBot(
 )
 
 token = config["bot_token"]
-PY_ENV = config["PY_ENV"]
+PY_ENV = os.getenv('PY_ENV')
 
 guild_ids = [903243004544962600]
 btz_gid = 903243004544962600

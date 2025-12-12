@@ -10,7 +10,7 @@ mainshop = [
 ]
 
 async def get_shop(guild) -> list[dict]:
-    data = v.dashboard(guild, 'economy.shop')
+    data = v.db.get_dash(guild.id)['economy']['shop']
     return data.get('shop')
 
 async def get_user_items(guild, member):

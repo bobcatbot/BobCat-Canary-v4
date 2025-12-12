@@ -25,7 +25,7 @@ class Mute(commands.Cog):
 
         reason = "Unspecified" if not reason else reason
 
-        muteType = v.dashboard(ctx.guild.id, "moderation.settings.mute.type")
+        muteType = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["type"]
         if muteType == "role":
             mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
             
@@ -46,7 +46,7 @@ class Mute(commands.Cog):
             message = ""
         
         if muteType == "timeout":
-            muteTime = v.dashboard(ctx.guild.id, "moderation.settings.mute.duration")
+            muteTime = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["duration"]
             if muteTime == "60-sec": time, duration = datetime.timedelta(seconds=60), "60 seconds"  # 60 SEC
             if muteTime == "5-min":  time, duration = datetime.timedelta(minutes=5), "5 minutes"  # 5 MIN
             if muteTime == "10-min": time, duration = datetime.timedelta(minutes=10), "10 minutes"  # 10 MIN
@@ -76,8 +76,8 @@ class Mute(commands.Cog):
         await ctx.respond(embed=embed)
         
         member_em = discord.Embed(title=f"You have been muted", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.mute.dm")
-        if 'none' not in moddm:
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["dm"]
+        if moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
             if "action" in moddm:
@@ -86,8 +86,13 @@ class Mute(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            await member.send(embed=member_em)
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
         
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[MUTE] {member}")
@@ -128,7 +133,7 @@ class UnMute(commands.Cog):
     @discord.option("member", discord.Member, description="Member to unmute", required=True)
     async def unmute(self, ctx, member: discord.Member):
         
-        muteType = v.dashboard(ctx.guild.id, "moderation.settings.mute.type")
+        muteType = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["type"]
         if muteType == "role":
             mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
             if not mutedRole in member.roles:
@@ -152,7 +157,7 @@ class UnMute(commands.Cog):
         await ctx.respond(embed=embed)
 
         member_em = discord.Embed(title=f"You have been unmuted", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.mute.dm")
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["dm"]
         if 'none' not in moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
@@ -162,8 +167,13 @@ class UnMute(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"Unspecified", inline=False)
-            await member.send(embed=member_em)
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
 
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[UNMUTE] {member}")
@@ -243,6 +253,7 @@ class Timeout(commands.Cog):
         embed.set_footer(text="Timed out until")
         ctx.msg = await ctx.respond(embed=embed)
 
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[TIMEOUT] {member}")

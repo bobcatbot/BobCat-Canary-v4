@@ -1,3 +1,4 @@
+import pymongo
 import discord
 import re
 import random
@@ -31,13 +32,15 @@ class level(commands.Cog):
         if message.channel.type == discord.ChannelType.private:
             return
         
-        status = v.dashboard(message.guild.id, "leveling.status")
-        chan = v.dashboard(message.guild.id, "leveling.channel")
-        anno = v.dashboard(message.guild.id, "leveling.message.status")
-        mess: str = v.dashboard(message.guild.id, "leveling.message.content")
-        auto_roles = v.dashboard(message.guild.id, "leveling.roleRewards")
-        maxLevel = v.dashboard(message.guild.id, "leveling.max_level")
-        economy = v.dashboard(message.guild.id, "leveling.economy")
+        lvl_data = v.db.get_server_config(message.guild)['leveling']
+        status = lvl_data['status']
+        chan = lvl_data['channel']
+        anno = lvl_data["message"]["status"]
+        mess: str = lvl_data["leveling"]["message"]["content"]
+        auto_roles = lvl_data['roleRewards']
+        maxLevel = lvl_data['max_level']
+        economy = lvl_data['economy']
+        noXP = lvl_data['noXP']
 
         if not status:
             return
@@ -61,7 +64,6 @@ class level(commands.Cog):
                 return str(obj)
             return str(message.author) if key == 'user' else str(message.guild.name)
         
-        noXP = v.dashboard(message.guild.id, "leveling.noXP")
         if noXP and str(message.channel.id) in noXP:
             return # print(f"{message.channel.name} is not in the noXP list")
 
@@ -123,7 +125,7 @@ class level(commands.Cog):
     
     @commands.user_command(name="View Level")
     async def view_level(self, ctx, member: discord.Member):
-        status = v.dashboard(ctx.guild.id, "leveling.status")
+        status = v.db.get_server_config(ctx.guild)['leveling']['status']
         if not status:
             embed = discord.Embed(description="Levelling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
@@ -170,7 +172,7 @@ class level(commands.Cog):
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member=None):
         await ctx.defer(ephemeral=False)
         
-        status = v.dashboard(ctx.guild.id, "leveling.status")
+        status = v.db.get_server_config(ctx.guild)['leveling']['status']
         if not status:
             embed = discord.Embed(description="Levelling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
@@ -214,7 +216,7 @@ class level(commands.Cog):
     
     @commands.slash_command(description=f"View the top 5 users in the server")
     async def leaderboard(self, ctx: discord.ApplicationContext):
-        status = v.dashboard(ctx.guild.id, "leveling.status")
+        status = v.db.get_server_config(ctx.guild)['leveling']['status']
         if not status:
             embed = discord.Embed(description="Levelling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
@@ -236,21 +238,18 @@ class level(commands.Cog):
 def setup(client):
     client.add_cog(level(client))
 
-
-import pymongo
-
 async def level_card(guild: discord.Guild):
     URL = "databases/lvl-cards"
-    theme = v.dashboard(guild.id, "leveling.card")
+    theme = v.db.get_server_config(guild)['leveling']['card']
     
     mongoRankCards = pymongo.MongoClient(v.config['mongoURI_cdn'])['RankCards']['Cards']
     
     default_cards = [
-        { "card": card['card'], "bar_bg": card["bar_bg"], "bar_fill": card["bar_fill"], "bar_indent_left": card["bar_indent_left"], "bar_width": card["bar_width"] }
+        card
         for card in mongoRankCards.find({"theme": "default"}).sort("theme", pymongo.ASCENDING)
     ]
     fun_cards = [
-        { "card": card['card'], "bar_bg": card["bar_bg"], "bar_fill": card["bar_fill"], "bar_indent_left": card["bar_indent_left"], "bar_width": card["bar_width"] }
+        card
         for card in mongoRankCards.find({"theme": "bobcat"}).sort("theme", pymongo.ASCENDING)
     ]
     all_cards = default_cards + fun_cards

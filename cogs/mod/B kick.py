@@ -12,8 +12,8 @@ class mod_kick(commands.Cog):
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_guild_permissions(kick_members=True)
     @discord.option("member", discord.Member, description="The member you want to kick", required=True)
-    @discord.option("reason", description="The reason for the kick", required=False)
-    async def kick(self, ctx, member: discord.Member, *, reason=None):
+    @discord.option("reason", str, description="The reason for the kick", required=False)
+    async def kick(self, ctx: discord.ApplicationContext, member: discord.Member, *, reason: str=None):
         if member == ctx.guild.owner:
             error = discord.Embed(title="❌ You can't kick the owner of this server", color=v.error)
             return await ctx.respond(embed=error, ephemeral=True)
@@ -35,8 +35,8 @@ class mod_kick(commands.Cog):
         await ctx.respond(embed=embed)
         
         member_em = discord.Embed(title=f"You have been kicked", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.kick.dm")
-        if 'none' not in moddm:
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["kick"]["dm"]
+        if moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
             if "action" in moddm:
@@ -45,8 +45,13 @@ class mod_kick(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            await member.send(embed=member_em)
-        
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
+
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[KICK] {member}")

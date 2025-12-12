@@ -63,9 +63,16 @@ class Warn(commands.Cog):
         reason = "Unspecified" if not reason else reason
         
         add_member_warnings(guild=ctx.guild, member=member, reason=reason)
+
+        embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild.id))
+        try:
+            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been warned")
+        except AttributeError:
+            embed.set_author(icon_url=member.default_avatar, name=f"{member} has been warned")
+        await ctx.respond(embed=embed)
         
         member_em = discord.Embed(title=f"You have been warned", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.warn.dm")
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["warn"]["dm"]
         if not 'none' in moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
@@ -75,15 +82,13 @@ class Warn(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            await member.send(embed=member_em)
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
 
-        embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild.id))
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been warned")
-        except AttributeError:
-            embed.set_author(icon_url=member.default_avatar, name=f"{member} has been warned")
-        await ctx.respond(embed=embed)
-
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[WARN] {member}")
@@ -157,8 +162,8 @@ class UnWarn(commands.Cog):
         await ctx.respond(embed=embed)
 
         member_em = discord.Embed(title=f"You have been unwarned", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.warn.dm")
-        if 'none' not in moddm:
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["warn"]["dm"]
+        if moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
             if "action" in moddm:
@@ -167,8 +172,13 @@ class UnWarn(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"Unspecified", inline=False)
-            await member.send(embed=member_em)
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
         
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[UNWARN] {member}")

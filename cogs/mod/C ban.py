@@ -15,6 +15,9 @@ class Ban(commands.Cog):
     @discord.option("reason", description="The reason for the ban", required=False)
     @discord.option("delete_messages", int, description="The amount of days of messages to delete", required=False)
     async def ban(self, ctx, member: discord.Member, *, reason=None, delete_messages=None):
+        if member.bot:
+            return
+        
         if member == ctx.guild.owner:
             error = discord.Embed(title="❌ You can't ban the owner of this server", color=v.error)
             return await ctx.respond(embed=error, ephemeral=True)
@@ -26,7 +29,8 @@ class Ban(commands.Cog):
         reason = "Unspecified" if not reason else reason
 
         if v.PY_ENV == "production":
-            deleteMessages = v.dashboard(ctx.guild.id, "moderation.settings.ban.deleteMessageDays") if not delete_messages else delete_messages
+            ban_data = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["ban"]['deleteMessageDays']
+            deleteMessages = ban_data if not delete_messages else delete_messages
             await ctx.guild.ban(user=member, reason=reason, delete_message_days=int(deleteMessages))
         
         embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild.id))
@@ -37,10 +41,8 @@ class Ban(commands.Cog):
         await ctx.respond(embed=embed)
 
         member_em = discord.Embed(title=f"You have been banned", color=v.style(ctx.guild.id))
-        moddm = v.dashboard(ctx.guild.id, "moderation.settings.ban.dm")
-        if member.bot:
-            return
-        if 'none' not in moddm:
+        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["ban"]["dm"]
+        if moddm:
             if "server" in moddm:
                 member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
             if "action" in moddm:
@@ -49,8 +51,13 @@ class Ban(commands.Cog):
                 member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
             if "reason" in moddm:
                 member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            await member.send(embed=member_em)
+            
+            try:
+                await member.send(embed=member_em)
+            except discord.Forbidden:
+                pass
         
+        # Audit log
         logs = discord.Embed(color=v.style(ctx.guild.id))
         try:
             logs.set_author(icon_url=member.avatar.url, name=f"[BAN] {member}")

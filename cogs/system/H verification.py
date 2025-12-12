@@ -12,11 +12,12 @@ class Verification(commands.Cog):
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.data.get("custom_id") == "Verification":
-            status = v.dashboard(interaction.guild.id, "verification.status")
-            chan = v.dashboard(interaction.guild.id, "verification.channel")
-            verifyRole = v.dashboard(interaction.guild.id, "verification.role")
-            mode = v.dashboard(interaction.guild.id, "verification.mode")
-            failAction = v.dashboard(interaction.guild.id, "verification.failAction")
+            verify_data = v.db.get_dash(interaction.guild.id)['verification']
+            status = verify_data['status']
+            chan = verify_data['channel']
+            verifyRole = verify_data['role']
+            mode = verify_data['mode']
+            failAction = verify_data['failAction']
 
             guild = await v.client.fetch_guild(interaction.guild.id)
             role = await guild._fetch_role(int(verifyRole))
@@ -244,8 +245,9 @@ class Verification(commands.Cog):
     @commands.command()
     @commands.has_permissions(manage_guild=True)
     async def verify(self, ctx):
-        status = v.dashboard(ctx.guild.id, "verification.status")
-        chan = v.dashboard(ctx.guild.id, "verification.channel")
+        verify_data = v.db.get_dash(ctx.guild.id)['verification']
+        status = verify_data['status']
+        chan = verify_data['channel']
         
         if not status:
             error = discord.Embed(

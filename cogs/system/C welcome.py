@@ -8,9 +8,11 @@ class welcomeSystem(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        welcomeStaus = v.dashboard(member.guild.id, "welcome.join.status")
-        welcomeChannel = v.dashboard(member.guild.id, "welcome.join.channel")
-        welcomeMessageType = v.dashboard(member.guild.id, "welcome.join.message.type")
+        wel_data = v.db.get_dash(member.guild)['welcome']
+
+        welcomeStaus = wel_data['join']['status']
+        welcomeChannel = wel_data['join']['channel']
+        welcomeMessageType = wel_data['join']['message']['type']
         
         if not welcomeStaus:
             return
@@ -20,49 +22,53 @@ class welcomeSystem(commands.Cog):
         channel = self.client.get_channel(int(welcomeChannel))
         
         if welcomeMessageType == "text":
-            msg = v.dashboard(member.guild.id, "welcome.join.message.content")
+            msg = wel_data['join']['message']['content']
             await channel.send(f"{msg}".format(
                 user=member,
                 server=member.guild.name,
                 membercount=member.guild.member_count,
             ))
         
-        if welcomeMessageType == "embed":
-            emMessage = v.dashboard(member.guild.id, "WelcomeEmbedMessage")
-            msg = emMessage.split("|")
+        # if welcomeMessageType == "embed":
+        #     emMessage = v.dashboard(member.guild.id, "WelcomeEmbedMessage")
+        #     msg = emMessage.split("|")
             
-            em = discord.Embed(
-                color=v.style(member.guild.id),
-                title=f"{msg[0]}".format(user=member, server=member.guild.name),
-                description=f"{msg[1]}".format(user=member, server=member.guild.name)
-            )
-            await channel.send(embed=em)
+        #     em = discord.Embed(
+        #         color=v.style(member.guild.id),
+        #         title=f"{msg[0]}".format(user=member, server=member.guild.name),
+        #         description=f"{msg[1]}".format(user=member, server=member.guild.name)
+        #     )
+        #     await channel.send(embed=em)
         
-        autoRoles = v.dashboard(member.guild.id, "welcome.autoRoles")
-        if not autoRoles:
+        # Auto Roles
+        autoRoles = wel_data['autoRoles']
+        if not autoRoles['status']:
             return
         for roleID in autoRoles['roles']:
             role = member.guild.get_role(int(roleID))
             await member.add_roles(role)
         
-        welcomeDm = v.dashboard(member.guild.id, "welcome.dm.status")
+        # DM
+        welcomeDm = wel_data['dm']['status']
         if welcomeDm and not member.bot:
-            welcomeDmMsg = v.dashboard(member.guild.id, "welcome.dm.message.content")
+            welcomeDmMsg = wel_data['dm']['message']['content']
             return await member.send(f"{welcomeDmMsg}".format(server=member.guild.name))
     
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        leaveStaus = v.dashboard(member.guild.id, "welcome.leave.status")
-        leaveChan = v.dashboard(member.guild.id, "welcome.leave.channel")
-        msg = v.dashboard(member.guild.id, "welcome.leave.message.content")
-        
+        wel_data = v.db.get_dash(member.guild)['welcome']
+
+        leaveStaus = wel_data['leave']['status']
+        leaveChan = wel_data['leave']['channel']
+        leaveMessage = wel_data['leave']['message']['content']
+                
         if not leaveStaus:
             return
         if not leaveChan:
             return
         
         channel = self.client.get_channel(int(leaveChan))
-        await channel.send(f"{msg}".format(
+        await channel.send(f"{leaveMessage}".format(
             user=member,
             server=member.guild.name,
             membercount=member.guild.member_count,
