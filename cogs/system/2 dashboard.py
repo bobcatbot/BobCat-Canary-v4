@@ -1391,9 +1391,9 @@ class VerificationGeneralOptions(DesignerView):
             @select(
                 placeholder="Select an option",
                 options=[
-                    discord.SelectOption(label="Instant Access", default=data['mode'] == "instant"),
-                    discord.SelectOption(label="Captcha (DM)", default=data['mode'] == "captcha_dm"),
-                    discord.SelectOption(label="Captcha (Channel)", default=data['mode'] == "captcha_channel"),
+                    discord.SelectOption(label="Instant Access", value="instant", default=data['mode'] == "instant"),
+                    discord.SelectOption(label="Captcha (DM)", value="captcha_dm", default=data['mode'] == "captcha_dm"),
+                    discord.SelectOption(label="Captcha (Channel)", value="captcha_channel", default=data['mode'] == "captcha_channel"),
                 ],
                 min_values=1,
             )
@@ -1401,7 +1401,7 @@ class VerificationGeneralOptions(DesignerView):
                 new_value = select.values[0]
                 
                 for option in select.options:
-                    option.default = option.label == new_value
+                    option.default = option.value == new_value
 
                 v.db.update_dash(guild, 'verification.mode', new_value.lower().replace(" & ", "_"))
                 v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
@@ -1429,7 +1429,7 @@ class VerificationGeneralOptions(DesignerView):
                 new_value = select.values[0]
                 
                 for option in select.options:
-                    option.default = option.label == new_value
+                    option.default = option.value == new_value
 
                 v.db.update_dash(guild, 'verification.failAction', new_value)
                 v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
@@ -1440,6 +1440,24 @@ class VerificationGeneralOptions(DesignerView):
         container.add_item(FailActionSelect())
 
         self.add_item(container)
+
+        class ViewButtons(ActionRow):
+            @button(
+                label="Go Back",
+                style=discord.ButtonStyle.primary,
+            )
+            async def goBack(self, button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=PluginVerification(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, b, i):
+                pass
+        self.add_item(ViewButtons())
 class PluginVerification(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)

@@ -148,6 +148,9 @@ class events(commands.Cog):
     ### Message Events ###
     @commands.Cog.listener()
     async def on_message_delete(self, message):
+        if message.guild is None: # if this message deleted in dms
+            return
+        
         status = v.dashboard(message.guild.id, f"{LOGGING_EVENTS}.MessageDelete")
         log_channel = v.dashboard(message.guild.id, f"{LOGGING_KEY}.channel")
         bots = v.dashboard(message.guild.id, f"{LOGGING_KEY}.bots")
