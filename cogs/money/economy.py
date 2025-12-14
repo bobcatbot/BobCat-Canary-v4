@@ -6,7 +6,7 @@ from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from .tools.utils import get_shop, get_user_items, open_account, update_bank, buy_this, sell_this
 
-class money(commands.Cog):
+class Money(commands.Cog):
     def __init__(self, client):
         self.client = client
 
@@ -250,4 +250,4 @@ class money(commands.Cog):
         await ctx.respond(embed=em)
     
 def setup(client):
-    client.add_cog(money(client))
+    client.add_cog(Money(client))

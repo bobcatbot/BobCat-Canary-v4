@@ -1,6 +1,6 @@
 import json
 from modules import bot as v
-# mainshop, get_bank_data, get_shop, open_account, update_bank, buy_this, sell_this
+# mainshop, get_shop, get_user_items, open_account, update_bank, buy_this, sell_this
 
 mainshop = [
     {"name": "Teddy", "price": 50, "description": "Very sot cuddly teddy bear", "max_limit": 5},
