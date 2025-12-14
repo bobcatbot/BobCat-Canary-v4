@@ -745,29 +745,6 @@ async def verify(guild_id):
   data = get_dash_config(guild).get('verification')
   return render_template("dashboard/plugins/verification.html", user=current_user, guild=guild, data=data)
 
-"""Embed Messages TBD
-# @app.route("/dashboard/<int:guild_id>/embeds")
-@login_required
-async def embed_messages(guild_id):
-  current_user = bearer_client().get_current_user()
-  guild = bot.get_guild(guild_id)
-  
-  data = get_dash_config(guild).get('embeds')
-  return render_template("dashboard/plugins/embeds/em_index.html", user=current_user, guild=guild, data=data)
-# @app.route("/dashboard/<int:guild_id>/embeds/creation", methods=['GET', 'POST'])
-@login_required
-async def embed_messages_create(guild_id):
-  current_user = bearer_client().get_current_user()
-  guild = bot.get_guild(guild_id)
-
-  if request.method == 'POST':
-    data = request.form
-    print(data)
-    return
-  
-  data = get_dash_config(guild).get('embeds')
-  return render_template("dashboard/plugins/embeds/em_create.html", user=current_user, guild=guild, data=data)"""
-
 @app.route("/dashboard/<int:guild_id>/starboard")
 @login_required
 async def starboard(guild_id):

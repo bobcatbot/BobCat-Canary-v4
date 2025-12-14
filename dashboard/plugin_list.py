@@ -29,16 +29,6 @@ plugins = {
     "premium": False,
     "status": False
   },
-  # "embeds": {
-  #   "title": "Embeds",
-  #   "description": "Create beautiful embed messages for your rules and announcements with thumbnails and colors",
-  #   "icon": "list_alt",
-  #   "url": "embeds",
-  #   "badge": "soon",
-  #   "category": "utilities",
-  #   "premium": False,
-  #   "status": False
-  # },
   "starboard": {
     "title": "Starboard",
     "description": "Allows users to react to a message with ⭐️ and send the message to a channel",

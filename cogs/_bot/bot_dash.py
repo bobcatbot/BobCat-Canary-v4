@@ -168,10 +168,6 @@ def init_database(guild: discord.Guild):
         "giveaway": {
             'status': False,
         },
-        "embeds": {
-            'status': False,
-            'embeds': []
-        },
         "forms": {
             'status': False,
         },
