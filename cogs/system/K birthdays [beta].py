@@ -29,7 +29,6 @@ class Birthdays(commands.Cog):
             target_time += datetime.timedelta(days=1)
 
         wait_seconds = (target_time - now).total_seconds()
-        # print(f"Waiting {wait_seconds // 3600} hours and {wait_seconds % 3600 // 60} minutes until {target_hour}:00...")
         await asyncio.sleep(wait_seconds)
 
     @tasks.loop(seconds=10)

@@ -4,23 +4,19 @@ from discord.ext import commands
 
 def init_database(guild: discord.Guild):
     warn_users = {}
-    for member in guild.members:
-        if member.bot:
-            continue
-        warn_users[f"{member.id}"] = []
-
     lvl_users = {}
+    eco_users = {}
+    
     for member in guild.members:
         if member.bot:
             continue
+        
+        warn_users[f"{member.id}"] = []
+        
         lvl_users[f"{member.id}"] = {}
         lvl_users[f"{member.id}"]["exp"] = 0
         lvl_users[f"{member.id}"]["lvl"] = 0
 
-    eco_users = {}
-    for member in guild.members:
-        if member.bot:
-            continue
         eco_users[f"{member.id}"] = {}
         eco_users[f"{member.id}"]["wallet"] = 0
         eco_users[f"{member.id}"]["bank"] = 0
@@ -188,10 +184,7 @@ def init_database(guild: discord.Guild):
         }
     }
 
-    admin_roles = []
-    for role in guild.roles:
-        if role.permissions.administrator:
-            admin_roles.append(str(role.id))
+    admin_roles = [str(role.id) for role in guild.roles if role.permissions.administrator]
 
     config = {
         "_id": f'{guild.id}',
@@ -219,11 +212,11 @@ class GuildEvents(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        # Ensure all guilds are initialized
         for guild in self.client.guilds:
-            # init_database(guild)
-            ...
-
-        
+            if not v.db.get_server_config(guild):
+                init_database(guild)
+    
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         init_database(guild)
@@ -240,52 +233,60 @@ class GuildEvents(commands.Cog):
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
         guild = after
 
-        admin_roles = []
-        for role in guild.roles:
-            if role.permissions.administrator:
-                admin_roles.append(role.id)
+        admin_roles = [
+            str(role.id)
+            for role in guild.roles
+            if role.permissions.administrator
+        ]
+        v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
         
         mod_roles = []
         for member in guild.members:
             if member.bot:
                 self_role = discord.utils.get(guild.roles, id=guild.me.top_role.id)
-                # print(self_role)
-
+        
         v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
-    
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         if member.bot:
             return
+
         guild = member.guild
+        uid = str(member.id)
+
         data = v.db.get_server_config(guild)
-        if data is None:
+        if not data:
             init_database(guild)
-        
-        data["moderation"]["warnings"][f"{member.id}"] = []
-        v.db.update_server_config(guild, key="moderation.warnings", value=data['moderation']['warnings'])
+            data = v.db.get_server_config(guild)
 
-        data["leveling"][f"{member.id}"] = {}
-        data["leveling"][f"{member.id}"]["exp"] = "0"
-        data["leveling"][f"{member.id}"]["lvl"] = "0"
-        v.db.update_server_config(guild, key="leveling", value=data['leveling'])
+        data["moderation"]["warnings"][uid] = []
+        data["leveling"][uid] = {"exp": 0, "lvl": 0}
+        data["economy"][uid] = {"wallet": 0, "bank": 0, "bag": []}
 
-        data["economy"][f"{member.id}"] = {}
-        data["economy"][f"{member.id}"]["wallet"] = "0"
-        data["economy"][f"{member.id}"]["bank"] = "0"
-        data["economy"][f"{member.id}"]["bag"] = []
-        v.db.update_server_config(guild, key="economy", value=data['economy'])
-    
+        # Single atomic write
+        v.db.update_server_config(guild, key="Bot", value=data)
+
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         if member.bot:
             return
+
         guild = member.guild
-        data = v.db.get_server_config(guild)
+        user_id = str(member.id)
+
+        dash = v.db.get_dash(guild.id)
+        if not dash.get("leveling", {}).get("auto_reset"):
+            return
+
+        config = v.db.get_server_config(guild)
+        leveling_data = config.get("leveling", {})
+
+        removed = leveling_data.pop(user_id, None)
+        if removed is None:
+            return
         
-        if v.dashboard(guild.id, "leveling.auto_reset"):
-            data["leveling"].pop(f"{member.id}")
-            v.db.update_server_config(guild, key="leveling", value=data["leveling"])
-        
+        v.db.update_server_config(guild, key="leveling", value=leveling_data)
+
 def setup(client):
     client.add_cog(GuildEvents(client))

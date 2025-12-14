@@ -10,7 +10,7 @@ class Money(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    eco = SlashCommandGroup(name="economy", description="Economy commands")
+    eco = SlashCommandGroup(name="economy", description="Economy commands", guild_ids=v.guild_ids)
     
     @eco.command(description="List items from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
@@ -25,24 +25,21 @@ class Money(commands.Cog):
             em.add_field(name=f"{name}", value=f"Price: {price} - {description}", inline=False)
         await ctx.respond(embed=em)
     
-    @commands.command(aliases=["eco-leaderboard"])
+    @eco.command(description="Economy leaderboard")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
-    async def _leaderboard(self, ctx):
-        users = None
-        index = 0
+    async def leaderboard(self, ctx: discord.ApplicationContext):
 
-        em = discord.Embed(color=0xFFCC4D, title="Top 10 Richest People", description="")
-        for user in users:
-            print(user)
-            index += 1
-            member = self.client.get_user(int(user))
-            print(member)
+        eco_users: dict = v.db.get_server_config(ctx.guild.id)["economy"]
+        sorted_players = sorted(eco_users.items(), key=lambda x: int(x[1]["wallet"]) + int(x[1]["bank"]), reverse=True)[:10]
 
-            wallet = int(user["wallet"])
-            bank = int(user["bank"])
-            cash = int(wallet) + int(bank)
-            em.description += f"#{index} ● {user} ● {cash}\n"
+        desc = ""
+        for idx, (u_id, data) in enumerate(sorted_players, start=1):
+            member = await v.client.fetch_user(int(u_id))
 
+            cash = int(data["wallet"]) + int(data["bank"])
+            desc += f"\n#{idx} ● {member.name} ● {cash}"
+
+        em = discord.Embed(title="Top 10 Richest People", description=desc, color=0xFFCC4D)
         await ctx.respond(embed=em)
 
     @eco.command(description="Get the balance of a member")

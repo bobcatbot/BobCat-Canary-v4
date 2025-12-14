@@ -441,7 +441,6 @@ class Giveaway(commands.Cog):
 
             await ctx.respond("The giveaway was successfully created", ephemeral=True)
         except Exception as e:
-            print(e)
             await ctx.respond("Giveaway creation failed", ephemeral=True)
 
     @giveaway.command(description="Rerolls a new winner from a giveaway")

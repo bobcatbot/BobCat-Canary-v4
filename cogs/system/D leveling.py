@@ -66,7 +66,7 @@ class Leveling(commands.Cog):
             return str(message.author) if key == 'user' else str(message.guild.name)
         
         if noXP and str(message.channel.id) in noXP:
-            return # print(f"{message.channel.name} is not in the noXP list")
+            return
 
         increase_exp = int(exp) + random.randint(1, 10)
         new_lvl = int(increase_exp / max_exp)

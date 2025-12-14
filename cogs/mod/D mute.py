@@ -236,7 +236,7 @@ class Timeout(commands.Cog):
                 time_added = datetime.timedelta(weeks=1)
                 timestr = "1 week"
             case _:
-                print("Invalid duration")
+                pass
 
         reason = "Unspecified" if not reasons else reasons
         await member.timeout_for( time_added, reason=reason )
