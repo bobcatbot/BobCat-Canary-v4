@@ -5,131 +5,13 @@ from modules import bot as v
 from discord.ext import commands
 from discord.ext import tasks
 
-class JoinGiveaway(discord.ui.View):
-    def __init__(self, client,  epochEnd, prize):
-        super().__init__(timeout=None)
-        self.client = client
-        self.time = epochEnd
-        self.prize = prize
-    
-    @discord.ui.button(emoji="🎉", style=discord.ButtonStyle.blurple, custom_id="join_giveaway")
-    async def join(self, button: discord.ui.Button, interaction: discord.Interaction):
-        gway_data = v.db.get_server_config(interaction.guild)
-        for index, gway in enumerate(gway_data['giveaways']):
-            if gway['time']['epoch'] == self.time and gway['prize'] == self.prize:
-                idx, data = index, gway
-                break
-
-        if not data:
-            return await interaction.response.send_message("You cannot enter or leave this giveaway because it has already ended!", ephemeral=True)
-        
-        guilds = data.get('guild')
-        channels = data.get('channel').get('id')
-        messages = data.get('message')
-        participants = data.get('participants')
-        
-        guild = await v.client.fetch_guild(int(guilds))
-        channel = await guild.fetch_channel(int(channels))
-        msg = await channel.fetch_message(int(messages))
-
-        if not f"{interaction.user.id}" in participants:
-            participants.append(f"{interaction.user.id}")
-
-            v.db.update_server_config(
-                guild=interaction.guild, 
-                key=f'giveaways.{idx}.participants',
-                value=participants
-            )
-            
-            for em in msg.embeds:
-                embed = em.to_dict()
-                embed["fields"][3]["value"] = f"**{len(participants)}**"
-            await msg.edit(embed=discord.Embed().from_dict(embed))
-
-            await interaction.response.send_message(content=":white_check_mark: You're now participating in this giveaway!", view=None, ephemeral=True)
-        else:
-            participants.remove(f"{interaction.user.id}")
-            
-            v.db.update_server_config(
-                guild=interaction.guild, 
-                key=f'giveaways.{idx}.participants',
-                value=participants
-            )
-
-            for em in msg.embeds:
-                embed = em.to_dict()
-                embed["fields"][3]["value"] = f"**{len(participants)}**"
-            await msg.edit(embed=discord.Embed().from_dict(embed))
-
-            await interaction.response.send_message(content=":negative_squared_cross_mark: You're not participating in this giveaway anymore!", view=None, ephemeral=True)
-class GiveawaySummary(discord.ui.View):
-    def __init__(self, client):
-        super().__init__(timeout=None)
-        self.client = client
-    
-    @discord.ui.button(label="Giveaway Summary", style=discord.ButtonStyle.gray, custom_id="GiveawaySummary")
-    async def summary(self, button: discord.ui.Button, interaction: discord.Interaction):
-        data = v.db.get_server_config(interaction.guild)
-        for index, gway in enumerate(data['giveaways']):
-            if gway['message'] == interaction.message.id:
-                idx, data = index, gway
-                break
-        
-        if not data:
-            return
-        guilds = data.get('guild')
-        channels = data.get('channel').get('id')
-        messages = data.get('message')
-        authors = data.get('author')
-        time = data.get('time').get('epoch')
-        prize = data.get('prize')
-        winner = data.get('winners')
-        gwinners = data.get('gwinners')
-        participants = data.get('participants')
-
-        guild = self.client.get_guild(int(guilds))
-        channel = guild.get_channel(int(channels))
-        msg = await channel.fetch_message(int(messages))
-        author = guild.get_member(int(authors))
-
-        date = datetime.fromtimestamp(int(time), v.datetimes(interaction.guild.id))
-        date = date.strftime("%x, %X %p")
-        
-        Winners = ""
-        if gwinners != "[]":
-            for users in gwinners:
-                member = await guild.fetch_member(int(users))
-                Winners += f"{member} ({member.id})" + "\n"
-        else:
-            Winners += ""
-        
-        Entrants = ""
-        if participants != "[]":
-            for user in participants:
-                member = guild.get_member(int(user))
-                Entrants += f"{member} ({member.id})" + "\n"
-        else:
-            Entrants += ""
-
-        w = f'`{Winners}`' if Winners != '' else '** **'
-        e = f'`{Entrants}`' if Entrants != '' else '** **'
-        
-        embed = discord.Embed(title="Giveaway Summary")
-        embed.add_field(name="Ended", value=f"`{date}`", inline=False)
-        embed.add_field(name="Host", value=f"{author} ({author.id})", inline=False)
-        embed.add_field(name="Prize", value=f"`{prize}`", inline=False)
-        embed.add_field(name="Winners", value=f"`{winner}`", inline=False)
-        embed.add_field(name="Giveaway ID", value=f"`{msg.id}`", inline=False)
-        embed.add_field(name=f"Winners [{len(gwinners)}]", value=f"{w}", inline=False)
-        embed.add_field(name=f"Participants [{len(participants)}]", value=f"{e}", inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class Giveaway(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.persistent_views_added = False
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(minutes=1)
     async def giveawayCheck(self):
         giveaways = giveaways_fetchall()
         for idx, data in enumerate(giveaways):

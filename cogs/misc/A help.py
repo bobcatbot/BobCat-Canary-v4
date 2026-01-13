@@ -26,8 +26,8 @@ class BackBtn(discord.ui.Button):
         await interaction.response.edit_message(content=None, embed=em, view=DropdownView(self.client, interaction.guild.id))
         
 class Dropdown(discord.ui.Select):
-    def __init__(self, client, g):
-        self.client = client
+    def __init__(self, client: discord.Bot, g):
+        self.client: discord.Bot = client
 
         options = [
             discord.SelectOption(label="Commands", description="All of bobcats commands"),
@@ -52,13 +52,20 @@ class Dropdown(discord.ui.Select):
             custom_id="menu"
         )
     async def callback(self, interaction: discord.Interaction):
+        def command(self, itr: discord.Interaction, command: str = "help"):
+            commands = self.client.application_commands
+            
+            for c in commands:
+                if c.name == command:
+                    return f"</{c.name}:{c.id}>"
+            return ""
+            
         if self.values[0] == "Commands":
             commands = [
-                "</help:1172159047357710344> - The command you used to get here!",
-                "</invite:1172245165407223839> - Invite BobCat to your server",
-                "</afk:1172159047357710342> - Sets your status to AFK",
-                "</user:1210273601572442152> - Get information about a user",
-                "</server:1210273601572442155> - Get information about a server",
+                f"{command(interaction, 'help')} - The command you used to get here!",
+                f"{command(interaction, 'invite')} - Invite BobCat to your server",
+                f"{command(interaction, 'user')} - Get information about a user",
+                f"{command(interaction, 'server')} - Get information about a server",
             ]
 
             em = discord.Embed(title="BobCat General Commands", description="\n".join(commands), color=v.style(interaction.guild.id))
@@ -71,13 +78,13 @@ class Dropdown(discord.ui.Select):
     
         if self.values[0] == "Games":
             commands = [
-                "/games - Shows all of bobcats game commands",
-                "</8ball:1172159047525466149> - Ask a question to the magic 8ball",
-                "</coinflip:1172159047525466144> - Flips a coin",
-                "</diceroll:1172159047525466148> - Rolls a 6 sided dice",
-                "</guess:1172159047525466145> - Guess the random number between 1 and 10",
-                "</rps:1172159047525466147> - Play rock, paper, scissors against your opponent",
-                "</tictactoe:1172159047525466150> - Play tic-tac-toe",
+                f"{command(interaction, 'games')} - Shows all of bobcats game commands",
+                f"{command(interaction, '8ball')} - Ask a question to the magic 8ball",
+                f"{command(interaction, 'coinflip')} - Flips a coin",
+                f"{command(interaction, 'diceroll')} - Rolls a 6 sided dice",
+                f"{command(interaction, 'guess')} - Guess the random number between 1 and 10",
+                f"{command(interaction, 'rps')} - Play rock, paper, scissors against your opponent",
+                f"{command(interaction, 'tictactoe')} - Play tic-tac-toe",
             ]
 
             em = discord.Embed(title="BobCat Game Commands", description="\n".join(commands), color=v.style(interaction.guild.id))
@@ -90,17 +97,17 @@ class Dropdown(discord.ui.Select):
 
         if self.values[0] == "Mod":
             commands = [
-                "</clear:1210273600150442027> - Clears messages",
-                "</kick:1172159046787268680> - Kicks a user",
-                "</ban:1172202464590700636> - Bans a user",
-                "</unban:1172159046787268685> - Unbans a user",
+                f"{command(interaction, 'clear')} - Clears messages",
+                f"{command(interaction, 'kick')} - Kicks a user",
+                f"{command(interaction, 'ban')} - Bans a user",
+                f"{command(interaction, 'unban')} - Unbans a user",
                 f"{self.client.command_prefix}massban - Bans multiple users at once",
-                "</mute:1210273600150442024> - Mutes a user",
-                "</unmute:1210273600150442025> - Unmutes a user",
-                "</warn:1210273600628858920> - Warns a user",
-                "</unwarn:1210273600628858922> - Unwarns a user",
-                "</warnings:1210273600628858923> - Gets the warnings of a user",
-                "</slowmode:1210273600628858924> - Sets the slowmode of a channel",
+                f"{command(interaction, 'mute')} - Mutes a user",
+                f"{command(interaction, 'unmute')} - Unmutes a user",
+                f"{command(interaction, 'warn')} - Warns a user",
+                f"{command(interaction, 'unwarn')} - Unwarns a user",
+                f"{command(interaction, 'warnings')} - Gets the warnings of a user",
+                f"{command(interaction, 'slowmode')} - Sets the slowmode of a channel",
             ]
 
             em = discord.Embed(title="BobCat Moderation Commands", description="\n".join(commands), color=v.style(interaction.guild.id))
@@ -113,8 +120,8 @@ class Dropdown(discord.ui.Select):
 
         if self.values[0] == "Leveling":
             commands = [
-                "</rank:1210273600150442028> - Shows your or member's level and XP",
-                "</leaderboard:1210273600150442029> - Shows the leaderboard",
+                f"{command(interaction, 'rank')} - Shows your or member's level and XP",
+                f"{command(interaction, 'leaderboard')} - Shows the leaderboard",
             ]
 
             em = discord.Embed(title="BobCat Leveling Commands", description="\n".join(commands), color=v.style(interaction.guild.id))
@@ -127,17 +134,17 @@ class Dropdown(discord.ui.Select):
 
         if self.values[0] == "Economy":
             commands = [
-                "/shop - Shows all of bobcats economy commands",
-                "</leaderboard:1210273600150442029> - Shows the leaderboard",
-                "</balance:1210273600150442030> - Shows your balance",
-                "</work:1210273600150442031> - Works and earns coins",
-                "</withdraw:1210273600150442032> - Withdraws coins from the bank",
-                "</deposit:1210273600150442033> - Deposits coins to the bank",
-                "</buy:1210273600150442034> - Buys an item from the shop",
-                "</sell:1210273600150442035> - Sells an item from your inventory",
-                "</inventory:1210273600150442036> - Shows your inventory",
-                "</givecoins:1210273600150442037> - MODERATOR ONLY - Gives coins to a user" if interaction.user.guild_permissions.moderate_members else "",
-                "</removecoins:1210273600150442038> - MODERATOR ONLY - Removes coins from a user" if interaction.user.guild_permissions.moderate_members else "", 
+                f"{command(interaction, 'shop')} - Shows all of bobcats economy commands",
+                f"{command(interaction, 'leaderboard')} - Shows the leaderboard",
+                f"{command(interaction, 'balance')} - Shows your balance",
+                f"{command(interaction, 'work')} - Works and earns coins",
+                f"{command(interaction, 'withdraw')} - Withdraws coins from the bank",
+                f"{command(interaction, 'deposit')} - Deposits coins to the bank",
+                f"{command(interaction, 'buy')} - Buys an item from the shop",
+                f"{command(interaction, 'sell')} - Sells an item from your inventory",
+                f"{command(interaction, 'inventory')} - Shows your inventory",
+                f"{command(interaction, 'givecoins')} - MODERATOR ONLY - Gives coins to a user" if interaction.user.guild_permissions.moderate_members else "",
+                f"{command(interaction, 'removecoins')} - MODERATOR ONLY - Removes coins from a user" if interaction.user.guild_permissions.moderate_members else "", 
             ]
 
             em = discord.Embed(title="BobCat Economy Commands", description="\n".join(commands), color=v.style(interaction.guild.id))
@@ -159,9 +166,14 @@ class DropdownView(discord.ui.View):
         self.add_item(discord.ui.Button(label="Support", url="https://discord.gg/T7zE4x4xbT", row=2))
 
 class MiscHelp(commands.Cog):
-    def __init__(self, client):
-        self.client = client
-    
+    def __init__(self, client: discord.Bot):
+        self.client: discord.Bot = client
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        for guild in self.client.guilds:
+            self.client.add_view(DropdownView(self.client, guild.id))
+       
     @commands.slash_command(description="A list of commands and utilities")
     async def help(self, ctx):
         em = discord.Embed(
@@ -169,7 +181,7 @@ class MiscHelp(commands.Cog):
             title="BobCat Help Menu",
             description=(
                 "Thanks for using **BobCat**"
-                "\n**BobCat Prefix:** `b!`"
+                f"\n**BobCat Prefix:** `{self.client.command_prefix}`"
                 "\nBobcat is a simple to use bot. It has functions such as entertainment, moderation, administration, and so much more."
             )
         )
@@ -178,50 +190,3 @@ class MiscHelp(commands.Cog):
 
 def setup(client):
     client.add_cog(MiscHelp(client))
-
-
-
-# if self.values[0] == "Information":
-#     embed = discord.Embed(color=v.style(interaction.guild.id), title="BobCat",
-#         description=(
-#             f"**Bot**"
-#             f"\n**Severs:** {len(self.client.guilds)}"
-#             f"\n**Users:** {len(self.client.users)}"
-#             f"\n**Ping:** {(self.client.latency * 1000):.0f}ms"
-#             f"\n**Pycord version:** {discord.__version__}"
-            
-#             "\n\n**Server**"
-#             f"\n**Uptime:** {self.client.get_bot_uptime()}"
-#             f"\n**CPU Load:** {psutil.virtual_memory().percent}%"
-#             f"\n**Memory:** {psutil.cpu_percent()}%"
-#             f"\n**Disk:** undefined"
-#             f"\n**Server's Operating System:** {platform.uname()[0]}"
-#         )
-#     )
-#     embed.set_thumbnail(url=self.client.user.avatar.url)
-    
-#     view = discord.ui.View()
-#     view.add_item(BackBtn(self.client))
-#     await interaction.response.edit_message(content=None, embed=embed, view=view)
-        
-# if self.values[0] == "Permissions":
-#     perms = ""
-#     member = interaction.guild.get_member(self.client.user.id)
-#     for perm in member.guild_permissions:
-#         if perm[1] == True:
-#             perms += f"> ✅ {perm[0].replace('_', ' ').title()}" + "\n"
-#         else:
-#             perms += f"> ❎ {perm[0].replace('_', ' ').title()}" + "\n"
-    
-#     embed=discord.Embed(
-#         color=v.style(interaction.guild.id),
-#         description=(
-#             f"Permissions"
-#             f"\n> Below are a list of permissions SparkV needs in order to work correctly in this server."
-#             f"\n\n{perms}"
-#         )
-#     )
-    
-#     view = discord.ui.View()
-#     view.add_item(BackBtn(self.client))
-#     await interaction.response.edit_message(content=None, embed=embed, view=view)

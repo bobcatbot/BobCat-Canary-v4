@@ -1,14 +1,24 @@
+import os
 import discord
 import pymongo
+from dotenv import load_dotenv
+
+load_dotenv()
+
+mongoURI_db = os.getenv('mongoURI_db')
+
+mongoClient = pymongo.MongoClient(
+    mongoURI_db,
+    serverSelectionTimeoutMS=50000,  # 50 seconds
+    socketTimeoutMS=50000,
+    connectTimeoutMS=50000,
+)
 
 # Main DB class #
 class Database:
-    def __init__(self, config):
+    def __init__(self):
         super().__init__()
-        self.mongoClient = pymongo.MongoClient(
-            config['mongoURI_db'],
-        )
-        self.db = self.mongoClient['Bot']['Bot']
+        self.db = mongoClient['Bot']['Bot']
         self.Bot = "Bot"
     
     # Main DB #

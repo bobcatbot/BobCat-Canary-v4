@@ -35,12 +35,11 @@ async def chpr(client):
             pass
     return chpr(client)
 
+@client.event
 async def on_ready():
     client.loop.create_task(chpr(client))
     print(f'{client.user.name} has connected to Discord')
     print("Shards: ", len(client.shards))
-
-client.add_listener(on_ready, "on_ready")
 
 client.loop.create_task(startup(client))
 client.run(v.token)

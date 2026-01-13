@@ -8,29 +8,24 @@ from discord.ext import commands
 
 load_dotenv()
 
-config = {
-    "PY_ENV": os.getenv('PY_ENV'),
-    "prefix": os.getenv('PREFIX'),
-    "bot_token": os.getenv('BOT_TOKEN'),
-    "mongoURI_db": os.getenv('mongoURI_db'),
-    "mongoURI_cdn": os.getenv('mongoURI_cdn'),
-}
+PY_ENV = os.getenv('PY_ENV')
+prefix = os.getenv('PREFIX')
+token = os.getenv('BOT_TOKEN')
+mongoURI_db = os.getenv('mongoURI_db')
+mongo_cdn = os.getenv('mongoURI_cdn')
 
 client = commands.AutoShardedBot(
-  command_prefix=config["prefix"],
+  command_prefix = prefix,
   intents=discord.Intents.all(),
   case_insensitive=True,
   help_command=None,
 )
 
-token = config["bot_token"]
-PY_ENV = os.getenv('PY_ENV')
-
 guild_ids = [903243004544962600]
 btz_gid = 903243004544962600
 web_url = "http://localhost:8000"
 
-db = Database(config)
+db = Database()
 
 premium = "<:premium:1442138047348084806>"
 

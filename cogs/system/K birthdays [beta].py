@@ -31,7 +31,7 @@ class Birthdays(commands.Cog):
         wait_seconds = (target_time - now).total_seconds()
         await asyncio.sleep(wait_seconds)
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(minutes=1)
     async def birthdays(self):
         for guild in self.client.guilds:
             if not v.db.get_dash(guild.id):
