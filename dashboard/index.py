@@ -1,4 +1,10 @@
-import os, discord, json, logging, pymongo, pytz, stripe
+import os
+import discord
+import json
+import logging
+import pymongo
+import pytz
+import stripe
 from threading import Thread
 from datetime import datetime, timezone
 from zenora import BadTokenError, APIClient
@@ -6,21 +12,19 @@ from flask import Flask, redirect, url_for, render_template, request, flash, ses
 from modules import bot as v
 from .plugins import fetch_plugins
 from .consts import premium_faqs, premium_types, langs, tz
-from .config import URL_BASE, PY_ENV, BOT_TOKEN, CLIENT_ID, CLIENT_SECRET, OAUTH_URL, REDIRECT_URI, WEBHOOK_PREM, mongoURI_db, mongo_cdn, stripe_config
+from .config import URL_BASE, BOT_TOKEN, CLIENT_ID, CLIENT_SECRET, OAUTH_URL, REDIRECT_URI, WEBHOOK_PREM, mongoURI_db, mongo_cdn, stripe_config
 
 app = Flask(__name__)
 
-app.config["SECRET_KEY"] = "mysecret"
-app.config['DEBUG'] = True
+app.config["SECRET_KEY"] = os.urandom(24)
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # Force template reload
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
-app.config["STRIPE_SECRET_KEY"] = stripe_config["SECRET_KEY"]
 app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
+
+stripe.api_key = stripe_config["SECRET_KEY"]
 
 bot = v.client
 client = APIClient(BOT_TOKEN, client_secret=CLIENT_SECRET)
-
-stripe.api_key = app.config["STRIPE_SECRET_KEY"]
 
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
@@ -72,22 +76,22 @@ def update_config(guild_id: int, key: str, value):
   return False
 
 def uuid_(length=8, strCase='upper/lower/nums/special'):
-    import random
+  import random
 
-    nums = "0123456789"
-    uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    lowers = "abcdefghijklmnopqrstuvwxyz"
-    special = "!@#$%^&*()_+-=[]{};:,./<>?"
-    
-    combination = (strCase
-        .replace("/", '')
-        .replace("upper", uppers)
-        .replace("lower", lowers)
-        .replace("nums", nums)
-        .replace("special", special)
-    )
-    code = random.choices(combination, k=length)
-    return "".join(code)
+  nums = "0123456789"
+  uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  lowers = "abcdefghijklmnopqrstuvwxyz"
+  special = "!@#$%^&*()_+-=[]{};:,./<>?"
+  
+  combination = (strCase
+      .replace("/", '')
+      .replace("upper", uppers)
+      .replace("lower", lowers)
+      .replace("nums", nums)
+      .replace("special", special)
+  )
+  code = random.choices(combination, k=length)
+  return "".join(code)
 
 # TODO: 403, 410, 500
 @app.errorhandler(404)
@@ -1628,7 +1632,7 @@ async def stop_premium():
 def run_app():
   global app_started
   app_started = True  # Update the flag when the app starts
-  app.run(host='localhost', port=8000, use_reloader=False)
+  app.run(host='localhost', port=8000, debug=True, use_reloader=False)
 
 def run_dashboard():
-  Thread(target=run_app).start()
+  Thread(target=run_app, daemon=True).start()

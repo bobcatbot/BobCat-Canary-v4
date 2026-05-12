@@ -239,7 +239,7 @@ def level_card(guild: discord.Guild):
     URL = "databases/lvl-cards"
     theme = v.db.get_dash(guild)['leveling']['card']
     
-    mongoRankCards = pymongo.MongoClient(v.config['mongoURI_cdn'])['RankCards']['Cards']
+    mongoRankCards = pymongo.MongoClient(v.mongo_cdn)['RankCards']['Cards']
     
     default_cards = [
         card

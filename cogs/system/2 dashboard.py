@@ -1,6 +1,5 @@
-import asyncio
-import patreon
-import requests
+import pymongo
+# import patreon
 import discord
 from datetime import datetime
 from discord.ext import commands
@@ -8,9 +7,6 @@ from modules import bot as v
 from discord.ui import (
     DesignerView, Container, ActionRow, button, select, channel_select, role_select
 )
-
-CREATOR_ACCESS_TOKEN = "CeMP33TcR7N3uo0yvTSWywBEvG8ilCPSwSucI-6L6ys"
-papi_client = patreon.API(CREATOR_ACCESS_TOKEN)
 
 PM_Options = [ { "label": "Server", "desc": "Include the server name" }, { "label": "Action", "desc": "Include the action of what happend" }, {  "label": "Reason", "desc": "Include the reason for the kick" }, { "label": "Moderator", "desc": "Include the moderator who kicked the user" } ]
 
@@ -23,88 +19,8 @@ BUTTON_STYLES = {
     "red": discord.ButtonStyle.red
 }
 
-# Premium Settings
-class PluginPremiumSettings(DesignerView):
-    def __init__(self, guild: discord.Guild):
-        super().__init__(timeout=None)
-        # data = v.db.get_server_config(guild.id, True)['premium']
-        
-        container = Container(
-            color=v.style(guild),
-        )
-        container.add_text("# Unlock BobCat Premium")
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("1. Buy On Patreon")
-        container.add_text("https://www.patreon.com/cw/bobcatbot/membership")
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("2. Check Your Patreon Status")
-        class CheckStatusButton(ActionRow):
-            @button(label="Check Status", style=discord.ButtonStyle.blurple)
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                import json, aiohttp
-                class PatreonApi():
-                    def __init__(self, campaign_id=None, access_token=None):
-                        self.campaign_id="8188764"
-                        self.access_token="YOUR_TOKEN_HERE"
-                    async def fetch_all(self) -> dict:
-                        url = f'https://www.patreon.com/api/oauth2/v2/campaigns/{self.campaign_id}/members'
-                        params = {'include':'user,currently_entitled_tiers','fields[user]':'social_connections'}
-                        headers = {'Authorization':f'Bearer {self.access_token}'}
-                        patreons={}
-                        end_cursor=False
-                        while not end_cursor:
-                            async with aiohttp.ClientSession() as session:
-                                async with session.get(url,params=params,headers=headers) as response:
-                                    patreon_data=await response.json()
-                                    for data in patreon_data['data']:
-                                        discord_user_id=None
-                                        for patreon_user in patreon_data['included']:
-                                            if patreon_user['type']!='user':
-                                                continue
-                                            if data['relationships']['user']['data']['id']!=patreon_user['id']:
-                                                continue
-                                            patreon_user_data = patreon_user['attributes']
-                                            if 'social_connections' not in patreon_user_data:
-                                                continue
-                                            discord_data = patreon_user['attributes']['social_connections']['discord']
-                                            if not discord_data or 'user_id' not in discord_data:
-                                                continue
-                                            discord_user_id = int(discord_data['user_id'])
-                                        patreons[data['relationships']['user']['data']['id']] = {'tiers':[d['id'] for d in data['relationships']['currently_entitled_tiers']['data']], 'discord':discord_user_id}
-                                    pagination_data = patreon_data['meta']['pagination']
-                                    if not pagination_data.get('cursors') or pagination_data['cursors']['next'] == None:
-                                        end_cursor=True
-                                    else:
-                                        params['page[cursor]'] = pagination_data['cursors']['next']
-                        return patreons
-
-                api = PatreonApi()
-                all_patreons = await api.fetch_all()
-
-                for patron in all_patreons:
-                    if patron['discord'] == interaction.user.id:
-                        button.label = "Patreon Member"
-                        button.style = discord.ButtonStyle.green
-
-                await interaction.response.defer()
-        
-        container.add_item(CheckStatusButton())
-
-        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("3. Once your a member select a server you want to use premium on")
-        # class SelectServer(ActionRow):
-        #     @button(label="Select Server", style=discord.ButtonStyle.green)
-        #     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-        #         await interaction.response.defer()
-        #         await interaction.followup.send("Select a server to use premium on", view=PluginPremiumSelectServers(guild))
-        
-        self.add_item(container)
-
 # Bot Settings
-class BotSettingsMastersAndAdmins(DesignerView):
+class BotSettingsMastersAndAdmins(DesignerView): # TODO: add the save setting
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
         data = v.db.get_server_config(guild.id, True)['settings']
@@ -205,7 +121,6 @@ class BotSettingsColor(DesignerView):
                     ),
                     title="Color",
                 )
-
             async def callback(self, interaction: discord.Interaction):
                 color = self.children[0].value
                 v.db.update_server_config(self.guild, True, 'settings.color', color)
@@ -219,7 +134,6 @@ class BotSettingsColor(DesignerView):
             async def changeColor(self, button, interaction: discord.Interaction):
                 await interaction.response.send_modal(ColorModal(guild))
         container.add_item(ColorButton())
-
         self.add_item(container)
 
         class ViewButtons(ActionRow):
@@ -1593,27 +1507,28 @@ class PluginForms(DesignerView):
 
 # Temporary Channels
 class AddNewTempChannelHub(DesignerView):
-    def __init__(self, guild: discord.Guild, user: discord.User):
+    def __init__(self, guild: discord.Guild, user: discord.User, data: dict = None):
         super().__init__(timeout=None)
-        data = {}
         
-        data['id'] = v.uuid(length=12, strCase='upper/lower/nums')
+        if data is None: # If data none then inint
+            data = {}
+            data['id'] = v.uuid(length=12, strCase='upper/lower/nums')
 
-        def load_default_data():
-            data["default"] = True
-            data["hub_name"] = "Hub - Join to create"
-            data["name"] = "#{index} - {username}'s Channel"
-            data["user_limit"] = "4"
-            data["bitrate"] = "64"
-            data["sync_hub_category"] = False
-            data["permissions"] = {
-                "manage_channels": False,
-                "manage_permissions": False,
-                "priority_speaker": False,
-                "move_members": False
-            }
-            return data
-        load_default_data()
+            def load_default_data():
+                data["default"] = True
+                data["hub_name"] = "Hub - Join to create"
+                data["name"] = "#{index} - {username}'s Channel"
+                data["user_limit"] = "4"
+                data["bitrate"] = "64"
+                data["sync_hub_category"] = False
+                data["permissions"] = {
+                    "manage_channels": False,
+                    "manage_permissions": False,
+                    "priority_speaker": False,
+                    "move_members": False
+                }
+                return data
+            load_default_data()
 
         maincontainer = Container(
             color=discord.Color.embed_background(),
@@ -1649,7 +1564,7 @@ class AddNewTempChannelHub(DesignerView):
                     async def callback(self, interaction: discord.Interaction):
                         data['hub_name'] = self.children[0].item.value
 
-                        await interaction.response.send_message(f"Saving Hub Name to {self.children[0].item.value}", ephemeral=True)
+                        await interaction.response.send_message(f"Saving Hub Name to {data['hub_name']}", ephemeral=True)
                 class EditHubNameButton(ActionRow):
                     @button(
                         label="Edit Hub Name",
@@ -1681,10 +1596,10 @@ class AddNewTempChannelHub(DesignerView):
                         data['name'] = self.children[0].item.value
 
                         btn = container.get_item("previewButton")
-                        btn.label = f"{self.children[0].item.value}".format(index="1", username=user.name)
+                        btn.label = f"{data['name']}".format(index="1", username=user.name)
                         await interaction.response.edit_message(view=container.view)
 
-                        await interaction.followup.send(f"Saving Channel Name to {self.children[0].item.value}", ephemeral=True)
+                        await interaction.followup.send(f"Saving Channel Name to {data['name']}", ephemeral=True)
                 class EditChannelsNameButton(ActionRow):
                     @button(
                         label="Edit Hub Name",
@@ -1714,7 +1629,7 @@ class AddNewTempChannelHub(DesignerView):
                         style=discord.ButtonStyle.primary,
                     )
                     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user))
+                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
                 self.add_item(GoToMainSettingsButton())
         class HubSettingsView(DesignerView):
             def __init__(self):
@@ -1744,7 +1659,7 @@ class AddNewTempChannelHub(DesignerView):
                     async def callback(self, interaction: discord.Interaction):
                         data['user_limit'] = self.children[0].item.value
 
-                        await interaction.response.send_message(f"Saving user limit to {self.children[0].item.value}", ephemeral=True)
+                        await interaction.response.send_message(f"Saving user limit to {data['user_limit']}", ephemeral=True)
                 class EditUserLimitButton(ActionRow):
                     @button(
                         label="Edit User limit",
@@ -1772,7 +1687,7 @@ class AddNewTempChannelHub(DesignerView):
                         )
                     async def callback(self, interaction: discord.Interaction):
                         data['bitrate'] = self.children[0].item.value
-                        await interaction.response.send_message(f"Saving bitrate to {self.children[0].item.value}", ephemeral=True)
+                        await interaction.response.send_message(f"Saving bitrate to {data['bitrate']}", ephemeral=True)
                 class EditBitrateButton(ActionRow):
                     @button(
                         label="Edit Bitrate",
@@ -1790,7 +1705,7 @@ class AddNewTempChannelHub(DesignerView):
                         style=discord.ButtonStyle.primary,
                     )
                     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user))
+                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
                 self.add_item(GoToMainSettingsButton())
         class HubPermissionsView(DesignerView):
             def __init__(self):
@@ -1943,7 +1858,7 @@ class AddNewTempChannelHub(DesignerView):
                         style=discord.ButtonStyle.primary,
                     )
                     async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user))
+                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
                 self.add_item(GoToMainSettingsButton())
 
         class NewHubSelect(ActionRow):
@@ -1972,26 +1887,29 @@ class AddNewTempChannelHub(DesignerView):
                 style=discord.ButtonStyle.success,
             )
             async def OnCreate(self, button: discord.ui.Button, interaction: discord.Interaction):
-                print(data)
+                if data['sync_hub_category'] == True:
+                    if data['category_id'] == '':
+                        # create category
+                        category = await guild.create_category_channel(data['hub_name'], reason=f"Temporary category for hub {data['id']}")
+                        data['category_id'] = category.id
+                    else:
+                        category = await guild.fetch_channel(data['category_id'])
+                        data['category_id'] = category.id
+                else:
+                    category = guild
+                
+                vc = await category.create_voice_channel(data['hub_name'], reason=f"Temporary voice channel for hub {data['id']}")
+                data['channel_id'] = vc.id
+                
+                was_default = data.pop('default') # remove key 'default' before saving to the database
 
-                # TODO: on create button
-                # if data['sync_hub_category'] == True:
-                    # if data['category_id'] == '':
-                    #     # create category
-                    #     category = await guild.create_category_channel(data['hub_name'], reason=f"Temporary category for hub {data['id']}")
-                    #     data['category_id'] = category.id
-                    # else:
-                    #     category = await guild.fetch_channel(data['category_id'])
-                    #     data['category_id'] = category.id
-                
-                # vc = await category.create_voice_channel(data['hub_name'], reason=f"Temporary voice channel for hub {data['id']}")
-                # data['channel_id'] = vc.id
-                
-                # data.pop('default') # remove key 'default' before saving to the database
+                # Save the data
+                idx = len(v.db.get_dash(guild.id)['temporary_channels']['hubs'])
+                v.db.update_dash(guild, f'temporary_channels.hubs.{idx}', data)
 
                 await interaction.response.send_message((
                     f"Successfully created hub {data['id']}"
-                    "\n\n**Please be aware that you created a new hub with default settings. You can change them in the hub settings menu.**" if data['default'] == True else ""
+                    "\n\n**Please be aware that you created a new hub with default settings. You can change them in the hub settings menu.**" if was_default == True else ""
                 ), ephemeral=True)
         self.add_item(SaveNewHubButton())
 class EditTempChannelHub(DesignerView):
@@ -2127,15 +2045,15 @@ class EditTempChannelHub(DesignerView):
                                     style=discord.InputTextStyle.short,
                                     max_length=2,
                                 ),
-                                description="Default user limit for all temporary voice channels. Max limit 0-99"
+                                description="Default user limit for all temporary voice channels. 0-99 (0 = unlimited)"
                             ),
                             title="Edit User limit",
                         )
                     async def callback(self, interaction: discord.Interaction):
                         userLimit = self.children[0].item.value
 
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.user_limit', userLimit)
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.user_limit', userLimit) # save data
+                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow()) # update updated_at
 
                         await interaction.response.send_message(f"Saving user limit to {userLimit}", ephemeral=True)
                 class EditUserLimitButton(ActionRow):
@@ -2148,36 +2066,36 @@ class EditTempChannelHub(DesignerView):
                 container.add_item(EditUserLimitButton())
 
                 container.add_text("## Bitrate")
-                class BitrateModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Bitrate
-                                "Bitrate",
-                                discord.ui.InputText(
-                                    placeholder="0-96000",
-                                    value=f"{data['bitrate']}",
-                                    style=discord.InputTextStyle.short,
-                                    max_length=5,
-                                ),
-                                description="Default bitrate for all temporary voice channels. Limit of 0kbps - 96kbps"
-                            ),
-                            title="Edit Bitrate",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        bitrate = self.children[0].item.value
-
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.bitrate', bitrate)
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                        await interaction.response.send_message(f"Saving bitrate to {bitrate}", ephemeral=True)
-                class EditBitrateButton(ActionRow):
-                    @button(
-                        label="Edit Bitrate",
-                        style=discord.ButtonStyle.primary,
+                container.add_text("ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.")
+                BitrateSelectOptions = [
+                    discord.SelectOption(label="8 kbps", value="8"),
+                    discord.SelectOption(label="16 kbps", value="16"),
+                    discord.SelectOption(label="32 kbps", value="32"),
+                    discord.SelectOption(label="64 kbps", value="64"),
+                    discord.SelectOption(label="96 kbps", value="96"),
+                ]
+                if guild.premium_tier >= 1:
+                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
+                if guild.premium_tier >= 2:
+                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
+                    BitrateSelectOptions.append(discord.SelectOption(label="256 kbps", value="256"))
+                if guild.premium_tier >= 3:
+                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
+                    BitrateSelectOptions.append(discord.SelectOption(label="256 kbps", value="256"))
+                    BitrateSelectOptions.append(discord.SelectOption(label="384 kbps", value="384"))
+                class BitrateSelect(ActionRow):
+                    @select(
+                        placeholder="Select bitrate",
+                        options=BitrateSelectOptions,
                     )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(BitrateModal())
-                container.add_item(EditBitrateButton())
+                    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                        bitrate = select.values[0]
+
+                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.bitrate', bitrate) # save data
+                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow()) # update updated_at
+
+                        await interaction.response.send_message(f"Saving bitrate to {bitrate} kbps", ephemeral=True)
+                container.add_item(BitrateSelect())
 
                 self.add_item(container)
                 
@@ -2233,9 +2151,7 @@ class EditTempChannelHub(DesignerView):
                     async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                         category = select.values[0]
                         print(category)
-
                 container.add_item(SynchronizePermissionsSelect())
-                
                 container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
                 container.add_text("## Owner Permissions")
@@ -2428,6 +2344,7 @@ class PluginTempChannels(DesignerView):
             async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
                 await interaction.response.send_message(view=AddNewTempChannelHub(guild=guild, user=interaction.user), ephemeral=True)
         container.add_item(CreateTempChannelButton())
+
         container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
         container.add_text("## Your Hubs")
         class SelectTempChans(ActionRow):
@@ -2553,31 +2470,38 @@ class LevelingServerCardContainer(DesignerView):
         super().__init__(timeout=None)
         data = v.db.get_dash(guild.id)['leveling']
 
+        DEFAULT_CARDS_URI = "https://i.postimg.cc/J4jxTTT8/defaul-gallery.png"
+        FUN_CARDS_URI = "https://i.postimg.cc/jdyc888R/fun-gallery.png"
+
+        mongoRankCards = pymongo.MongoClient(v.mongo_cdn)['RankCards']['Cards']
+    
+        default_cards = [
+            card
+            for card in mongoRankCards.find({"theme": "default"}).sort("theme", pymongo.ASCENDING)
+        ]
+        fun_cards = [
+            card
+            for card in mongoRankCards.find({"theme": "bobcat"}).sort("theme", pymongo.ASCENDING)
+        ]
+
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Server Card")
         container.add_text("You can customize the default /rank card in your server. Every member of your server will have that rank card.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-        
-        response = requests.post("http://198.50.133.104:8065/lvl-cards")
-        baseURI = "http://198.50.133.104:8065/static/lvl-cards/gallery/"
-        if response.status_code == 200:
-            jdata = response.json()
-            default_cards = jdata['default']
-            fun_cards = jdata['cards']
 
         container.add_text("## Default Colors")
         default_gallery = discord.ui.MediaGallery()
         default_gallery.add_item(
-            url=f"{baseURI}/default_gallery.png",
+            url=DEFAULT_CARDS_URI,
         )
         container.add_item(default_gallery)
 
         container.add_text("## Picture Backgrounds")
         picture_gallery = discord.ui.MediaGallery()
         picture_gallery.add_item(
-            url=f"{baseURI}/fun_gallery.png",
+            url=FUN_CARDS_URI,
         )
         container.add_item(picture_gallery)
 
@@ -3557,7 +3481,6 @@ class PluginEconomy(DesignerView):
 
 
 PLUGIN_OPTIONS = {
-    "Premium": { "plugin": PluginPremiumSettings,  "premium": False },
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcome,  "premium": False },
     "Moderator": { "plugin": PluginModerator,  "premium": False },
