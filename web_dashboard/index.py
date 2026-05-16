@@ -328,7 +328,7 @@ def premium_module(guild, module):
   # Fetch server and module configurations
   data = get_server_config(guild, True)
 
-  plug = json.load(open(f'dashboard/plugin_list.json', 'r', encoding='utf-8'))[module]
+  plug = json.load(open(f'web_dashboard/plugin_list.json', 'r', encoding='utf-8'))[module]
 
   # Check if the module requires premium and the guild doesn't have premium
   if plug.get('premium') and not data['premium']['status']:
@@ -569,7 +569,6 @@ async def settings(guild_id):
 @app.route("/dashboard/<int:guild_id>/premium", methods=["GET", "POST"])
 @login_required
 async def premium(guild_id):
-  import aiohttp
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   
@@ -635,6 +634,7 @@ async def notifications(guild_id):
   
   return render_template("dashboard/notifications.html", user=current_user, guild=guild, config=data, data=notifications_by_date)
 
+## Welcome ##
 @app.route("/dashboard/<int:guild_id>/welcome")
 @login_required
 async def welcome(guild_id):
@@ -645,6 +645,7 @@ async def welcome(guild_id):
   data = get_dash_config(guild).get('welcome')
   return render_template("dashboard/plugins/welcome.html", user=current_user, guild=guild, data=data)
 
+## Moderation ##
 @app.route("/dashboard/<int:guild_id>/moderator")
 @login_required
 async def moderation(guild_id):
@@ -656,6 +657,7 @@ async def moderation(guild_id):
   logs = dash_data['logging']
   return render_template("dashboard/plugins/moderation.html", user=current_user, guild=guild, data=dash_data, logging=logs)
 
+## Verification ##
 @app.route("/dashboard/<int:guild_id>/verification", methods=['GET', 'POST', 'UPDATE', 'DELETE'])
 @login_required
 async def verify(guild_id):
@@ -749,6 +751,7 @@ async def verify(guild_id):
   data = get_dash_config(guild).get('verification')
   return render_template("dashboard/plugins/verification.html", user=current_user, guild=guild, data=data)
 
+## Starboard ##
 @app.route("/dashboard/<int:guild_id>/starboard")
 @login_required
 async def starboard(guild_id):

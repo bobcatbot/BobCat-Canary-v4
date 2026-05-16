@@ -1,6 +1,6 @@
 import os
 import asyncio
-from dashboard.index import run_dashboard
+# from dashboard.index import run_dashboard
 from modules import bot as v
 
 client = v.client

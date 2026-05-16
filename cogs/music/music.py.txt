@@ -240,10 +240,10 @@ class MusicMain(commands.Cog):
 
     async def add_nodes(self):
         await mafic.NodePool(self.client).create_node(
-            host='lavalinkv3-id.serenetia.com',
-            port=443,
-            password='https://dsc.gg/ajidevserver',
-            secure=True,
+            host='lavalinkv4.serenetia.com',
+            port=80,
+            password='https://seretia.link/discord',
+            secure=False,
             label='BobCatLavalink',
         )
 

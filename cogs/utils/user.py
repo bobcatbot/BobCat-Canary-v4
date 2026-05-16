@@ -1,8 +1,8 @@
 import discord
-from modules import bot as v
 from discord.ext import commands
+from modules import bot as v
 
-class usercmd(commands.Cog):
+class UserCmd(commands.Cog):
     def __init__(self, client):
         self.client = client
 
@@ -43,7 +43,7 @@ class usercmd(commands.Cog):
             )
         )
         embed.set_thumbnail(url=member.avatar.url)
-        await ctx.respond(embed=embed)
+        await ctx.respond(embed=embed, view=UserButtons(self.client, ctx, member))
 
     @commands.user_command(name="User")
     async def _user(self, ctx, member: discord.Member):
@@ -103,4 +103,75 @@ class usercmd(commands.Cog):
         await ctx.respond(embed=embed)
 
 def setup(client):
-    client.add_cog(usercmd(client))
+    client.add_cog(UserCmd(client))
+
+class UserButtons(discord.ui.View):
+    def __init__(self, client, ctx, member: discord.Member):
+        super().__init__(timeout=None)
+        self.client = client
+        self.ctx = ctx
+        self.member = member
+    
+    @discord.ui.button(label='General', style=discord.ButtonStyle.gray)
+    async def info(self, button: discord.ui.Button, interaction: discord.Interaction):
+        member = self.member
+
+        usr = await self.client.fetch_user(member.id)
+        colour = usr.accent_color
+        if colour == None: colour = "Default"
+        
+        joined = member.joined_at.strftime('%m/%d/%Y')
+        created = member.created_at.strftime('%m/%d/%Y')
+        
+        embed = discord.Embed(title=f"{member.name}'s Infomation", color=v.style(interaction))
+        try:
+            embed.set_thumbnail(url=member.avatar.url)
+        except AttributeError:
+            pass
+        embed.add_field(name="Username", value=f"```{member}```", inline=True)
+        embed.add_field(name="Nickname", value=f"```{member.display_name}```", inline=True)
+        embed.add_field(name="User ID", value=f"```{member.id}```", inline=True)
+        embed.add_field(name="Bot", value=f"```{member.bot}```", inline=True)
+        embed.add_field(name="Activity", value=f"```{str(member.activity).title()}```", inline=True)
+        embed.add_field(name="Status", value=f"```{str(member.status).title()}```", inline=True)
+        embed.add_field(name="Profile Colour", value=f"```{colour}```", inline=True)
+        embed.add_field(name="Roles", value=f"```{len(member.roles)}```", inline=True)
+        embed.add_field(name="** **", value="** **", inline=False)
+        embed.add_field(name="Joined at (MM/DD/YYYY)", value=f"```{joined}```", inline=True)
+        embed.add_field(name="Created at (MM/DD/YYYY)", value=f"```{created}```", inline=True)
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label='Profile', style=discord.ButtonStyle.gray)
+    async def profile(self, button: discord.ui.Button, interaction: discord.Interaction):
+        member = self.member
+
+        economy = v.db.get_dash(interaction.guild.id)["economy"]
+        
+        economy_user = v.db.get_server_config(interaction.guild.id)["economy"].get(str(member.id))
+        level_user = v.db.get_server_config(interaction.guild.id)["leveling"].get(str(member.id))
+        
+        if economy_user is None:
+            wallet = 0
+            bank = 0
+            bag = []
+        else:
+            wallet = economy_user["wallet"]
+            bank = economy_user["bank"]
+            bag = economy_user["bag"]
+
+        if level_user is None:
+            xp = 0
+            level = 0
+        else:
+            xp = level_user["exp"]
+            level = level_user["lvl"]
+
+        embed = discord.Embed(
+            color=interaction.user.accent_color,
+            title=f"{member}"
+        )
+        embed.add_field(name="Levels", value=f"> Level: {level} \n> Xp: {xp}", inline=False)
+        embed.add_field(name="Balance", value=f"> Wallet: {wallet} {economy['icon']} \n> Bank: {bank} {economy['icon']}", inline=False)
+        
+        embed.set_thumbnail(url=member.avatar.url)
+        await interaction.response.edit_message(embed=embed)

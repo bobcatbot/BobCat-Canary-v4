@@ -10,6 +10,9 @@ from cogs.money.tools.utils import open_account, update_bank
 
 max_exp = 1000
 
+mongo_cdn_client = pymongo.MongoClient(v.mongo_cdn)
+mongoRankCards = mongo_cdn_client['RankCards']['Cards']
+
 class Leveling(commands.Cog):
     def __init__(self, client):
         self.client = client
@@ -238,28 +241,15 @@ def setup(client):
 def level_card(guild: discord.Guild):
     URL = "databases/lvl-cards"
     theme = v.db.get_dash(guild)['leveling']['card']
-    
-    mongoRankCards = pymongo.MongoClient(v.mongo_cdn)['RankCards']['Cards']
-    
-    default_cards = [
-        card
-        for card in mongoRankCards.find({"theme": "default"}).sort("theme", pymongo.ASCENDING)
-    ]
-    fun_cards = [
-        card
-        for card in mongoRankCards.find({"theme": "bobcat"}).sort("theme", pymongo.ASCENDING)
-    ]
-    all_cards = default_cards + fun_cards
 
-    for file in all_cards:
-        if theme == file['card']:
-            style = {
-                "background": f"{URL}/{file['card']}",
-                "bar_bg": file["bar_bg"],
-                "bar_fill": file["bar_fill"],
-                "bar_indent_left": int(file["bar_indent_left"]),
-                "bar_width": int(file["bar_width"])
-            }
-            break
-    
-    return style
+    file = v.rank_cards_db.find_one({"card": theme}) or v.rank_cards_db.find_one({"card": "blurple-rank.png"})
+    if not file:
+        return None  # or a default style
+
+    return {
+        "background":      f"{URL}/{file['card']}",
+        "bar_bg":          file["bar_bg"],
+        "bar_fill":        file["bar_fill"],
+        "bar_indent_left": int(file["bar_indent_left"]),
+        "bar_width":       int(file["bar_width"]),
+    }

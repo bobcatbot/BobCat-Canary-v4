@@ -16,7 +16,7 @@
     "db_key": "moderation",
     "icon": "construction",
     "url": "moderator",
-    "badge": "soon",
+    "badge": "",
     "category": "management",
     "premium": false,
     "status": false
@@ -40,7 +40,7 @@
     "url": "starboard",
     "badge": "",
     "category": "utilities",
-    "premium": false,
+    "premium": true,
     "status": false
   },
   "forms": {
@@ -51,7 +51,7 @@
     "url": "forms",
     "badge": "beta",
     "category": "utilities",
-    "premium": false,
+    "premium": true,
     "status": false,
     "max": 5
   },

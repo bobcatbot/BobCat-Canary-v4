@@ -239,14 +239,7 @@ class GuildEvents(commands.Cog):
             if role.permissions.administrator
         ]
         v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
-        
-        mod_roles = []
-        for member in guild.members:
-            if member.bot:
-                self_role = discord.utils.get(guild.roles, id=guild.me.top_role.id)
-        
-        v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
-
+    
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         if member.bot:
