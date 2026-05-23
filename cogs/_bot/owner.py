@@ -7,8 +7,6 @@ import pytz
 from discord.ext import commands, pages
 from modules import bot as v
 
-PRIVATE_GUILDS = [903243004544962600]
-
 devs = json.load(open("modules/devs.json"))
 def is_dev():
     async def predicate(ctx: discord.ApplicationContext):
@@ -24,11 +22,11 @@ class Owner(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    dev_command = discord.SlashCommandGroup(name="dev", description="Developer only commands", guild_ids=PRIVATE_GUILDS, checks=[is_dev().predicate])
+    dev_command = discord.SlashCommandGroup(name="dev", description="Developer only commands", guild_ids=v.guild_ids, checks=[is_dev().predicate])
         
     @commands.Cog.listener()
     async def on_ready(self):
-        self.client.uptime = datetime.datetime.utcnow()
+        self.client.uptime = discord.utils.utcnow()
         self.client.get_bot_uptime = self.get_bot_uptime
 
     @commands.Cog.listener()
@@ -37,7 +35,7 @@ class Owner(commands.Cog):
             return
 
     def get_bot_uptime(self):
-        now = datetime.datetime.utcnow()
+        now = discord.utils.utcnow()
         delta = now - self.client.uptime
         hours, remainder = divmod(int(delta.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -70,7 +68,7 @@ class Owner(commands.Cog):
         embed1 = discord.Embed(
             colour=0xed5757, 
             title="⌛ Getting all the Guilds",
-            timestamp=datetime.datetime.utcnow()
+            timestamp=discord.utils.utcnow()
         )
         msg: discord.Interaction = await ctx.respond(embed=embed1)
 
@@ -145,7 +143,7 @@ class Owner(commands.Cog):
             title="Uptime", 
             description=self.get_bot_uptime()
         )
-        await ctx.respond(embedd=embed)
+        await ctx.respond(embed=embed)
     
     @dev_command.command(name="eval", description="Just repeats what you say")
     async def message(self, ctx: discord.ApplicationContext, *, message: str):

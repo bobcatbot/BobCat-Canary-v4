@@ -30,15 +30,6 @@ class welcomeSystem(commands.Cog):
             ))
         
         # if welcomeMessageType == "embed":
-        #     emMessage = v.dashboard(member.guild.id, "WelcomeEmbedMessage")
-        #     msg = emMessage.split("|")
-            
-        #     em = discord.Embed(
-        #         color=v.style(member.guild.id),
-        #         title=f"{msg[0]}".format(user=member, server=member.guild.name),
-        #         description=f"{msg[1]}".format(user=member, server=member.guild.name)
-        #     )
-        #     await channel.send(embed=em)
         
         # Auto Roles
         autoRoles = wel_data['autoRoles']

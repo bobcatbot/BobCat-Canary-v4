@@ -24,11 +24,11 @@ from dashboard.Moderation import PluginModeration
 # Verification
 from dashboard.Verification import PluginVerification
 
-# TODO: View & Edit views
-from dashboard.Forms import PluginForms # TODO: View
+# Forms
+from dashboard.Forms import PluginForms
 
 # Temporary Channels
-from dashboard.TempChannels import PluginTempChannels # TODO: View
+from dashboard.TempChannels import PluginTempChannels
 
 # Leveling
 from dashboard.Leveling import PluginLeveling

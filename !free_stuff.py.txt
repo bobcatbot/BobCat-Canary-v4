@@ -6,6 +6,19 @@ from datetime import datetime
 from modules import bot as v
 from discord.ext import commands, tasks
 
+games.json
+{"games": ["Amerzone: The Explorer\u2019s Legacy (1999)", "Jurassic World Evolution 2", "Cat Quest", "Neko Ghost, Jump!", "Three Sisters", "Dreams of Aether"]}
+
+<guildid>/Bot/free_stuff
+{
+"games": [
+"Amerzone: The Explorer\u2019s Legacy (1999)",
+"Jurassic World Evolution 2",
+"Cat Quest",
+"Neko Ghost, Jump!"
+]
+}
+
 class FreeStuffMain(commands.Cog):
     def __init__(self, client):
         self.client = client

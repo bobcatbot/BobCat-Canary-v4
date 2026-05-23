@@ -1,6 +1,6 @@
 import os
 import asyncio
-# from dashboard.index import run_dashboard
+from web_dashboard.index import run_dashboard
 from modules import bot as v
 
 client = v.client
@@ -21,7 +21,8 @@ def load_extensions():
 
 async def main():
     async with client:
-        # run_dashboard()
+        run_dashboard()
+
         load_extensions()
         await client.start(v.token)
 asyncio.run(main())

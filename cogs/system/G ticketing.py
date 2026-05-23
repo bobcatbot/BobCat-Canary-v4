@@ -22,7 +22,7 @@ class TicketControls(discord.ui.View):
                 ticket = _ticket
 
         # Prevnt users from claiming their own ticket
-        if ticket['claimed']['status'] == True and ticket['claimed']['user'] == interaction.user.id:
+        if interaction.user.id == int(ticket['creator']['id']):
             return await interaction.response.send_message(
                 f"> **Warning:** You cannot claim your own ticket.", ephemeral=True
             )
@@ -54,6 +54,11 @@ class TicketControls(discord.ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.channel.send(f"{interaction.user.mention} claimed the ticket.")
+
+        button.disabled = True
+        button.label = "Claimed"
+        msg = await interaction.channel.fetch_message(int(ticket['messageid']))
+        await msg.edit(view=self)
 
     @discord.ui.button(emoji="🔒", label="Close", style=discord.ButtonStyle.gray, custom_id="close_ticket", disabled=False)
     async def close_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -98,18 +103,18 @@ class TicketControls(discord.ui.View):
 
                 embed = discord.Embed(title="Close ticket with reason")
                 embed.add_field(name="Reason", value=self.children[0].value)
-                await interaction.response.send_message(embeds=[embed])
+                await interaction.channel.send(embed=embed)
 
                 for child in ctbtns.children:
                     if child.custom_id == "close_ticket":
                         child.disabled = True
                     if child.custom_id == "reopen_ticket":
                         child.disabled = False
+
+                msg = await interaction.channel.fetch_message(int(ticket['messageid']))
+                await msg.edit(view=ctbtns)
                 return
         await interaction.response.send_modal(MyModal(title="Close Ticket Reason"))
-
-        msg = await interaction.channel.fetch_message(int(interaction.message.id))
-        await msg.edit(view=self)
 
     @discord.ui.button(emoji="🔓", label="Reopen", style=discord.ButtonStyle.green, custom_id="reopen_ticket", disabled=True)
     async def reopen_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -154,7 +159,10 @@ class TicketControls(discord.ui.View):
         )
 
         await interaction.response.send_message(embed=reopen_em, ephemeral=True)
-        await interaction.channel.send(f"{interaction.user.mention} reopened the ticket.")
+
+        embed = discord.Embed(title="Ticket reopened.")
+        embed.add_field(name="Reopened by", value=f"<@{interaction.user.id}>")
+        await interaction.channel.send(embed=embed)
 
         for child in self.children:
             if child.custom_id == "close_ticket":
@@ -450,11 +458,11 @@ class Ticketing(commands.Cog):
         except AttributeError:
             # Handle cases where attributes are missing (e.g., invalid guild or message data)
             return
-        
+    
 
     # Commands
     @commands.slash_command(name="ticket-add", description="Adds a user to a ticket")
-    @discord.option(name="user", description="The user to add to the ticket", required=True, type=discord.User)
+    @discord.option(name="user", type=discord.User, description="The user to add to the ticket", required=True)
     async def ticket_add(self, ctx: discord.ApplicationContext, user: discord.User):
         overwrites = discord.PermissionOverwrite()
         overwrites.read_messages = True
@@ -462,111 +470,18 @@ class Ticketing(commands.Cog):
         overwrites.read_message_history = True
         await ctx.interaction.channel.set_permissions(user, overwrite=overwrites)
 
-        await ctx.send(f"> **{user.mention}** was added to the ticket.")
+        await ctx.respond(f"> **{user.mention}** was added to the ticket.")
 
     @commands.slash_command(name="ticket-remove", description="Removes a user from a ticket")
-    @discord.option(name="user", description="The user to remove from the ticket", required=True, type=discord.User)
+    @discord.option(name="user", type=discord.User, description="The user to remove from the ticket", required=True)
     async def ticket_remove(self, ctx: discord.ApplicationContext, user: discord.User):
-        await ctx.interaction.channel.set_permissions(user, overwrite=None)
-        await ctx.send(f"> **{user.mention}** was removed from the ticket.")
+        overwrites = discord.PermissionOverwrite()
+        overwrites.read_messages = False
+        overwrites.send_messages = False
+        overwrites.read_message_history = False
+        await ctx.interaction.channel.set_permissions(user, overwrite=overwrites)
 
-    @commands.slash_command(name="ticket-claim", description="Claim a ticket")
-    async def ticket_claim(self, ctx: discord.ApplicationContext):
-        panels = v.db.get_dash(ctx.interaction.guild)['ticketing']['pannels']
-        tickets = v.db.get_server_config(ctx.interaction.guild)['tickets']
-
-        panel_dict = {panel['id']: panel for panel in panels}
-        for _ticket in tickets:
-            panel = panel_dict.get(_ticket['pannelid'])
-            
-            if _ticket['channelid'] == str(ctx.interaction.channel.id):
-                ticket = _ticket
-                ticket_idx = tickets.index(ticket)
-
-        open_category = discord.utils.get(ctx.interaction.guild.categories, id=int(panel['category_open']))
-        claimed_category = discord.utils.get(ctx.interaction.guild.categories, id=int(panel['category_claimed']))
-
-        print("Claiming ticket...")
-
-        if ticket['claimed']['status'] == True and ticket['claimed']['user'] != ctx.interaction.user.id:
-            return await ctx.respond(
-                f"> **Warning:** This ticket is already claimed by <@{ticket['claimed']['user']}>.", ephemeral=True
-            )
-        
-        # if claimed user clicked on the claim button then unclaim the ticket
-        if ticket['claimed']['status'] == True and ticket['claimed']['user'] == ctx.interaction.user.id:
-            print(f"Unclaiming ticket by {ctx.interaction.user.name}")
-
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.claimed.status', value=False)
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.claimed.user', value=None)
-            
-            ticket_name = ctx.interaction.channel.name.replace(f'-{ctx.interaction.user.name}', '') # remove claimed username from ticket name
-            await ctx.interaction.channel.edit(category=open_category, name=ticket_name)
-            return await ctx.respond(f"> Ticket has been unclaimed by <@{ctx.interaction.user.id}>.", ephemeral=True)
-        
-        v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.claimed.status', value=True)
-        v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.claimed.user', value=ctx.interaction.user.id)
-        v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.claimed.updated_at', value=f"{datetime.now()}")
-
-        ticket_name = ctx.interaction.channel.name + f'-{ctx.interaction.user.name}' # add claimed username to ticket name
-
-        await ctx.interaction.channel.edit(category=claimed_category, name=ticket_name)
-        await ctx.respond(f"> Ticket has been claimed by <@{ctx.interaction.user.id}>.", ephemeral=True)
-    
-    # Close a ticket
-
-    # Reopen a ticket
-    @commands.slash_command(name="ticket-reopen", description="Reopen a closed ticket")
-    async def ticket_reopen(self, ctx: discord.ApplicationContext, reason: str = None):
-        panels = v.db.get_dash(ctx.interaction.guild)['ticketing']['pannels']
-        tickets = v.db.get_server_config(ctx.interaction.guild)['tickets']
-
-        panel_dict = {panel['id']: panel for panel in panels}
-        for _ticket in tickets:
-            panel = panel_dict.get(_ticket['pannelid'])
-            
-            if _ticket['channelid'] == str(ctx.interaction.channel.id):
-                ticket = _ticket
-                ticket_idx = tickets.index(ticket)
-
-        print("Reopening ticket...")
-
-        
-        if ticket['closed']['status'] == False:
-            return await ctx.respond(embed=discord.Embed(description="This ticket is not closed yet.", color=0x5865f2), ephemeral=True)
-        
-        if ticket['closed']['status'] == True and ticket['closed']['user'] != ctx.interaction.user.id:
-            return await ctx.respond(
-                f"> **Warning:** This ticket is closed by <@{ticket['closed']['user']}>. Please contact them to reopen the ticket.", ephemeral=True
-            )
-
-        # user wants to reopen a ticket with the reason, add mod buttons to the message as "Accept" and "Deny"
-        view = discord.ui.View(timeout=None)
-
-        accept_button = discord.ui.Button(label="Accept", style=discord.ButtonStyle.green)
-        async def accept_callback(interaction: discord.Interaction):
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.closed.status', value=False)
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.closed.user', value=None)
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.closed.updated_at', value=f"{datetime.now()}")
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.reopened.status', value=True)
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.reopened.user', value=ctx.interaction.user.id)
-            v.db.update_server_config(ctx.interaction.guild, key=f'tickets.{ticket_idx}.reopened.updated_at', value=f"{datetime.now()}")
-
-            category_openn = discord.utils.get(ctx.interaction.guild.categories, id=int(panel['category_open']))
-
-            ticket_name = ctx.interaction.channel.name.replace(f'-{ctx.interaction.user.name}', '') # remove claimed username from ticket name
-            await ctx.interaction.channel.edit(category=category_openn, name=ticket_name)
-            await ctx.respond(f"> Ticket has been reopened by <@{ctx.interaction.user.id}>.", ephemeral=True)
-
-        accept_button.callback = accept_callback
-        view.add_item(accept_button)
-
-        deny_button = discord.ui.Button(label="Deny", style=discord.ButtonStyle.red)
-        view.add_item(deny_button)
-
-        await ctx.interaction.channel.send(f"> **{ctx.interaction.user.name}** has requested to reopen the ticket. Reason: {reason}", view=view)
-
-    # Delete a ticket
+        await ctx.respond(f"> **{user.mention}** was removed from the ticket.")
 
 def setup(client):
     client.add_cog(Ticketing(client))

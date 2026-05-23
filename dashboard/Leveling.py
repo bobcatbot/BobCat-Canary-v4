@@ -94,6 +94,39 @@ class LevelingLevelingUpContainer(DesignerView):
 
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(LevelUpChannelSelect())
+
+        container.add_text("Level Up Announcement Message")
+        
+        class LevelUpAnnouncementModal(discord.ui.DesignerModal):
+            def __init__(self):
+                super().__init__(
+                    discord.ui.Label(
+                        "Message (Use {user} for mention, {level} for new level)",
+                        discord.ui.InputText(
+                            placeholder="Congratulations {user}, you just reached level {level}!",
+                            style=discord.InputTextStyle.paragraph,
+                            value=data['message']['content'],
+                            required=True,
+                        )
+                    ),
+                    title="Level Up Announcement Message",
+                )
+            async def callback(self, interaction: discord.Interaction):
+                message = self.children[0].item.value
+
+                v.db.update_dash(guild, 'leveling.message.content', message)
+                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                await interaction.response.send_message("Level up announcement message updated!", ephemeral=True)
+
+        class LevelUpAnnouncementButton(ActionRow):
+            @button(
+                label="Edit Announcement Message",
+                style=discord.ButtonStyle.gray,
+            )
+            async def callback(self, button, interaction: discord.Interaction):
+                await interaction.response.send_modal(LevelUpAnnouncementModal())
+            
+        container.add_item(LevelUpAnnouncementButton())
         
         self.add_item(container)
 
