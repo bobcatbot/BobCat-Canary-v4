@@ -60,61 +60,83 @@
   // Update shard data
   async function updateShardData() {
     try {
-      var shards_status = [];
-
       const response = await fetch('/api/shard_status');
       const shards = await response.json();
 
-      // Update each shard card
-      shards.forEach(shard => {
-        if (shard.state != 'Ready' && shard.emoji != '') {
-          shards_status.push(shard.id);
-        }
+      const isLoggedIn = Boolean('{{ (user is not none) | lower }}');
+      console.log('User logged in:', isLoggedIn);
 
-        const shardStatus = document.querySelector(`.alert[role="alert"]`);
-        if (shardStatus) {
-          shardStatus.textContent = shards_status.length > 0 ? `${shards_status.length} shards are misbehaving` : 'All systems are operational!';
-          shardStatus.classList.add(shards_status.length > 0 ? 'alert-danger' : 'alert-success');
-        }
+      const badShards = shards.filter(s => s.state !== 'Ready').map(s => s.id);
+
+      // Update alert once after processing all shards
+      const alertEl = document.querySelector('.alert[role="alert"]');
+      if (alertEl) {
+        alertEl.classList.remove('alert-success', 'alert-danger');
+        alertEl.textContent = badShards.length > 0
+          ? `${badShards.length} shard(s) are misbehaving`
+          : 'All systems are operational!';
+        alertEl.classList.add(badShards.length > 0 ? 'alert-danger' : 'alert-success');
+      }
+
+      shards.forEach(shard => {
+        console.log('shard:', shard);
 
         const shardCard = document.querySelector(`.shard-card[data-id="${shard.id}"]`);
-        if (shardCard) {
-          // Update card color
-          const card = shardCard.querySelector('.card');
-          card.style.backgroundColor = '#223';
-          card.setAttribute('data-color', shard.color);
+        if (!shardCard) return;
 
-          if('{{user}}') {
-            card.style.borderColor = shard.color;
+        const card = shardCard.querySelector('.card');
+        card.setAttribute('data-color', shard.color);
+
+        const title = shardCard.querySelector('.card-title');
+        title.textContent = shard.id;
+        title.style.color = shard.color;
+
+        // Reuse or recreate card-text safely
+        let cardText = shardCard.querySelector('.card-text');
+        if (shard.emoji) {
+          if (!cardText) {
+            cardText = document.createElement('p');
+            cardText.className = 'card-text';
+            card.querySelector('.card-body').appendChild(cardText);
           }
-
-          // Update shard ID and emoji
-          shardCard.querySelector('.card-title').textContent = shard.id;
-          shardCard.querySelector('.card-title').style.color = shard.color;
-          
-          if (shard.emoji) {
-            shardCard.querySelector('.card-text').textContent = shard.emoji;
-            shardCard.querySelector('.card-text').style.color = shard.color;
-          } else {
-            shardCard.querySelector('.card-text').remove();
-          }
-
-          var div_status = `<div class="text"><b class="title">Status:</b> ${shard.state}</div>`
-          var div_latency = `<div class="text"><b class="title">Latency:</b> ${shard.latency}ms</div>`
-          var div_servers = `<div class="text"><b class="title">Servers:</b> ${shard.servers}</div>`
-
-          var div_usersGuilds = `${'{{user}}' ? `<div class="text flex-column"><b class="title">Servers you may know:</b> ${
-            shard.user_in_guilds.map(g => `<span>${g}</span>`).join('')
-          }</div>` : ''}`
-
-          // Update tooltip with the new state
-          const tooltip = shardCard.querySelector(`[role="tooltip"]`);
-          tooltip.innerHTML = div_status + div_latency + div_servers + div_usersGuilds;
+          cardText.textContent = shard.emoji;
+          cardText.style.color = shard.color;
+        } else if (cardText) {
+          cardText.textContent = '';
         }
+
+        // Update tooltip
+        const tooltip = shardCard.querySelector('[role="tooltip"]');
+        const guildsHTML = isLoggedIn && shard.user_in_guilds?.length
+          ? `<div class="text flex-column"><b class="title">Servers you may know:</b> ${shard.user_in_guilds.map(g => `<span>${g}</span>`).join('')}</div>`
+          : '';
+
+        tooltip.innerHTML = `
+          <div class="text"><b class="title">Status:</b> ${shard.state}</div>
+          <div class="text"><b class="title">Latency:</b> ${shard.latency}</div>
+          <div class="text"><b class="title">Uptime:</b> ${formatUptime(shard.uptime)}</div>
+          <div class="text"><b class="title">Servers:</b> ${shard.servers}</div>
+          ${guildsHTML}
+        `;
       });
     } catch (error) {
       console.error('Failed to update shard data:', error);
     }
+  }
+
+  function formatUptime(isoString) {
+    const since = new Date(isoString);
+    const diff = Math.floor((Date.now() - since) / 1000);
+
+    const d = Math.floor(diff / 86400);
+    const h = Math.floor((diff % 86400) / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+
+    if (d > 0) return `${d}d`;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m`;
+    return `${s}s`;
   }
 
   // Timer
@@ -125,7 +147,7 @@
     seconds--;
     timer.textContent = seconds;
     if (seconds === 0) {
-      //updateShardData();
+      updateShardData();
       seconds = 30;
     }
   }, 1000);

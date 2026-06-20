@@ -17,8 +17,7 @@ mongoRankCards = mongo_cdn_client['RankCards']['Cards']
 def xp_for_level(lvl: int) -> int:
     """XP required to complete a given level (scales with level)."""
     return 5 * (lvl ** 2) + 50 * lvl + 100
- 
- 
+
 def calculate_level(total_exp: int) -> tuple[int, int]:
     """
     Given total accumulated XP, returns (current_level, leftover_exp).
@@ -28,8 +27,7 @@ def calculate_level(total_exp: int) -> tuple[int, int]:
         total_exp -= xp_for_level(lvl)
         lvl += 1
     return lvl, total_exp
- 
- 
+
 def level_card(guild: discord.Guild) -> dict | None:
     theme = v.db.get_dash(guild)['leveling']['card']
     file = mongoRankCards.find_one({"card": theme}) or mongoRankCards.find_one({"card": FALLBACK_CARD})
@@ -47,9 +45,8 @@ class Leveling(commands.Cog):
         self._cooldown_cache: dict[int, commands.CooldownMapping] = {}
  
     def _get_cooldown(self, guild_id: int, cd: int) -> commands.CooldownMapping:
-        """Returns a stable CooldownMapping per guild, recreating only if the cooldown value changes."""
         existing = self._cooldown_cache.get(guild_id)
-        if existing is None:
+        if existing is None or existing._cooldown.per != cd:
             mapping = commands.CooldownMapping.from_cooldown(1, cd, commands.BucketType.user)
             self._cooldown_cache[guild_id] = mapping
             return mapping
@@ -105,9 +102,11 @@ class Leveling(commands.Cog):
  
         gained = random.randint(1, 10)
         new_exp = exp + gained
-        new_lvl, leftover_exp = calculate_level(
-            sum(xp_for_level(i) for i in range(lvl)) + new_exp
-        )
+        new_lvl = lvl
+        while new_exp >= xp_for_level(new_lvl):
+            new_exp -= xp_for_level(new_lvl)
+            new_lvl += 1
+        leftover_exp = new_exp
  
         # Cap at max level
         if maxLevel != 0 and new_lvl >= maxLevel:
@@ -189,7 +188,7 @@ class Leveling(commands.Cog):
 
     # ── Slash commands ─────────────────────────────────────────────────────
     
-    @commands.slash_command(description="Gives yours or member's ranks", guild_ids=v.guild_ids)
+    @commands.slash_command(description="Gives yours or member's ranks")
     @discord.option("member", discord.Member, description="Select a member", required=False)
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         status = v.db.get_dash(ctx.guild)['leveling']['status']
@@ -203,11 +202,13 @@ class Leveling(commands.Cog):
             return await ctx.respond(f"{member.mention} is a bot! So they have no rank")
         
         data: dict = v.db.get_server_config(ctx.guild)['leveling'].get(f'{member.id}')
-        exp = data.get('exp')
-        lvl = data.get('lvl')
-        
+       
         if data is None:
             return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
+        
+        exp = data.get('exp')
+        lvl = data.get('lvl')
+
         if lvl == 0 and exp == 0:
             return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
         
@@ -257,7 +258,7 @@ class Leveling(commands.Cog):
  
         desc = ""
         for idx, (u_id, data) in enumerate(sorted_players, start=1):
-            member = await v.client.fetch_user(int(u_id))
+            member = ctx.guild.get_member(int(u_id)) or await v.client.fetch_user(int(u_id))
             desc += f"#{idx} ● {member.name} ● LVL: {data['lvl']}\n"
  
         embed = discord.Embed(
@@ -275,15 +276,3 @@ class Leveling(commands.Cog):
 
 def setup(client):
     client.add_cog(Leveling(client))
-
-def level_card(guild: discord.Guild) -> dict | None:
-    theme = v.db.get_dash(guild)['leveling']['card']
-
-    file = mongoRankCards.find_one({"card": {"$in": [theme, FALLBACK_CARD]}})
-    if not file:
-        return None  # or a default style
-
-    return {
-        **file,
-        "background": f"{CARDS_URL}/{file['card']}",
-    }

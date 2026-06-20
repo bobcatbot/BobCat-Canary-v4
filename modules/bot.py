@@ -1,14 +1,17 @@
-import discord
 import os
 import pytz
-from dotenv import load_dotenv
+import random
+import discord
 from datetime import datetime
-from .database import Database
+from dotenv import load_dotenv
+from typing import Literal, Optional, Union
 from discord.ext import commands
+
+from .database import Database
 
 load_dotenv()
 
-PY_ENV = os.getenv('PY_ENV')
+PY_ENV: Literal["development", "production"] = os.getenv('PY_ENV')
 prefix = os.getenv('PREFIX')
 token = os.getenv('BOT_TOKEN')
 mongoURI_db = os.getenv('mongoURI_db')
@@ -23,7 +26,9 @@ client = commands.AutoShardedBot(
 
 guild_ids = [903243004544962600]
 btz_gid = 903243004544962600
+
 web_url = "http://localhost:8000"
+webDocs_url = "http://localhost:8000/docs"
 
 db = Database()
 
@@ -61,26 +66,23 @@ def datetimes(guild):
     dt = pytz.timezone(f'{tz}')
     return dt
 
-
-def uuid(length=8, strCase='upper/lower/nums/special'):
-    import random
-
-    uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    lowers = "abcdefghijklmnopqrstuvwxyz"
-    nums = "0123456789"
-    special = "!@#$%^&*()_+-=[]{};:,./<>?"
+def uuid(length: int = 8, strCase: Literal["upper/lower/nums/special"] = "upper/lower/nums") -> str:
+    _CHARSET = {
+        "upper":   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "lower":   "abcdefghijklmnopqrstuvwxyz",
+        "nums":    "0123456789",
+        "special": "!@#$%^&*()_+-=[]{};:,./<>?",
+    }
+        
+    parts = [k.strip() for k in strCase.split("/")]
+    unknown = [p for p in parts if p not in _CHARSET]
     
-    combination = (strCase
-        .replace("/", '')
-        .replace("upper", uppers)
-        .replace("lower", lowers)
-        .replace("nums", nums)
-        .replace("special", special)
-    )
-    code = random.choices(combination, k=length)
-    return "".join(code)
+    if unknown:
+        raise ValueError(f"Unknown charset(s): {unknown}. Valid: {list(_CHARSET)}")
 
-from typing import Literal, Optional, Union
+    combination = "".join(_CHARSET[p] for p in parts)
+    return "".join(random.choices(combination, k=length))
+
 def push_notification(
     guild: Union[int, discord.Guild],  # Guild is a hypothetical class; replace with the actual type
     types: Literal["info", "error"],

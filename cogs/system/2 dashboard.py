@@ -45,7 +45,7 @@ PLUGIN_OPTIONS = {
     "Moderation": { "plugin": PluginModeration,  "premium": False },
     "Verification": { "plugin": PluginVerification,  "premium": False },
     # "Starboard": {"plugin": PluginStarboard, "premium": True},
-    "Forms": { "plugin": PluginForms,  "premium": True },
+    # "Forms": { "plugin": PluginForms,  "premium": True },
     "Temporary Channels": { "plugin": PluginTempChannels,  "premium": True },
     # "Ticketing": {"plugin": PluginTicketing, "premium": True},
     "Leveling": { "plugin": PluginLeveling,  "premium": False },
@@ -77,16 +77,13 @@ class PluginView(DesignerView):
                 custom_id="PluginSelect",
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                data = PLUGIN_OPTIONS.get(select.values[0])
-                view_class = data['plugin']
+                plugin = PLUGIN_OPTIONS.get(select.values[0])
+                view_class = plugin['plugin']
 
-                if data['premium'] and not v.db.get_server_config(guild, True)['premium']['status']:
+                if plugin['premium'] and not v.db.get_server_config(guild, True)['premium']['status']:
                     return await interaction.response.send_message(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
-                if view_class:
-                    await interaction.response.send_message(view=view_class(interaction.guild))
-                else:
-                    await interaction.response.send_message("Invalid plugin selected")
+                await interaction.response.send_message(view=view_class(interaction.guild))
         
         container.add_item(PluginSelector())
 
@@ -113,7 +110,8 @@ class DiscordDashboard(commands.Cog):
             self.client.add_view(PluginView(guild))
 
     @commands.slash_command(name="dashboard", description="Dashboard", guild_ids=v.guild_ids)
-    @discord.option("plugin", 
+    @discord.option(
+        name="plugin", 
         description="The plugin to configure", 
         required=False, 
         choices=list(PLUGIN_OPTIONS.keys())
@@ -125,14 +123,13 @@ class DiscordDashboard(commands.Cog):
             return await ctx.respond("You do not have permission to use this command.", ephemeral=True)
 
         if plugin:
-            data = PLUGIN_OPTIONS.get(plugin)
-            view_class = data['plugin']
-            
-            if data['premium'] and not v.db.get_server_config(ctx.guild, True)['premium']['status']:
+            plugin_data = PLUGIN_OPTIONS.get(plugin)
+            view_class = plugin_data['plugin']
+
+            if plugin_data['premium'] and not v.db.get_server_config(ctx.guild, True)['premium']['status']:
                 return await ctx.respond(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
-            if view_class:
-                return await ctx.respond(view=view_class(ctx.guild))
+            return await ctx.respond(view=view_class(ctx.guild))
         
         # Default dashboard
         await ctx.respond(view=PluginView(ctx.guild))

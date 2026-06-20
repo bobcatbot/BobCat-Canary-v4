@@ -10,7 +10,7 @@ class Money(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    eco = SlashCommandGroup(name="economy", description="Economy commands", guild_ids=v.guild_ids)
+    eco = SlashCommandGroup(name="economy", description="Economy commands")
     
     @eco.command(description="List items from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)

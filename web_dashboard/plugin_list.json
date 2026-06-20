@@ -5,7 +5,7 @@
     "db_key": "welcome",
     "icon": "waving_hand",
     "url": "welcome",
-    "badge": "new",
+    "badge": "",
     "category": "management",
     "premium": false,
     "status": false
@@ -40,7 +40,7 @@
     "url": "starboard",
     "badge": "",
     "category": "utilities",
-    "premium": true,
+    "premium": false,
     "status": false
   },
   "forms": {
@@ -49,7 +49,7 @@
     "db_key": "forms",
     "icon": "description",
     "url": "forms",
-    "badge": "beta",
+    "badge": "soon",
     "category": "utilities",
     "premium": true,
     "status": false,
@@ -61,7 +61,7 @@
     "db_key": "temporary_channels",
     "icon": "campaign",
     "url": "temporary-channels",
-    "badge": "prem",
+    "badge": "beta",
     "category": "utilities",
     "premium": true,
     "status": false,
@@ -73,7 +73,7 @@
     "db_key": "ticketing",
     "icon": "forum",
     "url": "ticketing",
-    "badge": "beta",
+    "badge": "new",
     "category": "utilities",
     "premium": true,
     "status": false,
@@ -98,7 +98,7 @@
     "url": "birthdays",
     "badge": "beta",
     "category": "fun",
-    "premium": false,
+    "premium": true,
     "status": false
   },
   "giveaway": { 

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+    if (window.opener) {
+        window.opener.location.href = "{{ redirect_url }}";
+        window.close();
+    } else {
+        window.location.href = "{{ redirect_url }}";
+    }
+</script>
+</body>
+</html>

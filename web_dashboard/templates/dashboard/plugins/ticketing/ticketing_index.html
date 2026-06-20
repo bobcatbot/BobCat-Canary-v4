@@ -45,21 +45,21 @@
           </div>
 
           <div class="d-flex gap-1 align-items-end ps-0 user-select-none form-switch">
-            <span id="form-count">{{data['pannels'] | length}}</span>
+            <span id="form-count">{{data['panels'] | length}}</span>
             <span>/</span>
             <span id="form-max-count">{{plugin['max']}}</span>
           </div>
         </div>
         <hr>
         
-        {% if data['pannels'] == [] %}
+        {% if data['panels'] == [] %}
         <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
           <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 300px;">
-          <p class="m-0 mt-2">You dont have ticket pannels created yet.</p>
+          <p class="m-0 mt-2">You dont have ticket panels created yet.</p>
         </div>
         {% endif %}
 
-        {% if data['pannels'] != [] %}
+        {% if data['panels'] != [] %}
         <div class="search-container">
           <i class="bi bi-search"></i>
           <input
@@ -72,11 +72,11 @@
         <hr>
         {% endif %}
         
-        {% for panel in data['pannels'] %}
+        {% for panel in data['panels'] %}
         <div class="card">
           <a href="ticketing/{{panel['id']}}/edition" class="card-link d-flex justify-content-between align-items-center">
             <div class="title">
-              <h5>{{panel['pannel_name']}}</h5>
+              <h5>{{panel['panel_name']}}</h5>
             </div>
             <button
               type="button"
@@ -121,7 +121,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            Maximum number of ticket pannels reached.
+            Maximum number of ticket panels reached.
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

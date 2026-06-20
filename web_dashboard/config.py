@@ -6,6 +6,8 @@ load_dotenv()
 URL_BASE = os.getenv('URL_BASE')
 PY_ENV = os.getenv('PY_ENV')
 
+APP_SECRET = os.getenv('APP_SECRET')
+
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')

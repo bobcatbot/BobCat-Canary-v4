@@ -49,24 +49,16 @@ navbar_item.forEach((item) => {
 });
 
 function handlePremiumOnClick(event) {
-  var currentURL = window.location.pathname;
-  var link = event.currentTarget;
-  
-  // p_fae9dd is premium - p_a2b8c9 is not premium
-  const aClassPrem = link.classList.contains('p_fae9dd') // is the plugin premium
+  const link = event.currentTarget;
+  const isPluginPremium = link.dataset.premium === 'true';
+  const serverHasPremium = link.dataset.serverPremium === 'true';
 
-  const isPremium = link.dataset.isPremium // server check - True if hasPrem else False
-
-  if (aClassPrem === true && isPremium === 'False') {
-    const PremiumModal = new bootstrap.Modal(document.getElementById('PremiumModal'));
-    PremiumModal.show();
-  } else {
-    var url = link.dataset.href;
-    var isActive = url === currentURL;
-    event.target.dataset.active = isActive ? "True" : "False";
-
-    document.location.href = url;
+  if (isPluginPremium && !serverHasPremium) {
+    new bootstrap.Modal(document.getElementById('PremiumModal')).show();
+    return;
   }
+
+  document.location.href = link.dataset.href;
 }
 
 try {

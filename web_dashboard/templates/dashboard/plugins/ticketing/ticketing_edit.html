@@ -19,7 +19,7 @@
     <div class="pagetitle plugin">
       <div class="d-flex align-items-center">
         <a href="/dashboard/{{guild.id}}/ticketing"><i class="bi bi-arrow-left pe-2"></i></a>
-        <h1 class="em-title" onclick="convertToInput(this)">{{data['pannel_name']}}</h1>
+        <h1 class="em-title" onclick="convertToInput(this)">{{data['panel_name']}}</h1>
       </div>
 
       <div class="buttons">
@@ -110,7 +110,7 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
-          <h2>Pannel message</h2>
+          <h2>Panel message</h2>
         </div>
         <hr>
         
@@ -128,7 +128,7 @@
                 <input type="text" name="pm-embed-title" id="pm-embed-title" placeholder="Title">
               </div>
               <div class="desc embedMargin-2PsaQ4">
-                <textarea type="text" name="pm-embed-desc" id="pm-embed-desc" placeholder="Description" oninput="auto_grow(this)">{{data.pannel_message.embed.description}}</textarea>
+                <textarea type="text" name="pm-embed-desc" id="pm-embed-desc" placeholder="Description" oninput="auto_grow(this)">{{data.panel_message.embed.description}}</textarea>
                 <script>
                   auto_grow(document.querySelector('#pm-embed-desc'));
                   function auto_grow(element) {
@@ -146,13 +146,13 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
-          <h2>Pannel button</h2>
+          <h2>Panel button</h2>
         </div>
         <hr>
         
         <button id="btn-preview" class="position-relative btn btn-secondary" style="max-width: 250px;overflow: hidden;text-overflow: ellipsis;">
-          <span id="emoji">{{data.pannel_button.emoji}}</span>
-          <span id="label">{{data.pannel_button.label}}</span>
+          <span id="emoji">{{data.panel_button.emoji}}</span>
+          <span id="label">{{data.panel_button.label}}</span>
 
           <div class="position-absolute top-50 start-50 translate-middle gap-1  edit">
             <i class="bi bi-pencil-fill"></i>
@@ -166,9 +166,9 @@
               <p class="mb-0">Emoji</p>
               <div class="btn-wrapper">
                 <div id="embed-emoji" style="cursor: context-menu;" trigger>
-                  {{data.pannel_button.emoji if data.pannel_button.emoji != "" else '+' }}
+                  {{data.panel_button.emoji if data.panel_button.emoji != "" else '+' }}
                 </div>
-                {% if data.pannel_button.emoji != "" %}
+                {% if data.panel_button.emoji != "" %}
                 <i class="bi bi-trash-fill"></i>
                 {% endif %}
               </div>
@@ -176,7 +176,7 @@
 
             <div>
               <p class="mb-0">label</p>
-              <input type="text" id="btn-label" class="text-input" placeholder="Title" value="{{data.pannel_button.label}}">
+              <input type="text" id="btn-label" class="text-input" placeholder="Title" value="{{data.panel_button.label}}">
             </div>
 
             <div>
@@ -484,7 +484,7 @@
       h1.innerText = input.value || "New ticketing panel"; // Set text to input value or default text
       input.replaceWith(h1);
 
-      ticket_data['pannel_name'] = input.value;
+      ticket_data['panel_name'] = input.value;
     }
     
     /* General */
@@ -536,7 +536,7 @@
     const PmEmbedDesc = PmEmbed.querySelector('#pm-embed-desc');
 
     document.addEventListener('DOMContentLoaded', () => {
-      const pmMessageColor = `#${parseInt('{{data.pannel_message.embed.color}}').toString(16).padStart(6, '0')}`;
+      const pmMessageColor = `#${parseInt('{{data.panel_message.embed.color}}').toString(16).padStart(6, '0')}`;
 
       PmEmbed.style.borderColor = pmMessageColor;
       PmEmbedColor.closest('div').style.color = pmMessageColor;
@@ -547,17 +547,17 @@
 
       PmEmbed.style.borderColor = value;
 
-      ticket_data['pannel_message.embed.color'] = parseInt(value.replace("#", ""), 16);
+      ticket_data['panel_message.embed.color'] = parseInt(value.replace("#", ""), 16);
     })
 
     PmEmbedTitle.addEventListener('input', (e) => {
       var value = e.target.value;      
-      ticket_data['pannel_message.embed.title'] = value;
+      ticket_data['panel_message.embed.title'] = value;
     })
 
     PmEmbedDesc.addEventListener('input', (e) => {
       var value = e.target.value;      
-      ticket_data['pannel_message.embed.description'] = value;
+      ticket_data['panel_message.embed.description'] = value;
     })
 
     /* Panel Button */
@@ -574,7 +574,7 @@
         btnEdit.querySelector('.btn-wrapper').insertAdjacentHTML('beforeend', '<i class="bi bi-trash-fill"></i>');
       }
       
-      ticket_data['pannel_button.emoji'] = emoji.icon;
+      ticket_data['panel_button.emoji'] = emoji.icon;
     }
 
     btnPreview.addEventListener('click', () => {
@@ -593,7 +593,7 @@
 
         btnPreview.querySelector('#emoji').innerHTML = '';
 
-        ticket_data['pannel_button.emoji'] = '';
+        ticket_data['panel_button.emoji'] = '';
       })
     }
 
@@ -604,7 +604,7 @@
 
       btnPreview.querySelector('#label').innerHTML = value;
 
-      ticket_data['pannel_button.label'] = value;
+      ticket_data['panel_button.label'] = value;
     })
 
     // panel button color
@@ -628,12 +628,12 @@
 
         btnPreview.classList.add(`btn-${data[value]}`);
 
-        ticket_data['pannel_button.style'] = value;
+        ticket_data['panel_button.style'] = value;
       })
     })
 
     document.addEventListener('DOMContentLoaded', (e) => {
-      var value = "{{data['pannel_button']['style']}}"
+      var value = "{{data['panel_button']['style']}}"
 
       btnPreview.classList.forEach(cls => {
         if (cls.startsWith('btn-')) {

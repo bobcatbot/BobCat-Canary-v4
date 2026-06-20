@@ -39,7 +39,8 @@ class UserCmd(commands.Cog):
             )
         )
         embed.set_thumbnail(url=member.avatar.url)
-        await ctx.respond(embed=embed, view=UserButtons(self.client, ctx, member))
+        await ctx.respond(embed=embed, view=None)
+        # await ctx.respond(embed=embed, view=UserButtons(self.client, ctx, member))
 
 def setup(client):
     client.add_cog(UserCmd(client))
@@ -56,8 +57,8 @@ class UserButtons(discord.ui.View):
         member = self.member
 
         usr = await self.client.fetch_user(member.id)
-        colour = usr.accent_color
-        if colour == None: colour = "Default"
+        color = usr.accent_color
+        if color == None: color = "Default"
         
         joined = member.joined_at.strftime('%m/%d/%Y')
         created = member.created_at.strftime('%m/%d/%Y')
@@ -73,7 +74,7 @@ class UserButtons(discord.ui.View):
         embed.add_field(name="Bot", value=f"```{member.bot}```", inline=True)
         embed.add_field(name="Activity", value=f"```{str(member.activity).title()}```", inline=True)
         embed.add_field(name="Status", value=f"```{str(member.status).title()}```", inline=True)
-        embed.add_field(name="Profile Colour", value=f"```{colour}```", inline=True)
+        embed.add_field(name="Profile Color", value=f"```{color}```", inline=True)
         embed.add_field(name="Roles", value=f"```{len(member.roles)}```", inline=True)
         embed.add_field(name="** **", value="** **", inline=False)
         embed.add_field(name="Joined at (MM/DD/YYYY)", value=f"```{joined}```", inline=True)

@@ -1,10 +1,11 @@
+python-dotenv
+
 pytz
 aiohttp
 psutil
 humanize
 humanfriendly
 py-cord
-botdash.py-dev
 easy-pil
 captcha
 clipboard
@@ -12,11 +13,9 @@ pychalk
 speedtest-cli
 pymongo
 jishaku
-posthog
 
 Flask[async]
 flask-socketio
 zenora
 requests
 stripe
-python-dotenv

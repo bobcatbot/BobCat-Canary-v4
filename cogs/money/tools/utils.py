@@ -25,7 +25,7 @@ async def open_account(guild, member):
     if user is None:
         val = {'wallet': 0, 'bank': 0, 'bag': []}
         v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=val)
-        return {'wallet': user.get('wallet'), 'bank': user.get('bank'), 'bag': user.get('bag')}
+        return {'wallet': 0, 'bank': 0, 'bag': []}
 
     return {'wallet': user.get('wallet'), 'bank': user.get('bank'), 'bag': user.get('bag')}
 
@@ -36,8 +36,8 @@ async def update_bank(guild, member, mode='wallet', change=0):
     if user is None:
         val = {'wallet': 0, 'bank': 0, 'bag': []}
         v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=val)
-        return {'wallet': user.get('wallet'), 'bank': user.get('bank'), 'bag': user.get('bag')}
-    
+        return {'wallet': 0, 'bank': 0, 'bag': []}
+
     if not mode in ['wallet', 'bank']:
         return False
     
@@ -129,8 +129,8 @@ async def sell_this(guild, user, item, amt):
             
             if int(new_amt) == 0:
                 user["bag"].pop(i)
-            
-            user["bag"][i]["amount"] = int(new_amt)
+            else:
+                user["bag"][i]["amount"] = int(new_amt)
     
     v.db.update_server_config(guild.id, key=f'economy.{user.id}', value=user)
     await update_bank(guild, user, cost, "wallet")

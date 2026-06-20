@@ -213,49 +213,6 @@ class Giveaway(commands.Cog):
             embed.add_field(name=f"Participants [{len(participants)}]", value=f"{e}", inline=False)
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @giveaway.command(description="Shows active giveaways")
-    async def list(self, ctx):
-        data = giveaways_fetchall()
-
-        active = []
-
-        for item in data:
-            gid = item.get("id")
-            guild_id = int(item.get("guild"))
-            channel_id = int(item.get("channel").get("id"))
-            message_id = int(item.get("message"))
-            time = int(item.get("time").get("epoch"))
-            prize = item.get("prize")
-            winners = item.get("winners")
-
-            status = item.get('status')
-            
-            if status in ("Ended", "Draft"): # Skip ended or draft giveaways
-                continue
-
-            guild = self.client.get_guild(guild_id)
-            channel = guild.get_channel(channel_id)
-            
-            msg = await channel.fetch_message(message_id)
-            
-            winner_word = "winner" if winners == "1" else "winners"
-
-            active.append(
-                f"{gid} | [`{msg.id}`]({msg.jump_url}) | **{winners}** {winner_word} | "
-                f"**Prize:** {prize} | **Ends at:** <t:{time}:f>"
-            )
-
-        # If no active giveaways exist
-        if not active:
-            return await ctx.respond("There are **no active giveaways** running.")
-
-        items = "\n".join(active)
-
-        return await ctx.respond((
-            f"**Active Giveaways**"
-            f"\n\n"
-            f"{items}"
-        ))
     
     @giveaway.command(description="Start a giveaway")
     @discord.option("prize", str, description="The prize for the giveaway", required=True)
@@ -325,6 +282,50 @@ class Giveaway(commands.Cog):
         except Exception as e:
             await ctx.respond("Giveaway creation failed", ephemeral=True)
 
+    @giveaway.command(description="Shows active giveaways")
+    async def list(self, ctx):
+        data = giveaways_fetchall()
+
+        active = []
+
+        for item in data:
+            gid = item.get("id")
+            guild_id = int(item.get("guild"))
+            channel_id = int(item.get("channel").get("id"))
+            message_id = int(item.get("message"))
+            time = int(item.get("time").get("epoch"))
+            prize = item.get("prize")
+            winners = item.get("winners")
+
+            status = item.get('status')
+            
+            if status in ("Ended", "Draft"): # Skip ended or draft giveaways
+                continue
+
+            guild = self.client.get_guild(guild_id)
+            channel = guild.get_channel(channel_id)
+            
+            msg = await channel.fetch_message(message_id)
+            
+            winner_word = "winner" if winners == "1" else "winners"
+
+            active.append(
+                f"{gid} | [`{msg.id}`]({msg.jump_url}) | **{winners}** {winner_word} | "
+                f"**Prize:** {prize} | **Ends at:** <t:{time}:f>"
+            )
+
+        # If no active giveaways exist
+        if not active:
+            return await ctx.respond("There are **no active giveaways** running.")
+
+        items = "\n".join(active)
+
+        return await ctx.respond((
+            f"**Active Giveaways**"
+            f"\n\n"
+            f"{items}"
+        ))
+    
     @giveaway.command(description="Rerolls a new winner from a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to reroll", required=True)
     async def reroll(self, ctx, giveaway_id):

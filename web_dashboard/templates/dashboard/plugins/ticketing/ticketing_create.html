@@ -69,7 +69,7 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
-          <h2>Pannel message</h2>
+          <h2>Panel message</h2>
         </div>
         <hr>
         
@@ -105,7 +105,7 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
-          <h2>Pannel button</h2>
+          <h2>Panel button</h2>
         </div>
         <hr>
         
@@ -411,11 +411,11 @@
       h1.innerText = input.value || "New ticketing panel"; // Set text to input value or default text
       input.replaceWith(h1);
 
-      ticket_data['pannel_name'] = input.value;
+      ticket_data['panel_name'] = input.value;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      ticket_data['pannel_name'] = document.querySelector('.em-title').innerText;
+      ticket_data['panel_name'] = document.querySelector('.em-title').innerText;
     })
 
     /* General */
@@ -442,24 +442,24 @@
     const PmEmbedDesc = PmEmbed.querySelector('#pm-embed-desc');
 
     document.addEventListener('DOMContentLoaded', () => {
-      ticket_data['pannel_message.embed.color'] = parseInt('#5865f2'.replace("#", ""), 16);
+      ticket_data['panel_message.embed.color'] = parseInt('#5865f2'.replace("#", ""), 16);
     })
     PmEmbedColor.addEventListener('change', (e) => {
       var value = e.target.value;
 
       PmEmbed.style.borderColor = value;
 
-      ticket_data['pannel_message.embed.color'] = parseInt(value.replace("#", ""), 16);
+      ticket_data['panel_message.embed.color'] = parseInt(value.replace("#", ""), 16);
     })
 
     PmEmbedTitle.addEventListener('input', (e) => {
       var value = e.target.value;      
-      ticket_data['pannel_message.embed.title'] = value;
+      ticket_data['panel_message.embed.title'] = value;
     })
 
     PmEmbedDesc.addEventListener('input', (e) => {
       var value = e.target.value;      
-      ticket_data['pannel_message.embed.description'] = value;
+      ticket_data['panel_message.embed.description'] = value;
     })
 
     /* Panel Button */
@@ -468,9 +468,9 @@
     const emojiBtn = document.querySelector('#embed-emoji');
 
     document.addEventListener('DOMContentLoaded', () => {
-      ticket_data['pannel_button.emoji'] = btnPreview.querySelector('#emoji').innerHTML
-      ticket_data['pannel_button.label'] = btnPreview.querySelector('#label').innerHTML
-      ticket_data['pannel_button.style'] = 'gray'
+      ticket_data['panel_button.emoji'] = btnPreview.querySelector('#emoji').innerHTML
+      ticket_data['panel_button.label'] = btnPreview.querySelector('#label').innerHTML
+      ticket_data['panel_button.style'] = 'gray'
     })
 
     function emojiButton(emoji) {
@@ -482,7 +482,7 @@
         btnEdit.querySelector('.btn-wrapper').insertAdjacentHTML('beforeend', '<i class="bi bi-trash-fill"></i>');
       }
       
-      ticket_data['pannel_button.emoji'] = emoji.icon;
+      ticket_data['panel_button.emoji'] = emoji.icon;
     }
 
     btnPreview.addEventListener('click', () => {
@@ -501,7 +501,7 @@
 
         btnPreview.querySelector('#emoji').innerHTML = '';
         
-        ticket_data['pannel_button.emoji'] = '';
+        ticket_data['panel_button.emoji'] = '';
       })
     }
 
@@ -512,7 +512,7 @@
 
       btnPreview.querySelector('#label').innerHTML = value;
 
-      ticket_data['pannel_button.label'] = value;
+      ticket_data['panel_button.label'] = value;
     })
 
     // panel button color
@@ -536,7 +536,7 @@
 
         btnPreview.classList.add(`btn-${data[value]}`);
         
-        ticket_data['pannel_button.style'] = value;
+        ticket_data['panel_button.style'] = value;
       })
     })
 

@@ -96,47 +96,53 @@ class LevelingLevelingUpContainer(DesignerView):
         container.add_item(LevelUpChannelSelect())
 
         container.add_text("Level Up Announcement Message")
-        
-        class LevelUpAnnouncementModal(discord.ui.DesignerModal):
-            def __init__(self):
-                super().__init__(
-                    discord.ui.Label(
-                        "Message (Use {user} for mention, {level} for new level)",
-                        discord.ui.InputText(
-                            placeholder="Congratulations {user}, you just reached level {level}!",
-                            style=discord.InputTextStyle.paragraph,
-                            value=data['message']['content'],
-                            required=True,
-                        )
-                    ),
-                    title="Level Up Announcement Message",
-                )
-            async def callback(self, interaction: discord.Interaction):
-                message = self.children[0].item.value
-
-                v.db.update_dash(guild, 'leveling.message.content', message)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.send_message("Level up announcement message updated!", ephemeral=True)
-
-        class LevelUpAnnouncementButton(ActionRow):
+        class LevelUpAnnouncementButton(ActionRow): # Message & Button
             @button(
                 label="Edit Announcement Message",
-                style=discord.ButtonStyle.gray,
+                style=discord.ButtonStyle.primary,
             )
-            async def callback(self, button, interaction: discord.Interaction):
+            async def callback(self, btn, interaction: discord.Interaction):
+                class LevelUpAnnouncementModal(discord.ui.DesignerModal):
+                    def __init__(self):
+                        super().__init__(
+                            discord.ui.Label(
+                                "Message",
+                                discord.ui.InputText(
+                                    value=data['message']['content'],
+                                    style=discord.InputTextStyle.long,
+                                    placeholder="Congratulations {user}, you just reached level {level}!",
+                                )
+                            ),
+                            title="Level Up Announcement Message",
+                        )
+                    async def callback(self, interaction: discord.Interaction):
+                        message = self.children[0].item.value
+
+                        v.db.update_dash(guild, 'leveling.message.content', message)
+                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+
+                        await interaction.response.send_message("Level up announcement message updated!", ephemeral=True)
                 await interaction.response.send_modal(LevelUpAnnouncementModal())
-            
         container.add_item(LevelUpAnnouncementButton())
         
         self.add_item(container)
 
         class GoBackButton(ActionRow):
             @button(
-                label="Go Back",
+                label="Back",
                 style=discord.ButtonStyle.primary,
             )
             async def callback(self, button, interaction: discord.Interaction):
                 await interaction.response.edit_message(view=PluginLeveling(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, button, interaction):
+                pass
         self.add_item(GoBackButton())
 
 class LevelingServerCardContainer(DesignerView):
@@ -195,7 +201,6 @@ class LevelingServerCardContainer(DesignerView):
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 selected_card = select.values[0]
-                print(selected_card)
 
                 v.db.update_dash(guild, 'leveling.card', selected_card)
                 v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
@@ -219,11 +224,20 @@ class LevelingServerCardContainer(DesignerView):
 
         class GoBackButton(ActionRow):
             @button(
-                label="Go Back",
+                label="Back",
                 style=discord.ButtonStyle.primary,
             )
             async def callback(self, button, interaction: discord.Interaction):
                 await interaction.response.edit_message(view=PluginLeveling(guild))
+
+            @button(
+                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
+                style=discord.ButtonStyle.gray,
+                custom_id="SaveSuccess",
+                disabled=True,
+            )
+            async def updateStatus(self, button, interaction):
+                pass
         self.add_item(GoBackButton())
 
 class LevelingRoleRewardsContainer(DesignerView):
@@ -301,7 +315,11 @@ class LevelingRoleRewardsContainer(DesignerView):
                 v.db.update_dash(guild, 'leveling.roleRewards.roles', roles)
 
                 v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.send_message(f"Role rewards updated!\n**Level:** {self.children[0]}\n**Role:** {self.children[1]}")
+                update_at = interaction.view.get_item("SaveSuccess")
+                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                await interaction.response.send_message(view=interaction.view)
+
+                await interaction.followup.send(f"Role rewards updated!\n**Level:** {self.children[0]}\n**Role:** {self.children[1]}")
         class RoleAddReward(ActionRow):
             @button(
                 label="Add Role Reward",
@@ -352,19 +370,66 @@ class LevelingXpOptionsContainer(DesignerView):
         container.add_text("Customize the other options of the XP system.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        container.add_text("## Cooldown")
+        container.add_text("While acitivity is nice, spam isnt always good. Change how often members can gain XP.")
+        class XPCooldownButton(ActionRow):
+            @button(
+                label="Set Cooldown",
+                style=discord.ButtonStyle.primary,
+            )
+            async def callback(self, button, interaction: discord.Interaction):
+                class XPCooldownModal(discord.ui.DesignerModal):
+                    def __init__(self):
+                        super().__init__(
+                            discord.ui.Label(
+                                "Cooldown in seconds",
+                                discord.ui.InputText(
+                                    placeholder="Select a number for cooldown",
+                                    style=discord.InputTextStyle.short,
+                                    value=str(data['cooldown']),
+                                )
+                            ),
+                            title="Set Cooldown",
+                        )
+                    async def callback(self, interaction: discord.Interaction):
+                        xpcooldown = int(self.children[0].item.value)
+
+                        v.db.update_dash(guild, 'leveling.cooldown', xpcooldown)
+
+                        # v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                        # update_at = interaction.view.get_item("SaveSuccess")
+                        # update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                        # await interaction.response.send_message(view=interaction.view)
+
+                        await interaction.response.send_message(f"Cooldown updated!\n**Cooldown:** {xpcooldown}s")
+                await interaction.response.send_modal(XPCooldownModal())
+        container.add_item(XPCooldownButton())
+       
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
         container.add_text("## No XP Channels")
         container.add_text("Prevent your members from gaining XP if they send messages in certain text channels.")
-
-        class NoXpChannelsSelect(ActionRow): # TODO: make this work
+        class NoXpChannelsSelect(ActionRow):
             @channel_select(
                 placeholder="Select a channel",
                 channel_types=[discord.ChannelType.text],
+                custom_id="noXPChannels",
+                default_values=[ guild.get_channel(int(channel)) for channel in data['noXP'] ] if len(data['noXP']) > 0 else None,
+                max_values=25,
             )
             async def callback(self, select, interaction: discord.Interaction):
-                await interaction.response.defer()
-                await interaction.followup.send(f"You selected {select.values[0].name}")
-        container.add_item(NoXpChannelsSelect())
+                channels: list[discord.TextChannel] = select.values
 
+                v.db.update_dash(guild, 'leveling.noXP', [str(channel.id) for channel in channels])
+
+                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                update_at = interaction.view.get_item("SaveSuccess")
+                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+
+                await interaction.response.edit_message(view=interaction.view)
+                await interaction.followup.send(f"No XP channels updated!\n**Channels:** {', '.join([channel.mention for channel in channels])}")
+        container.add_item(NoXpChannelsSelect())
+        
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("## Auto Reset")
@@ -392,7 +457,7 @@ class LevelingXpOptionsContainer(DesignerView):
                 update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(AutoResetToggle())
-
+        
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("## Economy Integration")
@@ -425,7 +490,7 @@ class LevelingXpOptionsContainer(DesignerView):
 
         class ViewButtons(ActionRow):
             @button(
-                label="Go Back",
+                label="Back",
                 style=discord.ButtonStyle.primary,
             )
             async def goBack(self, button, interaction: discord.Interaction):
@@ -510,7 +575,6 @@ class PluginLeveling(DesignerView):
         container.add_item(PluginButtons())
 
         self.add_item(container)
-
 
 # options=[
 #     discord.SelectOption(label="Level Message", description="Send a message when a user levels up"),

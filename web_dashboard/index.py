@@ -1,22 +1,22 @@
-import os
-import discord
-import json
 import logging
+from datetime import datetime, timezone
+from threading import Thread
+
+import discord
 import pymongo
 import pytz
 import stripe
-from threading import Thread
-from datetime import datetime, timezone
-from zenora import BadTokenError, APIClient
-from flask import Flask, redirect, url_for, render_template, request, flash, session, jsonify
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from zenora import APIClient, BadTokenError
+
 from modules import bot as v
-from .plugins import fetch_plugins
-from .consts import premium_faqs, premium_types, langs, tz
-from .config import URL_BASE, BOT_TOKEN, CLIENT_ID, CLIENT_SECRET, OAUTH_URL, REDIRECT_URI, WEBHOOK_PREM, mongoURI_db, mongo_cdn, stripe_config
+from .config import APP_SECRET, BOT_TOKEN, CLIENT_ID, CLIENT_SECRET, OAUTH_URL, REDIRECT_URI, URL_BASE, WEBHOOK_PREM, mongo_cdn, mongoURI_db, stripe_config
+from .consts import langs, premium_faqs, premium_types, tz
+from .plugins import PLUGIN_LIST, fetch_plugins
 
 app = Flask(__name__)
 
-app.config["SECRET_KEY"] = os.urandom(24)
+app.config["SECRET_KEY"] = APP_SECRET
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # Force template reload
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
 app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
@@ -75,27 +75,9 @@ def update_config(guild_id: int, key: str, value):
     return True
   return False
 
-def uuid_(length=8, strCase='upper/lower/nums/special'):
-  import random
 
-  nums = "0123456789"
-  uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  lowers = "abcdefghijklmnopqrstuvwxyz"
-  special = "!@#$%^&*()_+-=[]{};:,./<>?"
-  
-  combination = (strCase
-      .replace("/", '')
-      .replace("upper", uppers)
-      .replace("lower", lowers)
-      .replace("nums", nums)
-      .replace("special", special)
-  )
-  code = random.choices(combination, k=length)
-  return "".join(code)
-
-# TODO: 403, 410, 500
 @app.errorhandler(404)
-async def redirect_error_page(e):
+def redirect_error_page(e):
   return render_template('error/404.html'), 404
 
 @app.template_filter('titlecase')
@@ -104,7 +86,7 @@ def titlecase(s):
 
 ## Main web ##
 @app.route("/")
-async def index():
+def index():
   if not "token" in session:
     return render_template("index.html", logInWithDiscord=OAUTH_URL)
 
@@ -112,7 +94,7 @@ async def index():
   return render_template("index.html", user=current_user)
 
 @app.route("/plugins/management")
-async def web_token_management():
+def web_token_management():
   if not "token" in session:
     return render_template("web-plugins/management.html", logInWithDiscord=OAUTH_URL)
 
@@ -120,7 +102,7 @@ async def web_token_management():
   return render_template("web-plugins/management.html", user=current_user)
   
 @app.route("/plugins/utilities")
-async def web_token_utilities():
+def web_token_utilities():
   if not "token" in session:
     return render_template("web-plugins/utilities.html", logInWithDiscord=OAUTH_URL)
 
@@ -128,7 +110,7 @@ async def web_token_utilities():
   return render_template("web-plugins/utilities.html", user=current_user)
 
 @app.route("/plugins/engagement-and-fun")
-async def web_token_engagement():
+def web_token_engagement():
   if not "token" in session:
     return render_template("web-plugins/engagement-and-fun.html", logInWithDiscord=OAUTH_URL)
 
@@ -136,7 +118,7 @@ async def web_token_engagement():
   return render_template("web-plugins/engagement-and-fun.html", user=current_user)
 
 @app.route('/contact-us') # update
-async def contactUs():
+def contactUs():
   if not "token" in session:
     return render_template("contact-us.html", logInWithDiscord=OAUTH_URL)
 
@@ -144,7 +126,7 @@ async def contactUs():
   return render_template("contact-us.html", user=current_user)
 
 @app.route('/thanks')
-async def thanks():
+def thanks():
   if not "token" in session:
     return render_template("thanks.html", logInWithDiscord=OAUTH_URL)
   
@@ -152,7 +134,7 @@ async def thanks():
   return render_template("thanks.html", user=current_user)
 
 @app.route('/terms')
-async def terms():
+def terms():
   if not "token" in session:
     return render_template('terms.html', logInWithDiscord=OAUTH_URL)
 
@@ -160,119 +142,125 @@ async def terms():
   return render_template('terms.html', user=current_user)
 
 """@app.route("/privacy")
-async def privacy():
+def privacy():
   if not "token" in session:
     return render_template('privacy.html', logInWithDiscord=OAUTH_URL)
   
   current_user = bearer_client().get_current_user()
   return render_template('privacy.html', user=current_user)"""
 
+@app.route("/docs")
+@app.route("/docs/<section>")
+@app.route("/docs/<section>/<page_id>")
+async def docs(section=None, page_id=None):
+  print(f"section={section}, page_id={page_id}")
+
+  # Determine which page to land on
+  if page_id:
+    initial_page = page_id
+  elif section:
+    initial_page = section  # JS will handle finding the first page in that section
+  else:
+    initial_page = 'home'
+
+  if not "token" in session:
+    session['redirect'] = request.url
+    return render_template('docs.html', logInWithDiscord=OAUTH_URL, initial_page=initial_page)
+
+  current_user = bearer_client().get_current_user()
+
+  return render_template(
+    'docs.html',
+    user=current_user,
+    initial_page=initial_page,
+  )
+
 ## Bot ##
 @app.route("/status")
-async def status():
+def status():
   if not "token" in session:
-    shards = await fetch_shard_data()
+    shards = fetch_shard_data()
     return render_template("status.html", logInWithDiscord=OAUTH_URL, shards=shards)
-  
-  current_user = bearer_client().get_current_user()
-  
-  shards = await fetch_shard_data(current_user)
 
+  current_user = bearer_client().get_current_user()
+  shards = fetch_shard_data(current_user)
   return render_template("status.html", user=current_user, shards=shards)
 
 @app.route("/api/shard_status", methods=["GET"])
-async def api_shard_status():
+def api_shard_status():
   try:
     current_user = bearer_client().get_current_user()
   except:
     current_user = None
-
-  # Fetch shard data
-  api_shards = await fetch_shard_data(current_user)
-  # Return as JSON
+  
+  api_shards = fetch_shard_data(current_user)
   return jsonify(api_shards)
-
-async def fetch_shard_data(user=None):
+def fetch_shard_data(user=None):
   shard_list = []
-  user_in_guilds = []
+
+  STATE_MAP = {
+    (False, False): ("", "Ready", "green"),
+    (False, True):  ("C", "Connected", "green"),
+    (True,  False): ("L", "Logging in", "orange"),
+    (True,  True):  ("Q", "Offline, waiting turn", "red"),
+  }
 
   for shard_id, shard in bot.shards.items():
-    if not shard.is_closed() and not shard.is_ws_ratelimited():
-      emoji, state, color = "", "Ready", "green"  # No emoji, ready and functioning
-    elif not shard.is_closed() and shard.is_ws_ratelimited():
-      emoji, state, color = "C", "Connected", "green"  # Bot connected, but some commands may not work
-    elif not shard.is_closed() and shard.is_ws_ratelimited():
-      emoji, state, color = "P", "Partially connected", "orange"  # Some servers might be unresponsive
-    elif shard.is_closed() and not shard.is_ws_ratelimited():
-      emoji, state, color = "L", "Logging in", "orange"  # Bot is logging in to Discord
-    elif shard.is_closed() and shard.is_ws_ratelimited():
-      emoji, state, color = "Q", "Offline, waiting turn", "red"  # Bot is offline and waiting
-    else:
-      emoji, state, color = "🔥", "Offline, not reconnecting", "red"  # Offline and not reconnecting
+    emoji, state, color = STATE_MAP[(shard.is_closed(), shard.is_ws_ratelimited())]
+
+    user_in_guilds = []
+    shard_guilds = [g for g in bot.guilds if g.shard_id == shard_id]
 
     if user:
-      for guild in [g for g in bot.guilds if g.shard_id == shard_id]:
-        member = guild.get_member(user.id)
-        if member:
-          user_in_guilds.append(guild.name)
-    
+      user_in_guilds = [
+        g.name for g in shard_guilds if g.get_member(user.id)
+      ]
+
     shard_list.append({
       "id": shard_id,
       "emoji": emoji,
       "state": state,
       "color": color,
-      "latency": f"{shard.latency * 1000:.0f}",
-      "servers": len([g for g in bot.guilds if g.shard_id == shard_id]),
+      "latency": f"{shard.latency * 1000:.0f}ms",
+      "uptime": bot.shard_uptime.get(shard_id, datetime.now()).isoformat(),
+      "servers": len(shard_guilds),
       "user_in_guilds": user_in_guilds,
     })
+
   return shard_list
 
 ## Dashboard ##
 @app.context_processor
 def utility_processor():
   def plugs(guild):
-    """Retrieve plugins based on guild"""
-    dash_data = get_dash_config(guild)
-    plugins_list = fetch_plugins(dash_data)
-    return plugins_list
-  
+    guild_dash = get_dash_config(guild)
+    return fetch_plugins(guild_dash)
+
   def get_plugin(guild, plugin):
-    plug_list = plugs(guild)
-    for _item, _plugin in plug_list:
-      if _item != plugin:
-        continue
-      return _plugin
+    return next((_plugin for _item, _plugin in plugs(guild) if _item == plugin), None)
 
-  def GetUserGuilds():
-    g = []
-    user_guilds = bearer_client().get_my_guilds()
-    guild_ids = [gID.id for gID in bot.guilds]
-    for _guild in user_guilds:
-      if _guild.id in guild_ids:
-        _guild.active = True
-        g.append(_guild)
-    return g
+  def get_user_guilds():
+    guild_ids = {g.id for g in bot.guilds}
+    guilds = []
+    for guild in bearer_client().get_my_guilds():
+      if guild.id in guild_ids:
+        guild.active = True
+        guilds.append(guild)
+    return guilds
   
-  def server_config(guild):
-    return get_server_config(guild, True)
-
   def notifications(guild):
-    read_notifis = []
-    unread_notifis = []
-    for notif in server_config(guild)['notifications']:
-      if notif['read'] == True:
-        read_notifis.append(notif)
-      else:
-        unread_notifis.append(notif)
-    
-    def sortFn(notif):
-      return notif['created_at']['timestamp']
-    read_notifis.sort(key=sortFn)
-    unread_notifis.sort(key=sortFn)
-    unread_notifis.reverse()
-    return {'read': read_notifis, 'unread': unread_notifis[:5], 'unread_count': len(unread_notifis)}
+    all_notifs = get_server_config(guild, True)['notifications']
+    read = sorted([n for n in all_notifs if n['read']], key=lambda n: n['created_at']['timestamp'])
+    unread = sorted([n for n in all_notifs if not n['read']], key=lambda n: n['created_at']['timestamp'], reverse=True)
+    return {'read': read, 'unread': unread[:5], 'unread_count': len(unread)}
 
-  return {'plugins': plugs, 'get_plugin': get_plugin, 'guilds': GetUserGuilds,  'guild_models': guild_models, 'server_config': server_config, 'notifications': notifications}
+  return {
+    'plugins': plugs,
+    'get_plugin': get_plugin,
+    'guilds': get_user_guilds,
+    'guild_models': GuildModels,
+    'notifications': notifications,
+  }
 
 ## Auth ##
 @app.errorhandler(BadTokenError)
@@ -283,17 +271,17 @@ def handle_bad_token_error(e):
   return redirect(OAUTH_URL)
 
 @app.route("/oauth/login")
-async def login():  
+def login():  
   return redirect(OAUTH_URL)
   
 @app.route("/oauth/logout")
-async def logout():
+def logout():
   session.pop("token")
   flash("Logged you out...", "log-out")
   return redirect(url_for("index"))
 
 @app.route("/oauth/callback")
-async def oauth_callback():
+def oauth_callback():
   try:
     code = request.args.get("code")
     token = client.oauth.get_access_token(code, REDIRECT_URI).access_token
@@ -306,8 +294,9 @@ async def oauth_callback():
     redirect_url = session.get('redirect', url_for("index"))
     session.pop('redirect')
     session.pop('_flashes', None)
-    return redirect(redirect_url)
-  except:
+    return render_template("oauth_callback.html", redirect_url=redirect_url)
+  except Exception as e:
+    print(e)
     flash('Oh no, something went wrong during authentication', 'login-error')
     return redirect(url_for("index"))
 
@@ -315,26 +304,28 @@ def login_required(f):
   from functools import wraps
   
   @wraps(f)
-  async def decorated_function(*args, **kwargs):
+  def decorated_function(*args, **kwargs):
     if 'token' not in session:
       session['redirect'] = request.url
       return render_template("login.html", logInWithDiscord=url_for('login'))
-    return await f(*args, **kwargs)
+    return f(*args, **kwargs)
   return decorated_function
 
 class PremiumModuleError(Exception):
   pass
+def is_premium(guild_id) -> bool:
+  """Single source of truth for premium checks."""
+  data = get_server_config(guild_id, True)
+  if not data:
+    return False
+  return bool(data['premium']['status'] and data['premium']['active'])
 def premium_module(guild, module):
-  # Fetch server and module configurations
-  data = get_server_config(guild, True)
-
-  plug = json.load(open(f'web_dashboard/plugin_list.json', 'r', encoding='utf-8'))[module]
+  plug = PLUGIN_LIST[module]
 
   # Check if the module requires premium and the guild doesn't have premium
-  if plug.get('premium') and not data['premium']['status']:
-    print(f"⛔ Wait, {module} is a premium module.", 'error')
+  if plug.get('premium') and not is_premium(guild):
     raise PremiumModuleError(f"Guild {guild} does not have access to {module}.")
-  return data
+  return
 
 @app.errorhandler(PremiumModuleError)
 def handle_premium_module_error(e):
@@ -344,7 +335,7 @@ def handle_premium_module_error(e):
 
 ## Leaderboard ##
 @app.route("/leaderboard/<guild_id>", methods=['GET', 'POST'])
-async def leaderboard_home(guild_id):
+def leaderboard_home(guild_id):
   lvl_config = get_dash_config(guild_id).get('leveling')
 
   # ✅ Public access check
@@ -365,7 +356,7 @@ async def leaderboard_home(guild_id):
 
   # ✅ Public access check
   if not lvl_config['leaderboard'].get('public', False):
-    if not current_user or guild.get_member(current_user.id):
+    if not current_user or not guild.get_member(current_user.id):
       flash('You are not allowed to view the leaderboard', 'error')
       return redirect(url_for('index'))
 
@@ -399,11 +390,10 @@ async def leaderboard_home(guild_id):
 
   return render_template("dashboard/leaderboard.html", user=current_user, guild_permissions=gp, guild=guild, data=lvl_config, users=users)
 
-
 ## Forms ##
 @app.route("/form/<int:guild_id>/<form_id>", methods=['GET', 'POST'])
 @login_required
-async def form(guild_id, form_id):
+def form(guild_id, form_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   server_config = get_server_config(guild, True).get('settings')
@@ -458,7 +448,7 @@ async def form(guild_id, form_id):
   return render_template("form.html", user=current_user, guild=guild, data=data)
 @app.route("/form/<int:guild_id>/<form_id>/submissions", methods=['GET', 'POST', 'DELETE'])
 @login_required
-async def form_submissions(guild_id, form_id):
+def form_submissions(guild_id, form_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
 
@@ -545,7 +535,7 @@ async def guilds():
 
 @app.route("/dashboard/<int:guild_id>")
 @login_required
-async def dashboard_home(guild_id):
+def dashboard_home(guild_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   
@@ -558,7 +548,7 @@ async def dashboard_home(guild_id):
 
 @app.route("/dashboard/<int:guild_id>/settings")
 @login_required
-async def settings(guild_id):
+def settings(guild_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   
@@ -568,7 +558,7 @@ async def settings(guild_id):
 
 @app.route("/dashboard/<int:guild_id>/premium", methods=["GET", "POST"])
 @login_required
-async def premium(guild_id):
+def premium(guild_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   
@@ -603,7 +593,7 @@ async def premium(guild_id):
 
 @app.route("/dashboard/<int:guild_id>/notifications", methods=["GET", "POST"])
 @login_required
-async def notifications(guild_id):
+def notifications(guild_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
   
@@ -637,7 +627,7 @@ async def notifications(guild_id):
 ## Welcome ##
 @app.route("/dashboard/<int:guild_id>/welcome")
 @login_required
-async def welcome(guild_id):
+def welcome(guild_id):
   premium_module(guild_id, 'welcome')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -648,7 +638,7 @@ async def welcome(guild_id):
 ## Moderation ##
 @app.route("/dashboard/<int:guild_id>/moderator")
 @login_required
-async def moderation(guild_id):
+def moderation(guild_id):
   premium_module(guild_id, 'moderation')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -660,7 +650,7 @@ async def moderation(guild_id):
 ## Verification ##
 @app.route("/dashboard/<int:guild_id>/verification", methods=['GET', 'POST', 'UPDATE', 'DELETE'])
 @login_required
-async def verify(guild_id):
+def verify(guild_id):
   premium_module(guild_id, 'verification')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -754,7 +744,7 @@ async def verify(guild_id):
 ## Starboard ##
 @app.route("/dashboard/<int:guild_id>/starboard")
 @login_required
-async def starboard(guild_id):
+def starboard(guild_id):
   premium_module(guild_id, 'starboard')
 
   current_user = bearer_client().get_current_user()
@@ -766,7 +756,7 @@ async def starboard(guild_id):
 ## Forms ##
 @app.route("/dashboard/<int:guild_id>/forms")
 @login_required
-async def forms(guild_id):
+def forms(guild_id):
   premium_module(guild_id, 'forms')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -776,7 +766,7 @@ async def forms(guild_id):
   return render_template("dashboard/plugins/forms/form_index.html", user=current_user, guild=guild, data=data, plugin=plugin)
 @app.route("/dashboard/<int:guild_id>/forms/creation", methods=['GET', 'POST'])
 @login_required
-async def forms_create(guild_id):
+def forms_create(guild_id):
   premium_module(guild_id, 'forms')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -802,7 +792,7 @@ async def forms_create(guild_id):
   return render_template("dashboard/plugins/forms/form_create.html", user=current_user, guild=guild)
 @app.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
 @login_required
-async def forms_edit(guild_id, form_id):
+def forms_edit(guild_id, form_id):
   premium_module(guild_id, 'forms')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -842,13 +832,13 @@ async def forms_edit(guild_id, form_id):
       continue
     data = form
   
-  emojis = guild_models(guild).emojis
+  emojis = GuildModels(guild).emojis
   return render_template("dashboard/plugins/forms/form_edit.html", user=current_user, guild=guild, data=data, emojis=emojis)
 
 ## Temporary Channels ##
 @app.route("/dashboard/<int:guild_id>/temporary-channels", methods=['GET'])
 @login_required
-async def temporary_channels(guild_id):
+def temporary_channels(guild_id):
   premium_module(guild_id, 'temporary_channels')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -857,7 +847,7 @@ async def temporary_channels(guild_id):
   return render_template("dashboard/plugins/temporary_channels/tc_index.html", user=current_user, guild=guild, data=tempchan_data)
 @app.route("/dashboard/<int:guild_id>/temporary-channels/creation", methods=['GET', 'POST'])
 @login_required
-async def temporary_channels_create(guild_id):
+def temporary_channels_create(guild_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
 
@@ -900,7 +890,7 @@ async def temporary_channels_create(guild_id):
   return render_template("dashboard/plugins/temporary_channels/tc_create.html", user=current_user, guild=guild)
 @app.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/edition", methods=['GET', 'POST', 'DELETE'])
 @login_required
-async def temporary_channels_edit(guild_id, hub_id):
+def temporary_channels_edit(guild_id, hub_id):
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
 
@@ -934,7 +924,7 @@ async def temporary_channels_edit(guild_id, hub_id):
   
   return render_template("dashboard/plugins/temporary_channels/tc_edit.html", user=current_user, guild=guild, data=hub)
 @app.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/delete", methods=['DELETE'])
-async def temporary_channels_delete(guild_id, hub_id):
+def temporary_channels_delete(guild_id, hub_id):
   guild = bot.get_guild(guild_id)
 
   tempchan_data = get_dash_config(guild.id).get('temporary_channels')['hubs']
@@ -963,7 +953,7 @@ async def temporary_channels_delete(guild_id, hub_id):
 ## Ticketing ##
 @app.route("/dashboard/<int:guild_id>/ticketing")
 @login_required
-async def ticketing(guild_id):
+def ticketing(guild_id):
   premium_module(guild_id, 'ticketing')
   
   current_user = bearer_client().get_current_user()
@@ -973,7 +963,7 @@ async def ticketing(guild_id):
   return render_template("dashboard/plugins/ticketing/ticketing_index.html", user=current_user, guild=guild, data=dash_data)
 @app.route("/dashboard/<int:guild_id>/ticketing/creation", methods=['GET', 'POST'])
 @login_required
-async def ticketing_create(guild_id):
+def ticketing_create(guild_id):
   premium_module(guild_id, 'ticketing')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -981,52 +971,47 @@ async def ticketing_create(guild_id):
   if request.method == "POST":
     data = request.get_json()
 
-    def generateId(length=8):
-      import random, string
-      letters = string.ascii_letters + string.digits
-      return ''.join(random.choice(letters) for i in range(length))
-
-    data['id'] = generateId(12)
+    data['id'] = v.uuid(12, strCase="upper/lower/nums")
 
     async def runDiscordTask():
-      ticketing_data = get_dash_config(guild.id).get('ticketing')['pannels']
+      ticketing_data = get_dash_config(guild.id).get('ticketing')['panels']
 
       for key, val in data.items():
-        # print(guild.id, f'Dash.ticketing.pannels.{len(ticketing_data)}.{key}', val)
-        update_config(guild.id, f'Dash.ticketing.pannels.{len(ticketing_data)}.{key}', val)
+        # print(guild.id, f'Dash.ticketing.panels.{len(ticketing_data)}.{key}', val)
+        update_config(guild.id, f'Dash.ticketing.panels.{len(ticketing_data)}.{key}', val)
 
       pmEmbed = discord.Embed(
-        title=data['pannel_message.embed.title'],
-        description=data['pannel_message.embed.description'],
-        color=data['pannel_message.embed.color']
+        title=data['panel_message.embed.title'],
+        description=data['panel_message.embed.description'],
+        color=data['panel_message.embed.color']
       )
 
       view = discord.ui.View()
       view.add_item(discord.ui.Button(
-        emoji=data['pannel_button.emoji'],
-        label=data['pannel_button.label'],
-        style=getattr(discord.ButtonStyle, data['pannel_button.style']),
+        emoji=data['panel_button.emoji'],
+        label=data['panel_button.label'],
+        style=getattr(discord.ButtonStyle, data['panel_button.style']),
         custom_id='create_ticket'
       ))
 
       channel = guild.get_channel(int(data['channel_id']))
       msg = await channel.send(embed=pmEmbed, view=view)
 
-      update_config(guild.id, f'Dash.ticketing.pannels.{len(ticketing_data)}.pannel_message_id', str(msg.id))
+      update_config(guild.id, f'Dash.ticketing.panels.{len(ticketing_data)}.panel_message_id', str(msg.id))
       return
     bot.loop.create_task(runDiscordTask())
-    flash(f"Successfully created ticket pannel {data['id']}", 'success')
+    flash(f"Successfully created ticket panel {data['id']}", 'success')
     return jsonify({'status': 'success', 'message': 'Successfully created ticket'})
   
   return render_template("dashboard/plugins/ticketing/ticketing_create.html", user=current_user, guild=guild)
 @app.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/edition", methods=['GET', 'POST'])
 @login_required
-async def ticketing_edit(guild_id, ticket_id):
+def ticketing_edit(guild_id, ticket_id):
   premium_module(guild_id, 'ticketing')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
 
-  ticket_data = get_dash_config(guild.id).get('ticketing')['pannels']
+  ticket_data = get_dash_config(guild.id).get('ticketing')['panels']
 
   for ticket in ticket_data:
     if ticket['id'] != ticket_id:
@@ -1039,37 +1024,37 @@ async def ticketing_edit(guild_id, ticket_id):
     data = request.get_json()
     
     async def runDiscordTask():
-      pannel_message = guild.get_channel(int(tk_data['channel_id'])).get_partial_message(int(tk_data['pannel_message_id']))
+      panel_message = guild.get_channel(int(tk_data['channel_id'])).get_partial_message(int(tk_data['panel_message_id']))
       
       pmEmbed = discord.Embed(
-        title=data.get('pannel_message.embed.title', tk_data['pannel_message']['embed']['title']),
-        description=data.get('pannel_message.embed.description', tk_data['pannel_message']['embed']['description']),
-        color=data.get('pannel_message.embed.color', tk_data['pannel_message']['embed']['color'])
+        title=data.get('panel_message.embed.title', tk_data['panel_message']['embed']['title']),
+        description=data.get('panel_message.embed.description', tk_data['panel_message']['embed']['description']),
+        color=data.get('panel_message.embed.color', tk_data['panel_message']['embed']['color'])
       )
       
       view = discord.ui.View()
       view.add_item(discord.ui.Button(
-        emoji=data.get('pannel_button.emoji', tk_data['pannel_button']['emoji']),
-        label=data.get('pannel_button.label', tk_data['pannel_button']['label']),
-        style=getattr(discord.ButtonStyle, data.get('pannel_button.style', tk_data['pannel_button']['style'])),
+        emoji=data.get('panel_button.emoji', tk_data['panel_button']['emoji']),
+        label=data.get('panel_button.label', tk_data['panel_button']['label']),
+        style=getattr(discord.ButtonStyle, data.get('panel_button.style', tk_data['panel_button']['style'])),
         custom_id='create_ticket'
       ))
-      await pannel_message.edit(embed=pmEmbed, view=view)
+      await panel_message.edit(embed=pmEmbed, view=view)
 
       for key, val in data.items():
-        update_config(guild.id, f'Dash.ticketing.pannels.{ticket_idx}.{key}', val)
+        update_config(guild.id, f'Dash.ticketing.panels.{ticket_idx}.{key}', val)
       return
     bot.loop.create_task(runDiscordTask())
 
-    flash(f"Successfully updated ticket pannel {ticket_id}", 'success')
+    flash(f"Successfully updated ticket panel {ticket_id}", 'success')
     return jsonify({'status': 'success', 'message': 'Successfully updated ticket'})
   
   return render_template("dashboard/plugins/ticketing/ticketing_edit.html", user=current_user, guild=guild, data=tk_data)
 @app.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/delete", methods=['DELETE'])
-async def ticketing_delete(guild_id, ticket_id):
+def ticketing_delete(guild_id, ticket_id):
   guild = bot.get_guild(guild_id)
 
-  ticket_data = get_dash_config(guild.id).get('ticketing')['pannels']
+  ticket_data = get_dash_config(guild.id).get('ticketing')['panels']
 
   for ticket in ticket_data:
     if ticket['id'] != ticket_id:
@@ -1077,20 +1062,20 @@ async def ticketing_delete(guild_id, ticket_id):
     data = ticket
 
   async def runDiscordTask():
-    pannel_message = guild.get_channel(int(data['channel_id'])).get_partial_message(int(data['pannel_message_id']))
-    await pannel_message.delete()
+    panel_message = guild.get_channel(int(data['channel_id'])).get_partial_message(int(data['panel_message_id']))
+    await panel_message.delete()
     
     ticket_data.pop(ticket_data.index(data))
-    update_config(guild.id, 'Dash.ticketing.pannels', ticket_data)
+    update_config(guild.id, 'Dash.ticketing.panels', ticket_data)
   bot.loop.create_task(runDiscordTask())
 
-  flash(f"Successfully deleted ticket pannel {ticket_id}", 'success')
-  return jsonify({'status': 'success', 'message': 'Successfully deleted ticket pannel'})
+  flash(f"Successfully deleted ticket panel {ticket_id}", 'success')
+  return jsonify({'status': 'success', 'message': 'Successfully deleted ticket panel'})
 
 ## Leveling ##
 @app.route("/dashboard/<int:guild_id>/leveling")
 @login_required
-async def levelling(guild_id):
+def levelling(guild_id):
   premium_module(guild_id, 'leveling')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1110,8 +1095,8 @@ async def levelling(guild_id):
   cards = { 'all': default_cards + fun_cards, 'default': default_cards, 'cards': fun_cards }
   return render_template("dashboard/plugins/leveling.html", user=current_user, guild=guild, data=dash_data, server_cards=cards)
 
-@app.route("/lvl-cards", methods=['POST'])
-async def lvl_cards():
+@app.route("/lvl-cards", methods=['GET', 'POST'])
+def lvl_cards():
   mongoRankCards = pymongo.MongoClient(mongo_cdn)['RankCards']['Cards']
   
   default_cards = [
@@ -1128,7 +1113,7 @@ async def lvl_cards():
 ## Birthdays ##
 @app.route("/dashboard/<int:guild_id>/birthdays")
 @login_required
-async def birthdays(guild_id):
+def birthdays(guild_id):
   premium_module(guild_id, 'birthdays')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1139,7 +1124,7 @@ async def birthdays(guild_id):
 ## Giveaways ##
 @app.route("/dashboard/<int:guild_id>/giveaways")
 @login_required
-async def giveaways(guild_id):
+def giveaways(guild_id):
   premium_module(guild_id, 'giveaway')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1149,7 +1134,7 @@ async def giveaways(guild_id):
   return render_template("dashboard/plugins/giveaways/gway_index.html", user=current_user, guild=guild, config=plugin, data=data)
 @app.route("/dashboard/<int:guild_id>/giveaways/creation", methods=['GET', 'POST'])
 @login_required
-async def giveaways_creation(guild_id):
+def giveaways_creation(guild_id):
   premium_module(guild_id, 'giveaway')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1159,7 +1144,7 @@ async def giveaways_creation(guild_id):
   if request.method == 'POST':
     data = request.get_json()
 
-    uuid = uuid_(length=12, strCase="upper/lower/nums")
+    uuid = v.uuid(length=12, strCase="upper/lower/nums")
 
     channel = guild.get_channel(int(data['channel_id']))
 
@@ -1204,7 +1189,7 @@ async def giveaways_creation(guild_id):
   return render_template("dashboard/plugins/giveaways/gway_create.html", user=current_user, guild=guild)
 @app.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/edition", methods=['GET', 'POST'])
 @login_required
-async def giveaways_edition(guild_id, gway_id):
+def giveaways_edition(guild_id, gway_id):
   premium_module(guild_id, 'giveaway')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1235,18 +1220,19 @@ async def giveaways_edition(guild_id, gway_id):
 
       for key, value in jdata.items():
         print(guild.id, f'Bot.giveaways.{gway_idx}.{key}', value)
+        # update_config(guild.id, f'Bot.giveaways.{gway_idx}.{key}', value)
       return
     bot.loop.create_task(runDiscordTask())
     
     flash('Giveaway updated successfully!', 'success')
-    return jsonify({'status': 'successs', 'message': 'Giveaway updated successfully!'})
+    return jsonify({'status': 'success', 'message': 'Giveaway updated successfully!'})
 
   return render_template("dashboard/plugins/giveaways/gway_edit.html", user=current_user, guild=guild, data=data)
 
 ## Economy ##
 @app.route("/dashboard/<int:guild_id>/economy")
 @login_required
-async def economy(guild_id):
+def economy(guild_id):
   premium_module(guild_id, 'economy')
   current_user = bearer_client().get_current_user()
   guild = bot.get_guild(guild_id)
@@ -1258,7 +1244,7 @@ async def economy(guild_id):
 
 ## Data ##
 @app.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
-async def data_post(guild_id):
+def data_post(guild_id):
   data = request.get_json().items()
   guild = bot.get_guild(guild_id)
 
@@ -1484,13 +1470,15 @@ def stripe_webhook():
       return jsonify({"error": "Subscription data not found"}), 400
 
     guild_id = db_entry['_id']
+    config = db_entry['settings']
+    ptimezone = pytz.timezone(config['timezone'])
 
     # Update subscription status in database
     data = {
       "id": subscription_id,
       "status": True,
       "active": True,
-      "plan": subscription['items']['data'][0]['description'].lower(),
+      "plan": subscription['items']['data'][0]['price']['nickname'].lower(),
       "customer": subscription['customer'],
       "user_id": db_entry['premium']['user_id'],
       "subscribed_at": datetime.now(),
@@ -1534,71 +1522,59 @@ def stripe_webhook():
   # print(f"Unhandled event type {event['type']}")
   return jsonify({"status": "ignored"}), 200
 
-
-class guild_models:
-  def __init__(self, guild=None):
-    super().__init__()
-    self.guild: discord.Guild = guild
+class GuildModels:
+  def __init__(self, guild: discord.Guild = None):
+    self.guild = guild
 
   @property
   def roles(self):
-    roles = []
-    for role in self.guild.roles:
-      roles.append({
+    roles = [
+      {
         'id': role.id,
         'name': role.name,
-        'color': role.color,
+        'color': role.colors.primary,
         'permissions': role.permissions.value,
         'position': role.position,
         'disabled': role.position >= self.guild.me.top_role.position,
-      })
-    
-    roles.sort(key=lambda x: x['position'], reverse=True)
-    return roles
-  
+      }
+      for role in self.guild.roles
+    ]
+    return sorted(roles, key=lambda x: x['position'], reverse=True)
+
   @property
   def channels(self):
-    text_channels = []
-    voice = [channel for channel in self.guild.voice_channels]
-    categories = [category for category in self.guild.categories]
-
-    for channel in self.guild.text_channels:
-      text_channels.append({
+    text_channels = sorted([
+      {
         'type': 'text',
         'id': channel.id,
         'name': channel.name,
         'position': channel.position,
         'can_send': channel.permissions_for(self.guild.me).send_messages,
-      })
-    
-    def sortFn(chan):
-      return chan.position
-    
-    text_channels.sort(key=lambda x: x['position'], reverse=False)
-    voice.sort(key=sortFn)
-    categories.sort(key=sortFn)
-    return {"text": text_channels, "voice": voice, "categories": categories}
-  
+      }
+      for channel in self.guild.text_channels
+    ], key=lambda x: x['position'])
+
+    return {
+      "text": text_channels,
+      "voice": sorted(self.guild.voice_channels, key=lambda c: c.position),
+      "categories": sorted(self.guild.categories, key=lambda c: c.position),
+    }
+
   @property
   def emojis(self):
-    emojis: list[discord.Emoji] = []
-    for emoji in self.guild.emojis:
-      emojis.append({
+    return [
+      {
         'id': emoji.id,
         'name': emoji.name,
         'url': emoji.url,
         'animated': emoji.animated,
-      })
-    return emojis
+      }
+      for emoji in self.guild.emojis
+    ]
 
   @property
   def isPremium(self):
-    premiumStatus = False
-    data = get_server_config(self.guild, True)
-    
-    premiumStatus = data['premium']['status'] and data['premium']['active']
-    return premiumStatus
-
+    return is_premium(self.guild)
 
 app_started = False # Define a flag to check if the app is running
 
@@ -1606,31 +1582,6 @@ app_started = False # Define a flag to check if the app is running
 async def on_ready():
   if app_started:
     print("Dashboard is Online")
-    
-    try:
-      stop_premium.start()
-    except RuntimeError:
-      pass
-
-from discord.ext import tasks
-@tasks.loop(hours=24) # Loop through all guilds every 24 hours
-async def stop_premium():
-  for guild in bot.guilds:
-    config = get_server_config(guild, True)
-    premium = config['premium']
-
-    if premium['status'] == True:
-      if premium['plan'] != "trial":
-        continue
-      
-      subscribed_at = datetime.fromisoformat(str(premium['subscribed_at'])) # Convert the subscribed_at string to a datetime object
-      
-      expiry_date = subscribed_at + datetime.fromisoformat(str(premium['code_expiry']))
-      
-      if expiry_date <= (datetime.now()):
-        update_config(guild.id, 'premium.status', False)
-        update_config(guild.id, 'premium.active', False)
-        print(f"Premium expired for {guild.name} ({guild.id})")
 
 def run_app():
   global app_started

@@ -169,7 +169,7 @@ def init_database(guild: discord.Guild):
         },
         "ticketing": {
             'status': False,
-            'pannels': []
+            'panels': []
         },
         "temporary_channels": {
             'status': False,

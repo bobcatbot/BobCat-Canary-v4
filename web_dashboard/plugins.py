@@ -1,11 +1,11 @@
 import json
 
-def fetch_plugins(dash):
-  with open('web_dashboard/plugin_list.json', 'r', encoding='utf-8') as f:
-    plugins_dict = json.load(f)
+with open('web_dashboard/plugin_list.json', 'r', encoding='utf-8') as f:
+  PLUGIN_LIST = json.load(f)
 
-  for _item, _plugin in plugins_dict.items():
+def fetch_plugins(dash):
+  for _item, _plugin in PLUGIN_LIST.items():
     plug = dash.get(_item)
     _plugin['status'] = plug['status']
   
-  return plugins_dict.items()
+  return PLUGIN_LIST.items()

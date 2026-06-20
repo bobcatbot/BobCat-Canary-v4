@@ -8,7 +8,7 @@ class Ban(commands.Cog):
         self.client = client
         self.bot = client
 
-    @commands.slash_command(name="ban", description="Bans a member from the server", guild_ids=v.guild_ids)
+    @commands.slash_command(name="ban", description="Bans a member from the server")
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_guild_permissions(ban_members=True)
     @discord.option("member", discord.Member, description="The member you want to ban", required=True)

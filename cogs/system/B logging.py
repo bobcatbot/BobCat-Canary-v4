@@ -6,590 +6,455 @@ from modules import bot as v
 LOGGING_KEY = 'moderation.logging'
 LOGGING_EVENTS = 'moderation.logging.events'
 
+
 class events(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    ### Member Events ### 
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
-        status = v.dashboard(member.guild.id, f"{LOGGING_EVENTS}.MemberJoin")
-        log_channel = v.dashboard(member.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
+    # ── Helper ────────────────────────────────────────────────────────────────
+    def _get_log_channel(self, guild_id: int, event: str) -> discord.TextChannel | None:
+        """Returns the log channel if the event is enabled, otherwise None."""
+        if not v.dashboard(guild_id, f"{LOGGING_EVENTS}.{event}"):
+            return None
+        log_channel = v.dashboard(guild_id, f"{LOGGING_KEY}.channel")
         if not log_channel:
-            return
-        channel = self.client.get_channel(int(log_channel))
+            return None
+        return self.client.get_channel(int(log_channel))
 
-        roles = [role.mention for role in member.roles]
-        roles.sort()
-        role = " ".join(roles)
-        
+    def _author(self, embed: discord.Embed, user: discord.User | discord.Member) -> discord.Embed:
+        """Sets the embed author with avatar fallback."""
+        avatar = user.avatar.url if user.avatar else user.default_avatar.url
+        embed.set_author(icon_url=avatar, name=str(user))
+        return embed
+
+    # ── Member Events ─────────────────────────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        channel = self._get_log_channel(member.guild.id, "MemberJoin")
+        if not channel:
+            return
+
+        roles = " ".join(sorted(role.mention for role in member.roles if role.name != "@everyone"))
+
         embed = discord.Embed(
-            color=0xFFFFFF,
+            color=0x57F287,
             timestamp=d.now(),
             title="Member Joined",
-            description=f"{member.mention}\n**Roles:**\n{role}"
+            description=f"{member.mention}\n**Roles:** {roles or 'None'}"
         )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=member)
-        except AttributeError:
-            embed.set_author(name=member)
+        self._author(embed, member)
         embed.set_footer(text=f"ID: {member.id}")
         await channel.send(embed=embed)
-    
+
     @commands.Cog.listener()
-    async def on_member_remove(self, member):
+    async def on_member_remove(self, member: discord.Member):
+        # Skip if this was triggered by a ban (avoid double-logging)
         try:
-            bans = await member.guild.bans(limit=None).flatten()
-            if any(ban.user.id == member.id for ban in bans):
-                return
+            async for ban in member.guild.bans(limit=None):
+                if ban.user.id == member.id:
+                    return
         except discord.Forbidden:
             return
-        
-        status = v.dashboard(member.guild.id, f"{LOGGING_EVENTS}.MemberLeave")
-        log_channel = v.dashboard(member.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        channel = self.client.get_channel(int(log_channel))
-        
-        roles = [role.mention for role in member.roles]
-        roles.sort()
-        role = " ".join(roles)
-        
-        embed = discord.Embed(
-            color=0xFFFFFF,
-            timestamp=d.now(),
-            title="Member Left",
-            description=f"{member.mention}\n**Roles:**\n{role}"
-        )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=member)
-        except AttributeError:
-            embed.set_author(name=member)
-        embed.set_footer(text=f"ID: {member.id}")
-        await channel.send(embed=embed)
 
-    @commands.Cog.listener()
-    async def on_member_update(self, before, after):
-        status = v.dashboard(after.guild.id, f"{LOGGING_EVENTS}.MemberUpdate")
-        log_channel = v.dashboard(after.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
+        channel = self._get_log_channel(member.guild.id, "MemberLeave")
+        if not channel:
             return
-        if not log_channel:
-            return
-        channel = self.client.get_channel(int(log_channel))
 
-        if before == after:
-            return
-        
-        if before.display_name != after.display_name:
-            embed = discord.Embed(
-                color=0xfee75c,
-                timestamp=d.now(),
-                title="Nickname change",
-                description=f"**Before:** {before.display_name}\n**After:** {after.display_name}"
-            )
-            try:
-                embed.set_author(icon_url=after.avatar.url, name=after)
-            except AttributeError:
-                embed.set_author(name=after)
-            embed.set_footer(text=f"User ID: {after.id}")
-            await channel.send(embed=embed)
-
-    @commands.Cog.listener()
-    async def on_member_ban(self, guild, member):
-        status = v.dashboard(guild.id, f"{LOGGING_EVENTS}.MemberBan")
-        log_channel = v.dashboard(guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        channel = self.client.get_channel(int(log_channel))
+        roles = " ".join(sorted(role.mention for role in member.roles if role.name != "@everyone"))
 
         embed = discord.Embed(
             color=0xED4245,
             timestamp=d.now(),
-            title="Member banned",
-            description=f"{member.mention}"
+            title="Member Left",
+            description=f"{member.mention}\n**Roles:** {roles or 'None'}"
         )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=member)
-        except AttributeError:
-            embed.set_author(name=member.author)
+        self._author(embed, member)
         embed.set_footer(text=f"ID: {member.id}")
         await channel.send(embed=embed)
-    
-    @commands.Cog.listener()
-    async def on_member_unban(self, guild, member):
-        status = v.dashboard(guild.id, f"{LOGGING_EVENTS}.MemberUnban")
-        log_channel = v.dashboard(guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        channel = self.client.get_channel(int(log_channel))
-        
-        embed = discord.Embed(
-            color=0xFFFFFF,
-            timestamp=d.now(),
-            title="Member unbaned",
-            description=f"{member.mention}"
-        )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=member)
-        except AttributeError:
-            embed.set_author(name=member)
-        embed.set_footer(text=f"ID: {member.id}")
-        await channel.send(embed=embed)
-    
-    ### Message Events ###
-    @commands.Cog.listener()
-    async def on_message_delete(self, message):
-        if message.guild is None: # if this message deleted in dms
-            return
-        
-        status = v.dashboard(message.guild.id, f"{LOGGING_EVENTS}.MessageDelete")
-        log_channel = v.dashboard(message.guild.id, f"{LOGGING_KEY}.channel")
-        bots = v.dashboard(message.guild.id, f"{LOGGING_KEY}.bots")
-        if not status:
-            return
-        if not log_channel:
-            return
-        if bots and message.author.bot == True:
-            return
-        channel = self.client.get_channel(int(log_channel))
 
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        channel = self._get_log_channel(after.guild.id, "MemberUpdate")
+        if not channel:
+            return
+
+        # Nickname change
+        if before.display_name != after.display_name:
+            embed = discord.Embed(
+                color=0xfee75c,
+                timestamp=d.now(),
+                title="Nickname Changed",
+                description=f"**Before:** {before.display_name}\n**After:** {after.display_name}"
+            )
+            self._author(embed, after)
+            embed.set_footer(text=f"User ID: {after.id}")
+            await channel.send(embed=embed)
+
+        # Role changes
+        added_roles = [r for r in after.roles if r not in before.roles]
+        removed_roles = [r for r in before.roles if r not in after.roles]
+
+        if added_roles or removed_roles:
+            desc = ""
+            if added_roles:
+                desc += f"**Roles Added:** {' '.join(r.mention for r in added_roles)}\n"
+            if removed_roles:
+                desc += f"**Roles Removed:** {' '.join(r.mention for r in removed_roles)}"
+
+            embed = discord.Embed(
+                color=0xfee75c,
+                timestamp=d.now(),
+                title="Member Roles Updated",
+                description=desc
+            )
+            self._author(embed, after)
+            embed.set_footer(text=f"User ID: {after.id}")
+            await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, member: discord.User):
+        channel = self._get_log_channel(guild.id, "MemberBan")
+        if not channel:
+            return
+
+        embed = discord.Embed(
+            color=0xED4245,
+            timestamp=d.now(),
+            title="Member Banned",
+            description=f"{member.mention}"
+        )
+        self._author(embed, member)  # fixed: was member.author
+        embed.set_footer(text=f"ID: {member.id}")
+        await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_unban(self, guild: discord.Guild, member: discord.User):
+        channel = self._get_log_channel(guild.id, "MemberUnban")
+        if not channel:
+            return
+
+        embed = discord.Embed(
+            color=0x57F287,
+            timestamp=d.now(),
+            title="Member Unbanned",  # fixed: was "unbaned"
+            description=f"{member.mention}"
+        )
+        self._author(embed, member)
+        embed.set_footer(text=f"ID: {member.id}")
+        await channel.send(embed=embed)
+
+    # ── Message Events ────────────────────────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        if message.guild is None:
+            return
+
+        channel = self._get_log_channel(message.guild.id, "MessageDelete")
+        if not channel:
+            return
+
+        # Skip bot messages if the setting says to
+        if v.dashboard(message.guild.id, f"{LOGGING_KEY}.bots") and message.author.bot:
+            return
+
+        content = message.content or "*[No text content]*"
         embed = discord.Embed(
             color=0xED4245,
             timestamp=d.now(),
             title="Message Deleted",
             description=(
-                f"**Channel:** {message.channel.mention} `{message.channel.id}`"
-                f"\n**Author:** {message.author.mention} `{message.author.id}`"
-                f"\n**Message:** ```\n- {message.content}\n```"
+                f"**Channel:** {message.channel.mention} `{message.channel.id}`\n"
+                f"**Author:** {message.author.mention} `{message.author.id}`\n"
+                f"**Content:** ```{content[:1000]}```"
             )
         )
-        try:
-            embed.set_author(icon_url=message.author.avatar.url, name=message.author)
-        except AttributeError:
-            embed.set_author(name=message.author)
-        embed.set_footer(text=f"ID: {message.author.id}")
-        
-        embeds = [embed]
-        if message.embeds:
-            for em in message.embeds:
-                embeds.append(em)
-        
-        await channel.send(embeds=embeds)
-    
+        self._author(embed, message.author)
+        embed.set_footer(text=f"Message ID: {message.id}")
+
+        embeds = [embed] + list(message.embeds)
+        await channel.send(embeds=embeds[:10])  # Discord max is 10 embeds per message
+
     @commands.Cog.listener()
-    async def on_message_edit(self, before, after):
+    async def on_message_edit(self, before: discord.Message, after: discord.Message):
         if before.author.bot:
             return
         if before.content == after.content:
             return
-        
-        status = v.dashboard(after.guild.id, f"{LOGGING_EVENTS}.MessageEdit")
-        log_channel = v.dashboard(after.guild.id, f"{LOGGING_KEY}.channel")
-        bots = v.dashboard(after.guild.id, f"{LOGGING_KEY}.bots")
-        if not status:
+        if after.guild is None:
             return
-        if not log_channel:
+
+        channel = self._get_log_channel(after.guild.id, "MessageEdit")
+        if not channel:
             return
-        if bots and after.author.bot == True:
+
+        if v.dashboard(after.guild.id, f"{LOGGING_KEY}.bots") and after.author.bot:
             return
-        
+
         embed = discord.Embed(
             color=0xfaa71f,
             timestamp=d.now(),
-            title="Message edited", 
+            title="Message Edited",
             description=(
-                f"**Author:** {after.author.mention} `{after.author.id}`"
-                f"\n**Channel:** {after.channel.mention} `{after.channel.id}`"
-                f"\n**Message:** {after.jump_url} `{after.id}`"
-                f"\n\n**Content:** \n```\n- {before.content}\n``` ```\n+ {after.content}\n```"
+                f"**Author:** {after.author.mention} `{after.author.id}`\n"
+                f"**Channel:** {after.channel.mention} `{after.channel.id}`\n"
+                f"**Message:** {after.jump_url}\n\n"
+                f"**Before:** ```{before.content[:500]}```\n"
+                f"**After:** ```{after.content[:500]}```"
             )
         )
-        try:
-            embed.set_author(icon_url=before.author.avatar.url, name=before.author)
-        except AttributeError:
-            embed.set_author(icon_url=before.author.default_avatar, name=before.author)
-        embed.set_footer(text=f"ID: {before.author.id}")
+        self._author(embed, before.author)
+        embed.set_footer(text=f"Message ID: {after.id}")
 
-        channel = self.client.get_channel(int(log_channel))
         await channel.send(embed=embed)
 
-    ### Guild Events ###
+    # ── Guild Events ──────────────────────────────────────────────────────────
+
     @commands.Cog.listener()
-    async def on_guild_update(self, before, after):
-        status = v.dashboard(after.id, f"{LOGGING_EVENTS}.ServerUpdate")
-        log_channel = v.dashboard(after.id, f"{LOGGING_KEY}.channel")
-        if not status:
+    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
+        channel = self._get_log_channel(after.id, "ServerUpdate")
+        if not channel:
             return
-        if not log_channel:
-            return
-        
         if before == after:
             return
-        
-        embed = discord.Embed(title="Server updated", color=0xfee75c)
 
-        data = {}
-        data[f"{after.id}"] = {}
-        data[f"{after.id}"]["before"] = []
-        data[f"{after.id}"]["after"] = []
+        before_vals = []
+        after_vals = []
 
-        if before.icon != after.icon:
-            embed.add_field(name="New Icon", value="** **")
-            embed.set_image(url=after.icon.url)
-        
         if before.name != after.name:
-            data[f"{after.id}"]["before"].append(f"**Name:** {before.name}")
-            data[f"{after.id}"]["after"].append(f"**Name:** {after.name}")
-        
+            before_vals.append(f"**Name:** {before.name}")
+            after_vals.append(f"**Name:** {after.name}")
+        if before.icon != after.icon:
+            before_vals.append("**Icon:** *(changed)*")
+            after_vals.append("**Icon:** *(see below)*")
         if before.afk_channel != after.afk_channel:
-            def formatAfkChannel(channel):
-                return 'No inactive Channel' if channel.afk_channel == None else channel.afk_channel
-
-            data[f"{after.id}"]["before"].append(f"**AFK Channel:** {formatAfkChannel(before)}")
-            data[f"{after.id}"]["after"].append(f"**AFK Channel:** {formatAfkChannel(after)}")
-        
+            before_vals.append(f"**AFK Channel:** {before.afk_channel or 'None'}")
+            after_vals.append(f"**AFK Channel:** {after.afk_channel or 'None'}")
         if before.afk_timeout != after.afk_timeout:
-            def formatTime(x):
-                return "minute" if x.afk_timeout == 60 else "minutes"
-            
-            data[f"{after.id}"]["before"].append(f"**AFK Timeout:** {(int(before.afk_timeout) / 60):.0f} {formatTime(before)}")
-            data[f"{after.id}"]["after"].append(f"**AFK Timeout:**  {(int(after.afk_timeout) / 60):.0f} {formatTime(after)}")
-        
+            before_vals.append(f"**AFK Timeout:** {before.afk_timeout // 60}m")
+            after_vals.append(f"**AFK Timeout:** {after.afk_timeout // 60}m")
         if before.verification_level != after.verification_level:
-            data[f"{after.id}"]["before"].append(f"**Verification Level:** { str(before.verification_level).title() }")
-            data[f"{after.id}"]["after"].append(f"**Verification Level:** { str(after.verification_level).title }")
-        
-        before_values = "\n".join([item for item in data[f"{after.id}"]["before"]])
-        after_values = "\n".join([item for item in data[f"{after.id}"]["after"]])
-        
-        embed.add_field(name="Before", value=f"{ before_values }", inline=True)
-        embed.add_field(name="After", value=f"{ after_values }", inline=True)            
-        embed.set_footer(text=f"Channel ID: {after.id}")
-        
-        channel = self.client.get_channel(int(log_channel))
+            before_vals.append(f"**Verification:** {str(before.verification_level).title()}")
+            after_vals.append(f"**Verification:** {str(after.verification_level).title()}")
+
+        if not before_vals:
+            return  # Nothing worth logging changed
+
+        embed = discord.Embed(color=0xfee75c, timestamp=d.now(), title="Server Updated")
+        embed.add_field(name="Before", value="\n".join(before_vals) or "—", inline=True)
+        embed.add_field(name="After", value="\n".join(after_vals) or "—", inline=True)
+
+        if before.icon != after.icon and after.icon:
+            embed.set_image(url=after.icon.url)
+
+        embed.set_footer(text=f"Guild ID: {after.id}")
         await channel.send(embed=embed)
-        del data[f"{after.id}"]
-    
-    ### Invite Events ###
+
+    # ── Invite Events ─────────────────────────────────────────────────────────
+
     @commands.Cog.listener()
-    async def on_invite_create(self, invite):
-        status = v.dashboard(invite.guild.id, f"{LOGGING_EVENTS}.ServerInviteCreate")
-        log_channel = v.dashboard(invite.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
+    async def on_invite_create(self, invite: discord.Invite):
+        channel = self._get_log_channel(invite.guild.id, "ServerInviteCreate")
+        if not channel:
             return
-        if not log_channel:
+
+        expires = f"<t:{int(invite.expires_at.timestamp())}:F>" if invite.expires_at else "Never"
+        max_uses = f"{invite.max_uses} uses" if invite.max_uses else "No limit"
+
+        embed = discord.Embed(color=0xfee75c, timestamp=d.now(), title="Invite Created")
+        embed.add_field(name="Code", value=f"[{invite.code}]({invite.url})", inline=False)
+        embed.add_field(name="Max Uses", value=max_uses, inline=True)
+        embed.add_field(name="Expires", value=expires, inline=True)
+        embed.add_field(name="Inviter", value=invite.inviter.mention if invite.inviter else "Unknown", inline=False)
+        embed.add_field(name="Channel", value=invite.channel.mention, inline=False)
+        await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_invite_delete(self, invite: discord.Invite):
+        channel = self._get_log_channel(invite.guild.id, "ServerInviteDelete")
+        if not channel:
             return
-        
-        date = invite.expires_at
-        expires_at = "Never" if invite.expires_at == None else date.strftime("%f")
-        max_uses = "No limit" if invite.max_uses == 0 else f"{invite.max_uses} uses"
+        if not invite.inviter:
+            return
+
+        expires = f"<t:{int(invite.expires_at.timestamp())}:F>" if invite.expires_at else "Never"
+        max_uses = f"{invite.max_uses} uses" if invite.max_uses else "No limit"
+
+        embed = discord.Embed(color=0xED4245, timestamp=d.now(), title="Invite Deleted")
+        embed.add_field(name="Code", value=f"[{invite.code}]({invite.url})", inline=False)
+        embed.add_field(name="Max Uses", value=max_uses, inline=True)
+        embed.add_field(name="Expires", value=expires, inline=True)
+        embed.add_field(name="Inviter", value=invite.inviter.mention, inline=False)
+        embed.add_field(name="Channel", value=invite.channel.mention, inline=False)
+        await channel.send(embed=embed)
+
+    # ── Channel Events ────────────────────────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
+        log = self._get_log_channel(channel.guild.id, "ChannelCreate")
+        if not log:
+            return
+
+        kind = "Text" if isinstance(channel, discord.TextChannel) else "Voice" if isinstance(channel, discord.VoiceChannel) else "Channel"
+        embed = discord.Embed(
+            color=0x57F287,
+            timestamp=d.now(),
+            title=f"{kind} Channel Created",
+            description=f"**Name:** {channel.mention}\n**Category:** {channel.category or 'None'}"
+        )
+        embed.set_footer(text=f"Channel ID: {channel.id}")
+        await log.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
+        log = self._get_log_channel(channel.guild.id, "ChannelDelete")
+        if not log:
+            return
+
+        kind = "Text" if isinstance(channel, discord.TextChannel) else "Voice" if isinstance(channel, discord.VoiceChannel) else "Channel"
+        embed = discord.Embed(
+            color=0xED4245,
+            timestamp=d.now(),
+            title=f"{kind} Channel Deleted",
+            description=f"**Name:** #{channel.name}\n**Category:** {channel.category or 'None'}"
+        )
+        embed.set_footer(text=f"Channel ID: {channel.id}")
+        await log.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+        log = self._get_log_channel(after.guild.id, "ChannelUpdate")
+        if not log:
+            return
+
+        # Skip permission overwrite and position-only changes
+        if before.overwrites != after.overwrites:
+            return
+        if before.position != after.position:
+            return
+
+        before_vals = []
+        after_vals = []
+
+        if before.name != after.name:
+            before_vals.append(f"**Name:** {before.name}")
+            after_vals.append(f"**Name:** {after.name}")
+        if before.category != after.category:
+            before_vals.append(f"**Category:** {before.category or 'None'}")
+            after_vals.append(f"**Category:** {after.category or 'None'}")
+
+        if isinstance(after, discord.TextChannel):
+            kind = "Text"
+            if before.topic != after.topic:
+                before_vals.append(f"**Topic:** {before.topic or 'None'}")
+                after_vals.append(f"**Topic:** {after.topic or 'None'}")
+            if before.slowmode_delay != after.slowmode_delay:
+                before_vals.append(f"**Slowmode:** {before.slowmode_delay}s")
+                after_vals.append(f"**Slowmode:** {after.slowmode_delay}s")
+
+        elif isinstance(after, discord.VoiceChannel):
+            kind = "Voice"
+            if before.bitrate != after.bitrate:
+                before_vals.append(f"**Bitrate:** {before.bitrate // 1000}kbps")
+                after_vals.append(f"**Bitrate:** {after.bitrate // 1000}kbps")
+            if before.user_limit != after.user_limit:
+                before_vals.append(f"**User Limit:** {before.user_limit}")
+                after_vals.append(f"**User Limit:** {after.user_limit}")
+        else:
+            kind = "Channel"
+
+        if not before_vals:
+            return  # Nothing worth logging changed
+
+        embed = discord.Embed(color=0xfee75c, timestamp=d.now(), title=f"{kind} Channel Updated")
+        embed.add_field(name="Before", value="\n".join(before_vals), inline=True)
+        embed.add_field(name="After", value="\n".join(after_vals), inline=True)
+        embed.set_footer(text=f"Channel ID: {after.id}")
+        await log.send(embed=embed)
+
+    # ── Role Events ───────────────────────────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_guild_role_create(self, role: discord.Role):
+        channel = self._get_log_channel(role.guild.id, "RoleCreate")
+        if not channel:
+            return
 
         embed = discord.Embed(
-            color=0xfee75c,
+            color=0x57F287,
             timestamp=d.now(),
-            title="Invite Created"
+            title="Role Created",
+            description=(
+                f"**Name:** {role.mention}\n"
+                f"**Color:** {role.colors.primary}\n"
+                f"**Mentionable:** {role.mentionable}\n"
+                f"**Hoisted:** {role.hoist}"
+            )
         )
-        embed.add_field(name="Invite Code", value=f"[{invite.code}]({invite.url})", inline=False)
-        embed.add_field(name="Uses", value=f"{max_uses}", inline=False)
-        embed.add_field(name="Expires", value=f"<t:{expires_at}:F>", inline=False)
-        embed.add_field(name="Inviter", value=f"{invite.inviter.mention}", inline=False)
-        embed.add_field(name="Channel", value=f"{invite.channel.mention}", inline=False)
-
-        channel = self.client.get_channel(int(log_channel))
+        embed.set_footer(text=f"Role ID: {role.id}")
         await channel.send(embed=embed)
 
     @commands.Cog.listener()
-    async def on_invite_delete(self, invite):
-        status = v.dashboard(invite.guild.id, f"{LOGGING_EVENTS}.ServerInviteDelete")
-        log_channel = v.dashboard(invite.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
+    async def on_guild_role_delete(self, role: discord.Role):
+        channel = self._get_log_channel(role.guild.id, "RoleDelete")
+        if not channel:
             return
-        if not log_channel:
-            return
-        
-        if invite.inviter == None:
-            return
-        
-        date = invite.expires_at
-        expires_at = "Never" if invite.expires_at == None else date.strftime("%f")
-        max_uses = "No limit" if invite.max_uses == 0 else f"{invite.max_uses} uses"
 
         embed = discord.Embed(
             color=0xED4245,
             timestamp=d.now(),
-            title="Invite Deleted"
-        )
-        embed.add_field(name="Invite Code", value=f"[{invite.code}]({invite.url})", inline=False)
-        embed.add_field(name="Uses", value=f"{max_uses}", inline=False)
-        embed.add_field(name="Expires", value=f"<t:{expires_at}:F>", inline=False)
-        embed.add_field(name="Inviter", value=f"{invite.inviter.mention}", inline=False)
-        embed.add_field(name="Channel", value=f"{invite.channel.mention}", inline=False)
-
-        channel = self.client.get_channel(int(log_channel))
-        await channel.send(embed=embed)
-    
-    ### Emoji Events ###
-    #@commands.Cog.listener()
-    async def on_guild_emojis_update(self, guild, before, after):
-        status = v.dashboard(guild.id, f"{LOGGING_KEY}.status")
-        log_channel = v.dashboard(guild.id, f"{LOGGING_KEY}.channel")
-        
-        if status == "Enabled":
-            embed = discord.Embed(
-                color=0xEB459E,
-                timestamp=d.now(),
-                title="Emoji updated",
-                description=f"**Before:** {before}\n**After:** {after}"
+            title="Role Deleted",
+            description=(
+                f"**Name:** {role.name}\n"
+                f"**Color:** {role.colors.primary}\n"
+                f"**Mentionable:** {role.mentionable}\n"
+                f"**Hoisted:** {role.hoist}"
             )
-            embed.set_footer(text=f"Emoji ID: {after.id}")
-            channel = self.client.get_channel(int(log_channel))
-            await channel.send(embed=embed)
-    
-    ### Channel Events ###
-    @commands.Cog.listener()
-    async def on_guild_channel_create(self, channel):
-        status = v.dashboard(channel.guild.id, f"{LOGGING_EVENTS}.ChannelCreate")
-        log_channel = v.dashboard(channel.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        
-        Channel = self.client.get_channel(int(log_channel))
-        
-        if isinstance(channel, discord.TextChannel):
-            embed = discord.Embed(
-                color=0x57F287,
-                timestamp=d.now(),
-                title="Text channel created",
-                description=f"**Name:** {channel.name}\n**Category:** {channel.category}"
-            )
-            embed.set_footer(text=f"Channel ID: {channel.id}")
-            await Channel.send(embed=embed)
-            return
-        if isinstance(channel, discord.VoiceChannel):
-            embed = discord.Embed(
-                color=0x57F287,
-                timestamp=d.now(),
-                title="Voice channel created",
-                description=f"**Name:** {channel.name}\n**Category:** {channel.category}"
-            )
-            embed.set_footer(text=f"Channel ID: {channel.id}")
-            await Channel.send(embed=embed)
-            return
-        
-    @commands.Cog.listener()
-    async def on_guild_channel_delete(self, channel):
-        status = v.dashboard(channel.guild.id, f"{LOGGING_EVENTS}.ChannelDelete")
-        log_channel = v.dashboard(channel.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        
-        Channel = self.client.get_channel(int(log_channel))
-                
-        if isinstance(channel, discord.TextChannel):
-            embed = discord.Embed(
-                color=0xED4245,
-                timestamp=d.now(),
-                title="Text channel deleted",
-                description=f"**Name:** {channel.name}\n**Category:** {channel.category}"
-            )
-            embed.set_footer(text=f"Channel ID: {channel.id}")
-            await Channel.send(embed=embed)
-            return
-        if isinstance(channel, discord.VoiceChannel):
-            embed = discord.Embed(
-                color=0xED4245,
-                timestamp=d.now(),
-                title="Voice channel deleted",
-                description=f"**Name:** {channel.name}\n**Category:** {channel.category}"
-            )
-            embed.set_footer(text=f"Channel ID: {channel.id}")
-            await Channel.send(embed=embed)
-            return
-        
-    @commands.Cog.listener()
-    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
-        status = v.dashboard(after.guild.id, f"{LOGGING_EVENTS}.ChannelUpdate")
-        log_channel = v.dashboard(after.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-                
-        channel = self.client.get_channel(int(log_channel))
-
-        data = {}
-        data[f"{after.guild.id}"] = {}
-        data[f"{after.guild.id}"]["before"] = []
-        data[f"{after.guild.id}"]["after"] = []
-
-        if before.overwrites != after.overwrites:
-            return
-
-        if isinstance(after, discord.TextChannel):
-            embed = discord.Embed(
-                color=0xfee75c,
-                timestamp=d.now(),
-                title="Text channel updated",
-            )
-
-            if before.position != after.position:
-                return
-            if before.name != after.name:
-                data[f"{after.guild.id}"]["before"].append(f"**Name:** {before.name}")
-                data[f"{after.guild.id}"]["after"].append(f"**Name:** {after.name}")
-            if before.topic != after.topic:
-                data[f"{after.guild.id}"]["before"].append(f"**Topic:** {before.topic}")
-                data[f"{after.guild.id}"]["after"].append(f"**Topic:** {after.topic}")
-            if before.category != after.category:
-                data[f"{after.guild.id}"]["before"].append(f"**Category:** {before.category}")
-                data[f"{after.guild.id}"]["after"].append(f"**Category:** {after.category}")
-            if before.slowmode_delay != after.slowmode_delay:
-                data[f"{after.guild.id}"]["before"].append(f"**Slowmode:** {before.slowmode_delay} seconds")
-                data[f"{after.guild.id}"]["after"].append(f"**Slowmode:** {after.slowmode_delay} seconds")
-            
-            before_values = "\n".join([item for item in data[f"{after.guild.id}"]["before"]])
-            after_values = "\n".join([item for item in data[f"{after.guild.id}"]["after"]])
-            
-            embed.add_field(name="Before", value=f"{ before_values }", inline=True)
-            embed.add_field(name="After", value=f"{ after_values }", inline=True)
-            embed.set_footer(text=f"Channel ID: {after.id}")
-            await channel.send(embed=embed)
-
-            del data[f"{after.guild.id}"]
-            return
-
-        if isinstance(after, discord.VoiceChannel):
-            embed = discord.Embed(
-                color=0xfee75c,
-                timestamp=d.now(),
-                title="Voice channel updated",
-            )
-            
-            if before.position != after.position:
-                return
-            if before.name != after.name:
-                data[f"{after.guild.id}"]["before"].append(f"**Name:** {before.name}")
-                data[f"{after.guild.id}"]["after"].append(f"**Name:** {after.name}")
-            if before.bitrate != after.bitrate:
-                data[f"{after.guild.id}"]["before"].append(f"**Bitrate:** {(before.bitrate / 1000):.0f}kbps")
-                data[f"{after.guild.id}"]["after"].append(f"**Bitrate:** {(after.bitrate / 1000):.0f}kbps")
-            if before.user_limit != after.user_limit:
-                data[f"{after.guild.id}"]["before"].append(f"**User limit:** {before.user_limit} user")
-                data[f"{after.guild.id}"]["after"].append(f"**User Limit:** {after.user_limit} user")
-            if before.category != after.category:
-                data[f"{after.guild.id}"]["before"].append(f"**Category:** {before.category}")
-                data[f"{after.guild.id}"]["after"].append(f"**Category:** {after.category}")
-            
-            before_values = "\n".join([item for item in data[f"{after.guild.id}"]["before"]])
-            after_values = "\n".join([item for item in data[f"{after.guild.id}"]["after"]])
-            
-            embed.add_field(name="Before", value=f"{ before_values }", inline=True)
-            embed.add_field(name="After", value=f"{ after_values }", inline=True)
-            embed.set_footer(text=f"Channel ID: {after.id}")
-            await channel.send(embed=embed)
-            return
-        
-    ### Role Events
-    @commands.Cog.listener()
-    async def on_guild_role_create(self, role):
-        status = v.dashboard(role.guild.id, f"{LOGGING_EVENTS}.RoleCreate")
-        log_channel = v.dashboard(role.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        
-        channel = self.client.get_channel(int(log_channel))
-
-        embed = discord.Embed(
-            color=0xFFFFFF,
-            timestamp=d.now(),
-            title="Role created",
-            description=f"**Name:** {role.name}\n**Colour** {role.color}\n**Mentionable:** {role.mentionable}\n**Displayed separately:** {role.hoist}"
         )
         embed.set_footer(text=f"Role ID: {role.id}")
         await channel.send(embed=embed)
-        
+
     @commands.Cog.listener()
-    async def on_guild_role_delete(self, role):
-        status = v.dashboard(role.guild.id, f"{LOGGING_EVENTS}.RoleDelete")
-        log_channel = v.dashboard(role.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
+    async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
+        channel = self._get_log_channel(after.guild.id, "RoleUpdate")
+        if not channel:
             return
-        if not log_channel:
+
+        # Skip position-only changes (Discord fires this constantly)
+        if before.position != after.position:
             return
-        
-        channel = self.client.get_channel(int(log_channel))
-        
-        embed = discord.Embed(
-            color=0x000000,
-            timestamp=d.now(),
-            title="Role deleted",
-            description=f"**Name:** {role.name}\n**Colour** {role.color}\n**Mentionable:** {role.mentionable}\n**Displayed separately:** {role.hoist}"
-        )
-        embed.set_footer(text=f"Role ID: {role.id}")
-        await channel.send(embed=embed)
-    
-    @commands.Cog.listener()
-    async def on_guild_role_update(self, before, after):
-        status = v.dashboard(after.guild.id, f"{LOGGING_EVENTS}.RoleUpdate")
-        log_channel = v.dashboard(after.guild.id, f"{LOGGING_KEY}.channel")
-        if not status:
-            return
-        if not log_channel:
-            return
-        
-        if before == after:
-            return
-                
-        channel = self.client.get_channel(int(log_channel))
-        
+
+        before_vals = []
+        after_vals = []
+
+        if before.name != after.name:
+            before_vals.append(f"**Name:** {before.name}")
+            after_vals.append(f"**Name:** {after.name}")
+        if before.colors.primary != after.colors.primary:
+            before_vals.append(f"**Color:** {before.colors.primary}")
+            after_vals.append(f"**Color:** {after.colors.primary}")
+        if before.hoist != after.hoist:
+            before_vals.append(f"**Hoisted:** {before.hoist}")
+            after_vals.append(f"**Hoisted:** {after.hoist}")
+        if before.mentionable != after.mentionable:
+            before_vals.append(f"**Mentionable:** {before.mentionable}")
+            after_vals.append(f"**Mentionable:** {after.mentionable}")
+
+        if not before_vals:
+            return  # Nothing worth logging changed
+
         embed = discord.Embed(
             color=0xfee75c,
             timestamp=d.now(),
-            title=f'Role "{before.name}" updated',
+            title=f'Role Updated: "{before.name}"'
         )
-
-        data = {}
-        data[f"{after.guild.id}"] = {}
-        data[f"{after.guild.id}"]["before"] = []
-        data[f"{after.guild.id}"]["after"] = []
-        
-        if before.position != after.position:
-            return
-        if before.name != after.name:
-            data[f"{after.guild.id}"]["before"].append(f"**Name:** {before.name}")
-            data[f"{after.guild.id}"]["after"].append(f"**Name:** {after.name}")
-        if before.color != after.color:
-            data[f"{after.guild.id}"]["before"].append(f"**Colour:** {before.color}")
-            data[f"{after.guild.id}"]["after"].append(f"**Colour:** {after.color}")
-        if before.hoist != after.hoist:
-            data[f"{after.guild.id}"]["before"].append(f"**Separated:** {before.hoist}")
-            data[f"{after.guild.id}"]["after"].append(f"**Separated:** {after.hoist}")
-        if before.mentionable != after.mentionable:
-            data[f"{after.guild.id}"]["before"].append(f"**Mentionable:** {before.mentionable}")
-            data[f"{after.guild.id}"]["after"].append(f"**Mentionable:** {after.mentionable}")
-                
-        before_values = "\n".join([item for item in data[f"{after.guild.id}"]["before"]])
-        after_values = "\n".join([item for item in data[f"{after.guild.id}"]["after"]])
-        
-        embed.add_field(name="Before", value=f"{ before_values }", inline=True)
-        embed.add_field(name="After", value=f"{ after_values }", inline=True)
+        embed.add_field(name="Before", value="\n".join(before_vals), inline=True)
+        embed.add_field(name="After", value="\n".join(after_vals), inline=True)
         embed.set_footer(text=f"Role ID: {after.id}")
         await channel.send(embed=embed)
-    
+
+
 def setup(client):
     client.add_cog(events(client))

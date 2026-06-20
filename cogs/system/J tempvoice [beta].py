@@ -117,26 +117,7 @@ class TempVoice(commands.Cog):
         except:
             pass
 
-    # ------------------------------------------------------
-    #   UPDATE HUB NAME ON CHANNEL RENAME
-    # ------------------------------------------------------
-    @commands.Cog.listener()
-    async def on_guild_channel_update(self, before, after):
-
-        if not isinstance(after, discord.VoiceChannel):
-            return
-
-        hubs = v.db.get_dash(after.guild)['temporary_channels']['hubs']
-        hub = next((h for h in hubs if h['channel_id'] == str(after.id)), None)
-
-        if hub:
-            v.db.update_dash(
-                after.guild,
-                key=f"temporary_channels.hubs.{hubs.index(hub)}.hub_name",
-                value=after.name
-            )
-
-    # Manage your voice channel pannel
+    # Manage your voice channel panel
     @commands.slash_command(name="tempvoice-manage", description="Manage your temporary voice channel")
     async def tempvoice_manage(self, ctx: discord.ApplicationContext):
         tcs: list = v.db.get_server_config(ctx.guild)['temporary_channels']
