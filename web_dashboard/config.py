@@ -1,10 +1,11 @@
 import os
+from typing import Literal  
 from dotenv import load_dotenv
 
 load_dotenv()
 
 URL_BASE = os.getenv('URL_BASE')
-PY_ENV = os.getenv('PY_ENV')
+PY_ENV: Literal["development", "production"] = os.getenv('PY_ENV')
 
 APP_SECRET = os.getenv('APP_SECRET')
 
@@ -14,6 +15,7 @@ CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
 REDIRECT_URI = os.getenv('REDIRECT_URI')
 OAUTH_URL = f"https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=identify%20guilds%20email%20guilds.join"
+INVITE_URL = f"https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}&permissions=1644905889015&scope=bot%20applications.commands"
 
 WEBHOOK_PREM = os.getenv('WEBHOOK_PREM')
 

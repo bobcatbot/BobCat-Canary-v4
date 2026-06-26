@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Transcript {{ data.id }} | BobCat Bot</title>
+  {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/Navbar.html' %}
+  
+  <!-- ======= Main ======= -->
+  <main id="main" class="main ms-0" style="padding: 30px 30px 60px 30px;">
+    <div class="section-title">
+      <img src="{{guild.icon.url}}" alt="Server Icon" style="width: 150px;border-radius: 20px;">
+      <div>
+        <h1>{{guild.name}}</h1>
+        <!-- <p>Transcript[0][channel][catagotry] - Transcript[0][channel][name]</p> -->
+        <div style="text-align: start;">
+          Ticket #{{ ticket_idx }} - <br>
+          Type: 📩 Create Ticket - <br>
+          Closed by: {{ closed_by.display_name if closed_by else data['closed']['user'] }} - <br>
+          Created by: {{ data['creator']['name'] }}
+        </div>
+      </div>
+    </div>
+    
+    <div id="transcript-messsages">
+      {% for message in data['transcript'] %}
+      <div class="profile">
+        <div class="profile-image">
+          <img src="{{message['user']['avatar']}}" alt="Profile Image">
+        </div>
+        <div>
+          <div class="profile-name">
+            <div>
+              <span style="font-weight: bold;">{{message['user']['name']}}</span>
+              {% if message['user']['bot'] %}<span class="bot-tag">APP</span>{% endif %}
+            </div>
+            <div>
+              <span>{{message['timestamp']['formatted']}}</span>
+            </div>
+          </div>
+            
+          <div>
+            {% if message['content'] != '' %}
+            <p class="message_content">{{ message['content'] }}</p>
+            {% endif %}
+
+            {% for embed in message['embeds'] %}
+            <div class="embed">
+              <div class="e-bdFBtt">
+                {% if embed.get('title') %}
+                <div class="title embedMargin-2PsaQ4">
+                  <p>{{ embed.title }}</p>
+                </div>
+                {% endif %}
+
+                {% if embed.get('description') %}
+                <div class="desc embedMargin-2PsaQ4">
+                  <p>{{ embed.description }}</p>
+                </div>
+                {% endif %}
+
+                {% for field in embed.get('fields', []) %}
+                <div class="fields">
+                  {%  %}
+                  <div class="field">
+                    <div class="name">{{field.name}}</div>
+                    <div class="value">{{field.value}}</div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="transcript-end">
+      <p class="transcript-count">{{ data['transcript'] | length }} Messages</p>
+    </div>
+  </main>
+
+  <style>
+    .section-title {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 5px;
+    }
+
+    .message_content {
+      margin: 0;
+    }
+
+    .profile {
+      display: flex;
+      flex-direction: row;
+      margin-bottom: 18px;
+    }
+
+    .profile-image {
+      margin-right: 10px;
+    }
+    .profile-image img {
+      width: 50px; 
+      height: 50px; 
+      border-radius: 50%;
+    }
+
+    .profile-name {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
+    }
+
+    .bot-tag {
+      background-color: rgb(88, 101, 242);
+      color: rgb(255, 255, 255);
+      font-size: 0.625em;
+      margin-left: 4px;
+      line-height: 100%;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      height: 0.9375rem;
+      padding: 0px 0.275rem;
+      border-radius: 0.1875rem;
+    }
+
+
+    .transcript-end {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translate(-50%, 0);
+
+      width: 100%;
+      height: 50px;
+      background-color: var(--color-accent);
+      color: #fff;
+    }
+
+    .transcript-count {
+      margin: 0;
+      font-size: 18px;
+      text-align: center;
+      line-height: 50px;
+    }
+  </style>
+</body>

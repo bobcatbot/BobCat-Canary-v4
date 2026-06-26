@@ -7,7 +7,7 @@ class Slowmode(commands.Cog):
         self.client = client
         self.bot = client
 
-# slowmode [time]
+# slowmode [time|off]
     @commands.slash_command(name="slowmode", description="Sets the slowmode of a channel")
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_permissions(manage_channels=True)
@@ -24,7 +24,7 @@ class Slowmode(commands.Cog):
         await ctx.channel.edit(slowmode_delay=delay)
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            description=f"{ctx.channel.mention} is now in slowmode of **{delay} seconds** \n\n(Suggestion: Type b!slowmode off when you want to disable slowmode)"
+            description=f"{ctx.channel.mention} is now in slowmode of **{delay} seconds** \n\n(Suggestion: Type /slowmode off when you want to disable slowmode)"
         )
         await ctx.send(embed=embed)
 
@@ -39,15 +39,15 @@ class Slowmode(commands.Cog):
             return await ctx.send(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to set slowmode", fix="https://docs.bobcatbot.xyz/moderation/slowmode")
-            embed = discord.Embed(description="❌ I can't do that because I'm missing the `Manage Channels` permission.  \n\nNeed help?\nhttps://docs.bobcatbot.xyz/moderation/slowmode", color=v.error)
+            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to set slowmode", description='Please give BobCat the "Manage Channels" permission')
+            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Manage Channels` permission.  \n\nNeed help?\n{v.docs}/moderation/slowmode", color=v.error)
             return await ctx.send(embed=embed)
 
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url="https://www.docs.bobcatbot.xyz/moderation/slowmode",
-                description="b!slowmode [seconds]  \n\n**Arguments**\n`seconds`: time in SECONDS"
+                title="Invalid Usage", url=f"{v.docs}/moderation/slowmode",
+                description="/slowmode [seconds]  \n\n**Arguments**\n`seconds`: time in SECONDS"
             )
             return await ctx.send(embed=embed)
 

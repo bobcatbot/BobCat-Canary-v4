@@ -40,7 +40,7 @@ class TicketControls(discord.ui.View):
         ticket_idx = tickets.index(ticket)
         v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.claimed', value={
             "status": True,
-            "user": f"{interaction.user.id}",
+            "user": interaction.user.id,
             "updated_at": f"{datetime.now()}"
         })
 
@@ -91,7 +91,7 @@ class TicketControls(discord.ui.View):
                 v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed', value={
                     "status": True,
                     "reason": self.children[0].value,
-                    "user": f"{interaction.user.id}",
+                    "user": interaction.user.id,
                     "updated_at": f"{datetime.now()}"
                 })
 
@@ -139,7 +139,7 @@ class TicketControls(discord.ui.View):
             v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.reopened.status', value=True)
             v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.reopened', value={
                 "status": True,
-                "user": f"{interaction.user.id}",
+                "user": interaction.user.id,
                 "updated_at": f"{datetime.now()}"
             })
 
@@ -198,9 +198,9 @@ class TicketControls(discord.ui.View):
                     v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.updated_at', value=f"{datetime.now()}")
                 
                 v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.deleted', value={
-                    'status': True,
-                    'user': interaction.user.id,
-                    'updated_at': f"{datetime.now()}"
+                    "status": True,
+                    "user": interaction.user.id,
+                    "updated_at": f"{datetime.now()}"
                 })
 
                 user_message_count = {}
@@ -374,6 +374,7 @@ class Ticketing(commands.Cog):
                 msg_content = msg_content.replace(f"<@&{role.id}>", f"@{role.name}")
 
             new_entry = {
+                "id": str(message.id),
                 "user": {
                     "id": str(message.author.id),
                     "name": message.author.display_name,
@@ -381,14 +382,19 @@ class Ticketing(commands.Cog):
                     "color": next((role.colors.primary for role in message.author.roles if role.hoist), ''),
                     "bot": message.author.bot
                 },
-                "id": str(message.id),
                 "content": msg_content,
                 "embeds": [embed.to_dict() for embed in message.embeds] if message.embeds else [],
                 "attachments": [a.url for a in message.attachments] if message.attachments else [],
+                "pin": message.type == discord.MessageType.pins_add,
                 "timestamp": {
                     "created": f"{message.created_at}",
                     "formatted": message.created_at.strftime("%d/%m/%Y %H:%M:%S"),
                 },
+                "channel": {
+                    "id": str(message.channel.id),
+                    "name": message.channel.name,
+                    "catagory": message.channel.category.name
+                }
             }
 
             ticket_idx = tickets.index(ticket)

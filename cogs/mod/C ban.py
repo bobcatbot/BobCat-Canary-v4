@@ -75,15 +75,15 @@ class Ban(commands.Cog):
             return await ctx.send(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to ban members", fix="https://docs.bobcatbot.xyz/commands/moderation/ban")
-            embed = discord.Embed(description="❌ I can't do that because I'm missing the `Ban Members` permission.  \n\nNeed help?\nhttps://docs.bobcatbot.xyz/commands/moderation/ban")
+            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to ban members", description='Please give BobCat the "Ban Members" permission')
+            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Ban Members` permission.  \n\nNeed help?\n{v.docs}/moderation/ban")
             return await ctx.send(embed=embed)
 
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url="https://docs.bobcatbot.xyz/commands/moderation/ban",
-                description="b!ban [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`reason`: reason for the ban",
+                title="Invalid Usage", url=f"{v.docs}/moderation/ban",
+                description="/ban [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`reason`: reason for the ban",
             )
             return await ctx.send(embed=embed)
 
@@ -131,15 +131,15 @@ class UnBan(commands.Cog):
             return await ctx.send(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unban members", fix="https://docs.bobcatbot.xyz/commands/moderation/unban")
-            embed = discord.Embed(description="❌ I can't do that because I'm missing the `Ban Members` permission.  \n\nNeed help?\nhttps://docs.bobcatbot.xyz/commands/moderation/unban")
+            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unban members", description='Please give BobCat the "Ban Members" permission')
+            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Ban Members` permission.  \n\nNeed help?\n{v.docs}/moderation/unban")
             return await ctx.send(embed=embed)
         
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url="https://docs.bobcatbot.xyz/commands/moderation/unban",
-                description="b!unban [member] \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag",
+                title="Invalid Usage", url=f"{v.docs}/moderation/unban",
+                description="/unban [member] \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag",
             )
             return await ctx.send(embed=embed)
 

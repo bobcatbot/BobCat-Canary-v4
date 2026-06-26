@@ -24,11 +24,11 @@ client = commands.AutoShardedBot(
   help_command=None,
 )
 
-guild_ids = [903243004544962600]
 btz_gid = 903243004544962600
+guild_ids = [ btz_gid, ]
 
 web_url = "http://localhost:8000"
-webDocs_url = "http://localhost:8000/docs"
+docs = "http://localhost:8000/docs"
 
 db = Database()
 
@@ -84,26 +84,23 @@ def uuid(length: int = 8, strCase: Literal["upper/lower/nums/special"] = "upper/
     return "".join(random.choices(combination, k=length))
 
 def push_notification(
-    guild: Union[int, discord.Guild],  # Guild is a hypothetical class; replace with the actual type
-    types: Literal["info", "error"],
+    guild: Union[int, discord.Guild],
+    kind: Literal["info", "error"],
     title: str,
     description: Optional[str] = None,
     fix: Optional[str] = None,
     link: Optional[str] = None,
 ) -> None:
     try:
-        guildID = guild.id
+        guild_id = guild.id
     except AttributeError:
-        guildID = guild
+        guild_id = guild
 
-    from cogs._bot.owner import Owner
-
-    server_config = db.get_server_config(guildID, True)
     date = datetime.now()
 
     notif = {
-        'id': Owner.uuid(Owner, 16, strCase='upper/lower/nums'),
-        'type': types,
+        'id': uuid(16, strCase='upper/lower/nums'),
+        'type': kind,
         'title': title,
         'description': description,
         'user': client.user.name,
@@ -115,10 +112,13 @@ def push_notification(
         },
     }
 
-    if types == "error" and fix is not None:
+    if kind == "error" and fix is not None:
         notif["fix"] = fix
-    if types == "link" and link is not None:
+    if kind == "info" and link is not None:
         notif["link"] = link
 
-    server_config["notifications"].append(notif)
-    db.update_server_config(guild, True, key="notifications", value=server_config["notifications"])
+    # Use $push to avoid race condition from read-modify-write
+    db.db.update_one(
+        {"_id": str(guild_id)},
+        {"$push": {"notifications": notif}}
+    )

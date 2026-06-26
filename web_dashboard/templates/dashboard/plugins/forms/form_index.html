@@ -47,7 +47,7 @@
           <div class="d-flex gap-1 align-items-end ps-0 user-select-none form-switch">
             <span id="form-count">{{data | length}}</span>
             <span>/</span>
-            <span id="form-max-count">{{plugin['max']}}</span>
+            <span id="form-max-count">{{plugin['max_premium'] if guild_models(guild).isPremium else plugin['max']}}</span>
           </div>
         </div>
         <hr>

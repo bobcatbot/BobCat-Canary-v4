@@ -28,7 +28,7 @@ class starboard(commands.Cog):
         starChannel = starbaord_data['channel']
         starLimit = starbaord_data['limit']
         starJumpLink = starbaord_data['jumpLink']
-        starSelfStart = starbaord_data['selfStart']
+        starSelf = starbaord_data['selfStar']
         
         guild = await v.client.fetch_guild(payload.guild_id)
         channel = await v.client.fetch_channel(payload.channel_id)
@@ -39,7 +39,7 @@ class starboard(commands.Cog):
         
         if not starSatus:
             return
-        if not starSelfStart:
+        if not starSelf:
             return
         if not starChannel:
             return

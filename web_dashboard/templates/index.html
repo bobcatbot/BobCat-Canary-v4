@@ -6,28 +6,7 @@
 </head>
 <body>
   {% include 'components/Navbar.html' %}
-  <!-- Start of Script -->
-  <script> const fsWidgetConfig = {id: "5c293f78-e448-4924-9d23-9bae1112e996"}; </script>
-  <script type="module" src="https://cdn.freshstatus.io/widget/index.js"></script>
 
-  {% with messages = get_flashed_messages(with_categories=True) %}
-    {% if messages %}
-      <div class="toast-container p-3 position-fixed bottom-0 start-50 translate-middle-x">
-      {% for category, message in messages %} 
-        <div id="ToastBS" class="toast" role="alert" data-cate="{{category}}">
-          <div class="toast-header d-flex justify-content-between align-items-center">
-            <strong id="cate" class="text-capitalize">{{category}}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-          </div>
-          <div class="toast-body">
-            <p class="m-0">{{message}}</p>
-          </div>
-        </div>
-      {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
-  
   <!-- ======= Hero Section ======= -->
   <section id="hero" class="d-flex align-items-center">
     <div class="container d-flex flex-column align-items-center justify-content-center" data-aos="fade-up">
@@ -35,7 +14,7 @@
       <h1>Build The Best Discord Server With BobCat!</h1>
       <h2>Configure Moderation, Leveling, Welcoming <br> Plus So Much More With A Easy-To-Use Dashboard!</h2>
       <div class="d-flex">
-        <a style="cursor: pointer;" class="btn-get-started" target="_blank" href="https://discord.com/api/oauth2/authorize?client_id=961762686671155240&permissions=1644905889015&scope=bot%20applications.commands">
+        <a style="cursor: pointer;" class="btn-get-started" target="_blank" href="{{inviteURL}}">
           Add to Discord
         </a>
         <a class="btn-get-started" href="#about">Learn More</a>
@@ -48,7 +27,7 @@
     <section id="about" class="about">
       <div class="container">
         <div class="row no-gutters">
-          <div class="content col-xl-5 d-flex align-items-stretch" data-aos="fade-right">
+          <div class="content col-xl-5 d-flex align-items-stretch">
             <div class="content">
               <h3>What's Up With BobCat?<br> Learn Everything You Need To Know About Him.</h3>
               <p>
@@ -57,21 +36,21 @@
             </div>
           </div>
         
-          <div class="col-xl-7 d-flex align-items-stretch" data-aos="fade-left">
+          <div class="col-xl-7 d-flex align-items-stretch">
             <div class="icon-boxes d-flex flex-column justify-content-center">
               <div class="row">
-                <div class="col-md-6 icon-box" data-aos="fade-up" data-aos-delay="100">
+                <div class="col-md-6 icon-box">
                   <i class="bi bi-cpu-fill"></i>
                   <h4>Features.</h4>
                   <p>We Have A 'Auto Hacker' Detecter Within BobCat's Code Which Alerts You When A Problem Apper's In Your Server(s).</p>
                 </div>
-                <div class="col-md-6 icon-box" data-aos="fade-up" data-aos-delay="200">
+                <div class="col-md-6 icon-box">
                   <i class="bi bi-check-circle-fill"></i>
                   <h4>Online 24/7.</h4>
                   <p>Our Goal Is To Keep BobCat Online As Long As Possible, To Keeps Every Server Happy.</p>
                   <p>We keep BobCat Updated To Our Best, To Fit In For Everyones Needs / Accessibility.</p>
                 </div>
-                <div class="col-md-6 icon-box" data-aos="fade-up" data-aos-delay="300">
+                <div class="col-md-6 icon-box">
                   <i class="bi bi-chat-square-dots-fill"></i>
                   <h4>Dashboard.</h4>
                   <p>Connect With Our Dashboard And Enhance Your Server(s) To It's Max Potential!</p>
@@ -85,7 +64,7 @@
 
     <!-- ======= Shop Section ======= -->
     <section id="shop" class="call-to-action">
-      <div class="container" data-aos="zoom-out">
+      <div class="container">
         <div class="row justify-content-center">
           <div class="col-lg-8 text-center">
             <h1 style="color:white"><b>NEW</b></h1>
@@ -101,15 +80,15 @@
       </div>
     </section><!-- End Shop Section -->
 
-    <!-- ======= Features Section ======= -->
-    <section class="features" data-aos="fade-up">
+    <!-- ======= Welcome Section ======= -->
+    <section class="features">
       <div class="container">
         <div class="row content">
-          <div class="col-md-5" data-aos="fade-right" data-aos-delay="100">
+          <div class="col-md-5">
             <img src="{{ url_for('static', filename='img/features/1.png') }}" class="img-fluid" alt="">
           </div>
         
-          <div class="col-md-7 pt-4" data-aos="fade-left" data-aos-delay="100">
+          <div class="col-md-7 pt-4">
             <h3>Say Hello To New Users On Your Discord Server!</h3>
             <p class="fst-italic" style="color: #939399">
               Take Avantage Of The Welcome Message To Inform New Members About Your Server Rules, Topic, Or Ongoing Events. 
@@ -126,17 +105,17 @@
           </div>
         </div>
       </div>
-    </section>
+    </section><!-- End Welcome Section -->
 
-    <!-- ======= Features Section ======= -->
-    <section class="features" data-aos="fade-up">
+    <!-- ======= Leveling Section ======= -->
+    <section class="features">
       <div class="container">
         
         <div class="row content">
-          <div class="col-md-5 order-1 order-md-2" data-aos="fade-left">
+          <div class="col-md-5 order-1 order-md-2">
             <img src="{{ url_for('static', filename='img/features/2.png') }}" class="img-fluid" alt="">
           </div>
-          <div class="col-md-7 pt-5 order-2 order-md-1" data-aos="fade-right">
+          <div class="col-md-7 pt-5 order-2 order-md-1">
             <h3>Level's and XP In Your Server(s).</h3>
             <p style="color: #939399" class="fst-italic">
               Use Our Leveling System To Identify And Reward Your Most Active Members Of Your Server(s) / Community. 
@@ -152,17 +131,17 @@
           </div>
         </div>
       </div>
-    </section>
+    </section><!-- End Leveling Section -->
 
-    <!-- ======= Features Section ======= -->
-    <section class="features" data-aos="fade-up">
+    <!-- ======= Customize Section ======= -->
+    <section class="features">
       <div class="container">
 
         <div class="row content">
-          <div class="col-md-5" data-aos="fade-right">
+          <div class="col-md-5">
             <img src="{{ url_for('static', filename='img/features/3.png') }}" class="img-fluid" alt="">
           </div>
-          <div class="col-md-7 pt-5" data-aos="fade-left">
+          <div class="col-md-7 pt-5">
             <h3>Customize the Look's Of BobCat In Your Server(s).</h3>
             <p style="color: #939399"  class="fst-italic">Find A Way Make Your Discord Server(s) Your Own! Were You Can Change The Color Of BobCat, 
               How Cool Is That? Head Over To The Dashboard And Give It A Go.
@@ -177,17 +156,17 @@
           </div>
         </div>
       </div>
-    </section>
+    </section><!-- End Customize Section -->
 
-    <!-- ======= Features Section ======= -->
-    <section class="features" data-aos="fade-up">
+    <!-- ======= User Engagement Section ======= -->
+    <section class="features">
       <div class="container">
         
         <div class="row content">
-          <div class="col-md-5 order-1 order-md-2" data-aos="fade-left">
+          <div class="col-md-5 order-1 order-md-2">
             <img src="{{ url_for('static', filename='img/features/4.png') }}" class="img-fluid" alt="">
           </div>
-          <div class="col-md-7 pt-5 order-2 order-md-1" data-aos="fade-right">
+          <div class="col-md-7 pt-5 order-2 order-md-1">
             <h3>User Engagement With Server's (Starboard).</h3>
             <p style="color: #939399" class="fst-italic">
               Use Our Starboard System To Show Off The Funniest Joke's Of All Time!
@@ -202,11 +181,11 @@
           </div>
         </div>
       </div>
-    </section><!-- End Features Section -->
+    </section><!-- End User Engagement Section -->
 
     <!-- ======= Services Section ======= -->
     <section id="plugins" class="services">
-      <div class="container" data-aos="fade-up">
+      <div class="container">
           
         <div class="section-title">
           <h2>Plugins</h2>
@@ -214,7 +193,7 @@
         </div>
 
         <div class="row d-flex justify-content-center">
-          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0" data-aos="fade-up" data-aos-delay="100">
+          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0">
             <div class="icon-box">
               <div class="icon"><i class="bi bi-wrench-adjustable"></i><br></br></div>
               <h4 class="title">Moderation & Management</h4>
@@ -223,7 +202,7 @@
             </div>
           </div>
         
-          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0" data-aos="fade-up" data-aos-delay="200">
+          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0">
             <div class="icon-box">
               <div class="icon"><i class="bi bi-clipboard-check-fill"></i><br></br></div>
               <h4 class="title"><a href="">BobCat Utilities</a></h4>
@@ -232,7 +211,7 @@
             </div>
           </div>
 
-          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0" data-aos="fade-up" data-aos-delay="300">
+          <div class="col-md-6 col-lg-3 d-flex align-items-stretch mb-5 mb-lg-0">
             <div class="icon-box">
               <div class="icon"><i class="bi bi-balloon-fill"></i><br></br></div>
               <h4 class="title"><a href="">Engagement & Fun</a></h4>
@@ -246,7 +225,7 @@
     
     <!-- ======= Team Section ======= -->
     <section id="team" class="team">
-      <div class="container" data-aos="fade-up">
+      <div class="container">
 
         <div class="section-title">
           <h2>Our Team</h2>
@@ -255,7 +234,7 @@
 
         <div id="content-desktop">
           <div class="row" style="justify-content: center;">
-            <div class="col-xl-3 col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+            <div class="col-xl-3 col-lg-4 col-md-6">
               
               <div class="member">
                 <img src="{{ url_for('static', filename='img/team/team-1.png') }}" class="img-fluid" alt="">
@@ -271,7 +250,7 @@
               </div>
             </div>
 
-            <div class="col-xl-3 col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+            <div class="col-xl-3 col-lg-4 col-md-6">
               <div class="member">
                 <img src="{{ url_for('static', filename='img/team/team-2.png') }}" class="img-fluid" alt="">
                 <div class="member-info">
@@ -322,115 +301,28 @@
 
       </div>
     </section><!-- End Team Section -->
-  
-    <!-- ======= Frequently Asked Questions Section ======= -->
-    <section id="faq" class="faq">
-      <div class="container" data-aos="fade-up">
-
-        <div class="section-title">
-          <h2>Frequently Asked Questions</h2>
-        </div>
-
-        <ul class="faq-list">
-          <li>
-            <div data-bs-toggle="collapse" href="#faq2" class="collapsed question">Is your bots code open source? <i class="bi bi-chevron-down icon-show"></i><i class="bi bi-chevron-up icon-close"></i></div>
-            <div id="faq2" class="collapse" data-bs-parent=".faq-list">
-              <p style="color: #ffffff">
-                No, the code isnt open source.
-              </p>
-            </div>
-          </li>
-          
-          <li>
-            <div data-bs-toggle="collapse" href="#faq4" class="collapsed question">What do we use for the bot? <i class="bi bi-chevron-down icon-show"></i><i class="bi bi-chevron-up icon-close"></i></div>
-            <div id="faq4" class="collapse" data-bs-parent=".faq-list">
-              <p style="color: #ffffff">
-                We currently are using python and the pycord library.
-              </p>
-            </div>
-          </li>
-
-          <li>
-            <div data-bs-toggle="collapse" class="collapsed question" href="#faq1">How do we host the bots? <i class="bi bi-chevron-down icon-show"></i><i class="bi bi-chevron-up icon-close"></i></div>
-            <div id="faq1" class="collapse" data-bs-parent=".faq-list">
-              <p style="color: #ffffff">
-                We currently use a self made server that uses Pterodactyl Software. 
-                Proudly provide by <a href="https://rabbit-hosting.com/discordbot" target="_blank">Rabbit Hosting</a>
-              </p>
-            </div>
-          </li>
-          
-          <li>
-            <div data-bs-toggle="collapse" href="#faq3" class="collapsed question">Why arent the moderation commands slash commands? <i class="bi bi-chevron-down icon-show"></i><i class="bi bi-chevron-up icon-close"></i></div>
-            <div id="faq3" class="collapse" data-bs-parent=".faq-list">
-              <p style="color: #ffffff">
-                1. This is because of the discord built-in moderation slash commands
-                <br>2. These will take up more slots and make the list larger then it has
-                <br>3. The demand for bobcat moderation slash commands is not larger enough for them to go to slash
-              </p>
-            </div>
-          </li>
-        </ul>
-
-      </div>
-    </section><!-- End Frequently Asked Questions Section -->
-
   </main><!-- End #main -->
 
-  <div id="changelog" class="changelog">
-		<div class="modal fade show" id="changelogModal" tabindex="-1" style="--bs-modal-bg: #36393F;">
-			<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-				<div class="modal-content">
-					<div class="modal-header" style="display: block;">
-						<h1 id="modalTitle" class="modal-title text-uppercase fs-5"></h1>
-						<p id="modalTitleDate" class="m-0 text-uppercase"></p>
-					</div>
-					<div class="modal-body">
-						<div id="modalbody-info" class="info mb-3"></div>
-
-						<div class="additions mb-3">
-							<h1 class="d-flex align-items-center gap-1 text-uppercase"
-								style="font-size: 18px;color: rgb(87, 242, 135);">
-								<div class="d-flex align-items-center gap-1 flex-grow">
-									<i class="bi bi-plus-circle-fill" style="font-size: 24px;color: rgb(87, 242, 135);"></i>
-									Additions
-								</div>
-								<div class="w-100" style="background-color: rgb(87, 242, 135); height: 1px;"></div>
-							</h1>
-							<ul id="added-list"></ul>
-						</div>
-						<div class="updates mb-3">
-							<h1 class="d-flex align-items-center gap-1 text-uppercase"
-								style="font-size: 18px;color: rgb(254, 231, 92);">
-								<div class="d-flex align-items-center gap-1 flex-grow">
-									<i class="bi bi-cloud-fill" style="font-size: 24px;color: rgb(254, 231, 92);"></i>
-									Updates
-								</div>
-								<div class="w-100" style="background-color: rgb(254, 231, 92); height: 1px;"></div>
-							</h1>
-							<ul id="updates-list"></ul>
-						</div>
-						<div class="bugs">
-							<h1 class="d-flex align-items-center gap-1 text-uppercase"
-								style="font-size: 18px;color: rgb(237, 66, 69);">
-								<div class="d-flex align-items-center gap-1 flex-grow">
-									<i class="bi bi-bug" style="font-size: 24px;color: rgb(237, 66, 69);"></i>
-									Bugs
-								</div>
-								<div class="w-100" style="background-color: rgb(237, 66, 69); height: 1px;"></div>
-							</h1>
-							<ul id="bugs-list"></ul>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-primary" id="myBtn" data-bs-dismiss="modal">Got It</button>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
   {% include 'components/footer.html' %}
+
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="toast-container p-3 position-fixed bottom-0 start-50 translate-middle-x">
+      {% for category, message in messages %} 
+        <div id="ToastBS" class="toast" role="alert" data-cate="{{category}}">
+          <div class="toast-header d-flex justify-content-between align-items-center">
+            <strong id="cate" class="text-capitalize">{{category}}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            <p class="m-0">{{message}}</p>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <div id="preloader"></div>
   <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 </body>

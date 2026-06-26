@@ -9,7 +9,7 @@ from discord.ext import commands, tasks
 games.json
 {"games": ["Amerzone: The Explorer\u2019s Legacy (1999)", "Jurassic World Evolution 2", "Cat Quest", "Neko Ghost, Jump!", "Three Sisters", "Dreams of Aether"]}
 
-<guildid>/Bot/free_stuff
+Bot/free_stuff
 {
 "games": [
 "Amerzone: The Explorer\u2019s Legacy (1999)",
@@ -18,6 +18,16 @@ games.json
 "Neko Ghost, Jump!"
 ]
 }
+
+DASH "free_stuff": {
+"status": false,
+"games": {
+"channel_id": "1100732861344141452",
+"role_id": "",
+"steam": true,
+"epic": true
+}
+},
 
 class FreeStuffMain(commands.Cog):
     def __init__(self, client):

@@ -73,15 +73,15 @@ class mod_kick(commands.Cog):
             return await ctx.send(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to kick members", fix="https://docs.bobcatbot.xyz/commands/moderation/kick")
-            embed = discord.Embed(description="❌ I can't do that because I'm missing the `Kick Members` permission.  \n\nNeed help?\nhttps://docs.bobcatbot.xyz/commands/moderation/kick", color=v.error)
+            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to kick members", description='Please give BobCat the "Kick Members" permission')
+            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Kick Members` permission.  \n\nNeed help?\n{v.docs}/moderation/kick", color=v.error)
             return await ctx.send(embed=embed)
 
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url="https://docs.bobcatbot.xyz/commands/moderation/kick",
-                description="b!kick [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`reason`: Reason for kick",
+                title="Invalid Usage", url=f"{v.docs}/moderation/kick",
+                description="/kick [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`reason`: Reason for kick",
             )
             return await ctx.send(embed=embed)
 

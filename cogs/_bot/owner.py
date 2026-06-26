@@ -23,48 +23,9 @@ class Owner(commands.Cog):
         self.client = client
 
     dev_command = discord.SlashCommandGroup(name="dev", description="Developer only commands", guild_ids=v.guild_ids, checks=[is_dev().predicate])
-        
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.client.uptime = discord.utils.utcnow()
-        self.client.get_bot_uptime = self.get_bot_uptime
-
-    @commands.Cog.listener()
-    async def on_application_command_error(self, ctx, error):
-        if isinstance(error, commands.CheckFailure):
-            return
-
-    def get_bot_uptime(self):
-        now = discord.utils.utcnow()
-        delta = now - self.client.uptime
-        hours, remainder = divmod(int(delta.total_seconds()), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        days, hours = divmod(hours, 24)
-        if days:
-            fmt = '{d} days, {h} hours, {m} minutes, and {s} seconds'
-        else:
-            fmt = '{h} hours, {m} minutes, and {s} seconds'
-        return fmt.format(d=days, h=hours, m=minutes, s=seconds)
-    
-    def uuid(self, length=8, strCase='upper/lower/nums/special'):
-        nums = "0123456789"
-        uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        lowers = "abcdefghijklmnopqrstuvwxyz"
-        special = "!@#$%^&*()_+-=[]{};:,./<>?"
-        
-        combination = (strCase
-            .replace("/", '')
-            .replace("upper", uppers)
-            .replace("lower", lowers)
-            .replace("nums", nums)
-            .replace("special", special)
-        )
-        code = random.choices(combination, k=length)
-        return "".join(code)
     
     @dev_command.command(name="guilds", description="Gets all the guilds the bot is in") # TODO: Fix this
     async def guilds(self, ctx):
-        
         embed1 = discord.Embed(
             colour=0xed5757, 
             title="⌛ Getting all the Guilds",
@@ -209,7 +170,7 @@ class Owner(commands.Cog):
     @discord.option("name", description="The name to add", required=True)
     @discord.option("type", description="The type of name", required=True, choices=types)
     async def _add(self, ctx, name, type):
-        _id = f"{self.uuid()}"
+        _id = v.uuid(8, strCase="upper/lower/nums/special")
 
         with open("modules/status.json", "r") as f:
             status = json.load(f)
@@ -253,7 +214,7 @@ class Owner(commands.Cog):
     @discord.option("trail_length", description="The length of the trial", required=False, choices=['1 Month', '2 Months', '3 Months'])
     @is_dev()
     async def premium_add(self, ctx: discord.ApplicationContext, guild: discord.Guild, plan: str="trial", trail_length: str="1 Month"):
-        code = self.uuid(length=16, strCase="upper/lower/nums")
+        code = v.uuid(length=16, strCase="upper/lower/nums")
 
         code_expiry = None
         if plan == "trial":

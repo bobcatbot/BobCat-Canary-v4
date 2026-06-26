@@ -467,8 +467,9 @@
     const banDeleteWrapper = document.querySelector('.ban-delete-wrapper.single');
     banDeleteWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : '0'
       
-      show_toast("moderation.settings.ban.deleteMessageDays", "{{data['settings']['ban']['deleteMessageDays']}}", selectedOptions)
+      show_toast("moderation.settings.ban.deleteMessageDays", "{{data['settings']['ban']['deleteMessageDays']}}", option)
     });
     
     const muteDmWrapper = document.querySelector('.mute-dm-wrapper.multi');

@@ -352,8 +352,8 @@
 
       // if checked went from true to false
       if (!e.target.checked) {
-        fetch("verification", {
-          method: "DELETE",
+        fetch("verification/unpublish", {
+          method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({ }),
         })
@@ -407,7 +407,7 @@
 
       var embed = document.querySelector('.embed');
 
-      fetch("verification", {
+      fetch("verification/publish", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({

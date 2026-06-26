@@ -18,7 +18,7 @@
         </li>
         <li><a class="nav-link scrollto" href="/#team">Team</a></li>
         <li><a class="nav-link" target="popup" style="cursor: pointer;"
-          onclick="window.open('https://discord.com/api/oauth2/authorize?client_id=961762686671155240&permissions=1644905889015&scope=bot%20applications.commands', 'Invite | Bobat Inc', 'width=487,height=805')">Invite</a>
+          onclick='window.open("{{inviteURL}}", "Invite | Bobat Inc", "width=487,height=805")'>Invite</a>
         </li>
     
         {% if not user %}
@@ -39,9 +39,6 @@
           </a></li>
           
           <hr style="color: lightgray;margin: 5px 0px;">
-          <li><a onclick="new bootstrap.Modal(document.getElementById('changelogModal')).show()">
-            <span>Changelog</span>
-          </a></li>
           
           <li><a href="/oauth/logout" class="text-danger">
             <span>Logout</span>

@@ -54,7 +54,7 @@ class events(commands.Cog):
             async for ban in member.guild.bans(limit=None):
                 if ban.user.id == member.id:
                     return
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.NotFound):
             return
 
         channel = self._get_log_channel(member.guild.id, "MemberLeave")

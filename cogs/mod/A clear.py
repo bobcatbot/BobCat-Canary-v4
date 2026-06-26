@@ -32,15 +32,15 @@ class mod_clear(commands.Cog):
             return await ctx.respond(embed=error, ephemeral=True)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to manage messages", fix="https://docs.bobcatbot.xyz/commands/moderation/clear")
-            error = discord.Embed(description="❌ I can't do that because I'm missing the `Manage Messages` permission.  \n\nNeed help?\nhttps://docs.bobcatbot.xyz/commands/moderation/clear", color=v.error)
+            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to manage messages", description='Please give BobCat the "Manage Messages" permission')
+            error = discord.Embed(description=f"❌ I can't do that because I'm missing the `Manage Messages` permission.  \n\nNeed help?\n{v.docs}/moderation/clear", color=v.error)
             return await ctx.respond(embed=error, ephemeral=True)
         
         if isinstance(error, commands.MissingRequiredArgument):
             error = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url="https://www.docs.bobcatbot.xyz/moderation/clear",
-                description="b!clear [amount] \n\n**Arguments**\n`amount`: The amount of messages you want to delete",
+                title="Invalid Usage", url=f"{v.docs}/moderation/clear",
+                description="/clear [amount] \n\n**Arguments**\n`amount`: The amount of messages you want to delete",
             )
             return await ctx.respond(embed=error, ephemeral=True)
 

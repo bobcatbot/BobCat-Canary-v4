@@ -34,7 +34,7 @@
   },
   "starboard": {
     "title": "Starboard",
-    "description": "Allows users to react to a message with ⭐️ and send the message to a channel",
+    "description": "Allows users to react to a message with your severs star emoji and send the message to a channel",
     "db_key": "starboard",
     "icon": "star",
     "url": "starboard",
@@ -53,7 +53,8 @@
     "category": "utilities",
     "premium": true,
     "status": false,
-    "max": 5
+    "max": 5,
+    "max_premium": 15
   },
   "temporary_channels": {
     "title": "Temporary Channels",
@@ -65,7 +66,8 @@
     "category": "utilities",
     "premium": true,
     "status": false,
-    "max": 5
+    "max": 5,
+    "max_premium": 15
   },
   "ticketing": {
     "title": "Ticketing",
@@ -77,7 +79,8 @@
     "category": "utilities",
     "premium": true,
     "status": false,
-    "max": 5
+    "max": 5,
+    "max_premium": 15
   },
   "leveling": {
     "title": "Leveling",
@@ -88,7 +91,8 @@
     "badge": "",
     "category": "fun",
     "premium": false,
-    "status": false
+    "status": false,
+    "max_premium": 15
   },
   "birthdays": { 
     "title": "Birthdays",
@@ -111,7 +115,8 @@
     "category": "fun",
     "premium": false,
     "status": false,
-    "max": 100
+    "max": 100,
+    "max_premium": 200
   },
   "economy": {
     "title": "Economy",
