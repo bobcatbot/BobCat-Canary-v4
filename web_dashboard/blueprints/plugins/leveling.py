@@ -1,5 +1,6 @@
 import pymongo
-from flask import Blueprint, flash, jsonify, redirect, render_template, session, url_for
+from pathlib import Path
+from flask import Blueprint, flash, jsonify, redirect, render_template, session, url_for, send_from_directory
 
 from modules import bot as v
 from ...config import mongo_cdn
@@ -8,23 +9,29 @@ from ...utils import bearer_client, login_required, premium_module
 
 leveling_bp = Blueprint('leveling', __name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+RANK_CARD_DIR = PROJECT_ROOT / "images" / "lvl-cards"
+
+rank_cards = pymongo.MongoClient(mongo_cdn)['RankCards']['Cards']
+
 def _get_rank_cards():
-    rank_cards = pymongo.MongoClient(mongo_cdn)['RankCards']['Cards']
-    fields = ('card', 'bar_bg', 'bar_fill', 'bar_indent_left', 'bar_width')
-    default = [
-        {k: c[k] for k in fields}
-        for c in rank_cards.find({"theme": "default"}).sort("theme", pymongo.ASCENDING)
-    ]
-    fun = [
-        {k: c[k] for k in fields}
-        for c in rank_cards.find({"theme": "bobcat"}).sort("theme", pymongo.ASCENDING)
-    ]
-    return {'all': default + fun, 'default': default, 'cards': fun}
+    projection = { '_id': 0, 'card': 1, 'card_name': 1, 'theme': 1, 'bar_bg': 1, 'bar_fill': 1, 'bar_indent_left': 1, 'bar_width': 1}
+    
+    all_cards = list(rank_cards.find({}, projection))
+    
+    default = [c for c in all_cards if c.get("theme") == "default"]
+    fun = [c for c in all_cards if c.get("theme") == "bobcat"]
+    
+    return {'all': all_cards, 'default': default, 'cards': fun}
 
 # ── Public JSON endpoint for rank cards ──────────────────────────────────────
 @leveling_bp.route("/lvl-cards")
 def lvl_cards():
     return jsonify(_get_rank_cards())
+
+@leveling_bp.route("/lvl-cards/image/<path:filename>")
+def lvl_card_image(filename):
+    return send_from_directory(RANK_CARD_DIR, filename)
 
 # ── Public leaderboard ────────────────────────────────────────────────────────
 @leveling_bp.route("/leaderboard/<guild_id>")

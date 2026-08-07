@@ -1,7 +1,7 @@
 import discord
-import json
 import random
 from modules import bot as v
+from modules.models import Economy
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from .tools.utils import get_shop, get_user_items, open_account, update_bank, buy_this, sell_this
@@ -11,6 +11,14 @@ class Money(commands.Cog):
         self.client = client
 
     eco = SlashCommandGroup(name="economy", description="Economy commands")
+
+    async def get_guild_shop(ctx: discord.AutocompleteContext):
+        shop = await get_shop(ctx.interaction.guild)
+        return [item['name'] for item in shop]
+
+    async def get_user_items(ctx: discord.AutocompleteContext):
+        uitems = await get_user_items(ctx.interaction.guild, ctx.interaction.user)
+        return [item['item'] for item in uitems]
     
     @eco.command(description="List items from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
@@ -28,15 +36,14 @@ class Money(commands.Cog):
     @eco.command(description="Economy leaderboard")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def leaderboard(self, ctx: discord.ApplicationContext):
-
-        eco_users: dict = v.db.get_server_config(ctx.guild.id)["economy"]
-        sorted_players = sorted(eco_users.items(), key=lambda x: int(x[1]["wallet"]) + int(x[1]["bank"]), reverse=True)[:10]
+        eco_users = Economy.find(Economy.guild_id == str(ctx.guild.id)).run()
+        sorted_players = sorted(eco_users, key=lambda user: user.wallet + user.bank, reverse=True)[:10]
 
         desc = ""
-        for idx, (u_id, data) in enumerate(sorted_players, start=1):
-            member = await v.client.fetch_user(int(u_id))
+        for idx, data in enumerate(sorted_players, start=1):
+            member = await v.client.fetch_user(int(data.user_id))
 
-            cash = int(data["wallet"]) + int(data["bank"])
+            cash = data.wallet + data.bank
             desc += f"\n#{idx} ● {member.name} ● {cash}"
 
         em = discord.Embed(title="Top 10 Richest People", description=desc, color=0xFFCC4D)
@@ -117,11 +124,7 @@ class Money(commands.Cog):
         em.add_field(name="Wallet", value=acc["wallet"], inline=True)
         em.add_field(name="Bank", value=acc["bank"], inline=True)
         await ctx.respond(embed=em)
-
-    async def get_guild_shop(ctx: discord.AutocompleteContext):
-        shop = await get_shop(ctx.interaction.guild)
-        return [item['name'] for item in shop]
-
+    
     @eco.command(description="Buy an item from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     @discord.option('item', description="The item you want to buy", required=True, autocomplete=get_guild_shop)
@@ -156,17 +159,11 @@ class Money(commands.Cog):
         embed.add_field(name="quantity", value=amount, inline=False)
         embed.add_field(name="Total", value=amount * _item['price'], inline=False)
         await ctx.respond(embed=embed)
-
-    async def get_user_items(ctx: discord.AutocompleteContext):
-        uitems = await get_user_items(ctx.interaction.guild, ctx.interaction.user)
-        return [item['item'] for item in uitems]
     
     @eco.command(description="Sell an item from your inventory")
     @discord.option('item', description="The item you want to sell", required=True, autocomplete=get_user_items)
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def sell(self, ctx, item):
-        data = v.db.eco.get(ctx.guild.id)
-        
         amount = 1
         await open_account(ctx.guild, ctx.author)
         
@@ -216,8 +213,8 @@ class Money(commands.Cog):
         if amount <= 2:
             return await ctx.respond('Amount must be higher than 2')
 
-        await update_bank(ctx.guild, ctx.author, -1 * amount, 'bank')
-        await update_bank(ctx.guild, member, amount, 'bank')
+        await update_bank(ctx.guild, ctx.author, "bank", -1 * amount)
+        await update_bank(ctx.guild, member, "bank", amount)
         
         em = discord.Embed(
             color=0xFFCC4D,
@@ -237,8 +234,8 @@ class Money(commands.Cog):
             return await ctx.respond('It is useless to rob him :(')
         
         earning = random.randrange(0, bal.get('wallet'))
-        await update_bank(ctx.guild, ctx.author, earning)
-        await update_bank(ctx.guild, member, -1 * earning)
+        await update_bank(ctx.guild, ctx.author, "wallet", earning)
+        await update_bank(ctx.guild, member, "wallet", -1 * earning)
 
         em = discord.Embed(
             color=0xFFCC4D,

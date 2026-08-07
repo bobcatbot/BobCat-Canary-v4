@@ -1,42 +1,44 @@
+import re
+import io
+import random
 import pymongo
 import discord
-import re
-import random
+import asyncio
 from modules import bot as v
+from modules.models import Guild, Leveling as LevelingModel
 from discord.ext import commands
 from easy_pil import Editor, Font, load_image
 from cogs.money.tools.utils import open_account, update_bank
- 
-CARDS_URL = "databases/lvl-cards"
+
+CARDS_URL = "images/lvl-cards"
 FALLBACK_CARD = "blurple-rank.png"
- 
+
 mongo_cdn_client = pymongo.MongoClient(v.mongo_cdn)
 mongoRankCards = mongo_cdn_client['RankCards']['Cards']
- 
- 
+
+# In-Memory Cache for Rank Cards to prevent blocking MongoDB queries on every command
+CARD_CACHE: dict[str, dict] = {}
+
 def xp_for_level(lvl: int) -> int:
     """XP required to complete a given level (scales with level)."""
     return 5 * (lvl ** 2) + 50 * lvl + 100
 
-def calculate_level(total_exp: int) -> tuple[int, int]:
-    """
-    Given total accumulated XP, returns (current_level, leftover_exp).
-    """
-    lvl = 0
-    while total_exp >= xp_for_level(lvl):
-        total_exp -= xp_for_level(lvl)
-        lvl += 1
-    return lvl, total_exp
+def get_level_card_config(configured_card: str) -> dict:
+    if configured_card in CARD_CACHE:
+        return CARD_CACHE[configured_card]
 
-def level_card(guild: discord.Guild) -> dict | None:
-    theme = v.db.get_dash(guild)['leveling']['card']
-    file = mongoRankCards.find_one({"card": theme}) or mongoRankCards.find_one({"card": FALLBACK_CARD})
-    if not file:
-        return None
-    return {
-        **file,
-        "background": f"{CARDS_URL}/{file['card']}",
+    document = mongoRankCards.find_one({"card": configured_card})
+
+    if document is None:
+        document = mongoRankCards.find_one({"card": FALLBACK_CARD})
+
+    card_data = {
+        **document,
+        "background": f"{CARDS_URL}/{document['card']}",
     }
+
+    CARD_CACHE[configured_card] = card_data
+    return card_data
 
 class Leveling(commands.Cog):
     def __init__(self, client: commands.Bot):
@@ -53,11 +55,54 @@ class Leveling(commands.Cog):
         return existing
  
     def get_ratelimit(self, message: discord.Message) -> float | None:
-        config = v.db.get_dash(message.guild.id)['leveling']
+        config = Guild.get(str(message.guild.id)).run().dashboard.leveling
         cd = config.get('cooldown', 60)
         mapping = self._get_cooldown(message.guild.id, cd)
         bucket = mapping.get_bucket(message)
         return bucket.update_rate_limit()
+ 
+    def render_rank_card_sync(
+        self,
+        avatar: bytes, 
+        member_name: str, 
+        lvl: int, 
+        exp: int, 
+        next_lvl_xp: int, 
+        card_cfg: dict
+    ) -> io.BytesIO:
+        """CPU-bound PIL operations run in a thread pool."""
+        background = Editor(card_cfg["background"])
+        
+        # Avatar rendering
+        _profile = load_image(avatar)
+        profile = Editor(_profile).resize((150, 150)).circle_image()
+        background.paste(profile, (30, 30))
+
+        # Member rendering
+        background.text((200, 40), member_name, font=Font.poppins(size=40), color="#FFFFFF")
+        background.rectangle((200, 100), width=400, height=2, fill="#FFFFFF")
+        background.text((200, 130), f"Level: {lvl}  XP: {exp} / {next_lvl_xp}", color="#FFFFFF", font=Font.poppins(size=30))
+        
+        # Progress Bar rendering
+        bar_y = 220
+        bar_h = 40
+        indent = card_cfg["bar_indent_left"]
+        width = card_cfg["bar_width"]
+        
+        background.rectangle((indent, bar_y), width=width, height=bar_h, fill=card_cfg["bar_bg"], radius=20)
+
+        if exp > 0 and next_lvl_xp > 0:
+            percentage = max(0.0, min((exp / next_lvl_xp) * 100, 100.0))
+            background.bar(
+                (indent, bar_y),
+                max_width=width,
+                fill=card_cfg["bar_fill"],
+                percentage=percentage,
+                height=bar_h + 2,
+                radius=20,
+            )
+            
+        return background.image_bytes
  
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -68,7 +113,7 @@ class Leveling(commands.Cog):
         if message.channel.type == discord.ChannelType.private:
             return
  
-        lvl_data = v.db.get_dash(message.guild)['leveling']
+        lvl_data = Guild.get(str(message.guild.id)).run().dashboard.leveling
  
         if not lvl_data.get('status'):
             return
@@ -82,18 +127,17 @@ class Leveling(commands.Cog):
             return
  
         # Fetch user data — initialize if missing
-        server_config = v.db.get_server_config(message.guild)
-        data: dict | None = server_config['leveling'].get(str(message.author.id))
+        data = LevelingModel.get(f"{message.guild.id}_{message.author.id}").run()
         if data is None:
-            data = {'exp': 0, 'lvl': 0}
-            v.db.update_server_config(
-                message.guild,
-                key=f"leveling.{message.author.id}",
-                value=data
+            data = LevelingModel(
+                id=f"{message.guild.id}_{message.author.id}",
+                guild_id=str(message.guild.id),
+                user_id=str(message.author.id),
             )
- 
-        exp: int = int(data.get('exp', 0))
-        lvl: int = int(data.get('lvl', 0))
+            data.insert()
+
+        exp: int = int(data.exp)
+        lvl: int = int(data.lvl)
         maxLevel: int = int(lvl_data.get('max_level', 0))
  
         # Don't give XP if already at max level
@@ -116,11 +160,9 @@ class Leveling(commands.Cog):
         leveled_up = new_lvl > lvl
  
         # Write new exp/level in one update
-        v.db.update_server_config(
-            message.guild,
-            key=f"leveling.{message.author.id}",
-            value={'exp': leftover_exp, 'lvl': new_lvl}
-        )
+        data.exp = leftover_exp
+        data.lvl = new_lvl
+        data.save()
  
         if not leveled_up:
             return
@@ -187,79 +229,64 @@ class Leveling(commands.Cog):
             await message.author.add_roles(role)
 
     # ── Slash commands ─────────────────────────────────────────────────────
-    
     @commands.slash_command(description="Gives yours or member's ranks")
     @discord.option("member", discord.Member, description="Select a member", required=False)
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
-        status = v.db.get_dash(ctx.guild)['leveling']['status']
+        lvl_data = Guild.get(str(ctx.guild.id)).run().dashboard.leveling
+        status = lvl_data['status']
         if not status:
             embed = discord.Embed(description="Levelling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
         
         member = ctx.author if not member else member
-        
         if member.bot:
             return await ctx.respond(f"{member.mention} is a bot! So they have no rank")
         
-        data: dict = v.db.get_server_config(ctx.guild)['leveling'].get(f'{member.id}')
-       
-        if data is None:
+        data = LevelingModel.get(f"{ctx.guild.id}_{member.id}").run()
+        if data is None or (data.lvl == 0 and data.exp == 0):
             return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
         
-        exp = data.get('exp')
-        lvl = data.get('lvl')
-
-        if lvl == 0 and exp == 0:
-            return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
-        
+        exp = data.exp
+        lvl = data.lvl
         next_lvl_xp = xp_for_level(lvl)
         
-        styles = level_card(ctx.guild)
+        configured_card = lvl_data.get('card', FALLBACK_CARD)
+        card_cfg = get_level_card_config(configured_card)
 
-        background = Editor(styles["background"])
+        # Execute heavy PIL rendering inside a thread to avoid blocking the asyncio event loop
+        img_bytes = await asyncio.to_thread(
+            self.render_rank_card_sync,
+            str(member.avatar.url),
+            str(member),
+            lvl,
+            exp,
+            next_lvl_xp,
+            card_cfg
+        )
         
-        Profile = load_image(str(member.avatar.url))
-        profile = Editor(Profile).resize((150, 150)).circle_image()
-        background.paste(profile, (30, 30))
-        background.text((200, 40), str(member), font=Font.poppins(size=40), color="#FFFFFF") # member usermame
-        background.rectangle((200, 100), width=400, height=2, fill="#FFFFFF") # member profile underline
-        background.text((200, 130), f"Level: {lvl}  XP: {exp} / {next_lvl_xp}", color="white", font=Font.poppins(size=30),) # lvl & xp
-        background.rectangle((styles["bar_indent_left"], 220), width=styles["bar_width"], height=40, fill=styles["bar_bg"], radius=20) # progress bar bg
-        
-        if exp > 0:
-            percentage = max(0.0, min((exp / next_lvl_xp) * 100, 100.0))
-
-            background.bar( # progress bar inline
-                (styles["bar_indent_left"], 220), 
-                max_width=styles["bar_width"], 
-                fill=styles["bar_fill"],
-                percentage=percentage, 
-                height=42, 
-                radius=20
-            )
-        
-        await ctx.respond(file=discord.File(fp=background.image_bytes, filename=f"{member.id}_rank.png"), ephemeral=False)
+        file = discord.File(fp=img_bytes, filename=f"{member.id}_rank.png")
+        await ctx.respond(file=file)
 
     @commands.slash_command(description=f"View the top 5 users in the server")
     async def leaderboard(self, ctx: discord.ApplicationContext):
-        lvl_data = v.db.get_dash(ctx.guild)['leveling']
+        lvl_data = Guild.get(str(ctx.guild.id)).run().dashboard.leveling
         if not lvl_data.get('status'):
             return await ctx.respond(
                 embed=discord.Embed(description="Levelling is disabled", color=v.error),
                 ephemeral=True
             )
  
-        lvl_users: dict = v.db.get_server_config(ctx.guild)['leveling']
+        lvl_users = LevelingModel.find(LevelingModel.guild_id == str(ctx.guild.id)).run()
         sorted_players = sorted(
-            lvl_users.items(),
-            key=lambda x: (int(x[1].get('lvl', 0)), int(x[1].get('exp', 0))),
+            lvl_users,
+            key=lambda user: (int(user.lvl), int(user.exp)),
             reverse=True
         )[:5]
- 
+
         desc = ""
-        for idx, (u_id, data) in enumerate(sorted_players, start=1):
-            member = ctx.guild.get_member(int(u_id)) or await v.client.fetch_user(int(u_id))
-            desc += f"#{idx} ● {member.name} ● LVL: {data['lvl']}\n"
+        for idx, data in enumerate(sorted_players, start=1):
+            member = ctx.guild.get_member(int(data.user_id)) or await v.client.fetch_user(int(data.user_id))
+            desc += f"#{idx} ● {member.name} ● LVL: {data.lvl}\n"
  
         embed = discord.Embed(
             title=f"{ctx.guild.name}'s Leaderboard",

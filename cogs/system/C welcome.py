@@ -1,6 +1,6 @@
-import discord
 from discord.ext import commands
 from modules import bot as v
+from modules.models import Guild
 
 class welcomeSystem(commands.Cog):
     def __init__(self, client):
@@ -8,46 +8,58 @@ class welcomeSystem(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        wel_data = v.db.get_dash(member.guild)['welcome']
+        wel_data = Guild.get(str(member.guild.id)).run().dashboard.welcome
 
-        welcomeStaus = wel_data['join']['status']
-        welcomeChannel = wel_data['join']['channel']
-        welcomeMessageType = wel_data['join']['message']['type']
-        
-        if not welcomeStaus:
+        # Master toggle for the whole Welcome plugin
+        if not wel_data['status']:
             return
-        if not welcomeChannel:
-            return
-                
-        channel = self.client.get_channel(int(welcomeChannel))
+
+        # ── Join message (independent toggle) ──────────────────────────
+        join_data = wel_data['join']
+        joinStaus = join_data['status']
+        joinChannel = join_data['channel']
+        joinMessageType = join_data['message']['type']
+        joinMessageContent = join_data['message']['content']
         
-        if welcomeMessageType == "text":
-            msg = wel_data['join']['message']['content']
-            await channel.send(f"{msg}".format(
-                user=member,
-                server=member.guild.name,
-                membercount=member.guild.member_count,
-            ))
+        if joinStaus and joinChannel:      
+            channel = self.client.get_channel(int(joinChannel))
+            if channel and joinMessageType == "text":
+                await channel.send(v.render_placeholders(
+                    joinMessageContent, 
+                    user=member, 
+                    server=member.guild.name, 
+                    membercount=member.guild.member_count
+                ))
         
-        # if welcomeMessageType == "embed":
+            # if welcomeMessageType == "embed":
         
-        # Auto Roles
-        autoRoles = wel_data['autoRoles']
-        if not autoRoles['status']:
-            return
-        for roleID in autoRoles['roles']:
-            role = member.guild.get_role(int(roleID))
-            await member.add_roles(role)
+        # ── Auto Roles (independent toggle) ─────────────────────────────
+        autoRoles_data = wel_data["autoRoles"]
+        autoRolesStatus = autoRoles_data["status"]
+        autoRolesRoles = autoRoles_data["roles"]
+        if autoRolesStatus:
+            for roleID in autoRolesRoles:
+                role = member.guild.get_role(int(roleID))
+                if role:
+                    await member.add_roles(role)
         
-        # DM
-        welcomeDm = wel_data['dm']['status']
+        # ── DM (independent toggle) ──────────────────────────────────────
+        welcomeDm_data = wel_data['dm']
+        welcomeDm = welcomeDm_data['status']
+        welcomeDmMsg = welcomeDm_data['message']['content']
         if welcomeDm and not member.bot:
-            welcomeDmMsg = wel_data['dm']['message']['content']
-            return await member.send(f"{welcomeDmMsg}".format(server=member.guild.name))
+            await member.send(v.render_placeholders(
+                welcomeDmMsg,
+                server=member.guild.name
+            ))
     
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        wel_data = v.db.get_dash(member.guild)['welcome']
+        wel_data = Guild.get(str(member.guild.id)).run().dashboard.welcome
+
+        # Master toggle for the whole Welcome plugin
+        if not wel_data['status']:
+            return
 
         leaveStaus = wel_data['leave']['status']
         leaveChan = wel_data['leave']['channel']
@@ -59,7 +71,8 @@ class welcomeSystem(commands.Cog):
             return
         
         channel = self.client.get_channel(int(leaveChan))
-        await channel.send(f"{leaveMessage}".format(
+        await channel.send(v.render_placeholders(
+            leaveMessage,
             user=member,
             server=member.guild.name,
             membercount=member.guild.member_count,

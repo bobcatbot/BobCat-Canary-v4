@@ -2,6 +2,7 @@ import discord
 import asyncio
 from discord.ext import commands
 from modules import bot as v
+from modules.models import Guild, TempChannel
 
 class TempVoice(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -26,14 +27,13 @@ class TempVoice(commands.Cog):
         if before.channel:
             await self.handle_leave(before.channel)
 
-
     # ------------------------------------------------------
     #   JOINS HUB  → CREATE TEMP CHANNEL
     # ------------------------------------------------------
     async def handle_join(self, member: discord.Member, hub_channel: discord.VoiceChannel):
 
-        hubs = v.db.get_dash(hub_channel.guild)['temporary_channels']['hubs']
-        tempvoice_db = v.db.get_server_config(hub_channel.guild)['temporary_channels']
+        hubs = Guild.get(str(hub_channel.guild.id)).run().dashboard.temporary_channels["hubs"]
+        tempvoice_db = TempChannel.find(TempChannel.guild_id == str(hub_channel.guild.id)).run()
 
         hub = next((h for h in hubs if h['channel_id'] == str(hub_channel.id)), None)
         if hub is None:
@@ -58,13 +58,12 @@ class TempVoice(commands.Cog):
 
             # Determine index
             idx = 1
-            guild_tcs = [tc for tc in tempvoice_db if tc["guild_id"] == hub_channel.guild.id]
-            if guild_tcs:
-                idx = guild_tcs[-1]["index"] + 1
+            if tempvoice_db:
+                idx = max(tc.index for tc in tempvoice_db) + 1
 
             # CREATE VOICE CHANNEL
             new_chan = await hub_channel.guild.create_voice_channel(
-                name=hub['name'].format(index=idx, username=member.name),
+                name=v.render_placeholders(hub['name'], index=idx, username=member.name),
                 category=hub_channel.category,
                 user_limit=hub['user_limit'],
                 bitrate=hub['bitrate'],
@@ -73,62 +72,51 @@ class TempVoice(commands.Cog):
 
             await member.move_to(new_chan)
 
-            v.db.update_server_config(
-                hub_channel.guild,
-                key=f"temporary_channels.{len(tempvoice_db)}",
-                value={
-                    "index": idx,
-                    "guild_id": hub_channel.guild.id,
-                    "channel_id": new_chan.id,
-                    "creator": member.id
-                }
-            )
+            TempChannel(
+                guild_id=str(hub_channel.guild.id),
+                channel_id=str(new_chan.id),
+                creator_id=str(member.id),
+                index=idx
+            ).insert()
 
         finally:
             await asyncio.sleep(0.5)
             self.channel_creation_lock.pop(member.id, None)
 
-
     # ------------------------------------------------------
     #   LEAVES CHANNEL → DELETE IF EMPTY
     # ------------------------------------------------------
     async def handle_leave(self, channel: discord.VoiceChannel):
-        tcs = v.db.get_server_config(channel.guild)['temporary_channels']
+        tempvoice = TempChannel.find_one(
+            TempChannel.guild_id == str(channel.guild.id),
+            TempChannel.channel_id == str(channel.id),
+        ).run()
 
-        # Find matching entry
-        entry_idx = None
-        for idx, tc in enumerate(tcs):
-            if tc["channel_id"] == channel.id:
-                entry_idx = idx
-                break
-
-        if entry_idx is None: # not a temp channel
+        if tempvoice is None:
             return
 
-        await asyncio.sleep(0.5) # Wait for member list to update
+        await asyncio.sleep(0.5)
 
-        # Not empty → do nothing
-        if len(channel.members) > 0:
+        if channel.members:
             return
 
-        # Delete channel
         try:
             await channel.delete()
-        except:
+            tempvoice.delete()
+        except discord.HTTPException:
             pass
 
     # Manage your voice channel panel
     @commands.slash_command(name="tempvoice-manage", description="Manage your temporary voice channel")
     async def tempvoice_manage(self, ctx: discord.ApplicationContext):
-        tcs: list = v.db.get_server_config(ctx.guild)['temporary_channels']
-
         if not ctx.interaction.user.voice:
             return await ctx.send("You must be connected to a voice channel to use this command.")
 
-        tempvoice = None
-        for _tc in tcs:
-            if _tc['channel_id'] == ctx.interaction.user.voice.channel.id and _tc['creator'] == ctx.interaction.user.id:
-                tempvoice = _tc
+        tempvoice = TempChannel.find_one(
+            TempChannel.guild_id == str(ctx.guild.id),
+            TempChannel.channel_id == str(ctx.interaction.user.voice.channel.id),
+            TempChannel.creator_id == str(ctx.interaction.user.id),
+        ).run()
 
         if tempvoice is None:
             return await ctx.respond("Access denied. You must be in your own voice channel to use this command.", ephemeral=True)
@@ -137,26 +125,30 @@ class TempVoice(commands.Cog):
         
         add_space = discord.ui.Button(label="+", style=discord.ButtonStyle.primary, custom_id="add_space")
         async def add_space_callback(interaction: discord.Interaction):
-            channel = discord.utils.get(interaction.guild.voice_channels, id=tempvoice['channel_id'])
-            await channel.edit(user_limit=channel.user_limit + 1)
+            channel = discord.utils.get(interaction.guild.voice_channels, id=int(tempvoice.channel_id))
 
-            embed = discord.Embed(
-                color=v.style(ctx.guild.id),
-                description="Voice member limit increased",
-            )
+            if channel.user_limit >= 99:
+                return await interaction.response.send_message(
+                    "This channel is already at the maximum limit of 99.", ephemeral=True
+                )
+
+            await channel.edit(user_limit=channel.user_limit + 1)
+            embed = discord.Embed(color=v.style(ctx.guild.id), description="Voice member limit increased")
             return await interaction.response.send_message(embed=embed)
         add_space.callback = add_space_callback
         view.add_item(add_space)
 
         remove_space = discord.ui.Button(label="-", style=discord.ButtonStyle.danger, custom_id="remove_space")
         async def remove_space_callback(interaction: discord.Interaction):
-            channel = discord.utils.get(interaction.guild.voice_channels, id=tempvoice['channel_id'])
-            await channel.edit(user_limit=channel.user_limit - 1)
+            channel = discord.utils.get(interaction.guild.voice_channels, id=int(tempvoice.channel_id))
 
-            embed = discord.Embed(
-                color=v.style(ctx.guild.id),
-                description="Voice member limit decreased",
-            )
+            if channel.user_limit <= 0:
+                return await interaction.response.send_message(
+                    "This channel already has no member limit.", ephemeral=True
+                )
+
+            await channel.edit(user_limit=channel.user_limit - 1)
+            embed = discord.Embed(color=v.style(ctx.guild.id), description="Voice member limit decreased")
             return await interaction.response.send_message(embed=embed)
         remove_space.callback = remove_space_callback
         view.add_item(remove_space)
@@ -174,6 +166,12 @@ class TempVoice(commands.Cog):
                 )
                 async def callback(self, select, interaction: discord.Interaction):
                     member = interaction.guild.get_member(select.values[0].id)
+
+                    if not member.voice or member.voice.channel.id != int(tempvoice.channel_id):
+                        return await interaction.response.send_message(
+                            f"{member.display_name} isn't in your voice channel.", ephemeral=True
+                        )
+
                     await member.move_to(None)
 
                     embed = discord.Embed(

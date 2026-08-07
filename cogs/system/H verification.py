@@ -4,8 +4,9 @@ import random
 import discord
 from discord.ext import commands
 from captcha.image import ImageCaptcha
-from cogs.mod._utils.audit_log import audit_log
+from cogs.mod.mod_utils.utils import audit_log
 from modules import bot as v
+from modules.models import Guild
 
 class Verification(commands.Cog):
     def __init__(self, client):
@@ -37,7 +38,7 @@ class Verification(commands.Cog):
     def _build_captcha(self, captcha_text: str) -> tuple[discord.Embed, discord.File]:
         """Generates the captcha image and embed."""
         image = ImageCaptcha(width=280, height=90)
-        image.write(captcha_text, "databases/CAPTCHA.png")
+        image.write(captcha_text, "images/CAPTCHA.png")
 
         embed = discord.Embed(
             title="Hello! Are you human? Let's find out!",
@@ -51,7 +52,7 @@ class Verification(commands.Cog):
             )
         )
         embed.set_image(url="attachment://captcha.png")
-        file = discord.File("databases/CAPTCHA.png", filename="captcha.png")
+        file = discord.File("images/CAPTCHA.png", filename="captcha.png")
         return embed, file
 
     async def _apply_fail_action(self, interaction: discord.Interaction, fail_action: str):
@@ -67,7 +68,7 @@ class Verification(commands.Cog):
         if interaction.data.get("custom_id") != "Verification":
             return
 
-        verify_data = v.db.get_dash(interaction.guild.id)['verification']
+        verify_data = Guild.get(str(interaction.guild.id)).run().dashboard.verification
         status = verify_data['status']
         chan = verify_data['channel']
         verify_role = verify_data['role']
@@ -114,7 +115,7 @@ class Verification(commands.Cog):
                 ephemeral=True
             )
             logs = self._build_verification_log(interaction, passed=True)
-            await audit_log(v.client, interaction, "Verification", logs)
+            await audit_log(interaction, "Verification", logs)
             return
 
         # ── Captcha DM ────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ class Verification(commands.Cog):
                         color=v.success
                     ))
                     logs = self._build_verification_log(interaction, passed=True)
-                    await audit_log(v.client, interaction, "Verification", logs)
+                    await audit_log(interaction, "Verification", logs)
                     return
 
                 attempts_left -= 1
@@ -202,7 +203,7 @@ class Verification(commands.Cog):
             ))
             await self._apply_fail_action(interaction, fail_action)
             logs = self._build_verification_log(interaction, passed=False, fail_action=fail_action)
-            await audit_log(v.client, interaction, "Verification", logs)
+            await audit_log(interaction, "Verification", logs)
             return
 
         # ── Captcha Channel ───────────────────────────────────────────────────
@@ -242,7 +243,7 @@ class Verification(commands.Cog):
                             ephemeral=True
                         )
                         logs = self._build_verification_log(interaction, passed=True)
-                        await audit_log(v.client, interaction, "Verification", logs)
+                        await audit_log(interaction, "Verification", logs)
                         return
 
                     attempt_state["attempts_left"] -= 1
@@ -276,7 +277,7 @@ class Verification(commands.Cog):
                     await modal_interaction.response.send_message(embed=failed_embed, ephemeral=True)
                     await self._apply_fail_action(interaction, _fail_action)
                     logs = self._build_verification_log(interaction, passed=False, fail_action=_fail_action)
-                    await audit_log(v.client, interaction, "Verification", logs)
+                    await audit_log(interaction, "Verification", logs)
 
             class CaptchaButton(discord.ui.View):
                 def __init__(self):

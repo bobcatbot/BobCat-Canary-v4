@@ -81,6 +81,10 @@ def handle_premium_error(e):
 def titlecase(s):
     return f"{s}".capitalize()
 
+@app.template_filter('lowercase')
+def lowercase(s):
+    return f"{s}".lower()
+
 # ── Context processors ────────────────────────────────────────────────────
 register_context_processors(app)
 

@@ -1,5 +1,5 @@
-import json
 from modules import bot as v
+from modules.models import Guild, Economy
 # mainshop, get_shop, get_user_items, open_account, update_bank, buy_this, sell_this
 
 mainshop = [
@@ -10,50 +10,51 @@ mainshop = [
 ]
 
 async def get_shop(guild) -> list[dict]:
-    data = v.db.get_dash(guild.id)['economy']['shop']
-    return data.get('shop')
+    economy = Guild.get(str(guild.id)).run().dashboard.economy
+    return economy.get("shop", [])
 
 async def get_user_items(guild, member):
-    data = v.db.get_server_config(guild.id)
-    user = data['economy'].get(f'{member.id}')
-    return user.get('bag')
+    user = Economy.get(f"{guild.id}_{member.id}").run()
+    return user.bag if user else []
 
 async def open_account(guild, member):
-    data = v.db.get_server_config(guild.id)
-    user = data['economy'].get(f'{member.id}')
-    
-    if user is None:
-        val = {'wallet': 0, 'bank': 0, 'bag': []}
-        v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=val)
-        return {'wallet': 0, 'bank': 0, 'bag': []}
-
-    return {'wallet': user.get('wallet'), 'bank': user.get('bank'), 'bag': user.get('bag')}
-
-async def update_bank(guild, member, mode='wallet', change=0):
-    data = v.db.get_server_config(guild.id)
-    user = data['economy'].get(f'{member.id}')
+    user = Economy.get(f"{guild.id}_{member.id}").run()
 
     if user is None:
-        val = {'wallet': 0, 'bank': 0, 'bag': []}
-        v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=val)
-        return {'wallet': 0, 'bank': 0, 'bag': []}
+        user = Economy(
+            id=f"{guild.id}_{member.id}",
+            guild_id=str(guild.id),
+            user_id=str(member.id),
+            wallet=0,
+            bank=0,
+            bag=[],
+        )
+        user.insert()
 
-    if not mode in ['wallet', 'bank']:
+    return {"wallet": user.wallet, "bank": user.bank, "bag": user.bag}
+
+async def update_bank(guild, member, mode="wallet", change=0):
+    user = Economy.get(f"{guild.id}_{member.id}").run()
+
+    if user is None:
+        await open_account(guild, member)
+        user = Economy.get(f"{guild.id}_{member.id}").run()
+
+    if mode not in ["wallet", "bank"]:
         return False
-    
-    user[mode] += change
-    v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=user)
 
-    return {'wallet': user.get('wallet'), 'bank': user.get('bank'), 'bag': user.get('bag')}
+    setattr(user, mode, getattr(user, mode) + change)
+    user.save()
+
+    return {"wallet": user.wallet, "bank": user.bank, "bag": user.bag}
 
 async def buy_this(guild, member, item, amt):
     item_name = item
     amount = amt
     name_ = ""
 
-    data = v.db.get_server_config(guild.id)
     shop = await get_shop(guild)
-    
+
     for item in shop:
         name = item["name"]
         if name == item_name:
@@ -61,56 +62,56 @@ async def buy_this(guild, member, item, amt):
             price = item["price"]
             limit = item["max_limit"]
             break
-    
-    cost = int(price) * int(amount)
-    bal = await update_bank(guild, member)
-    
+
     if name_ == "":
         return [False, 1]
-    
+
+    cost = int(price) * int(amount)
+    bal = await update_bank(guild, member)
+
     if amount == "0" or amount == 0:
         return [False, 2]
-    
+
     if int(amount) > int(limit):
         return [False, 3, limit]
 
-    if bal.get('wallet') < int(cost):
+    if bal.get("wallet") < int(cost):
         return [False, 4, cost]
-    
-    user = data['economy'].get(f'{member.id}')
-    for i, item in enumerate(user["bag"]):
+
+    user = Economy.get(f"{guild.id}_{member.id}").run()
+
+    for i, item in enumerate(user.bag):
         if item["item"] == item_name:
             new_amt = int(item["amount"]) + int(amount)
 
             if int(new_amt) > int(limit):
                 return [False, 5, limit]
-            
-            user["bag"][i]["amount"] = int(new_amt)
-            v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=user)
+
+            user.bag[i]["amount"] = int(new_amt)
+            user.save()
             await update_bank(guild, member, "wallet", cost * -1)
             return [True, "Worked"]
-    
-    obj = {"item": item_name, "amount": int(amount)}
-    user["bag"].append(obj)
 
-    v.db.update_server_config(guild.id, key=f'economy.{member.id}', value=user)
-    await update_bank(guild, member, 'wallet', cost * -1)
+    obj = {"item": item_name, "amount": int(amount)}
+    user.bag.append(obj)
+    user.save()
+
+    await update_bank(guild, member, "wallet", cost * -1)
     return [True, "Worked"]
 
-async def sell_this(guild, user, item, amt):
+async def sell_this(guild, member, item, amt):
     item_name = item
     amount = amt
     name_ = ""
     price = None
 
-    data = v.db.get_server_config(guild.id)
     shop = await get_shop(guild)
-         
+
     for item in shop:
         name = item["name"]
         if name == item_name:
             name_ = name
-            if price == None:
+            if price is None:
                 price = 0.9 * item["price"]
             break
 
@@ -118,20 +119,24 @@ async def sell_this(guild, user, item, amt):
         return [False, 1]
 
     cost = int(price) * int(amount)
+    user = Economy.get(f"{guild.id}_{member.id}").run()
 
-    user = data['economy'].get(f'{user.id}')
-    for i, thing in enumerate(user["bag"]):
+    for i, thing in enumerate(user.bag):
         if thing["item"] == item_name:
             new_amt = int(thing["amount"]) - int(amount)
-            
+
             if new_amt < 0:
                 return [False, 2]
-            
+
             if int(new_amt) == 0:
-                user["bag"].pop(i)
+                user.bag.pop(i)
             else:
-                user["bag"][i]["amount"] = int(new_amt)
-    
-    v.db.update_server_config(guild.id, key=f'economy.{user.id}', value=user)
-    await update_bank(guild, user, cost, "wallet")
-    return [True, "Worked"]
+                user.bag[i]["amount"] = int(new_amt)
+
+            user.save()
+            await update_bank(guild, member, "wallet", cost)
+            return [True, "Worked"]
+
+    # Item exists in the shop but the user doesn't have it in their bag —
+    # previously this fell through and paid out anyway.
+    return [False, 3]

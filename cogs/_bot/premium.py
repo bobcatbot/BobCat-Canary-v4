@@ -2,21 +2,25 @@ import discord
 from datetime import datetime
 from discord.ext import commands, tasks
 from modules import bot as v
+from modules.models import Guild
 
 class Premium(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.stop_premium.start()
 
+    def cog_unload(self):
+        self.stop_premium.cancel()
+
     @tasks.loop(hours=24)
     async def stop_premium(self):
         for guild in self.client.guilds:
             try:
-                config = v.db.get_server_config(guild, True)
-                if not config:
+                doc = Guild.get(str(guild.id)).run()
+                if doc is None:
                     continue
 
-                premium = config['premium']
+                premium = doc.premium
 
                 if not premium.get('status'):
                     continue
@@ -28,8 +32,9 @@ class Premium(commands.Cog):
                 expiry_date = datetime.fromisoformat(str(premium['code_expiry']))
 
                 if expiry_date <= datetime.now():
-                    v.db.update_server_config(guild, True, key='premium.status', value=False)
-                    v.db.update_server_config(guild, True, key='premium.active', value=False)
+                    doc.premium['status'] = False
+                    doc.premium['active'] = False
+                    doc.save()
                     print(f"Premium expired for {guild.name} ({guild.id})")
 
             except Exception as e:

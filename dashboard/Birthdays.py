@@ -1,9 +1,8 @@
 import discord
-from datetime import datetime
 from modules import bot as v
-from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select
-)
+from modules.models import Guild
+from discord.ui import DesignerView, Container, ActionRow, button, select, channel_select, role_select
+from dashboard._components import FooterRow, StatusToggle, save_dash, refresh_footer
 
 TIME_OPTIONS = [
     {
@@ -18,48 +17,53 @@ TIME_OPTIONS = [
 class BirthdaysBirthdayMessageContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['birthdays']
+        data = Guild.get(str(guild.id)).run().dashboard.birthdays
 
         container = Container(
             color=v.style(guild),
         )
-        container.add_text("# Birthday Message")
-        container.add_text("BobCat can remember users' birthdays and wish them a happy one in a specific channel.")
+        container.add_text("# Birthday Message & Schedule")
+        container.add_text("BobCat can remember members' birthdays and send them a automated birthday greeting.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Happy Birthday Channel")
-        container.add_text("Choose the channel for the messages to be sent in")
+        # --- SECTION 1: CHANNEL SELECTION ---
+        container.add_text("## Announcement Channel")
+        container.add_text("Choose the channel where happy birthday wishes will be posted.")
+
+        chan_obj = guild.get_channel(int(data['channel_id'])) if data.get('channel_id') else None
+        default_chan = [chan_obj] if chan_obj else None
+
         class BirthdayChannelSelect(ActionRow):
             @channel_select(
                 placeholder="Select a channel",
                 channel_types=[discord.ChannelType.text],
-                default_values=[ guild.get_channel(int(data['channel_id'])) ],
+                default_values=default_chan,
                 max_values=1,
+                min_values=0
             )
-            async def callback(self, select, interaction: discord.Interaction):
-                new_channel = select.values[0].id
+            async def callback(self, select: discord.ui.ChannelSelect, interaction: discord.Interaction):
+                new_channel = str(select.values[0].id) if select.values else None
 
-                v.db.update_dash(guild.id, 'birthdays.channel_id', str(new_channel))
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'birthdays.channel_id', new_channel)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=BirthdaysBirthdayMessageContainer(guild))
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
         container.add_item(BirthdayChannelSelect())
-
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Happy Birthday Wishing Hour")
-        container.add_text("Change the hour at which the birthday messages should be sent with respect to the timezone of your server")
+        # --- SECTION 2: WISHING HOUR SELECTION ---
+        container.add_text("## Wishing Hour")
+        container.add_text("Select the hour at which birthday messages should be posted (with respect to your server timezone).")
+
         class BirthdayMessageSelect(ActionRow):
             @select(
                 placeholder="Select a time",
                 options=[
                     discord.SelectOption(
-                        label=f"{message['time']}", 
-                        value=message['value'], 
-                        default=message['value'] == str(data['message_hour'])
-                    ) 
+                        label=message['time'],
+                        value=message['value'],
+                        default=(message['value'] == str(data.get('message_hour', '0')))
+                    )
                     for message in TIME_OPTIONS
                 ],
                 max_values=1,
@@ -67,169 +71,119 @@ class BirthdaysBirthdayMessageContainer(DesignerView):
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 new_value = select.values[0]
 
-                v.db.update_dash(guild.id, 'birthdays.message_hour', new_value)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'birthdays.message_hour', new_value)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=BirthdaysBirthdayMessageContainer(guild))
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
         container.add_item(BirthdayMessageSelect())
-
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Happy Birthday Message")
-        container.add_text("Send a message to the user when on their sepcial day")
-        class BirthdayMessageModel(discord.ui.DesignerModal):
+        # --- SECTION 3: MESSAGE CONTENT TEMPLATE ---
+        container.add_text("## Birthday Message")
+        class BirthdayMessageModal(discord.ui.DesignerModal):
             def __init__(self):
                 super().__init__(
                     discord.ui.Label(
                         "Birthday Message",
                         discord.ui.InputText(
-                            placeholder="Write your message here...",
-                            value=f"{data['message']}",
+                            placeholder="Write your happy birthday message...",
+                            value=data['message'],
                             style=discord.InputTextStyle.long,
+                            required=True
                         )
                     ),
-                    title="Birthday Message",
+                    title="Edit Birthday Message",
                 )
             async def callback(self, interaction: discord.Interaction):
-                new_message = self.children[0].value
+                item = self.children[0]
+                new_message = item.item.value if hasattr(item, 'item') else item.value
 
-                v.db.update_dash(guild.id, 'birthdays.message', new_message)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'birthdays.message', new_message)
+                refresh_footer(interaction.view, guild)
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
+                await interaction.response.edit_message(view=BirthdaysBirthdayMessageContainer(guild))
+                await interaction.followup.send("Updated birthday message template!", ephemeral=True)
+
         class BirthdayMessageButton(ActionRow):
             @button(
                 label="Edit Message",
                 style=discord.ButtonStyle.primary,
             )
             async def callback(self, button, interaction: discord.Interaction):
-                await interaction.response.send_modal(BirthdayMessageModel())
+                await interaction.response.send_modal(BirthdayMessageModal())
+
         container.add_item(BirthdayMessageButton())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginBirthdays(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginBirthdays(guild)))
 
 class BirthdaysBirthdayRoleContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['birthdays']
+        data = Guild.get(str(guild.id)).run().dashboard.birthdays
 
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Birthday Role")
-        container.add_text("Give a role to a user when they have a birthday")
+        container.add_text("Automatically assign a special temporary role to members on their birthday.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        role_obj = guild.get_role(int(data['birthday_role'])) if data.get('birthday_role') else None
+        default_role = [role_obj] if role_obj else None
 
         class BirthdayRoleSelect(ActionRow):
             @role_select(
                 placeholder="Select a role",
                 max_values=1,
-                default_values=[ guild.get_role(int(data['birthday_role'])) ]
+                min_values=0,
+                default_values=default_role
             )
-            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                new_role = select.values[0].id
+            async def callback(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
+                new_role = str(select.values[0].id) if select.values else None
 
-                v.db.update_dash(guild.id, 'birthdays.birthday_role', str(new_role))
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'birthdays.birthday_role', new_role)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=BirthdaysBirthdayRoleContainer(guild))
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
         container.add_item(BirthdayRoleSelect())
 
+        if not guild.me.guild_permissions.manage_roles:
+            container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+            container.add_text("⚠️ **Bot Permissions Missing:** Grant BobCat the `Manage Roles` permission to assign birthday roles.")
+
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginBirthdays(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginBirthdays(guild)))
 
 class PluginBirthdays(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['birthdays']
+        data = Guild.get(str(guild.id)).run().dashboard.birthdays
 
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Birthdays")
-        container.add_text("Track your members birthdays and wish them a happy birthday")
+        container.add_text("Track your members' birthdays and wish them a happy birthday.")
 
-        class StatusButton(ActionRow):
-            @button(
-                label="Disabled" if data['status'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['status'] == False else discord.ButtonStyle.green,
-                custom_id="status",
-            )
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild.id, 'birthdays.status', True)
-
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild.id, 'birthdays.status', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.edit_message(view=interaction.view)
-        container.add_item(StatusButton())
+        container.add_item(StatusToggle(guild, 'birthdays.status', data.get('status', False)))
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("**Configure**")
         class PluginButtons(ActionRow):
             @button(
-                label="Message",
+                label="Message & Schedule",
                 style=discord.ButtonStyle.gray,
             )
             async def msgCallback(self, button, interaction: discord.Interaction):
                 await interaction.response.edit_message(view=BirthdaysBirthdayMessageContainer(guild))
             
             @button(
-                label="Role",
+                label="Birthday Role",
                 style=discord.ButtonStyle.gray,
             )
             async def roleCallback(self, button, interaction: discord.Interaction):
                 await interaction.response.edit_message(view=BirthdaysBirthdayRoleContainer(guild))
 
         container.add_item(PluginButtons())
-
         self.add_item(container)

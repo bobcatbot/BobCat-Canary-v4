@@ -1,6 +1,7 @@
 import discord
 from modules import bot as v
 from discord.ext import commands
+from modules.models import Guild
 
 class BackBtn(discord.ui.Button):
     def __init__(self, client, row=1):
@@ -33,17 +34,18 @@ class Dropdown(discord.ui.Select):
             discord.SelectOption(label="Games", description="All of bobcats game commands"),
         ]
 
-        data = v.db.get_dash(g)
-        if data["moderation"]["status"]:
-            options.append(discord.SelectOption(label="Mod", description="All of bobcats moderation commands"))
-        if data["leveling"]["status"]:
-            options.append(discord.SelectOption(label="Leveling", description="All of bobcats leveling commands"))
-        if data["economy"]["status"]:
-            options.append(discord.SelectOption(label="Economy", description="All of bobcats economy commands"))
-        if data['giveaway']['status']:
-            options.append(discord.SelectOption(label="Giveaway", description="All of bobcats giveaway commands"))
-        if data['birthdays']['status']:
-            options.append(discord.SelectOption(label="Birthdays", description="All of bobcats birthdays commands"))
+        guild_doc = Guild.get(str(g)).run()
+        data = guild_doc.dashboard if guild_doc else None
+
+        if data:
+            if data.moderation["status"]:
+                options.append(discord.SelectOption(label="Mod", description="All of bobcats moderation commands"))
+            if data.leveling["status"]:
+                options.append(discord.SelectOption(label="Leveling", description="All of bobcats leveling commands"))
+            if data.economy["status"]:
+                options.append(discord.SelectOption(label="Economy", description="All of bobcats economy commands"))
+            if data.birthdays['status']:
+                options.append(discord.SelectOption(label="Birthdays", description="All of bobcats birthdays commands"))
 
         super().__init__(
             placeholder="Browse Categories",

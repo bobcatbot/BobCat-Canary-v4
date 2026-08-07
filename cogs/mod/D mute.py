@@ -1,288 +1,547 @@
-import discord
 import datetime
-from modules import bot as v
+import discord
 from discord.ext import commands
-from ._utils.audit_log import audit_log
+from modules import bot as v
+from modules.models import Guild
+from .mod_utils.utils import can_moderate, send_member_dm, audit_log
+
+DURATIONS = {
+    "60-sec": (datetime.timedelta(seconds=60), "60 seconds"),
+    "5-min": (datetime.timedelta(minutes=5), "5 minutes"),
+    "10-min": (datetime.timedelta(minutes=10), "10 minutes"),
+    "1-hour": (datetime.timedelta(hours=1), "1 hour"),
+    "1-day": (datetime.timedelta(days=1), "1 day"),
+    "1-week": (datetime.timedelta(weeks=1), "1 week"),
+}
+
+TIMEOUT_CHOICES = {
+    "60 SECS": (datetime.timedelta(seconds=60), "60 seconds"),
+    "5 MINS": (datetime.timedelta(minutes=5), "5 minutes"),
+    "10 MINS": (datetime.timedelta(minutes=10), "10 minutes"),
+    "1 HOUR": (datetime.timedelta(hours=1), "1 hour"),
+    "1 DAY": (datetime.timedelta(days=1), "1 day"),
+    "1 WEEK": (datetime.timedelta(weeks=1), "1 week"),
+}
+
+def get_mute_settings(guild: discord.Guild) -> dict:
+    guild_config = Guild.get(str(guild.id)).run()
+
+    if guild_config is None:
+        return {}
+
+    moderation = guild_config.dashboard.moderation or {}
+
+    return (
+        moderation
+        .get("settings", {})
+        .get("mute", {})
+    )
 
 class Mute(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.bot = client
-# mute [member] {reason}
+
     @commands.slash_command(name="mute", description="Mutes a member in the server")
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
     @discord.option("member", discord.Member, description="The member you want to mute", required=True)
-    @discord.option("reason", description="The reason for the mute", required=False)
-    async def mute(self, ctx, member: discord.Member, *, reason=None):
-        if member == ctx.guild.owner:
-            error = discord.Embed(title="❌ You can't mute the owner of this server", color=v.error)
-            return await ctx.respond(embed=error, ephemeral=True)
-        
-        if member == ctx.user:
-            error = discord.Embed(title="❌ You can't mute yourself", color=v.error)
-            return await ctx.repsond(embed=error, ephemeral=True)
-
-        reason = "Unspecified" if not reason else reason
-
-        muteType = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["type"]
-        if muteType == "role":
-            mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
-            
-            if not mutedRole:
-                await ctx.guild.create_role(name="Muted")
-                mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
-            
-            if mutedRole in member.roles:
-                embed = discord.Embed(
+    @discord.option("reason", str, description="The reason for the mute", required=False)
+    async def mute(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None):
+        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        if not allowed:
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Mute failed",
+                    description=error_message,
                     color=v.error,
-                    title="❌ You cannot mute someone who is already muted."
+                ),
+                ephemeral=True,
+            )
+
+        reason = reason or "Unspecified"
+
+        mute_settings = get_mute_settings(ctx.guild)
+        mute_type = mute_settings.get("type", "timeout")
+        mute_duration = mute_settings.get("duration", "10-min")
+        dm_fields = mute_settings.get("dm", [])
+
+        await send_member_dm(
+            member=member,
+            guild=ctx.guild,
+            moderator=ctx.author,
+            action="Muted",
+            reason=reason,
+            dm_fields=dm_fields,
+        )
+
+        duration_text = None
+
+        if mute_type == "role":
+            muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+
+            if muted_role is None:
+                muted_role = await ctx.guild.create_role(
+                    name="Muted",
+                    reason="Muted role created by BobCat",
                 )
-                return await ctx.send(embed=embed)
+            if muted_role >= ctx.guild.me.top_role:
+                return await ctx.respond(
+                    embed=discord.Embed(title="❌ Mute failed", description="The Muted role is above or equal to my highest role.", color=v.error),
+                    ephemeral=True,
+                )
+            if muted_role in member.roles:
+                return await ctx.respond(
+                    embed=discord.Embed(title="❌ Member already muted", color=v.error),
+                    ephemeral=True,
+                )
 
             for channel in ctx.guild.channels:
-                await channel.set_permissions(mutedRole, speak=False, send_messages=False)
-            await member.add_roles(mutedRole, reason=reason)
-            message = ""
-        
-        if muteType == "timeout":
-            muteTime = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["duration"]
-            if muteTime == "60-sec": time, duration = datetime.timedelta(seconds=60), "60 seconds"  # 60 SEC
-            if muteTime == "5-min":  time, duration = datetime.timedelta(minutes=5), "5 minutes"  # 5 MIN
-            if muteTime == "10-min": time, duration = datetime.timedelta(minutes=10), "10 minutes"  # 10 MIN
-            if muteTime == "1-hour": time, duration = datetime.timedelta(hours=1), "1 hour"  # 1 HOUR
-            if muteTime == "1-day":  time, duration = datetime.timedelta(days=1), "1 day"  # 1 DAY
-            if muteTime == "1-week": time, duration = datetime.timedelta(weeks=1), "1 week"  # 1 WEEK
-            
-            try:
-                await member.timeout_for(time, reason=reason)
-            except discord.Forbidden:
-                return await ctx.resond(f"failed to timeout {member.name}. \nTry and remove all roles from the user and try again later.")
-            message = f"They have now been muted for {duration}."
-        
-        embed = discord.Embed(
-            color=v.style(ctx.guild.id),
-            description=f"**Reason:** {reason}"
-        )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been muted")
-        except AttributeError:
-            embed.set_author(icon_url=member.default_avatar, name=f"{member} has been muted")
-        
-        if message != "":
-            embed.add_field(name="Note", value=message)
+                try:
+                    await channel.set_permissions(
+                        muted_role,
+                        send_messages=False,
+                        speak=False,
+                        add_reactions=False,
+                    )
+                except (discord.Forbidden, discord.HTTPException):
+                    continue
+
+            await member.add_roles(
+                muted_role,
+                reason=f"{ctx.author}: {reason}",
+            )
         else:
-            pass
+            timeout_data = DURATIONS.get(
+                mute_duration,
+                DURATIONS["10-min"],
+            )
+            duration, duration_text = timeout_data
+            await member.timeout_for(
+                duration,
+                reason=f"{ctx.author}: {reason}",
+            )
+
+        embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild))
+        embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has been muted")
+        if duration_text:
+            embed.add_field(
+                name="Duration",
+                value=duration_text,
+                inline=False,
+            )
         await ctx.respond(embed=embed)
-        
-        member_em = discord.Embed(title=f"You have been muted", color=v.style(ctx.guild.id))
-        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["dm"]
-        if moddm:
-            if "server" in moddm:
-                member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
-            if "action" in moddm:
-                member_em.add_field(name="Action", value="Mute", inline=True)
-            if "moderator" in moddm:
-                member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
-            if "reason" in moddm:
-                member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            
-            try:
-                await member.send(embed=member_em)
-            except discord.Forbidden:
-                pass
-        
-        # Audit log
-        logs = discord.Embed(color=v.style(ctx.guild.id))
-        try:
-            logs.set_author(icon_url=member.avatar.url, name=f"[MUTE] {member}")
-        except AttributeError:
-            logs.set_author(icon_url=member.default_avatar, name=f"[MUTE] {member}")
-        logs.add_field(name="User", value=f"{member.mention}", inline=True)
-        logs.add_field(name="Moderator", value=f"{ctx.author.mention}")
-        logs.add_field(name="Reason", value=f"{reason}")
-        await audit_log(self.client, ctx, 'ModerationMute', logs)
-    
+
+        logs = discord.Embed(
+            color=v.style(ctx.guild),
+        )
+        logs.set_author(
+            icon_url=member.display_avatar.url,
+            name=f"[MUTE] {member}",
+        )
+        logs.add_field(
+            name="User",
+            value=f"{member.mention} (`{member.id}`)",
+            inline=True,
+        )
+        logs.add_field(
+            name="Moderator",
+            value=ctx.author.mention,
+            inline=True,
+        )
+        logs.add_field(
+            name="Reason",
+            value=reason,
+            inline=False,
+        )
+        if duration_text:
+            logs.add_field(
+                name="Duration",
+                value=duration_text,
+                inline=False,
+            )
+
+        await audit_log(ctx, "ModerationMute", logs)
+
     @mute.error
     async def mute_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(title="❌ Missing `Moderate Members (timeout)` permission", color=v.error)
-            return await ctx.send(embed=embed)
-        
-        if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to mute members", description='Please give BobCat the "Moderate Members" permission')
-            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Moderate Members (timeout)` permission.  \n\nNeed help?\n{v.docs}/moderation/mute", color=v.error)
-            return await ctx.send(embed=embed)
+        original = getattr(error, "original", error)
 
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=v.error,
-                title="Invalid Usage", url=f"{v.docs}/moderation/mute",
-                description="b!mute [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n `reason`: reason for the mute"
+        if isinstance(original, commands.MissingPermissions):
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Missing permission",
+                    description=(
+                        "You need the `Moderate Members` permission."
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
             )
-            return await ctx.send(embed=embed)
+
+        if isinstance(original, commands.BotMissingPermissions):
+            v.push_notification(
+                ctx.guild,
+                kind="error",
+                title="BobCat cannot mute members",
+                description=(
+                    "The mute command failed because BobCat is missing "
+                    "the Moderate Members permission."
+                ),
+                fix="Give BobCat the Moderate Members permission.",
+            )
+
+            return await ctx.respond(
+                embed=discord.Embed(
+                    description=(
+                        "❌ I am missing the `Moderate Members` "
+                        "permission.\n\n"
+                        f"Need help?\n{v.docs}/moderation/mute"
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        if isinstance(original, discord.Forbidden):
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Mute failed",
+                    description=(
+                        "Check my permissions and role position."
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        raise original
 
 class UnMute(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.bot = client
-    # Unmute [member]
-    @commands.slash_command(name="unmute", description="Unmute a member")
+
+    @commands.slash_command(
+        name="unmute",
+        description="Unmutes a member",
+    )
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
-    @discord.option("member", discord.Member, description="Member to unmute", required=True)
-    async def unmute(self, ctx, member: discord.Member):
-        
-        muteType = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["type"]
-        if muteType == "role":
-            mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
-            if not mutedRole in member.roles:
-                embed = discord.Embed(
+    @discord.option(
+        "member",
+        discord.Member,
+        description="The member to unmute",
+        required=True,
+    )
+    async def unmute(
+        self,
+        ctx: discord.ApplicationContext,
+        member: discord.Member,
+    ):
+        allowed, error_message = can_moderate(
+            ctx.guild,
+            ctx.author,
+            member,
+        )
+
+        if not allowed:
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Unmute failed",
+                    description=error_message,
                     color=v.error,
-                    title="❌ You cannot unmute someone who is not muted."
+                ),
+                ephemeral=True,
+            )
+
+        mute_settings = Guild.get(ctx.guild.id).run().dashboard.moderation
+        mute_type = mute_settings.get("type", "timeout")
+        dm_fields = mute_settings.get("dm", [])
+
+        if mute_type == "role":
+            muted_role = discord.utils.get(
+                ctx.guild.roles,
+                name="Muted",
+            )
+
+            if muted_role is None or muted_role not in member.roles:
+                return await ctx.respond(
+                    embed=discord.Embed(
+                        title="❌ Member is not muted",
+                        color=v.error,
+                    ),
+                    ephemeral=True,
                 )
-                return await ctx.msg.edit(embed=embed, view=None)
-            
-            mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
-            await member.remove_roles(mutedRole)
-        
-        if muteType == "timeout":
-            await member.remove_timeout()
-        
-        embed = discord.Embed(color=v.style(ctx.guild.id))
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been unmuted")
-        except AttributeError:
-            embed.set_author(icon_url=member.default_avatar, name=f"{member} has been unmuted")
+
+            await member.remove_roles(
+                muted_role,
+                reason=f"Unmuted by {ctx.author}",
+            )
+
+        else:
+            if member.timed_out_until is None:
+                return await ctx.respond(
+                    embed=discord.Embed(
+                        title="❌ Member is not timed out",
+                        color=v.error,
+                    ),
+                    ephemeral=True,
+                )
+
+            await member.remove_timeout(
+                reason=f"Unmuted by {ctx.author}",
+            )
+
+        await send_member_dm(
+            member=member,
+            guild=ctx.guild,
+            moderator=ctx.author,
+            action="Unmuted",
+            reason="Unspecified",
+            dm_fields=dm_fields,
+        )
+
+        embed = discord.Embed(
+            color=v.style(ctx.guild),
+        )
+        embed.set_author(
+            icon_url=member.display_avatar.url,
+            name=f"{member} has been unmuted",
+        )
         await ctx.respond(embed=embed)
 
-        member_em = discord.Embed(title=f"You have been unmuted", color=v.style(ctx.guild.id))
-        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["mute"]["dm"]
-        if 'none' not in moddm:
-            if "server" in moddm:
-                member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
-            if "action" in moddm:
-                member_em.add_field(name="Action", value="Unmute", inline=True)
-            if "moderator" in moddm:
-                member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
-            if "reason" in moddm:
-                member_em.add_field(name="Reason", value=f"Unspecified", inline=False)
-            
-            try:
-                await member.send(embed=member_em)
-            except discord.Forbidden:
-                pass
+        logs = discord.Embed(
+            color=v.style(ctx.guild),
+        )
+        logs.set_author(
+            icon_url=member.display_avatar.url,
+            name=f"[UNMUTE] {member}",
+        )
+        logs.add_field(
+            name="User",
+            value=f"{member.mention} (`{member.id}`)",
+            inline=True,
+        )
+        logs.add_field(
+            name="Moderator",
+            value=ctx.author.mention,
+            inline=True,
+        )
+        await audit_log(
+            ctx,
+            "ModerationUnmute",
+            logs,
+        )
 
-        # Audit log
-        logs = discord.Embed(color=v.style(ctx.guild.id))
-        try:
-            logs.set_author(icon_url=member.avatar.url, name=f"[UNMUTE] {member}")
-        except AttributeError:
-            logs.set_author(icon_url=member.default_avatar, name=f"[UNMUTE] {member}")
-        logs.add_field(name="User", value=f"{member.mention}", inline=True)
-        logs.add_field(name="Moderator", value=f"{ctx.author.mention}")
-        await audit_log(self.client, ctx, 'ModerationUnmute', logs)
-    
     @unmute.error
     async def unmute_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(title="❌ Missing `Time out Members` permission", color=v.error)
-            return await ctx.send(embed=embed)
-        
-        if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unmute members", description='Please give BobCat the "Kick Members" permission')
-            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.  \n\nNeed help?\n{v.docs}/moderation/unmute", color=v.error)
-            return await ctx.send(embed=embed)
+        original = getattr(error, "original", error)
 
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=v.error,
-                title="Invalid Usage", url=f"{v.docs}/moderation/unmute",
-                description="b!unmute [member] \n- member: Mention | ID | Username | Username#tag"
+        if isinstance(original, commands.MissingPermissions):
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Missing permission",
+                    description=(
+                        "You need the `Moderate Members` permission."
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
             )
-            return await ctx.send(embed=embed)
+
+        if isinstance(original, commands.BotMissingPermissions):
+            v.push_notification(
+                ctx.guild,
+                kind="error",
+                title="BobCat cannot unmute members",
+                description=(
+                    "The unmute command failed because BobCat is "
+                    "missing the Moderate Members permission."
+                ),
+                fix="Give BobCat the Moderate Members permission.",
+            )
+
+            return await ctx.respond(
+                embed=discord.Embed(
+                    description=(
+                        "❌ I am missing the `Moderate Members` "
+                        "permission.\n\n"
+                        f"Need help?\n{v.docs}/moderation/unmute"
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        raise original
 
 class Timeout(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.bot = client
-# Timeout
-    @commands.slash_command(name="timeout", description="Temporarily mute a member")
+
+    @commands.slash_command(
+        name="timeout",
+        description="Temporarily times out a member",
+    )
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
-    @discord.option("member", discord.Member, description="Member to mute", required=True)
-    @discord.option("duration", str, description="Duration of the mute", required=True, choices=["60 SECS", "5 MINS", "10 MINS", "1 HOUR", "1 DAY", "1 WEEK"])
-    @discord.option("reasons", str, description="Reason for the mute", required=False)
-    async def timeout(self, ctx, member: discord.Member, duration, *, reasons=None):
-        current_time = datetime.datetime.now()
-
-        match duration:
-            case "60 SECS":
-                time_added = datetime.timedelta(seconds=60)
-                timestr = "60 seconds"
-            case "5 MINS":
-                time_added = datetime.timedelta(minutes=5)
-                timestr = "5 minutes"
-            case "10 MINS":
-                time_added = datetime.timedelta(minutes=10)
-                timestr = "10 minutes"
-            case "1 HOUR":
-                time_added = datetime.timedelta(hours=1)
-                timestr = "1 hour"
-            case "1 DAY":
-                time_added = datetime.timedelta(days=1)
-                timestr = "1 day"
-            case "1 WEEK":
-                time_added = datetime.timedelta(weeks=1)
-                timestr = "1 week"
-            case _:
-                pass
-
-        reason = "Unspecified" if not reasons else reasons
-        await member.timeout_for( time_added, reason=reason )
-        
-        embed = discord.Embed(
-            color=v.style(ctx.guild.id),
-            description=f'**Reason:** {reason}',
-            timestamp=current_time+time_added,
+    @discord.option(
+        "member",
+        discord.Member,
+        description="The member to time out",
+        required=True,
+    )
+    @discord.option(
+        "duration",
+        str,
+        description="Duration of the timeout",
+        required=True,
+        choices=list(TIMEOUT_CHOICES.keys()),
+    )
+    @discord.option(
+        "reason",
+        str,
+        description="Reason for the timeout",
+        required=False,
+    )
+    async def timeout(
+        self,
+        ctx: discord.ApplicationContext,
+        member: discord.Member,
+        duration: str,
+        reason: str = None,
+    ):
+        allowed, error_message = can_moderate(
+            ctx.guild,
+            ctx.author,
+            member,
         )
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been timed out for {timestr}")
-        except AttributeError:
-            embed.set_author(name=f"{member} has been timed out {timestr}")
-        embed.set_footer(text="Timed out until")
-        ctx.msg = await ctx.respond(embed=embed)
 
-        # Audit log
-        logs = discord.Embed(color=v.style(ctx.guild.id))
-        try:
-            logs.set_author(icon_url=member.avatar.url, name=f"[TIMEOUT] {member}")
-        except AttributeError:
-            logs.set_author(name=f"[TIMEOUT] {member}")
-        logs.add_field(name="User", value=f"{member.mention}", inline=True)
-        logs.add_field(name="Moderator", value=f"{ctx.author.mention}")
-        logs.add_field(name="Reason", value=f"{reason}")
-        logs.add_field(name="Duration", value=f"{timestr}")
-        await audit_log(self.client, ctx, logs)
-    
+        if not allowed:
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Timeout failed",
+                    description=error_message,
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        timeout_data = TIMEOUT_CHOICES.get(duration)
+
+        if timeout_data is None:
+            return await ctx.respond(
+                "❌ Invalid timeout duration.",
+                ephemeral=True,
+            )
+
+        mute_settings = get_mute_settings(ctx.guild.id)
+        dm_fields = mute_settings.get("dm", [])
+
+        timeout_duration, duration_text = timeout_data
+        reason = reason or "Unspecified"
+
+        await send_member_dm(
+            member=member,
+            guild=ctx.guild,
+            moderator=ctx.author,
+            action="Timed out",
+            reason=reason,
+            dm_fields=dm_fields,
+        )
+
+        await member.timeout_for(
+            timeout_duration,
+            reason=f"{ctx.author}: {reason}",
+        )
+
+        timeout_end = discord.utils.utcnow() + timeout_duration
+
+        embed = discord.Embed(
+            description=f"**Reason:** {reason}",
+            timestamp=timeout_end,
+            color=v.style(ctx.guild),
+        )
+        embed.set_author(
+            icon_url=member.display_avatar.url,
+            name=f"{member} has been timed out for {duration_text}",
+        )
+        embed.set_footer(text="Timed out until")
+        await ctx.respond(embed=embed)
+
+        logs = discord.Embed(
+            color=v.style(ctx.guild),
+        )
+        logs.set_author(
+            icon_url=member.display_avatar.url,
+            name=f"[TIMEOUT] {member}",
+        )
+        logs.add_field(
+            name="User",
+            value=f"{member.mention} (`{member.id}`)",
+            inline=True,
+        )
+        logs.add_field(
+            name="Moderator",
+            value=ctx.author.mention,
+            inline=True,
+        )
+        logs.add_field(
+            name="Reason",
+            value=reason,
+            inline=False,
+        )
+        logs.add_field(
+            name="Duration",
+            value=duration_text,
+            inline=False,
+        )
+        await audit_log(
+            ctx,
+            "ModerationMute",
+            logs,
+        )
+
     @timeout.error
     async def timeout_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(title="❌ You are missing `Time out Members` permission", color=v.error)
-            return await ctx.send(embed=embed)
+        original = getattr(error, "original", error)
 
-        if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to timeout members", description='Please give BobCat the "Time out Members" permission')
-            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.  \n\nNeed help?\n{v.docs}/moderation/timeout", color=v.error)
-            return await ctx.send(embed=embed)
-
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=v.error,
-                title="Invalid Usage", url=f"{v.docs}/moderation/timeout",
-                description="/timeout [member] [time] \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`time`: 60s, 300s, 1hr, 1d, 1w"
+        if isinstance(original, commands.MissingPermissions):
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Missing permission",
+                    description=(
+                        "You need the `Moderate Members` permission."
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
             )
-            return await ctx.send(embed=embed)
+
+        if isinstance(original, commands.BotMissingPermissions):
+            v.push_notification(
+                ctx.guild,
+                kind="error",
+                title="BobCat cannot time out members",
+                description=(
+                    "The timeout command failed because BobCat is "
+                    "missing the Moderate Members permission."
+                ),
+                fix="Give BobCat the Moderate Members permission.",
+            )
+
+            return await ctx.respond(
+                embed=discord.Embed(
+                    description=(
+                        "❌ I am missing the `Moderate Members` "
+                        "permission.\n\n"
+                        f"Need help?\n{v.docs}/moderation/timeout"
+                    ),
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        raise original
 
 def setup(client):
     client.add_cog(Mute(client))

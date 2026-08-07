@@ -1,89 +1,89 @@
 import discord
-from ._utils.audit_log import audit_log
-from modules import bot as v
 from discord.ext import commands
+from modules import bot as v
+from modules.models import Guild
+from .mod_utils.utils import can_moderate, send_member_dm, audit_log
 
-class mod_kick(commands.Cog):
+class ModKick(commands.Cog):
     def __init__(self, client):
         self.client = client
-    
-# kick [member] [reason]
+
     @commands.slash_command(name="kick", description="Kicks a member from the server")
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_guild_permissions(kick_members=True)
     @discord.option("member", discord.Member, description="The member you want to kick", required=True)
     @discord.option("reason", str, description="The reason for the kick", required=False)
-    async def kick(self, ctx: discord.ApplicationContext, member: discord.Member, *, reason: str=None):
-        if member == ctx.guild.owner:
-            error = discord.Embed(title="❌ You can't kick the owner of this server", color=v.error)
-            return await ctx.respond(embed=error, ephemeral=True)
-        
-        if member == ctx.user:
-           error = discord.Embed(title="❌ You can't kick yourself", color=v.error)
-           return await ctx.respond(embed=error, ephemeral=True)
-        
-        reason = "Unspecified" if not reason else reason
-        
+    async def kick(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None):
+        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        if not allowed:
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ Mute failed",
+                    description=error_message,
+                    color=v.error,
+                ),
+                ephemeral=True,
+            )
+
+        reason = reason or "Unspecified"
+
+        mod_data = Guild.get(str(ctx.guild.id)).run().dashboard.moderation
+        dm_fields = mod_data["settings"]["kick"]["dm"]
+
+        await send_member_dm(
+            member=member,
+            guild=ctx.guild,
+            moderator=ctx.author,
+            action="Kicked",
+            reason=reason,
+            dm_fields=dm_fields,
+        )
+
         if v.PY_ENV == "production":
-            await member.kick(reason=reason)
-        
-        embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild.id))
-        try:
-            embed.set_author(icon_url=member.avatar.url, name=f"{member} has been kicked")
-        except AttributeError:
-            embed.set_author(icon_url=member.default_avatar, name=f"{member} has been kicked")
+            await member.kick(reason=f"Kicked by {ctx.author} | {reason}")
+
+        embed = discord.Embed(description=f"**Reason:** {reason}", color=v.style(ctx.guild))
+        embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has been kicked")
         await ctx.respond(embed=embed)
-        
-        member_em = discord.Embed(title=f"You have been kicked", color=v.style(ctx.guild.id))
-        moddm = v.db.get_dash(ctx.guild.id)["moderation"]["settings"]["kick"]["dm"]
-        if moddm:
-            if "server" in moddm:
-                member_em.add_field(name="Server", value=f"{ctx.guild.name}", inline=True)
-            if "action" in moddm:
-                member_em.add_field(name="Action", value="Kick", inline=True)
-            if "moderator" in moddm:
-                member_em.add_field(name="Moderator", value=f"{ctx.author.mention}", inline=True)
-            if "reason" in moddm:
-                member_em.add_field(name="Reason", value=f"{reason}", inline=False)
-            
-            try:
-                await member.send(embed=member_em)
-            except discord.Forbidden:
-                pass
 
-        # Audit log
-        logs = discord.Embed(color=v.style(ctx.guild.id))
-        try:
-            logs.set_author(icon_url=member.avatar.url, name=f"[KICK] {member}")
-        except AttributeError:
-            logs.set_author(icon_url=member.default_avatar, name=f"[KICK] {member}")
-        logs.add_field(name="User", value=f"{member.mention}", inline=True)
-        logs.add_field(name="Moderator", value=f"{ctx.author.mention}")
-        logs.add_field(name="Reason", value=f"{reason}")
-        await audit_log(self.client, ctx, 'ModerationKick', logs)
+        logs = discord.Embed(color=v.style(ctx.guild))
+        logs.set_author(icon_url=member.display_avatar.url, name=f"[KICK] {member}")
+        logs.add_field(name="User", value=member.mention, inline=True)
+        logs.add_field(name="Moderator", value=ctx.author.mention, inline=True)
+        logs.add_field(name="Reason", value=reason, inline=False)
+        await audit_log(ctx, "ModerationKick", logs)
 
-# Error checking
     @kick.error
     async def kick_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(
-                color=v.error,
-                title="❌ Missing `Kick Members` permission"
-            )
-            return await ctx.send(embed=embed)
-        
-        if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to kick members", description='Please give BobCat the "Kick Members" permission')
-            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Kick Members` permission.  \n\nNeed help?\n{v.docs}/moderation/kick", color=v.error)
-            return await ctx.send(embed=embed)
+        original = getattr(error, "original", error)
 
-        if isinstance(error, commands.MissingRequiredArgument):
+        if isinstance(original, commands.MissingPermissions):
             embed = discord.Embed(
                 color=v.error,
-                title="Invalid Usage", url=f"{v.docs}/moderation/kick",
-                description="/kick [member] {reason} \n\n**Arguments**\n`member`: Mention | ID | Username | Username#tag \n`reason`: Reason for kick",
+                title="❌ Missing permission", 
+                description="You need the `Kick Members` permission.",
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed, ephemeral=True)
+
+        if isinstance(original, commands.BotMissingPermissions):
+            v.push_notification(
+                ctx.guild, 
+                kind="error", 
+                title="BobCat cannot kick members",
+                description="The kick command failed because BobCat is missing the Kick Members permission.",
+            )
+            embed = discord.Embed(
+                description=(
+                    "❌ I am missing the `Kick Members` permission."
+                    f"\nNeed help?\n{v.docs}/moderation/kick"
+                ),
+                color=v.error,
+            )
+            return await ctx.respond(embed=embed, ephemeral=True)
+
+        embed = discord.Embed(title="❌ Kick command failed", description="An unexpected error occurred.", color=v.error)
+        await ctx.respond(embed=embed, ephemeral=True)
+        raise original
 
 def setup(client):
-    client.add_cog(mod_kick(client))
+    client.add_cog(ModKick(client))
