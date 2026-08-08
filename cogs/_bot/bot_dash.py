@@ -212,7 +212,9 @@ class GuildEvents(commands.Cog):
         if doc is None:
             return
 
-        if not doc.dashboard.leveling.get("auto_reset"):
+        # Safely get the leveling config
+        leveling_config = getattr(doc.dashboard, "leveling", {})
+        if not leveling_config.get("auto_reset", False):
             return
 
         lvl = LevelingModel.get(f"{member.guild.id}_{member.id}").run()

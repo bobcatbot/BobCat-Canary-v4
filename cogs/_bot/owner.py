@@ -47,18 +47,20 @@ class Owner(commands.Cog):
         await msg.edit(embed=emby)
 
     @dev_command.command(name="guild", description="Gets a guilds info")
-    async def guild(self, ctx, guild):
+    async def guild(self, ctx, guild: str):
         server = self.client.get_guild(int(guild))
-
         if not server:
             return await ctx.respond("Guild not found")
         
-        embed = discord.Embed(title="Guilds IDs", colour=0x5865f2)
-        embed.add_field(name="Server Name", value=f"```{server.name}```", inline=False)
+        members = server.members
+        human_members = [m for m in members if not m.bot]
+        bot_members = [m for m in members if m.bot]
+        
+        embed = discord.Embed(title=f"Guild Information: {server.name}", colour=0x5865f2)
         embed.add_field(name="Server ID", value=f"```{server.id}```", inline=False)
         embed.add_field(name="Server Owner", value=f"```{server.owner}```", inline=False)
-        embed.add_field(name="Server Members", value=f"```{len(list(filter(lambda m: not m.bot, ctx.guild.members)))}```", inline=False)
-        embed.add_field(name="Server Bot Count", value=f"```{len(list(filter(lambda m: m.bot, ctx.guild.members)))}```", inline=False)
+        embed.add_field(name="Server Members", value=f"```{len(human_members)}```", inline=False)
+        embed.add_field(name="Server Bot Count", value=f"```{len(bot_members)}```", inline=False)
         embed.set_footer(text=f"{len(self.client.guilds)} guilds joined")
         await ctx.respond(embed=embed)
     
@@ -85,7 +87,7 @@ class Owner(commands.Cog):
     @dev_command.command(name="reload", description="Reloads all the cogs") # TODO: Fix this
     async def _reboot(self, ctx):
         rl_ac = discord.Embed(title="Reloading all cogs", colour=0xed5757)
-        msg = await ctx.send(embed=rl_ac)
+        msg = await ctx.respond(embed=rl_ac)
 
         try:
             for foldername in os.listdir('./cogs'):
@@ -111,13 +113,7 @@ class Owner(commands.Cog):
             description=self.get_bot_uptime()
         )
         await ctx.respond(embed=embed)
-    
-    @dev_command.command(name="eval", description="Just repeats what you say")
-    async def message(self, ctx: discord.ApplicationContext, *, message: str):
-        await ctx.respond("Message sent!")
-
-        await ctx.send(f"{message}")
-    
+        
     @dev_command.command(name="speedtest", description="Runs a speedtest")
     async def speedtest(self, ctx: discord.ApplicationContext):
         await ctx.defer()
@@ -266,6 +262,7 @@ class Owner(commands.Cog):
             return await ctx.respond("That guild has no config yet.", ephemeral=True)
 
         doc.premium['status'] = False
+        doc.premium['active'] = False
         doc.save()
 
         emb = discord.Embed(

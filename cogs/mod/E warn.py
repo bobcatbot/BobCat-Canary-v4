@@ -130,12 +130,12 @@ class Warn(commands.Cog):
                 color=v.error,
                 title=f"❌ Missing `Moderate Members` permission"
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
             v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
             embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.  \n\nNeed help?\n{v.docs}/moderation/warn", color=v.error)
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
 
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
@@ -143,7 +143,7 @@ class Warn(commands.Cog):
                 title="Invalid Usage", url=f"{v.docs}/moderation/warn",
                 description="/warn [Member] {reason} \n- Member: Mention | ID | Username | Username#tag \n- reason: reason for the warn"
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
 
 class UnWarn(commands.Cog):
     def __init__(self, client):
@@ -210,7 +210,7 @@ class UnWarn(commands.Cog):
                 title="❌ Missing `Moderate Members` permission",
                 color=v.error,
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
 
         if isinstance(error, commands.BotMissingPermissions):
             v.push_notification(
@@ -230,7 +230,7 @@ class UnWarn(commands.Cog):
                 ),
                 color=v.error,
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
 
 class Warnings(commands.Cog):
     def __init__(self, client):
@@ -321,12 +321,12 @@ class Warnings(commands.Cog):
     async def warnings_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(title="❌ Missing `Moderate Members` permission", color=v.error)
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
             v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
             embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.\n\nNeed help?\n{v.docs}/moderation/warn", color=v.error)
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
 
         if isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(
@@ -334,7 +334,7 @@ class Warnings(commands.Cog):
                 title="Invalid Usage", url=f"{v.docs}/moderation/warn",
                 description="/warnings [Member] \n- Member: Mention | ID | Username | Username#tag"
             )
-            return await ctx.send(embed=embed)
+            return await ctx.respond(embed=embed)
         
 def setup(client):
     client.add_cog(Warn(client))

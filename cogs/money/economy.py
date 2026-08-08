@@ -34,18 +34,23 @@ class Money(commands.Cog):
         await ctx.respond(embed=em)
     
     @eco.command(description="Economy leaderboard")
-    @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def leaderboard(self, ctx: discord.ApplicationContext):
-        eco_users = Economy.find(Economy.guild_id == str(ctx.guild.id)).run()
-        sorted_players = sorted(eco_users, key=lambda user: user.wallet + user.bank, reverse=True)[:10]
-
+        pipeline = [
+            {"$match": {"guild_id": str(ctx.guild.id)}},
+            {"$addFields": {"total": {"$add": ["$wallet", "$bank"]}}},
+            {"$sort": {"total": -1}},
+            {"$limit": 10},
+            {"$project": {"user_id": 1, "wallet": 1, "bank": 1, "total": 1}}
+        ]
+        # Use Bunnet's aggregation (synchronous)
+        result = Economy.aggregate(pipeline).run()
+        
         desc = ""
-        for idx, data in enumerate(sorted_players, start=1):
-            member = await v.client.fetch_user(int(data.user_id))
-
-            cash = data.wallet + data.bank
+        for idx, data in enumerate(result, start=1):
+            member = await v.client.fetch_user(int(data["user_id"]))
+            cash = data["wallet"] + data["bank"]
             desc += f"\n#{idx} ● {member.name} ● {cash}"
-
+        
         em = discord.Embed(title="Top 10 Richest People", description=desc, color=0xFFCC4D)
         await ctx.respond(embed=em)
 

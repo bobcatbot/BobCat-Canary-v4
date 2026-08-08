@@ -14,31 +14,27 @@ class Premium(commands.Cog):
 
     @tasks.loop(hours=24)
     async def stop_premium(self):
-        for guild in self.client.guilds:
-            try:
-                doc = Guild.get(str(guild.id)).run()
-                if doc is None:
-                    continue
+        # Find all guilds with active trial premium and expired code_expiry
+        expired = Guild.find({
+            "premium.status": True,
+            "premium.active": True,
+            "premium.plan": "trial",
+            "premium.code_expiry": {"$lte": datetime.now()}
+        }).run()
 
-                premium = doc.premium
+        for doc in expired:
+            doc.premium['status'] = False
+            doc.premium['active'] = False
+            doc.save()
+            guild = self.client.get_guild(int(doc.id))
+            if guild:
+                print(f"Premium expired for {guild.name} ({guild.id})")
+            else:
+                print(f"Premium expired for guild {doc.id} (not in cache)")
 
-                if not premium.get('status'):
-                    continue
-                if premium.get('plan') != "trial":
-                    continue
-                if not premium.get('code_expiry'):
-                    continue
-
-                expiry_date = datetime.fromisoformat(str(premium['code_expiry']))
-
-                if expiry_date <= datetime.now():
-                    doc.premium['status'] = False
-                    doc.premium['active'] = False
-                    doc.save()
-                    print(f"Premium expired for {guild.name} ({guild.id})")
-
-            except Exception as e:
-                print(f"⚠️ Error checking premium for {guild.name} ({guild.id}): {e}")
+        # Optional: log count
+        if expired:
+            print(f"Expired {len(expired)} trial premium(s)")
 
 def setup(client):
     client.add_cog(Premium(client))

@@ -110,7 +110,7 @@ class TempVoice(commands.Cog):
     @commands.slash_command(name="tempvoice-manage", description="Manage your temporary voice channel")
     async def tempvoice_manage(self, ctx: discord.ApplicationContext):
         if not ctx.interaction.user.voice:
-            return await ctx.send("You must be connected to a voice channel to use this command.")
+            return await ctx.respond("You must be connected to a voice channel to use this command.")
 
         tempvoice = TempChannel.find_one(
             TempChannel.guild_id == str(ctx.guild.id),

@@ -12,7 +12,7 @@ class Games8ball(commands.Cog):
     async def _8ball(self, ctx, *, question):
         if question == None:
             em = discord.Embed(title='❌ Please ask a question', color=v.error)
-            return await ctx.send(embed=em)
+            return await ctx.respond(embed=em)
 
         responses = [
             "It is certain.", "It is decidedly so.", "Without a doubt.", 
@@ -31,7 +31,7 @@ class Games8ball(commands.Cog):
                 f"\n**Answer:** {random.choice(responses)}"
             )
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
 def setup(client):
     client.add_cog(Games8ball(client))

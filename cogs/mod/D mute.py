@@ -25,17 +25,10 @@ TIMEOUT_CHOICES = {
 
 def get_mute_settings(guild: discord.Guild) -> dict:
     guild_config = Guild.get(str(guild.id)).run()
-
     if guild_config is None:
         return {}
-
     moderation = guild_config.dashboard.moderation or {}
-
-    return (
-        moderation
-        .get("settings", {})
-        .get("mute", {})
-    )
+    return moderation.get("settings", {}).get("mute", {})
 
 class Mute(commands.Cog):
     def __init__(self, client):
@@ -78,7 +71,6 @@ class Mute(commands.Cog):
 
         if mute_type == "role":
             muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
-
             if muted_role is None:
                 muted_role = await ctx.guild.create_role(
                     name="Muted",
@@ -116,7 +108,8 @@ class Mute(commands.Cog):
                 DURATIONS["10-min"],
             )
             duration, duration_text = timeout_data
-            await member.timeout_for(
+            # FIXED: use timeout() instead of timeout_for()
+            await member.timeout(
                 duration,
                 reason=f"{ctx.author}: {reason}",
             )
@@ -287,7 +280,9 @@ class UnMute(commands.Cog):
                     ephemeral=True,
                 )
 
-            await member.remove_timeout(
+            # FIXED: use timeout(None) instead of remove_timeout()
+            await member.timeout(
+                None,
                 reason=f"Unmuted by {ctx.author}",
             )
 
@@ -449,7 +444,8 @@ class Timeout(commands.Cog):
             dm_fields=dm_fields,
         )
 
-        await member.timeout_for(
+        # FIXED: use timeout() instead of timeout_for()
+        await member.timeout(
             timeout_duration,
             reason=f"{ctx.author}: {reason}",
         )

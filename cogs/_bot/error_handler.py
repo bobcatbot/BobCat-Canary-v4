@@ -24,29 +24,20 @@ class ErrorLogger(commands.Cog):
 
     # ── Core sender ───────────────────────────────────────────────────────────
     async def send_error(self, error: Exception, title: str, context: dict = None):
-        """
-        - Prints full traceback to console
-        - Sends summary + full traceback to ERROR_LOG_CHANNEL_ID
-        """
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
 
-        # Always print full traceback to console
+        # Console output
         print(chalk.blue(f"{'='*60}"), flush=True)
         print(chalk.white(f"ERROR: {title}"), flush=True)
         print(chalk.red(tb), flush=True)
         print(chalk.blue(f"{'='*60}"), flush=True)
 
-        # Split traceback into 1990-char chunks and send as code blocks
-        chunks = [tb[i:i+1990] for i in range(0, len(tb), 1990)]
-        for i, chunk in enumerate(chunks, 1):
-            label = f"Traceback ({i}/{len(chunks)})" if len(chunks) > 1 else "Traceback"
-
-        # ── Discord log channel ───────────────────────────────────────────────
+        # Discord log channel
         channel = self.bot.get_channel(ERROR_LOG_CHANNEL_ID)
         if not channel:
             return print(f"[ErrorLogger] Could not find log channel {ERROR_LOG_CHANNEL_ID}")
-        
-        # Build context string
+
+        # Build context embed
         ctx_lines = []
         if context:
             if context.get("guild"):
@@ -65,10 +56,15 @@ class ErrorLogger(commands.Cog):
         )
         embed.add_field(name="Error Type", value=f"`{type(error).__name__}`", inline=False)
         embed.add_field(name="Message", value=f"`{str(error)[:512]}`", inline=False)
-        await channel.send(
-            content=f"**{label}**\n```py\n{chunk}\n```",
-            embed=embed
-        )
+
+        # Send each chunk with the same embed
+        chunks = [tb[i:i+1990] for i in range(0, len(tb), 1990)]
+        for i, chunk in enumerate(chunks, 1):
+            label = f"Traceback ({i}/{len(chunks)})" if len(chunks) > 1 else "Traceback"
+            await channel.send(
+                content=f"**{label}**\n```py\n{chunk}\n```",
+                embed=embed
+            )
     
     # ── Listeners ─────────────────────────────────────────────────────────────
     @commands.Cog.listener()

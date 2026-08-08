@@ -1,6 +1,5 @@
-import discord
+import asyncio
 import random
-from modules import bot as v
 from discord.ext import commands
 
 class GamesGtn(commands.Cog):
@@ -25,7 +24,11 @@ class GamesGtn(commands.Cog):
             def is_correct(m):
                 return m.author == ctx.author and m.content.isdigit()
             
-            message = await self.client.wait_for("message", check=is_correct, timeout=None)
+            try:
+                message = await self.client.wait_for("message", check=is_correct, timeout=30)
+            except asyncio.TimeoutError:
+                return await ctx.send(f"{ctx.author.name}, you took too long! The number was {answer}.")
+
             attempt = message.content
 
             if int(attempt) < answer:
