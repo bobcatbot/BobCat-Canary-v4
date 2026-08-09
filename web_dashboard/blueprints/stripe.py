@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, current_app, jsonify, request, url_for
 
 from ..config import WEBHOOK_PREM
-from ..db import db, get_server_config, update_config
+from ..db import get_guild
 from ..consts import premium_types
 from ..utils import bearer_client
 
 from modules import bot as v
+from modules.models import Guild
 
 stripe_bp = Blueprint('stripe', __name__)
 
@@ -42,13 +43,14 @@ def stripe_pay(guild_id, type):
 # ── Billing portal ────────────────────────────────────────────────────────────
 @stripe_bp.route('/stripe/portal/<customer_id>', methods=['POST'])
 def stripe_portal(customer_id):
-    data = db.find_one({'premium.customer': customer_id})
-    if not data:
+    # Use Bunnet to find guild with this customer
+    guild_doc = Guild.find_one({"premium.customer": customer_id}).run()
+    if not guild_doc:
         return {'error': 'customer id not found'}, 400
 
     portal = stripe.billing_portal.Session.create(
         customer=customer_id,
-        return_url=url_for('dashboard.premium', _external=True, guild_id=data['_id']),
+        return_url=url_for('dashboard.premium', _external=True, guild_id=int(guild_doc.id)),
     )
     return {'url': portal["url"], 'checkout_public_key': current_app.config['STRIPE_PUBLIC_KEY']}
 
@@ -86,8 +88,8 @@ def stripe_webhook():
 
 
 def _tz_from_guild(guild_id):
-    config = get_server_config(guild_id, True)
-    return pytz.timezone(config['settings']['timezone'])
+    config = Guild.get(str(guild_id)).run()
+    return pytz.timezone(config.settings.get('timezone', 'UTC'))
 
 
 def _handle_checkout_completed(session):
@@ -98,11 +100,16 @@ def _handle_checkout_completed(session):
     guild_id = session['metadata']['guild_id']
     user_id = session['metadata']['user_id']
 
+    # Use Bunnet to get and update the guild
+    doc = Guild.get(str(guild_id)).run()
+    if not doc:
+        return {}, 400
+
     tzu = _tz_from_guild(guild_id)
     created_at = datetime.fromtimestamp(session["created"], tz=timezone.utc).astimezone(tzu)
 
     if session["mode"] == "subscription":
-        data = {
+        doc.premium = {
             "id": session['subscription'],
             "status": True,
             "active": session['status'] == 'complete',
@@ -112,7 +119,7 @@ def _handle_checkout_completed(session):
             "subscribed_at": created_at,
         }
     elif session["mode"] == "payment":
-        data = {
+        doc.premium = {
             "id": session['payment_intent'],
             "status": True,
             "active": session['status'] == 'complete',
@@ -124,7 +131,7 @@ def _handle_checkout_completed(session):
     else:
         return jsonify({"status": "ignored"}), 200
 
-    update_config(int(guild_id), 'premium', data)
+    doc.save()
     return {}
 
 
@@ -132,38 +139,39 @@ def _handle_subscription_updated(subscription):
     if not subscription:
         return jsonify({"error": "Invalid subscription data"}), 400
 
-    db_entry = db.find_one({"premium.id": subscription['id']})
-    if not db_entry:
+    doc = Guild.find_one({"premium.id": subscription['id']}).run()
+    if not doc:
         return jsonify({"error": "Subscription data not found"}), 400
 
-    guild_id = db_entry['_id']
-    ptimezone = pytz.timezone(db_entry['settings']['timezone'])
+    ptimezone = pytz.timezone(doc.settings.get('timezone', 'UTC'))
 
     if subscription.get('cancel_at') or subscription.get('canceled_at'):
-        update_config(int(guild_id), 'premium.status', False)
-        update_config(int(guild_id), 'premium.active', False)
+        doc.premium['status'] = False
+        doc.premium['active'] = False
+        doc.save()
         return jsonify({"status": "success", "msg": "User canceled subscription"}), 200
 
-    if not db_entry['premium']['status'] and not subscription.get('cancel_at'):
-        update_config(int(guild_id), 'premium.status', True)
-        update_config(int(guild_id), 'premium.active', True)
+    if not doc.premium.get('status') and not subscription.get('cancel_at'):
+        doc.premium['status'] = True
+        doc.premium['active'] = True
         updated_at = datetime.fromtimestamp(
             subscription["current_period_end"], tz=timezone.utc
         ).astimezone(ptimezone)
-        update_config(int(guild_id), 'premium.subscribed_at', updated_at)
+        doc.premium['subscribed_at'] = updated_at
+        doc.save()
         return jsonify({"status": "success", "msg": "User subscribed to premium"}), 200
 
     return jsonify({"status": "success"}), 200
 
 
 def _handle_subscription_deleted(subscription):
-    db_entry = db.find_one({"premium.id": subscription['id']})
-    if not db_entry:
+    doc = Guild.find_one({"premium.id": subscription['id']}).run()
+    if not doc:
         return jsonify({"error": "Subscription not found"}), 400
 
-    guild_id = db_entry['_id']
-    update_config(int(guild_id), 'premium.active', False)
-    update_config(int(guild_id), 'premium.status', False)
+    doc.premium['active'] = False
+    doc.premium['status'] = False
+    doc.save()
     return jsonify({"status": "success", "msg": "Subscription canceled"}), 200
 
 
@@ -171,39 +179,39 @@ def _handle_invoice_paid(invoice):
     subscription_id = invoice['subscription']
     subscription = stripe.Subscription.retrieve(subscription_id)
 
-    db_entry = db.find_one({"premium.id": subscription_id})
-    if not db_entry:
+    doc = Guild.find_one({"premium.id": subscription_id}).run()
+    if not doc:
         return jsonify({"error": "Subscription data not found"}), 400
 
-    guild_id = db_entry['_id']
-    ptimezone = pytz.timezone(db_entry['settings']['timezone'])
+    ptimezone = pytz.timezone(doc.settings.get('timezone', 'UTC'))
 
-    data = {
+    doc.premium = {
         "id": subscription_id,
         "status": True,
         "active": True,
         "plan": subscription['items']['data'][0]['price']['nickname'].lower(),
         "customer": subscription['customer'],
-        "user_id": db_entry['premium']['user_id'],
+        "user_id": doc.premium.get('user_id'),
         "subscribed_at": datetime.now(),
     }
-    update_config(int(guild_id), 'premium', data)
+    doc.save()
 
     renewed_at = datetime.fromtimestamp(
         subscription["current_period_end"], tz=timezone.utc
     ).astimezone(ptimezone)
-    update_config(int(guild_id), 'premium.subscribed_at', renewed_at)
+    doc.premium['subscribed_at'] = renewed_at
+    doc.save()
 
     return jsonify({"status": "success", "msg": "Invoice paid, subscription updated"}), 200
 
 
 def _handle_invoice_payment_failed(invoice):
     subscription_id = invoice['subscription']
-    db_entry = db.find_one({"premium.id": subscription_id})
-    if not db_entry:
+    doc = Guild.find_one({"premium.id": subscription_id}).run()
+    if not doc:
         return jsonify({"error": "Subscription data not found"}), 400
 
-    guild_id = db_entry['_id']
-    update_config(int(guild_id), 'premium.active', False)
-    update_config(int(guild_id), 'premium.status', False)
+    doc.premium['active'] = False
+    doc.premium['status'] = False
+    doc.save()
     return jsonify({"status": "success", "msg": "Invoice payment failed"}), 200

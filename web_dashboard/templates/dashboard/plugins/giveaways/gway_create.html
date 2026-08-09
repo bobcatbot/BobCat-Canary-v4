@@ -172,7 +172,7 @@
       }
     });
     
-    var required_fields = ['name', 'channel_id', 'prize', 'winners', 'time.epoch', 'embed.desc'];
+    var required_fields = ['name', 'channel_id', 'prize', 'winner_count', 'end_epoch', 'embed.desc'];
     const save_data = new Proxy({}, {
       set(target, key, value) {
         target[key] = value;
@@ -254,7 +254,7 @@
 
     const gwayWinnersInput = document.querySelector('#gway-winners');
     gwayWinnersInput.addEventListener('input', (e) => {
-      save_data['winners'] = e.target.value
+      save_data['winner_count'] = e.target.value
     })
 
     const gwayDateInput = document.querySelector('#datetimepicker1').querySelector('input');
@@ -272,8 +272,8 @@
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
-      save_data['time.epoch'] = toTimestamp(e.target.value)
-      save_data['time.timestamp'] = formatDateTime(e.target.value)
+      save_data['end_epoch'] = toTimestamp(e.target.value)
+      save_data['end_timestamp'] = formatDateTime(e.target.value)
     })
 
     // givexp
@@ -371,6 +371,5 @@
       background: var(--color-secondary-1);
     }
   </style>
-  
 </body>
 </html>

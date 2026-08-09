@@ -1,16 +1,15 @@
 import logging
-from threading import Thread
-
 import stripe
+from threading import Thread
 from flask import Flask, render_template, flash, session, redirect, request, url_for
 from zenora import BadTokenError
 
 from modules import bot as v
- 
+
 from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config
 from .context import register_context_processors
 from .utils import PremiumModuleError
- 
+
 from .blueprints.auth import auth_bp
 from .blueprints.web import web_bp
 from .blueprints.dashboard import dashboard_bp
@@ -91,7 +90,7 @@ register_context_processors(app)
 # ── Run ───────────────────────────────────────────────────────────
 import waitress
 
-app_started = False # Define a flag to check if the app is running
+app_started = False
 
 @v.client.event
 async def on_ready():
@@ -100,9 +99,7 @@ async def on_ready():
 
 def run_app():
     global app_started
-    app_started = True  # Update the flag when the app starts
-
-    # app.run(host='localhost', port=8000, debug=True, use_reloader=False)
+    app_started = True
     waitress.serve(app, host='localhost', port=8000, threads=16, connection_limit=200)
 
 def run_dashboard():

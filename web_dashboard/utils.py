@@ -4,8 +4,9 @@ from flask import session, request, render_template, url_for
 from zenora import APIClient
 
 from modules import bot as v
+from modules.models import Guild
 from .config import BOT_TOKEN, CLIENT_SECRET
-from .db import get_server_config
+from .db import get_guild
 from .plugins import PLUGIN_LIST
 
 # ── Discord OAuth client ───────────────────────────────────────────────────────
@@ -32,15 +33,21 @@ def login_required(f):
 class PremiumModuleError(Exception):
     pass
 
-def is_premium(guild_id) -> bool:
-    """Single source of truth for premium checks."""
-    data = get_server_config(guild_id, True)
-    if not data:
+def is_premium(guild) -> bool:
+    """Single source of truth for premium checks using Bunnet directly."""
+    # Handle both Guild object and guild ID
+    guild_id = str(getattr(guild, "id", guild))
+    doc = Guild.get(guild_id).run()
+    
+    if not doc:
         return False
-    return bool(data['premium']['status'] and data['premium']['active'])
+    
+    premium = doc.premium
+    return bool(premium.get('status') and premium.get('active'))
 
 def premium_module(guild, module):
-    plug = PLUGIN_LIST[module]
+    """Check if a guild has access to a premium module."""
+    plug = PLUGIN_LIST.get(module, {})
     if plug.get('premium') and not is_premium(guild):
         raise PremiumModuleError(f"Guild {guild} does not have access to {module}.")
 
@@ -56,7 +63,7 @@ class GuildModels:
             {
                 'id': role.id,
                 'name': role.name,
-                'color': role.colors.primary,
+                'color': role.colors.primary if hasattr(role.colors, 'primary') else 0,
                 'permissions': role.permissions.value,
                 'position': role.position,
                 'disabled': role.position >= self.guild.me.top_role.position,

@@ -3,8 +3,9 @@ from pathlib import Path
 from flask import Blueprint, flash, jsonify, redirect, render_template, session, url_for, send_from_directory
 
 from modules import bot as v
+from modules.models import Guild, Leveling
 from ...config import mongo_cdn
-from ...db import get_dash_config, get_server_config
+from ...db import get_guild
 from ...utils import bearer_client, login_required, premium_module
 
 leveling_bp = Blueprint('leveling', __name__)
@@ -36,9 +37,22 @@ def lvl_card_image(filename):
 # ── Public leaderboard ────────────────────────────────────────────────────────
 @leveling_bp.route("/leaderboard/<guild_id>")
 def leaderboard_home(guild_id):
-    lvl_config = get_dash_config(guild_id).get('leveling')
+    guild = v.client.get_guild(int(guild_id))
+    if guild is None:
+        flash('Guild not found', 'error')
+        return redirect(url_for('web.index'))
 
-    if not lvl_config['leaderboard'].get('public', False):
+    # Get leveling config from dashboard
+    config = Guild.get(str(guild.id)).run()
+    if config is None:
+        flash('Guild config not found', 'error')
+        return redirect(url_for('web.index'))
+
+    lvl_config = config.dashboard.get('leveling', {})
+    leaderboard_config = lvl_config.get('leaderboard', {})
+
+    # Check if leaderboard is public
+    if not leaderboard_config.get('public', False):
         if "token" not in session:
             flash('You are not allowed to view the leaderboard', 'error')
             return redirect(url_for('web.index'))
@@ -50,22 +64,27 @@ def leaderboard_home(guild_id):
         except Exception:
             current_user = None
 
-    guild = v.client.get_guild(int(guild_id))
-
-    if not lvl_config['leaderboard'].get('public', False):
+    # Check access for private leaderboards
+    if not leaderboard_config.get('public', False):
         if not current_user or not guild.get_member(current_user.id):
             flash('You are not allowed to view the leaderboard', 'error')
             return redirect(url_for('web.index'))
 
-    lvl_users = get_server_config(guild).get('leveling')
-    sorted_players = sorted(lvl_users.items(), key=lambda x: int(x[1]['lvl']), reverse=True)
+    # Get leveling data from Leveling collection
+    leveling_users = Leveling.find(Leveling.guild_id == str(guild.id)).run()
+    sorted_players = sorted(leveling_users, key=lambda x: x.lvl, reverse=True)
 
     users = []
-    for idx, (player_id, data) in enumerate(sorted_players, start=1):
-        player = v.client.get_user(int(player_id))
-        data['msg_count'] = data.get('msg_count', 0)
-        users.append((idx, (player, data)))
+    for idx, data in enumerate(sorted_players, start=1):
+        player = v.client.get_user(int(data.user_id))
+        if player:
+            users.append((idx, (player, {
+                'lvl': data.lvl,
+                'exp': data.exp,
+                'msg_count': data.msg_count or 0
+            })))
 
+    # Check guild permissions for the current user
     gp = False
     if current_user:
         member = guild.get_member(current_user.id)
@@ -73,21 +92,20 @@ def leaderboard_home(guild_id):
             if member.guild_permissions.administrator:
                 gp = {'administrator': True, 'bot_master': False}
             else:
-                config = get_server_config(guild.id, True)
-                if config:
-                    roles = config['settings']
-                    if any(
-                        str(role.id) in roles['admin_roles'] or str(role.id) in roles['bot_masters']
-                        for role in member.roles
-                    ):
-                        gp = {'administrator': False, 'bot_master': True}
+                settings = config.settings
+                if any(
+                    str(role.id) in settings.get('admin_roles', []) or 
+                    str(role.id) in settings.get('bot_masters', [])
+                    for role in member.roles
+                ):
+                    gp = {'administrator': False, 'bot_master': True}
 
     return render_template(
         "dashboard/leaderboard.html",
-        user=current_user, 
-        guild_permissions=gp, 
-        guild=guild, 
-        data=lvl_config, 
+        user=current_user,
+        guild_permissions=gp,
+        guild=guild,
+        data=lvl_config,
         users=users
     )
 
@@ -101,12 +119,16 @@ def levelling(guild_id):
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)
-    dash_data = get_dash_config(guild.id).get('leveling')
-    
+    if guild is None:
+        return render_template("error/404.html"), 404
+
+    # Get the guild document using Bunnet
+    config = Guild.get(str(guild.id)).run().dashboard.leveling
+        
     return render_template(
         "dashboard/plugins/leveling.html",
-        user=current_user, 
-        guild=guild, 
-        data=dash_data, 
+        user=current_user,
+        guild=guild,
+        data=config,
         server_cards=_get_rank_cards()
     )

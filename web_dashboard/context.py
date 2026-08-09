@@ -1,14 +1,15 @@
 from flask import session
 
 from modules import bot as v
-from .db import get_server_config, get_dash_config
+from modules.models import Guild, Notification
+from .db import get_guild, get_dash_config
 from .plugins import fetch_plugins
 from .utils import bearer_client, GuildModels
 
 def register_context_processors(app):
     @app.context_processor
     def utility_processor():
-        
+
         def plugs(guild):
             guild_dash = get_dash_config(guild)
             return fetch_plugins(guild_dash)
@@ -38,13 +39,34 @@ def register_context_processors(app):
             return guilds
 
         def notifications(guild):
-            all_notifs = get_server_config(guild, True)['notifications']
+            """Returns notifications using the Bunnet Notification model."""
+            guild_id = str(getattr(guild, "id", guild))
+            all_notifs = Notification.find(Notification.guild_id == guild_id).run()
+
+            shaped = []
+            for n in all_notifs:
+                shaped.append({
+                    'id': n.notification_id,
+                    'type': n.type,
+                    'title': n.title,
+                    'description': n.description,
+                    'fix': n.fix,
+                    'link': n.link,
+                    'user': n.user,
+                    'read': n.read,
+                    'created_at': {
+                        'date': n.created_at.strftime('%Y-%m-%d'),
+                        'time': n.created_at.strftime('%H:%M:%S'),
+                        'timestamp': n.created_at.timestamp(),
+                    },
+                })
+
             read = sorted(
-                [n for n in all_notifs if n['read']],
+                [n for n in shaped if n['read']],
                 key=lambda n: n['created_at']['timestamp']
             )
             unread = sorted(
-                [n for n in all_notifs if not n['read']],
+                [n for n in shaped if not n['read']],
                 key=lambda n: n['created_at']['timestamp'],
                 reverse=True
             )

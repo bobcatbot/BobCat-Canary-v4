@@ -1,10 +1,11 @@
 from datetime import datetime
 from flask import Blueprint, jsonify, redirect, render_template, request, session
 from modules import bot as v
+from modules.models import Guild, Notification, Economy
 from ..config import CLIENT_ID, URL_BASE
 from ..consts import langs, premium_faqs, premium_types, tz
-from ..db import get_server_config, update_config
 from ..utils import bearer_client, login_required
+from ..db import get_guild, get_dash_config
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -18,15 +19,15 @@ def guilds():
 
     for guild in bearer_client().get_my_guilds():
         bot_master = False
-        config = get_server_config(guild.id, True)
+        config = Guild.get(str(guild.id)).run()
         if config:
             bot_guild = v.client.get_guild(guild.id)
             member = bot_guild.get_member(current_user.id) if bot_guild else None
             if member:
-                roles = config['settings']
+                settings = config.settings
                 bot_master = any(
-                    str(role.id) in roles['admin_roles'] or
-                    str(role.id) in roles['bot_masters']
+                    str(role.id) in settings.get('admin_roles', []) or
+                    str(role.id) in settings.get('bot_masters', [])
                     for role in member.roles
                 )
 
@@ -81,7 +82,8 @@ def dashboard_home(guild_id):
 def settings(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    data = get_server_config(guild, True).get('settings')
+    config = Guild.get(str(guild.id)).run()
+    data = config.settings if config else {}
     return render_template(
         "dashboard/settings.html",
         user=current_user, guild=guild, data=data, languages=langs, timezones=tz
@@ -94,9 +96,10 @@ def settings(guild_id):
 def premium(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    prem_data = get_server_config(guild, True).get('premium')
+    config = Guild.get(str(guild.id)).run()
+    prem_data = config.premium if config else {}
 
-    if not prem_data['status']:
+    if not prem_data.get('status', False):
         return render_template(
             "dashboard/premium/index.html",
             user=current_user, guild=guild, data=prem_data,
@@ -105,16 +108,17 @@ def premium(guild_id):
 
     createdAt_later = "Never"
     days_countdown = "0"
-    if prem_data['plan'] in ('monthly', 'yearly'):
-        date = prem_data['subscribed_at']
-        days_countdown = (date - datetime.now()).days
-        createdAt_later = date.strftime("%B %d %Y")
+    if prem_data.get('plan') in ('monthly', 'yearly'):
+        date = prem_data.get('subscribed_at')
+        if date:
+            days_countdown = (date - datetime.now()).days
+            createdAt_later = date.strftime("%B %d %Y")
 
-    user = v.client.get_user(int(prem_data['user_id']))
+    user = v.client.get_user(int(prem_data.get('user_id', 0)))
     data = {
         'next_bill': createdAt_later,
         'countdown': days_countdown,
-        'user': {'avatar': user.avatar.url, 'name': user.name},
+        'user': {'avatar': user.avatar.url if user else '', 'name': user.name if user else 'Unknown'},
     } | prem_data
 
     return render_template(
@@ -129,54 +133,143 @@ def premium(guild_id):
 def notifications(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    data = get_server_config(guild, True).get('notifications')
+    
+    all_notifs = Notification.find(Notification.guild_id == str(guild.id)).run()
 
     if request.method == 'POST':
         res = request.get_json()
-        notif = next((n for n in data if n['id'] == res['id']), None)
+        notif = next((n for n in all_notifs if n.notification_id == res['id']), None)
         if notif:
-            notif_idx = data.index(notif)
             res.pop('id')
             for key, val in res.items():
-                update_config(guild.id, f'notifications.{notif_idx}.{key}', val)
+                setattr(notif, key, val)
+            notif.save()
         return jsonify({'status': 'success', 'message': 'Successfully updated notifications'})
 
     notifications_by_date = {}
-    for notification in data:
-        date = notification['created_at']['date']
-        notifications_by_date.setdefault(date, []).append(notification)
+    for notification in all_notifs:
+        date = notification.created_at.strftime('%Y-%m-%d')
+        notifications_by_date.setdefault(date, []).append({
+            'id': notification.notification_id,
+            'type': notification.type,
+            'title': notification.title,
+            'description': notification.description,
+            'fix': notification.fix,
+            'link': notification.link,
+            'user': notification.user,
+            'read': notification.read,
+            'created_at': {
+                'date': notification.created_at.strftime('%Y-%m-%d'),
+                'time': notification.created_at.strftime('%H:%M:%S'),
+            }
+        })
         notifications_by_date[date].sort(key=lambda x: x['created_at']['time'], reverse=True)
     notifications_by_date = dict(reversed(list(notifications_by_date.items())))
 
     return render_template(
         "dashboard/notifications.html",
-        user=current_user, guild=guild, config=data, data=notifications_by_date
+        user=current_user, guild=guild, config=all_notifs, data=notifications_by_date
     )
 
 
 # ── Data post (catch-all config update) ──────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
 def data_post(guild_id):
+    """
+    Catch-all endpoint for dashboard setting updates.
+    Handles:
+    - Settings (language, timezone, color, admin_roles, bot_masters)
+    - Economy reset (EconomyUsers)
+    - Dashboard plugin settings (Dash.*)
+    - List indices (e.g., economy.shop.0)
+    """
     guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return {'status': 'error', 'message': 'Guild not found'}, 404
+
+    data = request.get_json()
+    if not data:
+        return {'status': 'error', 'message': 'No data provided'}, 400
+
     settings_keys = {
         'settings.language', 'settings.timezone', 'settings.color',
         'settings.admin_roles', 'settings.bot_masters'
     }
 
-    for key, val in request.get_json().items():
+    # Get the guild document once
+    doc = Guild.get(str(guild.id)).run()
+    if doc is None:
+        return {'status': 'error', 'message': 'Guild config not found'}, 404
+
+    for key, val in data.items():
+        # ── Special case: Reset economy ──────────────────────────────────
         if key == "EconomyUsers":
-            server = get_server_config(guild)['economy']
-            for user in server:
-                server[user]['wallet'] = 0
-                server[user]['bank'] = 0
-                server[user]['bag'] = []
-            update_config(guild, 'Bot.economy', server)
-            break
+            deleted_count = Economy.find(Economy.guild_id == str(guild.id)).delete()
+            print(f"🗑️ Deleted {deleted_count} economy records")
+            continue
 
+        # ── Settings keys (saved to Guild.settings) ─────────────────────
         if key in settings_keys:
-            update_config(guild, key, val)
-            break
+            if key.startswith("settings."):
+                actual_key = key.replace("settings.", "")
+                doc.settings[actual_key] = val
+            else:
+                parts = key.split('.')
+                current = doc.settings
+                for part in parts[:-1]:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+                current[parts[-1]] = val
+            doc.save()
+            continue
 
-        update_config(guild, "Dash." + key, val)
+        # ── Dashboard plugin settings (saved to Guild.dashboard) ────────
+        dash_key = key.replace("Dash.", "")
+        parts = dash_key.split('.')
+
+        # Navigate to the parent of the final key
+        current = doc.dashboard
+        for part in parts[:-1]:
+            if isinstance(current, dict):
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            elif isinstance(current, list):
+                # If we're inside a list, part should be an index
+                try:
+                    idx = int(part)
+                    # Ensure the list is long enough
+                    while len(current) <= idx:
+                        current.append({})
+                    current = current[idx]
+                except ValueError:
+                    # If part isn't a number, treat as attribute (fallback)
+                    current = getattr(current, part, {})
+            else:
+                # Fallback for other object types
+                current = getattr(current, part, {})
+
+        final = parts[-1]
+
+        # ── Assign the value based on the type of `current` ─────────────
+        if isinstance(current, dict):
+            current[final] = val
+        elif isinstance(current, list):
+            # Final part should be an index for a list
+            try:
+                idx = int(final)
+                # Ensure the list is long enough
+                while len(current) <= idx:
+                    current.append(None)
+                current[idx] = val
+            except ValueError:
+                # If final isn't an integer, fallback to attribute (unlikely)
+                setattr(current, final, val)
+        else:
+            # For Pydantic models or other objects
+            setattr(current, final, val)
+
+        doc.save()
 
     return {'status': 'success', 'message': 'Successfully updated data'}

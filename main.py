@@ -1,9 +1,10 @@
 import os
 import time
-import traceback
 import discord
+import traceback
 from bunnet import init_bunnet
 from pymongo import MongoClient
+from datetime import datetime
 from modules import bot as v
 from modules.models import ALL_MODELS
 from web_dashboard.index import run_dashboard
@@ -113,6 +114,7 @@ async def on_ready():
     print(f"✅ Logged in as {client.user}")
     print(f"✅ Guilds: {len(client.guilds)}")
     print(f"✅ Shards: {len(client.shards)}")
+    print(f"✅ Started at: {datetime.now()}")
     print("=" * 50)
     await update_shard_presence()
 

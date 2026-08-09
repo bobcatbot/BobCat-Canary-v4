@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template
-
 from modules import bot as v
-from ...db import get_dash_config
+from modules.models import  Guild
+from ...db import get_guild
 from ...utils import bearer_client, login_required, premium_module
 
 moderation_bp = Blueprint('moderation', __name__)
@@ -14,11 +14,19 @@ def moderation(guild_id):
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)
-    dash_data = get_dash_config(guild).get('moderation')
+    if guild is None:
+        return render_template("error/404.html"), 404
+
+    # Get the guild document using Bunnet
+    config = Guild.get(str(guild.id)).run().dashboard.moderation
+
+    # Get logging config from moderation
+    logging_config = config.get('logging', {})
     
     return render_template(
         "dashboard/plugins/moderation.html",
-        user=current_user, guild=guild, 
-        data=dash_data, 
-        logging=dash_data['logging']
+        user=current_user,
+        guild=guild,
+        data=config,
+        logging=logging_config
     )

@@ -1,13 +1,9 @@
-import random
-import string
-
 import discord
-from datetime import datetime
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from modules import bot as v
-from ...db import get_dash_config, get_server_config, update_config
-from ...utils import GuildModels, bearer_client, login_required, premium_module
+from modules.models import Guild, Form, FormResponse
+from ...utils import bearer_client, login_required, premium_module
 
 forms_bp = Blueprint('forms', __name__)
 
@@ -17,75 +13,67 @@ forms_bp = Blueprint('forms', __name__)
 def form(guild_id, form_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
+    if guild is None:
+        flash('Guild not found', 'error')
+        return redirect(url_for('web.index'))
 
-    forms_list = get_server_config(guild).get('forms')
-    form_data = next((f for f in forms_list if f['id'] == form_id), None)
+    # Get the form using Bunnet
+    form_data = Form.find_one(
+        Form.guild_id == str(guild.id),
+        Form.id == form_id
+    ).run()
+    
+    if form_data is None:
+        flash('Form not found', 'error')
+        return redirect(url_for('web.index'))
 
     if request.method == 'POST':
         data = request.get_json()
-        form_idx = forms_list.index(form_data)
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-        form_data['responses'].append(data)
-        update_config(guild, f'Bot.forms.{form_idx}.responses', form_data['responses'])
+        # Create a form response
+        response = FormResponse(
+            guild_id=str(guild.id),
+            form_id=form_id,
+            user_id=str(current_user.id),
+            answers=data.get('answers', [])
+        )
+        response.insert()
 
-        channel = guild.get_channel(int(form_data['settings']['submission_channel']))
+        # Send to channel if configured
+        channel_id = form_data.settings.get('submission_channel')
+        if channel_id:
+            channel = guild.get_channel(int(channel_id))
+            if channel:
+                async def send_submission():
+                    embed = discord.Embed(
+                        title=f"{form_data.name} (#{response.id})",
+                        color=0x5865F2,
+                        timestamp=response.submitted_at,
+                    )
+                    for idx, question in enumerate(form_data.questions):
+                        answer = response.answers[idx] if idx < len(response.answers) else 'N/A'
+                        embed.add_field(
+                            name=question.get('label', f'Question {idx+1}'),
+                            value=answer,
+                            inline=False
+                        )
+                    embed.set_footer(text=f"User ID: {current_user.id}")
+                    await channel.send(embed=embed)
 
-        async def send_submission():
-            submitted_at = datetime.fromisoformat(data['submitted_at'])
-            embed = discord.Embed(
-                title=f"{form_data['name']} (#{len(form_data['responses'])})",
-                color=0x5865F2,
-                timestamp=submitted_at,
-            )
-            for index, question in enumerate(form_data['questions']):
-                embed.add_field(name=question['title'], value=data['answers'][index], inline=False)
-            embed.set_footer(text=f"User ID: {data['user']['id']}")
-            msg = await channel.send(embed=embed)
+                v.client.loop.create_task(send_submission())
 
-            if form_data['settings']['options']['thread']:
-                await msg.create_thread(name=f"{form_data['name']} ({form_data['id']})")
-
-            reactions = form_data['settings']['options']['reactions']
-            if reactions['status'] and reactions['emojis']:
-                for emoji in reactions['emojis']:
-                    await msg.add_reaction(emoji)
-
-        v.client.loop.create_task(send_submission())
         return jsonify({'status': 200})
 
-    return render_template("dashboard/plugins/forms/form.html", user=current_user, guild=guild, data=form_data)
-
-@forms_bp.route("/form/<int:guild_id>/<form_id>/submissions", methods=['GET', 'DELETE'])
-@login_required
-def form_submissions(guild_id, form_id):
-    current_user = bearer_client().get_current_user()
-    guild = v.client.get_guild(guild_id)
-    user = guild.get_member(current_user.id)
-
-    forms_list = get_server_config(guild).get('forms')
-    form_data = next((f for f in forms_list if f['id'] == form_id), None)
-
-    if request.method == 'DELETE':
-        res = request.get_json()
-        form_idx = forms_list.index(form_data)
-        form_data['responses'] = [r for r in form_data['responses'] if r['id'] != res['id']]
-        update_config(guild, f'Bot.forms.{form_idx}.responses', form_data['responses'])
-        return jsonify({'status': 200})
-
-    submission_viewers = form_data['settings'].get('submission_viewers', [])
-    submission_managers = form_data['settings'].get('submission_managers', [])
-    allowed_roles = set(submission_viewers) | set(submission_managers)
-    user_role_ids = {str(role.id) for role in user.roles}
-
-    if allowed_roles and not user_role_ids & allowed_roles:
-        flash('You are not allowed to view the submissions', 'error')
-        return redirect(url_for('web.index'))
-
-    can_manage = any(str(role.id) in submission_managers for role in user.roles)
-    return render_template("dashboard/plugins/forms/form_subs.html", user=current_user, guild=guild, form=form_data, can_manage=can_manage)
+    return render_template(
+        "dashboard/plugins/forms/form.html",
+        user=current_user,
+        guild=guild,
+        data=form_data
+    )
 
 
-# ── Dashboard forms management ────────────────────────────────────────────────
 @forms_bp.route("/dashboard/<int:guild_id>/forms")
 @login_required
 def forms(guild_id):
@@ -93,17 +81,24 @@ def forms(guild_id):
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return render_template("error/404.html"), 404
+
+    # Get guild document for plugin status
+    config = Guild.get(str(guild.id)).run()
     
-    data = get_server_config(guild).get('forms')
-    plugin = get_dash_config(guild).get('forms')
-    
+    # Get all forms for this guild using Bunnet
+    forms_list = Form.find(Form.guild_id == str(guild.id)).run()
+    plugin_status = config.dashboard.forms.get('status', False)
+
     return render_template(
-        "dashboard/plugins/forms/form_index.html", 
-        user=current_user, 
-        guild=guild, 
-        data=data, 
-        plugin=plugin
+        "dashboard/plugins/forms/form_index.html",
+        user=current_user,
+        guild=guild,
+        data=forms_list,
+        plugin=plugin_status
     )
+
 
 @forms_bp.route("/dashboard/<int:guild_id>/forms/creation", methods=['GET', 'POST'])
 @login_required
@@ -112,25 +107,34 @@ def forms_create(guild_id):
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return render_template("error/404.html"), 404
 
     if request.method == 'POST':
         data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-        data['id'] = v.uuid(12, strCase="upper/lower/nums")
-        
-        forms_list = get_server_config(guild).get('forms')
-        
-        for key, val in data.items():
-            update_config(guild.id, f'Bot.forms.{len(forms_list)}.{key}', val)
-        
-        flash(f"Successfully created form {data['id']}", 'success')
-        return jsonify({'status': 'success', 'message': f"Successfully created form {data['id']}"})
+        # Create form using Bunnet
+        form = Form(
+            guild_id=str(guild.id),
+            name=data.get('name', 'Untitled Form'),
+            description=data.get('description', ''),
+            questions=data.get('questions', []),
+            settings=data.get('settings', {}),
+            status=True
+        )
+        form.insert()
+
+        flash(f"Successfully created form {form.id}", 'success')
+        return jsonify({'status': 'success', 'message': f"Successfully created form {form.id}"})
 
     return render_template(
-        "dashboard/plugins/forms/form_create.html", 
-        user=current_user, 
+        "dashboard/plugins/forms/form_create.html",
+        user=current_user,
         guild=guild
     )
+
 
 @forms_bp.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
 @login_required
@@ -139,25 +143,36 @@ def forms_edit(guild_id, form_id):
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return render_template("error/404.html"), 404
 
-    forms_list = get_server_config(guild).get('forms')
-    form_data = next((f for f in forms_list if f['id'] == form_id), None)
-    form_idx = forms_list.index(form_data)
+    # Get the form using Bunnet
+    form_data = Form.find_one(
+        Form.guild_id == str(guild.id),
+        Form.id == form_id
+    ).run()
+    
+    if form_data is None:
+        flash('Form not found', 'error')
+        return redirect(url_for('forms.forms', guild_id=guild_id))
 
     if request.method == 'POST':
-        for key, val in request.get_json().items():
-            update_config(guild.id, f'Bot.forms.{form_idx}.{key}', val)
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+
+        for key, value in data.items():
+            setattr(form_data, key, value)
+        form_data.save()
         return jsonify({'status': 'success', 'message': 'Successfully updated form'})
 
     if request.method == 'DELETE':
-        forms_list.pop(form_idx)
-        update_config(guild.id, 'Bot.forms', forms_list)
+        form_data.delete()
         return jsonify({'status': 'success', 'message': 'Successfully deleted form'})
 
     return render_template(
         "dashboard/plugins/forms/form_edit.html",
-        user=current_user, 
-        guild=guild, 
-        data=form_data, 
-        emojis=GuildModels(guild).emojis
+        user=current_user,
+        guild=guild,
+        data=form_data
     )
