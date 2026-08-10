@@ -84,38 +84,39 @@ def load_extensions() -> None:
             failed.append((extension, error))
             print(f"❌ Failed to load {extension}")
             traceback.print_exc()
-    print("=" * 50)
+    print("─" * 50)
     print(f"Extensions loaded: {len(loaded)}")
     print(f"Extensions failed: {len(failed)}")
     if failed:
         print("Failed extensions:")
         for extension, error in failed:
             print(f"  - {extension}: {error}")
-    print("=" * 50)
+    print("─" * 50)
 
 async def update_shard_presence() -> None:
-    shard_count = max(len(client.shards), 1)
+    """Update presence for all shards with rate limit handling"""
+    shard_count = len(client.shards)
     for shard_id in client.shards:
-        client.shard_uptime.setdefault(
-            shard_id,
-            discord.utils.utcnow(),
-        )
-        await client.change_presence(
-            shard_id=shard_id,
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"Shard {shard_id + 1}/{shard_count}",
-            ),
-        )
+        client.shard_uptime.setdefault(shard_id, discord.utils.utcnow())
+        try:
+            await client.change_presence(
+                shard_id=shard_id,
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{shard_id + 1}/{shard_count} shards • {len(client.guilds)} guilds",
+                ),
+            )
+        except discord.HTTPException as e:
+            print(f"Failed to update presence for shard {shard_id}: {e}")
 
 @client.event
 async def on_ready():
-    print("=" * 50)
+    print("─" * 50)
     print(f"✅ Logged in as {client.user}")
     print(f"✅ Guilds: {len(client.guilds)}")
     print(f"✅ Shards: {len(client.shards)}")
     print(f"✅ Started at: {datetime.now()}")
-    print("=" * 50)
+    print("─" * 50)
     await update_shard_presence()
 
 @client.event
@@ -134,9 +135,8 @@ async def on_shard_resumed(shard_id: int):
     print(f"🔄 Shard {shard_id} resumed")
 
 def start() -> None:
-    print("=" * 50)
     print("Starting BobCat Bot")
-    print("=" * 50)
+    print("─" * 60)
 
     initialise_database()
     load_extensions()

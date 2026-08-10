@@ -177,6 +177,21 @@ class events(commands.Cog):
         self._author(embed, message.author)
         embed.set_footer(text=f"Message ID: {message.id}")
 
+        # Add attachments if present
+        if message.attachments:
+            attachment_urls = "\n".join([f"[{a.filename}]({a.url})" for a in message.attachments])
+            embed.add_field(
+                name="📎 Attachments",
+                value=attachment_urls[:1024],
+                inline=False
+            )
+        
+        # Also add image preview if it's an image
+        for attachment in message.attachments:
+            if attachment.content_type and attachment.content_type.startswith('image/'):
+                embed.set_image(url=attachment.url)
+                break
+
         embeds = [embed] + list(message.embeds)
         await channel.send(embeds=embeds[:10])  # Discord max is 10 embeds per message
 

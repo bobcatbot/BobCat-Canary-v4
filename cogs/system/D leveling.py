@@ -4,10 +4,10 @@ import random
 import pymongo
 import discord
 import asyncio
-from modules import bot as v
-from modules.models import Guild, Leveling as LevelingModel
 from discord.ext import commands
 from easy_pil import Editor, Font, load_image
+from modules import bot as v
+from modules.models import Guild, Leveling as LevelingModel
 from cogs.money.tools.utils import open_account, update_bank
 
 CARDS_URL = "images/lvl-cards"
@@ -45,6 +45,9 @@ class Leveling(commands.Cog):
         self.client = client
         # CooldownMapping is created once per cog instance, not per message
         self._cooldown_cache: dict[int, commands.CooldownMapping] = {}
+        
+        self.XP_PER_MESSAGE_MIN = 1
+        self.XP_PER_MESSAGE_MAX = 10
  
     def _get_cooldown(self, guild_id: int, cd: int) -> commands.CooldownMapping:
         existing = self._cooldown_cache.get(guild_id)
@@ -113,9 +116,14 @@ class Leveling(commands.Cog):
         if message.channel.type == discord.ChannelType.private:
             return
  
-        lvl_data = Guild.get(str(message.guild.id)).run().dashboard.leveling
+        # Fetch guild config
+        guild_doc = Guild.get(str(message.guild.id)).run()
+        if guild_doc is None:
+            return
+            
+        lvl_data = guild_doc.dashboard.leveling
  
-        if not lvl_data.get('status'):
+        if not lvl_data.get('status', False):
             return
  
         # No XP channels
@@ -140,11 +148,12 @@ class Leveling(commands.Cog):
         lvl: int = int(data.lvl)
         maxLevel: int = int(lvl_data.get('max_level', 0))
  
-        # Don't give XP if already at max level
+        # Don't give XP if already at max level (0 = no limit)
         if maxLevel != 0 and lvl >= maxLevel:
             return
  
-        gained = random.randint(1, 10)
+        gained = random.randint(self.XP_PER_MESSAGE_MIN, self.XP_PER_MESSAGE_MAX)
+        
         new_exp = exp + gained
         new_lvl = lvl
         while new_exp >= xp_for_level(new_lvl):
@@ -168,8 +177,9 @@ class Leveling(commands.Cog):
             return
  
         # ── Level-up announcement ──────────────────────────────────────────
-        anno: str = lvl_data["message"]["status"]
-        mess: str = lvl_data["message"]["content"]
+        message_config = lvl_data.get('message', {})
+        anno: str = message_config.get('status', 'current')
+        mess: str = message_config.get('content', '{user} just reached level {level}!')
         chan = lvl_data.get('channel')
  
         def replace_placeholder(match: re.Match) -> str:
@@ -199,7 +209,7 @@ class Leveling(commands.Cog):
                 await channel.send(msg_text)
  
         # ── Economy integration ────────────────────────────────────────────
-        if lvl_data.get('economy'):
+        if lvl_data.get('economy', False):
             await open_account(message.guild, message.author)
             await update_bank(message.guild, message.author, 'bank', 5)
  
@@ -223,6 +233,7 @@ class Leveling(commands.Cog):
                     for r in auto_roles['roles']
                     if message.guild.get_role(int(r['id'])) in message.author.roles
                 ]
+                roles_to_remove = [r for r in roles_to_remove if r is not None]
                 if roles_to_remove:
                     await message.author.remove_roles(*roles_to_remove)
  
@@ -232,10 +243,14 @@ class Leveling(commands.Cog):
     @commands.slash_command(description="Gives yours or member's ranks")
     @discord.option("member", discord.Member, description="Select a member", required=False)
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
-        lvl_data = Guild.get(str(ctx.guild.id)).run().dashboard.leveling
-        status = lvl_data['status']
+        guild_doc = Guild.get(str(ctx.guild.id)).run()
+        if guild_doc is None:
+            return await ctx.respond("❌ Guild not found!", ephemeral=True)
+            
+        lvl_data = guild_doc.dashboard.leveling
+        status = lvl_data.get('status', False)
         if not status:
-            embed = discord.Embed(description="Levelling is disabled", color=v.error)
+            embed = discord.Embed(description="Leveling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
         
         member = ctx.author if not member else member
@@ -267,12 +282,16 @@ class Leveling(commands.Cog):
         file = discord.File(fp=img_bytes, filename=f"{member.id}_rank.png")
         await ctx.respond(file=file)
 
-    @commands.slash_command(description=f"View the top 5 users in the server")
+    @commands.slash_command(description="View the top 5 users in the server")
     async def leaderboard(self, ctx: discord.ApplicationContext):
-        lvl_data = Guild.get(str(ctx.guild.id)).run().dashboard.leveling
-        if not lvl_data.get('status'):
+        guild_doc = Guild.get(str(ctx.guild.id)).run()
+        if guild_doc is None:
+            return await ctx.respond("❌ Guild not found!", ephemeral=True)
+            
+        lvl_data = guild_doc.dashboard.leveling
+        if not lvl_data.get('status', False):
             return await ctx.respond(
-                embed=discord.Embed(description="Levelling is disabled", color=v.error),
+                embed=discord.Embed(description="Leveling is disabled", color=v.error),
                 ephemeral=True
             )
  
@@ -286,17 +305,18 @@ class Leveling(commands.Cog):
         desc = ""
         for idx, data in enumerate(sorted_players, start=1):
             member = ctx.guild.get_member(int(data.user_id)) or await v.client.fetch_user(int(data.user_id))
-            desc += f"#{idx} ● {member.name} ● LVL: {data.lvl}\n"
+            medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"#{idx}"
+            desc += f"{medal} ● {member.display_name} ● LVL: {data.lvl}\n"
  
         embed = discord.Embed(
-            title=f"{ctx.guild.name}'s Leaderboard",
-            description=desc,
+            title=f"🏆 {ctx.guild.name}'s Leaderboard",
+            description=desc if desc else "No users ranked yet!",
             color=0xffffff
         )
 
         view = discord.ui.View()
         view.add_item(discord.ui.Button(
-            label="View Leaderboard",
+            label="View Full Leaderboard",
             url=f"{v.web_url}/leaderboard/{ctx.guild.id}"
         ))
         await ctx.respond(embed=embed, view=view)

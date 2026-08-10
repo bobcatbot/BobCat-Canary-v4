@@ -55,6 +55,8 @@ class WelcomeWelcomeContainer(DesignerView):
                         discord.ui.InputText(
                             style=discord.InputTextStyle.long,
                             value=data['join']['message']['content'],
+                            min_length=1,
+                            max_length=2000,
                         ),
                     ),
                     title="Welcome Message",
@@ -88,6 +90,8 @@ class WelcomeWelcomeContainer(DesignerView):
                         discord.ui.InputText(
                             style=discord.InputTextStyle.long,
                             value=data['dm']['message']['content'],
+                            min_length=1,
+                            max_length=2000
                         ),
                     ),
                     title="Welcome DM Message",

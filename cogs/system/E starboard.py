@@ -40,8 +40,11 @@ class starboard(commands.Cog):
             return
         if not starSatus:
             return
-        if not starSelf:
-            return
+        
+        if not starSelf and payload.user_id == message.author.id:
+            # Remove the reaction if user tried to self-star
+            return await message.remove_reaction(payload.emoji, payload.member)
+            
         if not starChannel:
             return
 
@@ -146,12 +149,12 @@ class starboard(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_clear(self, payload):
-        message = await self.client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        message = await v.client.get_channel(payload.channel_id).fetch_message(payload.message_id)
         guild = v.client.get_guild(payload.guild_id)
 
         starbaord_data = Guild.get(str(payload.guild_id)).run().dashboard.starboard
         starChannel = starbaord_data['channel']
-        chan = self.client.get_channel(int(starChannel))
+        chan = v.client.get_channel(int(starChannel))
 
         result = Starboard.find_one(
             Starboard.guild_id == str(guild.id),
