@@ -12,7 +12,7 @@ clipboard
 pychalk
 speedtest-cli
 pymongo
-jishaku
+bunnet
 
 Flask[async]
 flask-socketio

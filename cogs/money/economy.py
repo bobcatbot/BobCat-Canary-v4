@@ -1,10 +1,11 @@
 import discord
 import random
+from typing import Optional
 from modules import bot as v
 from modules.models import Economy
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
-from .tools.utils import get_shop, get_user_items, open_account, update_bank, buy_this, sell_this
+from .tools.utils import get_shop, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance
 
 class Money(commands.Cog):
     def __init__(self, client):
@@ -24,16 +25,30 @@ class Money(commands.Cog):
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def shop(self, ctx):
         shop = await get_shop(ctx.guild)
+        
+        if not shop:
+            embed = discord.Embed(
+                title="Shop",
+                description="The shop is currently empty!",
+                color=v.style(ctx.guild)
+            )
+            return await ctx.respond(embed=embed)
 
-        em = discord.Embed(title="Shop")
+        embed = discord.Embed(title="🛒 Shop", color=v.style(ctx.guild))
         for item in shop:
-            name = item["name"]
-            price = item["price"]
-            description = item["description"]
-            em.add_field(name=f"{name}", value=f"Price: {price} - {description}", inline=False)
-        await ctx.respond(embed=em)
+            name = item.get("name", "Unknown")
+            price = item.get("price", 0)
+            description = item.get("description", "No description")
+            limit = item.get("max_limit", "No limit")
+            embed.add_field(
+                name=f"**{name}**",
+                value=f"💰 Price: `{price}` coins\n📝 {description}\n📦 Max per purchase: `{limit}`",
+                inline=False
+            )
+        await ctx.respond(embed=embed)
     
     @eco.command(description="Economy leaderboard")
+    @commands.cooldown(rate=1, per=30, type=commands.BucketType.guild)
     async def leaderboard(self, ctx: discord.ApplicationContext):
         pipeline = [
             {"$match": {"guild_id": str(ctx.guild.id)}},
@@ -42,146 +57,267 @@ class Money(commands.Cog):
             {"$limit": 10},
             {"$project": {"user_id": 1, "wallet": 1, "bank": 1, "total": 1}}
         ]
-        # Use Bunnet's aggregation (synchronous)
-        result = Economy.aggregate(pipeline).run()
         
-        desc = ""
-        for idx, data in enumerate(result, start=1):
-            member = await v.client.fetch_user(int(data["user_id"]))
-            cash = data["wallet"] + data["bank"]
-            desc += f"\n#{idx} ● {member.name} ● {cash}"
-        
-        em = discord.Embed(title="Top 10 Richest People", description=desc, color=0xFFCC4D)
-        await ctx.respond(embed=em)
+        try:
+            # Use Bunnet's aggregation (synchronous)
+            result = Economy.aggregate(pipeline).run()
+            
+            if not result:
+                embed = discord.Embed(
+                    title="🏆 Economy Leaderboard",
+                    description="No users found!",
+                    color=v.style(ctx.guild)
+                )
+                return await ctx.respond(embed=embed)
+            
+            desc = ""
+            for idx, data in enumerate(result, start=1):
+                try:
+                    member = await v.client.fetch_user(int(data["user_id"]))
+                    cash = data.get("wallet", 0) + data.get("bank", 0)
+                    desc += f"\n#{idx} ● {member.display_name} ● `{cash}` coins"
+                except:
+                    desc += f"\n#{idx} ● Unknown User ● `{data.get('wallet', 0) + data.get('bank', 0)}` coins"
+            
+            embed = discord.Embed(
+                title="🏆 Top 10 Richest People",
+                description=desc,
+                color=v.style(ctx.guild)
+            )
+            await ctx.respond(embed=embed)
+            
+        except Exception as e:
+            print(f"Leaderboard error: {e}")
+            await ctx.respond("An error occurred while fetching the leaderboard.")
 
     @eco.command(description="Get the balance of a member")
     @commands.cooldown(rate=2, per=20, type=commands.BucketType.user)
-    async def balance(self, ctx, member: discord.Member=None):
+    async def balance(self, ctx, member: Optional[discord.Member] = None):
         member = ctx.author if not member else member
-        user = await open_account(ctx.guild, member)
         
-        em = discord.Embed(title=f'{member.name}\'s Balance', color=0xFFCC4D)
-        em.add_field(name="Wallet Balance", value=user["wallet"], inline=True)
-        em.add_field(name="Bank Balance", value=user["bank"], inline=True)
-        await ctx.respond(embed=em)
+        # Try to get existing balance first
+        user_data = await get_user_balance(ctx.guild, member)
+        if user_data is None:
+            user_data = await open_account(ctx.guild, member)
+        
+        if user_data is None:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="Could not retrieve balance information.",
+                color=v.error
+            )
+            return await ctx.respond(embed=embed)
+        
+        embed = discord.Embed(
+            title=f"{member.display_name}'s Balance",
+            color=v.style(ctx.guild)
+        )
+        embed.add_field(name="💰 Wallet Balance", value=f"`{user_data['wallet']}` coins", inline=True)
+        embed.add_field(name="🏦 Bank Balance", value=f"`{user_data['bank']}` coins", inline=True)
+        embed.add_field(name="📦 Total Worth", value=f"`{user_data['wallet'] + user_data['bank']}` coins", inline=False)
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+        await ctx.respond(embed=embed)
         
     @eco.command(description="Work for one hour and come back to claim your paycheck")
     @commands.cooldown(rate=1, per=3600, type=commands.BucketType.user)
     async def work(self, ctx):
-        await open_account(ctx.guild, ctx.author)
-        earnings = random.randrange(1, 500)
-        await update_bank(ctx.guild, ctx.author, "bank", earnings)
+        user_data = await open_account(ctx.guild, ctx.author)
+        if user_data is None:
+            return await ctx.respond("Failed to create or retrieve your account!")
         
-        em = discord.Embed(
-            color=0xFFCC4D,
-            description = f"{ctx.author.name} you started working again. You gain `{earnings}` from your last work. \nCome back in 1 hour to claim your",
+        earnings = random.randrange(50, 500)
+        updated_data = await update_bank(ctx.guild, ctx.author, "bank", earnings)
+        
+        if updated_data is None:
+            return await ctx.respond("Failed to update your balance!")
+        
+        embed = discord.Embed(
+            color=v.success,
+            description=f"✅ {ctx.author.display_name}, you started working again! You earned `{earnings}` coins in your bank account.\n\n⏰ Come back in 1 hour to claim your next paycheck!",
         )
-        await ctx.respond(embed=em)
+        embed.set_footer(text="Work smarter, not harder!")
+        await ctx.respond(embed=embed)
+    
     @work.error
     async def work_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             embed = discord.Embed(
-                color=0xED5757,
-                description=f"{ctx.author.name}, you are already working. Come back in 1 hour."
+                color=v.error,
+                description=f"⏰ {ctx.author.display_name}, you're already working! Come back in 1 hour to claim your next paycheck."
             )
-            return await ctx.respond(embed=embed)
+            await ctx.respond(embed=embed, ephemeral=True)
     
-    @eco.command(description="Withwdraw money from your bank")
+    @eco.command(description="Withdraw money from your bank")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
-    async def withdraw(self, ctx, amount):
-        user = await open_account(ctx.guild, ctx.author)
-        bal = user.get('bank')
-
-        if int(amount) > bal:
-            return await ctx.respond("You don't have that much money in your bank")
+    async def withdraw(self, ctx, amount: str):
+        # Validate and parse amount
+        try:
+            if amount.lower() == 'max':
+                user_data = await get_user_balance(ctx.guild, ctx.author)
+                if user_data is None:
+                    return await ctx.respond("You don't have an account yet! Use `/economy balance` to create one.")
                 
-        if amount == 'max':
-            amount = bal
-        amount = int(amount)
+                withdraw_amount = user_data.get('bank', 0)
+                if withdraw_amount == 0:
+                    return await ctx.respond("You don't have any money in your bank!")
+            else:
+                withdraw_amount = int(amount)
+                if withdraw_amount <= 0:
+                    return await ctx.respond("Amount must be positive!")
+        except ValueError:
+            return await ctx.respond("Please enter a valid number or 'max'")
         
-        await update_bank(ctx.guild, ctx.author, 'bank', -1 * amount)
-        await update_bank(ctx.guild, ctx.author, 'wallet', amount)
+        # Check if user has enough in bank
+        user_data = await get_user_balance(ctx.guild, ctx.author)
+        if user_data is None:
+            return await ctx.respond("You don't have an account yet! Use `/economy balance` to create one.")
+        
+        if withdraw_amount > user_data.get('bank', 0):
+            return await ctx.respond(f"You only have `{user_data['bank']}` coins in your bank!")
+        
+        # Perform withdrawal
+        await update_bank(ctx.guild, ctx.author, 'bank', -withdraw_amount)
+        await update_bank(ctx.guild, ctx.author, 'wallet', withdraw_amount)
+        
+        # Get updated balance
+        updated_balance = await get_user_balance(ctx.guild, ctx.author)
+        if updated_balance is None:
+            return await ctx.respond("Failed to retrieve updated balance!")
+        
+        embed = discord.Embed(
+            title=f"💰 Withdrawn {withdraw_amount} coins",
+            color=v.success
+        )
+        embed.add_field(name="💰 Wallet", value=f"`{updated_balance['wallet']}` coins", inline=True)
+        embed.add_field(name="🏦 Bank", value=f"`{updated_balance['bank']}` coins", inline=True)
+        embed.add_field(name="📦 Total", value=f"`{updated_balance['wallet'] + updated_balance['bank']}` coins", inline=False)
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+        await ctx.respond(embed=embed)
 
-        acc = await open_account(ctx.guild, ctx.author)
-        em = discord.Embed(title=f"You withdrew {amount}", color=0xFFCC4D)
-        em.add_field(name="Wallet", value=acc["wallet"], inline=True)
-        em.add_field(name="Bank", value=acc["bank"], inline=True)
-        await ctx.respond(embed=em)
-
-    @eco.command(descriprion="Deposit money into your bank")
+    @eco.command(description="Deposit money into your bank")
     @commands.cooldown(rate=1, per=100, type=commands.BucketType.user)
-    async def deposit(self, ctx, amount):
-        user = await open_account(ctx.guild, ctx.author)
-        bal = user.get('wallet')
+    async def deposit(self, ctx, amount: str):
+        # Validate and parse amount
+        try:
+            if amount.lower() == 'max':
+                user_data = await get_user_balance(ctx.guild, ctx.author)
+                if user_data is None:
+                    return await ctx.respond("You don't have an account yet! Use `/economy balance` to create one.")
+                
+                deposit_amount = user_data.get('wallet', 0)
+                if deposit_amount == 0:
+                    return await ctx.respond("You don't have any money in your wallet!")
+            else:
+                deposit_amount = int(amount)
+                if deposit_amount <= 0:
+                    return await ctx.respond("Amount must be positive!")
+        except ValueError:
+            return await ctx.respond("Please enter a valid number or 'max'")
         
-        if int(amount) > bal:
-            return await ctx.respond("You don't have that much money in your wallet")
+        # Check if user has enough in wallet
+        user_data = await get_user_balance(ctx.guild, ctx.author)
+        if user_data is None:
+            return await ctx.respond("You don't have an account yet! Use `/economy balance` to create one.")
         
-        if amount == 'max':
-            amount = bal
-        amount = int(amount)
+        if deposit_amount > user_data.get('wallet', 0):
+            return await ctx.respond(f"You only have `{user_data['wallet']}` coins in your wallet!")
         
-        await update_bank(ctx.guild, ctx.author, 'wallet', -1 * amount)
-        await update_bank(ctx.guild, ctx.author, 'bank', amount)
-
-        acc = await open_account(ctx.guild, ctx.author)
-        em = discord.Embed(title=f"You deposited {amount}", color=0xFFCC4D)
-        em.add_field(name="Wallet", value=acc["wallet"], inline=True)
-        em.add_field(name="Bank", value=acc["bank"], inline=True)
-        await ctx.respond(embed=em)
+        # Perform deposit
+        await update_bank(ctx.guild, ctx.author, 'wallet', -deposit_amount)
+        await update_bank(ctx.guild, ctx.author, 'bank', deposit_amount)
+        
+        # Get updated balance
+        updated_balance = await get_user_balance(ctx.guild, ctx.author)
+        if updated_balance is None:
+            return await ctx.respond("Failed to retrieve updated balance!")
+        
+        embed = discord.Embed(
+            title=f"🏦 Deposited {deposit_amount} coins",
+            color=v.success
+        )
+        embed.add_field(name="💰 Wallet", value=f"`{updated_balance['wallet']}` coins", inline=True)
+        embed.add_field(name="🏦 Bank", value=f"`{updated_balance['bank']}` coins", inline=True)
+        embed.add_field(name="📦 Total", value=f"`{updated_balance['wallet'] + updated_balance['bank']}` coins", inline=False)
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+        await ctx.respond(embed=embed)
     
     @eco.command(description="Buy an item from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     @discord.option('item', description="The item you want to buy", required=True, autocomplete=get_guild_shop)
-    @discord.option('amount', int, description="The amount of the item you want to buy", required=False, choices=[i for i in range(1, 10+1)])
-    async def buy(self, ctx, item, amount=1):
-        shoplist = await get_shop(ctx.guild)
-
+    @discord.option('amount', int, description="The amount of the item you want to buy", required=False, choices=[i for i in range(1, 11)])
+    async def buy(self, ctx, item: str, amount: int = 1):
+        shop = await get_shop(ctx.guild)
+        if not shop:
+            return await ctx.respond("The shop is currently empty!", ephemeral=True)
+        
         await open_account(ctx.guild, ctx.author)
         res = await buy_this(ctx.guild, ctx.author, item, amount)
-
-        if not res[0]:
-            if res[1] == 1:
-                return await ctx.respond("Item seems to not exist in the shop", ephemeral=True)
-            if res[1] == 2:
-                return await ctx.respond("Select a valid amount", ephemeral=True)
-            if res[1] == 3:
-                return await ctx.respond(f"{ctx.author.display_name}, {item} has a max limit of {res[2]}",  ephemeral=True)
-            if res[1] == 4:
-                return await ctx.respond(f"{ctx.author.display_name}, you don't have enough money in your wallet", ephemeral=True)
-            if res[1] == 5:
-                return await ctx.respond(f"{ctx.author.display_name}, {item} has a max limit of {res[2]} items on your inventory", ephemeral=True)
-        #
-
-        _item = None
-        for i in shoplist:
-            if i["name"] == item:
-                _item = i
-                break
         
-        embed = discord.Embed(title=f"You just bought an item from the shop", color=0xFFCC4D)
-        embed.add_field(name="Item", value=_item['name'], inline=False)
-        embed.add_field(name="quantity", value=amount, inline=False)
-        embed.add_field(name="Total", value=amount * _item['price'], inline=False)
+        # Handle errors
+        if not res[0]:
+            error_code = res[1]
+            if error_code == 1:
+                return await ctx.respond("❌ This item doesn't exist in the shop!", ephemeral=True)
+            elif error_code == 2:
+                return await ctx.respond("❌ Please select a valid amount (1 or more)!", ephemeral=True)
+            elif error_code == 3:
+                return await ctx.respond(f"❌ {item} has a max limit of {res[2]} per purchase!", ephemeral=True)
+            elif error_code == 4:
+                return await ctx.respond(f"❌ You don't have enough money in your wallet! You need `{res[2]}` coins.", ephemeral=True)
+            elif error_code == 5:
+                return await ctx.respond(f"❌ You already have the maximum amount of {item} ({res[2]} items) in your inventory!", ephemeral=True)
+            else:
+                return await ctx.respond(f"❌ An error occurred: {error_code}", ephemeral=True)
+        
+        # Get item details for embed
+        shop_item = next((i for i in shop if i["name"].lower() == item.lower()), None)
+        if not shop_item:
+            return await ctx.respond("❌ An error occurred with the shop item!", ephemeral=True)
+        
+        total_cost = amount * shop_item['price']
+        embed = discord.Embed(
+            title="✅ Purchase Successful!",
+            color=v.success
+        )
+        embed.add_field(name="🛍️ Item", value=f"**{shop_item['name']}**", inline=False)
+        embed.add_field(name="📦 Quantity", value=f"`{amount}`", inline=True)
+        embed.add_field(name="💰 Total Cost", value=f"`{total_cost}` coins", inline=True)
+        embed.add_field(name="📝 Description", value=shop_item.get('description', 'No description'), inline=False)
+        embed.set_footer(text=f"Thank you for your purchase, {ctx.author.display_name}!")
         await ctx.respond(embed=embed)
     
     @eco.command(description="Sell an item from your inventory")
     @discord.option('item', description="The item you want to sell", required=True, autocomplete=get_user_items)
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
-    async def sell(self, ctx, item):
+    async def sell(self, ctx, item: str):
         amount = 1
         await open_account(ctx.guild, ctx.author)
         
         res = await sell_this(ctx.guild, ctx.author, item, amount)
-        if not res[0]:
-            if res[1] == 1:
-                return await ctx.respond("That Object isn't there!", ephemeral=True)
-            if res[1] == 2:
-                return await ctx.respond(f"You don't have {amount} {item} in your bag.", ephemeral=True)
-            if res[1] == 3:
-                return await ctx.respond(f"You don't have {item} in your bag.", ephemeral=True)
         
-        await ctx.respond(f"You sold **{amount}** **{item}**")
+        if not res[0]:
+            error_code = res[1]
+            if error_code == 1:
+                return await ctx.respond("❌ That item doesn't exist in the shop!", ephemeral=True)
+            elif error_code == 2:
+                return await ctx.respond(f"❌ You don't have enough {item} in your inventory!", ephemeral=True)
+            elif error_code == 3:
+                return await ctx.respond(f"❌ You don't have any {item} in your inventory!", ephemeral=True)
+            else:
+                return await ctx.respond(f"❌ An error occurred: {error_code}", ephemeral=True)
+        
+        embed = discord.Embed(
+            title="💰 Sale Successful!",
+            description=f"✅ You sold **1** **{item}**!",
+            color=v.success
+        )
+        
+        # Get updated balance
+        updated_balance = await get_user_balance(ctx.guild, ctx.author)
+        if updated_balance:
+            embed.add_field(name="💰 New Wallet Balance", value=f"`{updated_balance['wallet']}` coins", inline=True)
+        
+        await ctx.respond(embed=embed)
 
     @eco.command(description="View your inventory")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
@@ -190,63 +326,159 @@ class Money(commands.Cog):
         items = await get_user_items(ctx.guild, ctx.author)
 
         if not items:
-            return await ctx.respond(f"{ctx.author.display_name}, you don't have any items in your inventory.")
+            embed = discord.Embed(
+                title=f"{ctx.author.display_name}'s Inventory",
+                description="🈳 Your inventory is empty! Buy items from the shop!",
+                color=v.style(ctx.guild)
+            )
+            return await ctx.respond(embed=embed)
         
-        embed = discord.Embed(title=f"{ctx.author.display_name}'s inventory", color=0xFFCC4D)
+        embed = discord.Embed(
+            title=f"{ctx.author.display_name}'s Inventory",
+            color=v.style(ctx.guild)
+        )
+        
         for item in items:
-            embed.add_field(name=item["item"], value=item["amount"], inline=False)
+            item_name = item.get("item", "Unknown")
+            item_amount = item.get("amount", 0)
+            embed.add_field(
+                name=f"📦 {item_name}",
+                value=f"Quantity: `{item_amount}`",
+                inline=False
+            )
+        
+        embed.set_footer(text=f"Total items: {len(items)}")
         await ctx.respond(embed=embed)
 
     # Moderation Commands
     @eco.command(name="give-coins", description="Give coins to another member")
     @discord.default_permissions(moderate_members=True)
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
-    async def give_coins(self, ctx, member: discord.Member, amount):
+    async def give_coins(self, ctx, member: discord.Member, amount: str):
+        if member.id == ctx.author.id:
+            return await ctx.respond("❌ You cannot give coins to yourself!", ephemeral=True)
+        
         await open_account(ctx.guild, ctx.author)
         await open_account(ctx.guild, member)
-        bal = await update_bank(ctx.guild, ctx.author)
-
-        if amount == 'all':
-            amount = bal.get('wallet')
-        amount = int(amount)
-
-        if amount > bal.get('wallet'):
-            return await ctx.respond('You do not have sufficient balance')
-
-        if amount < 0:
-            return await ctx.respond('Amount must be positive!')
-        if amount <= 2:
-            return await ctx.respond('Amount must be higher than 2')
-
-        await update_bank(ctx.guild, ctx.author, "bank", -1 * amount)
-        await update_bank(ctx.guild, member, "bank", amount)
         
-        em = discord.Embed(
-            color=0xFFCC4D,
-            description=f"{ctx.author.mention} gave {member.mention} `{amount}`",
+        # Parse amount
+        try:
+            if amount.lower() == 'all':
+                user_balance = await get_user_balance(ctx.guild, ctx.author)
+                if user_balance is None:
+                    return await ctx.respond("Failed to get your balance!")
+                give_amount = user_balance.get('wallet', 0)
+                if give_amount == 0:
+                    return await ctx.respond("You don't have any coins in your wallet!")
+            else:
+                give_amount = int(amount)
+                if give_amount <= 0:
+                    return await ctx.respond("Amount must be positive!")
+        except ValueError:
+            return await ctx.respond("Please enter a valid number or 'all'")
+        
+        # Check balance
+        user_balance = await get_user_balance(ctx.guild, ctx.author)
+        if user_balance is None:
+            return await ctx.respond("Failed to get your balance!")
+        
+        if give_amount > user_balance.get('wallet', 0):
+            return await ctx.respond(f"You only have `{user_balance['wallet']}` coins in your wallet!")
+        
+        if give_amount < 10:
+            return await ctx.respond("You must give at least 10 coins!")
+        
+        # Perform transfer
+        await update_bank(ctx.guild, ctx.author, "wallet", -give_amount)
+        await update_bank(ctx.guild, member, "wallet", give_amount)
+        
+        embed = discord.Embed(
+            color=v.success,
+            description=f"✅ {ctx.author.mention} gave {member.mention} **`{give_amount}`** coins!",
         )
-        await ctx.respond(embed=em)
+        embed.set_footer(text="Generosity is a virtue!")
+        await ctx.respond(embed=embed)
     
-    @eco.command(name="remove-coins", description="Removes coins from another member")
-    @discord.default_permissions(moderate_members=True)
-    @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
-    async def remove_coins(self, ctx, member : discord.Member):
+    @eco.command(name="rob-coins", description="Rob coins from another member")
+    @commands.cooldown(rate=1, per=300, type=commands.BucketType.user)
+    async def rob_coins(self, ctx, member: discord.Member):
+        if member.id == ctx.author.id:
+            return await ctx.respond("❌ You cannot rob yourself!", ephemeral=True)
+        
         await open_account(ctx.guild, ctx.author)
         await open_account(ctx.guild, member)
-        bal = await update_bank(ctx.guild, member)
         
-        if bal.get('wallet') < 100:
-            return await ctx.respond('It is useless to rob him :(')
+        # Check victim's balance
+        victim_balance = await get_user_balance(ctx.guild, member)
+        if victim_balance is None:
+            return await ctx.respond(f"Failed to get {member.display_name}'s balance!")
         
-        earning = random.randrange(0, bal.get('wallet'))
+        if victim_balance.get('wallet', 0) < 100:
+            return await ctx.respond(f"💀 {member.display_name} is too poor to rob! They only have `{victim_balance['wallet']}` coins.")
+        
+        # Calculate robbery amount (random between 10% and 50% of victim's wallet)
+        robbery_percent = random.uniform(0.1, 0.5)
+        earning = int(victim_balance['wallet'] * robbery_percent)
+        earning = max(10, min(earning, victim_balance['wallet'] // 2))  # Min 10, max 50% of wallet
+        
+        # Perform robbery
+        await update_bank(ctx.guild, member, "wallet", -earning)
         await update_bank(ctx.guild, ctx.author, "wallet", earning)
-        await update_bank(ctx.guild, member, "wallet", -1 * earning)
-
-        em = discord.Embed(
-            color=0xFFCC4D,
-            description=f"{ctx.author.mention} robbed {member.mention} and got {earning}",
+        
+        embed = discord.Embed(
+            color=v.style(ctx.guild),
+            description=f"🔫 {ctx.author.mention} robbed {member.mention} and got **`{earning}`** coins!",
         )
-        await ctx.respond(embed=em)
+        embed.set_footer(text="Crime doesn't pay... or does it?")
+        await ctx.respond(embed=embed)
     
+    @eco.command(name="remove-coins", description="Remove coins from a member (admin only)")
+    @discord.default_permissions(administrator=True)
+    @commands.cooldown(rate=1, per=60, type=commands.BucketType.guild)
+    async def remove_coins(self, ctx, member: discord.Member, amount: str):
+        if member.id == ctx.author.id:
+            return await ctx.respond("❌ You cannot remove coins from yourself!", ephemeral=True)
+        
+        # Parse amount
+        try:
+            if amount.lower() == 'all':
+                user_balance = await get_user_balance(ctx.guild, member)
+                if user_balance is None:
+                    return await ctx.respond(f"Failed to get {member.display_name}'s balance!")
+                remove_amount = user_balance.get('wallet', 0) + user_balance.get('bank', 0)
+                if remove_amount == 0:
+                    return await ctx.respond(f"{member.display_name} has no coins to remove!")
+            else:
+                remove_amount = int(amount)
+                if remove_amount <= 0:
+                    return await ctx.respond("Amount must be positive!")
+        except ValueError:
+            return await ctx.respond("Please enter a valid number or 'all'")
+        
+        # Check if user has enough
+        user_balance = await get_user_balance(ctx.guild, member)
+        if user_balance is None:
+            return await ctx.respond(f"Failed to get {member.display_name}'s balance!")
+        
+        total_balance = user_balance.get('wallet', 0) + user_balance.get('bank', 0)
+        if remove_amount > total_balance:
+            return await ctx.respond(f"{member.display_name} only has `{total_balance}` coins total!")
+        
+        # Remove from wallet first, then bank if needed
+        wallet_amount = min(remove_amount, user_balance.get('wallet', 0))
+        bank_amount = remove_amount - wallet_amount
+        
+        if wallet_amount > 0:
+            await update_bank(ctx.guild, member, "wallet", -wallet_amount)
+        if bank_amount > 0:
+            await update_bank(ctx.guild, member, "bank", -bank_amount)
+        
+        embed = discord.Embed(
+            color=v.error,
+            description=f"🗑️ Removed **`{remove_amount}`** coins from {member.mention}!",
+        )
+        embed.set_footer(text=f"Action performed by {ctx.author.display_name}")
+        await ctx.respond(embed=embed)
+
 def setup(client):
     client.add_cog(Money(client))
