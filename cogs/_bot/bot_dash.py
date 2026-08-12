@@ -70,29 +70,6 @@ def _default_dashboard() -> dict:
             'max_level': 0,
             'noXP': [],
         },
-        "economy": {
-            'status': False,
-            'shop': [
-                {"name": "Teddy", "price": 50, "icon": "🧸", "description": "Very soft cuddly teddy bear", "type": "string", "max_limit": 5},
-                {"name": "Watch", "price": 100, "icon": "⌚", "description": "A thing to tell the time", "type": "string", "max_limit": 5},
-                {"name": "Phone", "price": 500, "icon": "📱", "description": "A phone", "type": "string", "max_limit": 5},
-                {"name": "Laptop", "price": 1000, "icon": "💻", "description": "A nice laptop for work and play", "type": "string", "max_limit": 5},
-            ],
-            'name': 'BobCat Coin',
-            'icon': '🪙',
-            'MaxGambling': '250',
-            'MaxPayment': '500',
-        },
-        "starboard": {
-            'status': False,
-            'channel': None,
-            'emoji': '⭐',
-            'limit': '3',
-            'jumpLink': True,
-            'selfStar': False,
-            'locked': False,
-            'ignore': [],
-        },
         "verification": {
             'status': False,
             'channel': None,
@@ -112,8 +89,19 @@ def _default_dashboard() -> dict:
             "message_id": "",
             "message_published": False,
         },
-        "ticketing": {'status': False, 'panels': []},
+        "starboard": {
+            'status': False,
+            'channel': None,
+            'emoji': '⭐',
+            'limit': '3',
+            'jumpLink': True,
+            'selfStar': False,
+            'locked': False,
+            'ignore': [],
+        },
+        "forms": { 'status': False, },
         "temporary_channels": {'status': False, 'hubs': []},
+        "ticketing": {'status': False, 'panels': []},
         "birthdays": {
             "status": False,
             "channel_id": "",
@@ -121,6 +109,21 @@ def _default_dashboard() -> dict:
             "birthday_role": "",
             "message": "**Happy birthday, {user.mention}!** They are now {age} years old.",
         },
+        "giveaways": {},
+        "economy": {
+            'status': False,
+            'shop': [
+                {"name": "Teddy", "price": 50, "icon": "🧸", "description": "Very soft cuddly teddy bear", "type": "string", "max_limit": 5},
+                {"name": "Watch", "price": 100, "icon": "⌚", "description": "A thing to tell the time", "type": "string", "max_limit": 5},
+                {"name": "Phone", "price": 500, "icon": "📱", "description": "A phone", "type": "string", "max_limit": 5},
+                {"name": "Laptop", "price": 1000, "icon": "💻", "description": "A nice laptop for work and play", "type": "string", "max_limit": 5},
+            ],
+            'name': 'BobCat Coin',
+            'icon': '🪙',
+            'MaxGambling': '250',
+            'MaxPayment': '500',
+        },
+        "stats": {"status": False, "counters": []},
     }
 
 def init_database(guild: discord.Guild) -> bool:

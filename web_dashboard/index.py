@@ -15,13 +15,19 @@ from .blueprints.web import web_bp
 from .blueprints.dashboard import dashboard_bp
 from .blueprints.stripe import stripe_bp
 
+# ── Server Management ──────────────────────────────────────────────────────
 from .blueprints.plugins.welcome import welcome_bp
 from .blueprints.plugins.moderation import moderation_bp
 from .blueprints.plugins.verification import verification_bp
+
+# ── Utilities ──────────────────────────────────────────────────────────────
 from .blueprints.plugins.starboard import starboard_bp
 from .blueprints.plugins.forms import forms_bp
 from .blueprints.plugins.temporary_channels import temporary_channels_bp
 from .blueprints.plugins.ticketing import ticketing_bp
+from .blueprints.plugins.stats import stats_bp
+
+# ── Games & Fun ────────────────────────────────────────────────────────────
 from .blueprints.plugins.leveling import leveling_bp
 from .blueprints.plugins.birthdays import birthdays_bp
 from .blueprints.plugins.giveaways import giveaways_bp
@@ -46,14 +52,19 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(stripe_bp)
 
-# Plugin blueprints
+# Server Management
 app.register_blueprint(welcome_bp)
 app.register_blueprint(moderation_bp)
 app.register_blueprint(verification_bp)
+
+# Utilities
 app.register_blueprint(starboard_bp)
 app.register_blueprint(forms_bp)
 app.register_blueprint(temporary_channels_bp)
 app.register_blueprint(ticketing_bp)
+app.register_blueprint(stats_bp)
+
+# Games & Fun
 app.register_blueprint(leveling_bp)
 app.register_blueprint(birthdays_bp)
 app.register_blueprint(giveaways_bp)

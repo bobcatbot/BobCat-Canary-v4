@@ -108,7 +108,6 @@ class Mute(commands.Cog):
                 DURATIONS["10-min"],
             )
             duration, duration_text = timeout_data
-            # FIXED: use timeout() instead of timeout_for()
             await member.timeout(
                 duration,
                 reason=f"{ctx.author}: {reason}",
@@ -280,7 +279,6 @@ class UnMute(commands.Cog):
                     ephemeral=True,
                 )
 
-            # FIXED: use timeout(None) instead of remove_timeout()
             await member.timeout(
                 None,
                 reason=f"Unmuted by {ctx.author}",
@@ -444,7 +442,6 @@ class Timeout(commands.Cog):
             dm_fields=dm_fields,
         )
 
-        # FIXED: use timeout() instead of timeout_for()
         await member.timeout(
             timeout_duration,
             reason=f"{ctx.author}: {reason}",

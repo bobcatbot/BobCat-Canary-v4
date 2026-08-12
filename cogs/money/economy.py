@@ -132,7 +132,7 @@ class Money(commands.Cog):
             return await ctx.respond("Failed to update your balance!")
         
         embed = discord.Embed(
-            color=v.success,
+            color=v.style(ctx.guild),
             description=f"✅ {ctx.author.display_name}, you started working again! You earned `{earnings}` coins in your bank account.\n\n⏰ Come back in 1 hour to claim your next paycheck!",
         )
         embed.set_footer(text="Work smarter, not harder!")
@@ -185,8 +185,8 @@ class Money(commands.Cog):
             return await ctx.respond("Failed to retrieve updated balance!")
         
         embed = discord.Embed(
+            color=v.style(ctx.guild),
             title=f"💰 Withdrawn {withdraw_amount} coins",
-            color=v.success
         )
         embed.add_field(name="💰 Wallet", value=f"`{updated_balance['wallet']}` coins", inline=True)
         embed.add_field(name="🏦 Bank", value=f"`{updated_balance['bank']}` coins", inline=True)
@@ -232,8 +232,8 @@ class Money(commands.Cog):
             return await ctx.respond("Failed to retrieve updated balance!")
         
         embed = discord.Embed(
+            color=v.style(ctx.guild),
             title=f"🏦 Deposited {deposit_amount} coins",
-            color=v.success
         )
         embed.add_field(name="💰 Wallet", value=f"`{updated_balance['wallet']}` coins", inline=True)
         embed.add_field(name="🏦 Bank", value=f"`{updated_balance['bank']}` coins", inline=True)
@@ -276,8 +276,8 @@ class Money(commands.Cog):
         
         total_cost = amount * shop_item['price']
         embed = discord.Embed(
+            color=v.style(ctx.guild),
             title="✅ Purchase Successful!",
-            color=v.success
         )
         embed.add_field(name="🛍️ Item", value=f"**{shop_item['name']}**", inline=False)
         embed.add_field(name="📦 Quantity", value=f"`{amount}`", inline=True)
@@ -307,9 +307,9 @@ class Money(commands.Cog):
                 return await ctx.respond(f"❌ An error occurred: {error_code}", ephemeral=True)
         
         embed = discord.Embed(
+            color=v.style(ctx.guild),
             title="💰 Sale Successful!",
             description=f"✅ You sold **1** **{item}**!",
-            color=v.success
         )
         
         # Get updated balance
@@ -393,7 +393,7 @@ class Money(commands.Cog):
         await update_bank(ctx.guild, member, "wallet", give_amount)
         
         embed = discord.Embed(
-            color=v.success,
+            color=v.style(ctx.guild),
             description=f"✅ {ctx.author.mention} gave {member.mention} **`{give_amount}`** coins!",
         )
         embed.set_footer(text="Generosity is a virtue!")

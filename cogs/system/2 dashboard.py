@@ -16,39 +16,35 @@ BUTTON_STYLES = {
 # Bot Settings
 from dashboard.BotSettings import PluginBotSettings
 
-# Welcome & Goodbye
+# ── Server Management ──────────────────────────────────────────────────────
 from dashboard.WelcomeGoodbye import PluginWelcomeGoodbye
-
-# Moderation
 from dashboard.Moderation import PluginModeration
-
-# Verification
 from dashboard.Verification import PluginVerification
 
-# Forms
+# ── Utilities ──────────────────────────────────────────────────────────────
+# from dashboard.Starboard import PluginStarboard
 from dashboard.Forms import PluginForms
-
-# Temporary Channels
 from dashboard.TempChannels import PluginTempChannels
+# from dashboard.Ticketing import PluginTicketing
+from dashboard.Stats import PluginStats
 
-# Leveling
+# ── Games & Fun ────────────────────────────────────────────────────────────
 from dashboard.Leveling import PluginLeveling
-
-# Birthdays
 from dashboard.Birthdays import PluginBirthdays
-
-# Economy
+# Giveaways (bot side)
 from dashboard.Economy import PluginEconomy
+
 
 PLUGIN_OPTIONS = {
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcomeGoodbye,  "premium": False },
     "Moderation": { "plugin": PluginModeration,  "premium": False },
     "Verification": { "plugin": PluginVerification,  "premium": False },
-    # "Starboard": {"plugin": PluginStarboard, "premium": True},
+    # "Starboard": {"plugin": PluginStarboard, "premium": False},
     # "Forms": { "plugin": PluginForms,  "premium": True },
     "Temporary Channels": { "plugin": PluginTempChannels,  "premium": True },
     # "Ticketing": {"plugin": PluginTicketing, "premium": True},
+    "Stats": { "plugin": PluginStats,  "premium": True },
     "Leveling": { "plugin": PluginLeveling,  "premium": False },
     "Birthdays": { "plugin": PluginBirthdays,  "premium": True },
     "Economy": { "plugin": PluginEconomy,  "premium": False },

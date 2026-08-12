@@ -9,24 +9,23 @@ from pydantic import Field, BaseModel
 class DashConfig(BaseModel):
     """Embedded Dashboard configuration inside Guild document"""
 
-    # Member lifecycle & safety
+    # Management
     welcome: Dict[str, Any] = Field(default_factory=dict)
-    verification: Dict[str, Any] = Field(default_factory=dict)
     moderation: Dict[str, Any] = Field(default_factory=dict)
+    verification: Dict[str, Any] = Field(default_factory=dict)
+
+    # Server utility
+    starboard: Dict[str, Any] = Field(default_factory=dict)
+    forms: Dict[str, Any] = Field(default_factory=dict)
+    temporary_channels: Dict[str, Any] = Field(default_factory=dict)
+    ticketing: Dict[str, Any] = Field(default_factory=dict)
+    stats: Dict[str, Any] = Field(default_factory=dict)
 
     # Engagement & economy
     leveling: Dict[str, Any] = Field(default_factory=dict)
-    economy: Dict[str, Any] = Field(default_factory=dict)
-    starboard: Dict[str, Any] = Field(default_factory=dict)
-    giveaways: Dict[str, Any] = Field(default_factory=dict)
-
-    # Server utility
-    ticketing: Dict[str, Any] = Field(default_factory=dict)
-    temporary_channels: Dict[str, Any] = Field(default_factory=dict)
-    forms: Dict[str, Any] = Field(default_factory=dict)
-
-    # Misc
     birthdays: Dict[str, Any] = Field(default_factory=dict)
+    giveaways: Dict[str, Any] = Field(default_factory=dict)
+    economy: Dict[str, Any] = Field(default_factory=dict)
 
     # TODO: add these
     # sticky_messages: Dict[str, Any] = Field(default_factory=dict)
@@ -108,7 +107,7 @@ class Starboard(Document):
 
 class Giveaway(Document):
     class Settings:
-        name = "giveaways"
+        name = "giveaway"
         indexes = ["guild_id", "message_id", "status"]
 
     id: str = Field(alias="_id")
