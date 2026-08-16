@@ -463,25 +463,22 @@ class GiveawayCog(commands.Cog):
     async def delete(self, ctx, giveaway_id):
         data = Giveaway.find_one(
             Giveaway.guild_id == str(ctx.guild.id),
-            Or(
-                Giveaway.id == str(giveaway_id),
-                Giveaway.message_id == str(giveaway_id),
-            ),
+            Giveaway.id == giveaway_id
         ).run()
-
+        
         if data is None:
-            return await ctx.respond(f"❌ I could not find a giveaway with the ID `{giveaway_id}`", ephemeral=True)
-
+            return await ctx.respond(f"❌ Giveaway not found", ephemeral=True)
+        
+        # Delete the Discord message
         try:
             channel = await ctx.guild.fetch_channel(int(data.channel_id))
             message = await channel.fetch_message(int(data.message_id))
             await message.delete()
         except:
-            pass
-
+            pass  # Message may already be deleted
+        
         data.delete()
-
-        await ctx.respond(f"✅ Successfully deleted giveaway `{giveaway_id}`", ephemeral=True)
+        await ctx.respond(f"✅ Deleted giveaway `{giveaway_id}`", ephemeral=True)
 
 def setup(client):
     client.add_cog(GiveawayCog(client))

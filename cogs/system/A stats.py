@@ -229,22 +229,8 @@ class Stats(commands.Cog):
     
     @tasks.loop(minutes=10)
     async def refresh_loop(self):
-        """Periodically refresh stats for all guilds."""
-        # Get dirty guilds that need immediate updates
-        dirty = self.dirty_guilds.copy()
-        self.dirty_guilds.clear()
-        
-        # Update dirty guilds first
-        for guild in self.client.guilds:
-            if guild.id in dirty:
-                await self.update_guild_stats(guild, force=True)
-                # Add a small delay between updates to prevent rate limits
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=random.uniform(1, 3)))
-                
-        # Then update all guilds (respecting cooldowns)
         for guild in self.client.guilds:
             await self.update_guild_stats(guild, force=False)
-            # Add a small delay between updates
             await discord.utils.sleep_until(datetime.now() + timedelta(seconds=random.uniform(1, 2)))
 
     @refresh_loop.before_loop

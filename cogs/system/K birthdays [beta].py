@@ -89,10 +89,19 @@ class BirthdayTimers(commands.Cog):
                 if birthday_role_id:
                     role = guild.get_role(int(birthday_role_id))
                     if role:
-                        try:
-                            await member.add_roles(role, reason="Birthday!")
-                        except:
-                            pass
+                        # ✅ Check bot permissions first
+                        if guild.me.guild_permissions.manage_roles:
+                            if role.position < guild.me.top_role.position:
+                                try:
+                                    await member.add_roles(role, reason="Birthday!")
+                                except discord.Forbidden:
+                                    print(f"❌ Could not add birthday role to {member} in {guild.name}")
+                                except Exception as e:
+                                    print(f"❌ Error adding birthday role: {e}")
+                            else:
+                                print(f"⚠️ Birthday role {role.name} is above bot's highest role")
+                        else:
+                            print(f"⚠️ Bot missing manage_roles permission in {guild.name}")
 
                 # Send birthday message
                 message_template = config.get("message", "🎉 Happy Birthday {user}! You are now {age} years old! 🎂")
@@ -175,7 +184,6 @@ class BirthdayTimers(commands.Cog):
             if not channel:
                 continue
 
-            # FIX: v.datetimes returns a timezone, use it with datetime.now()
             tz = v.datetimes(guild.id)
             now = datetime.datetime.now(tz)
 
@@ -199,12 +207,12 @@ class BirthdayTimers(commands.Cog):
                     continue
 
                 # Check if we already sent reminder
-                if birthday.reminded:
+                if birthday.reminded:  # ✅ Now works because field exists
                     continue
 
                 await channel.send(f"🎈 Reminder: {member.mention} has their birthday **tomorrow**! ({next_bd.strftime('%d %B')})")
                 
-                birthday.reminded = True
+                birthday.reminded = True  # ✅ Now works because field exists
                 birthday.save()
 
     @birthday_check.before_loop

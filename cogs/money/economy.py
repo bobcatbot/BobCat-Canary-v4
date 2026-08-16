@@ -73,22 +73,34 @@ class Money(commands.Cog):
             desc = ""
             for idx, data in enumerate(result, start=1):
                 try:
-                    member = await v.client.fetch_user(int(data["user_id"]))
+                    # ✅ Add error handling for user fetching
+                    try:
+                        member = await v.client.fetch_user(int(data["user_id"]))
+                        display_name = member.display_name
+                    except (discord.NotFound, discord.HTTPException):
+                        display_name = f"Unknown User ({data['user_id']})"
+                    
                     cash = data.get("wallet", 0) + data.get("bank", 0)
-                    desc += f"\n#{idx} ● {member.display_name} ● `{cash}` coins"
-                except:
-                    desc += f"\n#{idx} ● Unknown User ● `{data.get('wallet', 0) + data.get('bank', 0)}` coins"
+                    desc += f"\n#{idx} ● {display_name} ● `{cash}` coins"
+                except Exception as e:
+                    print(f"Error processing leaderboard entry: {e}")
+                    continue
             
             embed = discord.Embed(
                 title="🏆 Top 10 Richest People",
-                description=desc,
+                description=desc or "No valid users found!",
                 color=v.style(ctx.guild)
             )
             await ctx.respond(embed=embed)
             
         except Exception as e:
             print(f"Leaderboard error: {e}")
-            await ctx.respond("An error occurred while fetching the leaderboard.")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while fetching the leaderboard. Please try again later.",
+                color=v.error
+            )
+            await ctx.respond(embed=embed, ephemeral=True)
 
     @eco.command(description="Get the balance of a member")
     @commands.cooldown(rate=2, per=20, type=commands.BucketType.user)
@@ -141,9 +153,10 @@ class Money(commands.Cog):
     @work.error
     async def work_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
+            remaining = round(error.retry_after / 60, 1)
             embed = discord.Embed(
                 color=v.error,
-                description=f"⏰ {ctx.author.display_name}, you're already working! Come back in 1 hour to claim your next paycheck."
+                description=f"⏰ {ctx.author.display_name}, you're already working! Come back in **{remaining} minutes** to claim your next paycheck."
             )
             await ctx.respond(embed=embed, ephemeral=True)
     

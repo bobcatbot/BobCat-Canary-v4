@@ -1,6 +1,8 @@
 import re
 import io
 import random
+from typing import List
+import aiohttp
 import pymongo
 import discord
 import asyncio
@@ -43,7 +45,6 @@ def get_level_card_config(configured_card: str) -> dict:
 class Leveling(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
-        # CooldownMapping is created once per cog instance, not per message
         self._cooldown_cache: dict[int, commands.CooldownMapping] = {}
         
         self.XP_PER_MESSAGE_MIN = 1
@@ -66,7 +67,7 @@ class Leveling(commands.Cog):
  
     def render_rank_card_sync(
         self,
-        avatar: bytes, 
+        avatar_bytes: bytes, 
         member_name: str, 
         lvl: int, 
         exp: int, 
@@ -76,8 +77,8 @@ class Leveling(commands.Cog):
         """CPU-bound PIL operations run in a thread pool."""
         background = Editor(card_cfg["background"])
         
-        # Avatar rendering
-        _profile = load_image(avatar)
+        # Avatar rendering - now receiving bytes directly
+        _profile = load_image(avatar_bytes)
         profile = Editor(_profile).resize((150, 150)).circle_image()
         background.paste(profile, (30, 30))
 
@@ -127,7 +128,7 @@ class Leveling(commands.Cog):
             return
  
         # No XP channels
-        noXP: list = lvl_data.get('noXP', [])
+        noXP: List[str] = lvl_data.get('noXP', [])
         if noXP and str(message.channel.id) in noXP:
             return
  
@@ -268,10 +269,23 @@ class Leveling(commands.Cog):
         configured_card = lvl_data.get('card', FALLBACK_CARD)
         card_cfg = get_level_card_config(configured_card)
 
+        # ── FIX: Download avatar as bytes ──────────────────────────────────
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(member.avatar.url) as resp:
+                    if resp.status != 200:
+                        # Fallback to default avatar
+                        avatar_bytes = await member.default_avatar.read()
+                    else:
+                        avatar_bytes = await resp.read()
+        except Exception:
+            # Fallback to default avatar on any error
+            avatar_bytes = await member.default_avatar.read()
+
         # Execute heavy PIL rendering inside a thread to avoid blocking the asyncio event loop
         img_bytes = await asyncio.to_thread(
             self.render_rank_card_sync,
-            str(member.avatar.url),
+            avatar_bytes,  # ✅ Now passing bytes!
             str(member),
             lvl,
             exp,

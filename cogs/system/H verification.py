@@ -3,7 +3,7 @@ import asyncio
 import random
 import io
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from captcha.image import ImageCaptcha
 from cogs.mod.mod_utils.utils import audit_log
 from modules import bot as v
@@ -23,6 +23,9 @@ class Verification(commands.Cog):
         self.TIMEOUT_SECONDS = 120
         self.COOLDOWN_SECONDS = 30
         self.CAPTCHA_LENGTH = 6
+
+        # ✅ Start cleanup task
+        self.cleanup_verifications.start()
 
     # ── Helper ───────────────────────────────────────────────────────────
     def _build_verification_log(self, interaction: discord.Interaction, passed: bool, fail_action: str = None) -> discord.Embed:
@@ -104,6 +107,32 @@ class Verification(commands.Cog):
             "timeout": "Timed Out (5m)",
             "unverified": "Kept Unverified"
         }.get(action, "Kept Unverified")
+
+    # ── ✅ CLEANUP TASK ────────────────────────────────────────────────────────
+    @tasks.loop(minutes=5)
+    async def cleanup_verifications(self):
+        """Clean up expired verification sessions to prevent memory leaks."""
+        now = datetime.now()
+        expired = []
+        
+        for user_id, ts in list(self.active_verifications.items()):
+            if (now - ts).seconds > self.TIMEOUT_SECONDS + 60:  # Extra 60s grace
+                expired.append(user_id)
+        
+        for user_id in expired:
+            self.active_verifications.pop(user_id, None)
+            self.button_cooldowns.pop(user_id, None)
+        
+        if expired:
+            print(f"[Verification] Cleaned up {len(expired)} expired sessions")
+
+    @cleanup_verifications.before_loop
+    async def before_cleanup(self):
+        await self.client.wait_until_ready()
+
+    def cog_unload(self):
+        """Clean up when the cog is unloaded."""
+        self.cleanup_verifications.cancel()
 
     # ── Interaction ───────────────────────────────────────────────────────────
     @commands.Cog.listener()
@@ -339,7 +368,6 @@ class Verification(commands.Cog):
             _chan        = chan
             _guild_name  = interaction.guild.name
             _user        = interaction.user
-            _log_channel = log_channel
 
             class CaptchaModal(discord.ui.Modal):
                 def __init__(self):

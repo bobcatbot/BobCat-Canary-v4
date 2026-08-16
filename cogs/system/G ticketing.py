@@ -17,6 +17,82 @@ def get_channel_ticket(guild: discord.Guild, channel_id: int) -> Ticket | None:
         Ticket.channel_id == str(channel_id),
     ).run()
 
+# ── MOVED TO CLASS SCOPE ──────────────────────────────────────────────────
+async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator: discord.Member, panel: dict) -> dict:
+    """Generate transcript data (CPU-bound work)."""
+    user_message_count = {}
+    for msg in ticket.transcript:
+        user_id = msg['user']['id']
+        if msg['user']['bot']:
+            continue
+        user_message_count[user_id] = user_message_count.get(user_id, 0) + 1
+    
+    participants = [f"{count} messages by <@{user_id}>" for user_id, count in user_message_count.items()]
+
+    def format_time(time_str):
+        try:
+            time = datetime.fromisoformat(time_str)
+            return f'<t:{int(time.timestamp())}:R>'
+        except (ValueError, TypeError):
+            return time_str
+
+    transcript_em = discord.Embed(
+        color=0x5865f2,
+        title=f"Ticket #{ticket.id[:8]} in {guild.name}",
+        timestamp=datetime.now()
+    )
+    transcript_em.set_author(name=creator.name, icon_url=creator.avatar.url if creator.avatar else None)
+    transcript_em.add_field(name="Type", value=f"{panel['panel_button']['emoji']} `{panel['panel_button']['label']}`", inline=False)
+    transcript_em.add_field(name="Created by", value=f"<@{ticket.creator_id}> {format_time(ticket.created_at.isoformat())}", inline=False)
+    
+    if ticket.claimed and ticket.claimed.get('status'):
+        transcript_em.add_field(
+            name="Claimed by", 
+            value=f"<@{ticket.claimed.get('user', '')}> {format_time(ticket.claimed.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.closed and ticket.closed.get('status'):
+        transcript_em.add_field(
+            name="Closed by", 
+            value=f"<@{ticket.closed.get('user', '')}> {format_time(ticket.closed.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.reopened and ticket.reopened.get('status'):
+        transcript_em.add_field(
+            name="Reopened by", 
+            value=f"<@{ticket.reopened.get('user', '')}> {format_time(ticket.reopened.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.deleted and ticket.deleted.get('status'):
+        transcript_em.add_field(
+            name="Deleted by", 
+            value=f"<@{ticket.deleted.get('user', '')}> {format_time(ticket.deleted.get('updated_at', ''))}", 
+            inline=False
+        )
+    
+    transcript_em.add_field(name="Participants", value="\n".join(participants) or "No participants", inline=False)
+    
+    # Build text transcript
+    transcript_text = f"Ticket #{ticket.id[:8]} - {guild.name}\n"
+    transcript_text += "=" * 50 + "\n\n"
+    for msg in ticket.transcript:
+        timestamp = msg.get('timestamp', {}).get('formatted', 'Unknown')
+        author = msg.get('user', {}).get('name', 'Unknown')
+        content = msg.get('content', '')
+        transcript_text += f"[{timestamp}] {author}: {content}\n"
+        if msg.get('attachments'):
+            for att in msg['attachments']:
+                transcript_text += f"  📎 {att}\n"
+    
+    return {"embed": transcript_em, "text": transcript_text}
+
+def create_transcript_file(text: str, ticket_id: str) -> discord.File:
+    """Create transcript file (runs in thread pool)."""
+    text_file = io.BytesIO()
+    text_file.write(text.encode('utf-8'))
+    text_file.seek(0)
+    return discord.File(text_file, filename=f"ticket_{ticket_id}.txt")
+
 class TicketControls(discord.ui.View):
     def __init__(self, client):
         super().__init__(timeout=None)
@@ -165,54 +241,63 @@ class TicketControls(discord.ui.View):
         )
         
         class DeleteTicketConfirm(discord.ui.View):
-            def __init__(self):
+            def __init__(self, parent_view, ticket_data, panel_data, guild_data):
                 super().__init__(timeout=None)
+                self.parent_view = parent_view
+                self.ticket = ticket_data
+                self.panel = panel_data
+                self.guild = guild_data
                 
             @discord.ui.button(emoji="🗑️", label="Confirm", style=discord.ButtonStyle.red, custom_id="confirm_delete")
             async def confirm_delete(self, button: discord.ui.Button, interaction: discord.Interaction):
                 await interaction.response.defer(invisible=False, ephemeral=True)
 
-                creator: discord.Member = await interaction.guild.fetch_member(int(ticket.creator_id))
+                creator: discord.Member = await interaction.guild.fetch_member(int(self.ticket.creator_id))
 
-                if ticket.closed['status'] == False:
-                    ticket.closed = {
+                if self.ticket.closed['status'] == False:
+                    self.ticket.closed = {
                         "status": True,
                         "reason": "Ticket deleted",
                         "user": interaction.user.id,
                         "updated_at": f"{datetime.now()}"
                     }
 
-                ticket.deleted = {
+                self.ticket.deleted = {
                     "status": True,
                     "user": interaction.user.id,
                     "updated_at": f"{datetime.now()}"
                 }
-                ticket.status = "deleted"
-                ticket.save()
+                self.ticket.status = "deleted"
+                self.ticket.save()
 
                 await interaction.channel.send(f"{interaction.user.mention} deleted the ticket.")
                 
-                # FIX: Generate transcript data and file in threads
-                transcript_data = await self._generate_transcript(ticket, interaction.guild, creator, panel)
+                # ── FIX: Use the properly scoped functions ──────────────────
+                transcript_data = await generate_transcript_data(
+                    self.ticket, 
+                    self.guild, 
+                    creator, 
+                    self.panel
+                )
                 
                 # Send transcript to log channel
-                if panel.get('transcript_channel'):
-                    log_channel = interaction.guild.get_channel(int(panel['transcript_channel']))
+                if self.panel.get('transcript_channel'):
+                    log_channel = interaction.guild.get_channel(int(self.panel['transcript_channel']))
                     if log_channel:
-                        # FIX: Correct asyncio.to_thread usage
+                        # ✅ Correct asyncio.to_thread usage with proper function
                         file = await asyncio.to_thread(
-                            self._create_transcript_file, 
+                            create_transcript_file, 
                             transcript_data['text'], 
-                            ticket.id[:8]
+                            self.ticket.id[:8]
                         )
                         await log_channel.send(file=file, embed=transcript_data['embed'])
                 
-                if panel.get('transcript_dm'):
+                if self.panel.get('transcript_dm'):
                     try:
                         file = await asyncio.to_thread(
-                            self._create_transcript_file, 
+                            create_transcript_file, 
                             transcript_data['text'], 
-                            ticket.id[:8]
+                            self.ticket.id[:8]
                         )
                         await creator.send(file=file, embed=transcript_data['embed'])
                     except:
@@ -220,63 +305,7 @@ class TicketControls(discord.ui.View):
 
                 await interaction.channel.delete(reason="Ticket deleted by user.")
 
-            async def _generate_transcript(self, ticket, guild, creator, panel):
-                """Generate transcript data (CPU-bound work)."""
-                user_message_count = {}
-                for msg in ticket.transcript:
-                    user_id = msg['user']['id']
-                    if msg['user']['bot']:
-                        continue
-                    user_message_count[user_id] = user_message_count.get(user_id, 0) + 1
-                
-                participants = [f"{count} messages by <@{user_id}>" for user_id, count in user_message_count.items()]
-
-                def format_time(time):
-                    time = datetime.fromisoformat(time)
-                    return f'<t:{int(time.timestamp())}:R>'
-
-                transcript_em = discord.Embed(
-                    color=0x5865f2,
-                    title=f"Ticket #{ticket.id[:8]} in {guild.name}",
-                    timestamp=datetime.now()
-                )
-                transcript_em.set_author(name=creator.name, icon_url=creator.avatar.url if creator.avatar else None)
-                transcript_em.add_field(name="Type", value=f"{panel['panel_button']['emoji']} `{panel['panel_button']['label']}`", inline=False)
-                transcript_em.add_field(name="Created by", value=f"<@{ticket.creator_id}> {format_time(ticket.created_at.isoformat())}", inline=False)
-                
-                if ticket.claimed['status']:
-                    transcript_em.add_field(name="Claimed by", value=f"<@{ticket.claimed['user']}> {format_time(ticket.claimed['updated_at'])}", inline=False)
-                if ticket.closed['status']:
-                    transcript_em.add_field(name="Closed by", value=f"<@{ticket.closed['user']}> {format_time(ticket.closed['updated_at'])}", inline=False)
-                if ticket.reopened['status']:
-                    transcript_em.add_field(name="Reopened by", value=f"<@{ticket.reopened['user']}> {format_time(ticket.reopened['updated_at'])}", inline=False)
-                if ticket.deleted['status']:
-                    transcript_em.add_field(name="Deleted by", value=f"<@{ticket.deleted['user']}> {format_time(ticket.deleted['updated_at'])}", inline=False)
-                
-                transcript_em.add_field(name="Participants", value="\n".join(participants) or "No participants", inline=False)
-                
-                # Build text transcript
-                transcript_text = f"Ticket #{ticket.id[:8]} - {guild.name}\n"
-                transcript_text += "=" * 50 + "\n\n"
-                for msg in ticket.transcript:
-                    timestamp = msg['timestamp']['formatted']
-                    author = msg['user']['name']
-                    content = msg['content']
-                    transcript_text += f"[{timestamp}] {author}: {content}\n"
-                    if msg.get('attachments'):
-                        for att in msg['attachments']:
-                            transcript_text += f"  📎 {att}\n"
-                
-                return {"embed": transcript_em, "text": transcript_text}
-
-            def _create_transcript_file(self, text: str, ticket_id: str) -> discord.File:
-                """Create transcript file (runs in thread pool)."""
-                text_file = io.BytesIO()
-                text_file.write(text.encode('utf-8'))
-                text_file.seek(0)
-                return discord.File(text_file, filename=f"ticket_{ticket_id}.txt")
-
-        await interaction.response.send_message(embed=delete_confirm_em, view=DeleteTicketConfirm(), ephemeral=True)
+        await interaction.response.send_message(embed=delete_confirm_em, view=DeleteTicketConfirm(self, ticket, panel, interaction.guild), ephemeral=True)
 
 class Ticketing(commands.Cog):
     def __init__(self, client):

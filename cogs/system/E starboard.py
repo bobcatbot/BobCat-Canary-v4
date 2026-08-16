@@ -42,9 +42,13 @@ class starboard(commands.Cog):
             return
         
         if not starSelf and payload.user_id == message.author.id:
-            # Remove the reaction if user tried to self-star
-            return await message.remove_reaction(payload.emoji, payload.member)
-            
+            await message.remove_reaction(payload.emoji, payload.member)
+            try:
+                await payload.member.send("❌ You cannot star your own messages!")
+            except:
+                pass
+            return
+        
         if not starChannel:
             return
 

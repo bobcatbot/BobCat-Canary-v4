@@ -205,6 +205,7 @@ class Birthday(Document):
     age: Optional[int] = None
     wished: bool = False
     wished_at: Optional[datetime] = None
+    reminded: bool = False
 
 class TempChannel(Document):
     class Settings:

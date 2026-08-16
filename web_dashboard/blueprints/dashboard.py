@@ -1,4 +1,5 @@
 from datetime import datetime
+import discord
 from quart import Blueprint, jsonify, redirect, render_template, request, session
 from modules import bot as v
 from modules.models import Guild, Notification, Economy
@@ -7,6 +8,43 @@ from ..consts import langs, premium_faqs, premium_types, tz
 from ..utils import bearer_client, login_required
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+def _check_guild_permission(guild, user_id) -> tuple[bool, str]:
+    """Check if user has permission to modify guild settings."""
+    try:
+        member = guild.get_member(user_id)
+        if member is None:
+            return False, "Not a member of this guild"
+        
+        # Check if user is guild owner
+        if guild.owner_id == user_id:
+            return True, "Owner"
+        
+        # Get guild config for custom roles
+        config = Guild.get(str(guild.id)).run()
+        if config is None:
+            return False, "Guild config not found"
+        
+        settings = config.settings
+        
+        # Check if user has administrator permission
+        if member.guild_permissions.administrator:
+            return True, "Administrator"
+        
+        # Check custom admin roles
+        admin_roles = settings.get('admin_roles', [])
+        if any(str(role.id) in admin_roles for role in member.roles):
+            return True, "Admin Role"
+        
+        # Check bot master roles
+        bot_masters = settings.get('bot_masters', [])
+        if any(str(role.id) in bot_masters for role in member.roles):
+            return True, "Bot Master"
+        
+        return False, "Insufficient permissions"
+        
+    except Exception as e:
+        return False, f"Error checking permissions: {str(e)}"
 
 # ── Guild picker ──────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard")
@@ -173,42 +211,82 @@ async def notifications(guild_id):
 
 # ── Data post (catch-all config update) ──────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
+@login_required
 async def data_post(guild_id):
     """
     Catch-all endpoint for dashboard setting updates.
-    Handles:
-    - Settings (language, timezone, color, admin_roles, bot_masters)
-    - Economy reset (EconomyUsers)
-    - Dashboard plugin settings (Dash.*)
-    - List indices (e.g., economy.shop.0)
+    Now includes proper permission checks and input validation.
     """
     guild = v.client.get_guild(guild_id)
     if guild is None:
-        return {'status': 'error', 'message': 'Guild not found'}, 404
+        return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+
+    current_user = bearer_client().get_current_user()
+    
+    # ── PERMISSION CHECK ──────────────────────────────────────────────────
+    has_permission, permission_level = _check_guild_permission(guild, current_user.id)
+    if not has_permission:
+        return jsonify({
+            'status': 'error', 
+            'message': f'Permission denied: {permission_level}'
+        }), 403
 
     data = await request.get_json()
     if not data:
-        return {'status': 'error', 'message': 'No data provided'}, 400
+        return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-    settings_keys = {
-        'settings.language', 'settings.timezone', 'settings.color',
-        'settings.admin_roles', 'settings.bot_masters'
+    # ── VALIDATE ALLOWED KEYS ────────────────────────────────────────────
+    ALLOWED_SETTINGS_KEYS = {
+        'settings.language': str,
+        'settings.timezone': str,
+        'settings.color': str,
+        'settings.admin_roles': list,
+        'settings.bot_masters': list,
     }
+    
+    ALLOWED_DASH_PREFIX = "Dash."
+
+    DASHBOARD_PLUGIN_KEYS = [
+        'welcome', 'moderation', 'verification', 'starboard', 'forms',
+        'temporary_channels', 'ticketing', 'stats', 'leveling', 
+        'birthdays', 'giveaways', 'economy', 'socialAlerts', 'music'
+    ]
 
     # Get the guild document once
     doc = Guild.get(str(guild.id)).run()
     if doc is None:
-        return {'status': 'error', 'message': 'Guild config not found'}, 404
+        return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
+
+    audit_entries = []
 
     for key, val in data.items():
         # ── Special case: Reset economy ──────────────────────────────────
         if key == "EconomyUsers":
+            if permission_level not in ["Owner", "Administrator"]:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Resetting economy requires Owner or Administrator permissions'
+                }), 403
+            
+            if val is not True and val != "true":
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid value for EconomyUsers reset'
+                }), 400
+            
             deleted_count = Economy.find(Economy.guild_id == str(guild.id)).delete()
-            print(f"🗑️ Deleted {deleted_count} economy records")
+            audit_entries.append(f"Reset economy: deleted {deleted_count} records")
             continue
 
         # ── Settings keys (saved to Guild.settings) ─────────────────────
-        if key in settings_keys:
+        if key in ALLOWED_SETTINGS_KEYS:
+            expected_type = ALLOWED_SETTINGS_KEYS[key]
+            if not isinstance(val, expected_type):
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Invalid type for {key}: expected {expected_type.__name__}'
+                }), 400
+            
             if key.startswith("settings."):
                 actual_key = key.replace("settings.", "")
                 doc.settings[actual_key] = val
@@ -220,55 +298,100 @@ async def data_post(guild_id):
                         current[part] = {}
                     current = current[part]
                 current[parts[-1]] = val
-            doc.save()
+            audit_entries.append(f"Updated {key} = {val}")
             continue
 
         # ── Dashboard plugin settings (saved to Guild.dashboard) ────────
-        dash_key = key.replace("Dash.", "")
+        # Auto-add Dash. prefix if missing
+        if not key.startswith(ALLOWED_DASH_PREFIX):
+            first_part = key.split('.')[0] if '.' in key else key
+            if first_part in DASHBOARD_PLUGIN_KEYS:
+                key = ALLOWED_DASH_PREFIX + key
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Invalid key: {key}. Dashboard keys must start with "{ALLOWED_DASH_PREFIX}" or be a known plugin name'
+                }), 400
+
+        dash_key = key.replace(ALLOWED_DASH_PREFIX, "")
         parts = dash_key.split('.')
 
-        # Navigate to the parent of the final key
+        # Validate path
+        if any(part in ('__', '..', 'parent') for part in parts):
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid key path: contains disallowed pattern'
+            }), 400
+
+        # ── ✅ FIX: Navigate through the DashConfig model ──────────────
+        # Start with the dashboard object
         current = doc.dashboard
+        
+        # Navigate through all parts except the last one
         for part in parts[:-1]:
+            # Try to handle both dict and object access
             if isinstance(current, dict):
                 if part not in current:
                     current[part] = {}
                 current = current[part]
-            elif isinstance(current, list):
-                # If we're inside a list, part should be an index
-                try:
-                    idx = int(part)
-                    # Ensure the list is long enough
-                    while len(current) <= idx:
-                        current.append({})
-                    current = current[idx]
-                except ValueError:
-                    # If part isn't a number, treat as attribute (fallback)
-                    current = getattr(current, part, {})
+            elif hasattr(current, part):
+                # Pydantic model or object with attribute
+                current = getattr(current, part)
+            elif isinstance(current, dict) and part in current:
+                current = current[part]
             else:
-                # Fallback for other object types
-                current = getattr(current, part, {})
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Cannot navigate: "{part}" not found in {type(current).__name__}'
+                }), 400
 
         final = parts[-1]
 
-        # ── Assign the value based on the type of `current` ─────────────
-        if isinstance(current, dict):
-            current[final] = val
-        elif isinstance(current, list):
-            # Final part should be an index for a list
-            try:
-                idx = int(final)
-                # Ensure the list is long enough
-                while len(current) <= idx:
-                    current.append(None)
-                current[idx] = val
-            except ValueError:
-                # If final isn't an integer, fallback to attribute (unlikely)
+        # ── ✅ FIX: Set the value on the final object ──────────────────
+        try:
+            if isinstance(current, dict):
+                current[final] = val
+            elif hasattr(current, final):
+                # Pydantic model field - set using setattr
                 setattr(current, final, val)
-        else:
-            # For Pydantic models or other objects
-            setattr(current, final, val)
+            elif isinstance(current, list):
+                # List access
+                try:
+                    idx = int(final)
+                    while len(current) <= idx:
+                        current.append(None)
+                    current[idx] = val
+                except ValueError:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Cannot assign to list with non-integer: {final}'
+                    }), 400
+            else:
+                # Fallback - try setattr
+                try:
+                    setattr(current, final, val)
+                except AttributeError:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Cannot assign to {type(current).__name__}: {final}'
+                    }), 400
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to set value: {str(e)}'
+            }), 400
 
-        doc.save()
+        audit_entries.append(f"Updated {key} = {val}")
 
-    return {'status': 'success', 'message': 'Successfully updated data'}
+    # ── SAVE AND AUDIT ──────────────────────────────────────────────────
+    doc.updated_at = discord.utils.utcnow()
+    doc.save()
+
+    if audit_entries:
+        print(f"[AUDIT] Guild {guild_id} modified by {current_user.id}: {', '.join(audit_entries)}")
+    
+    return jsonify({
+        'status': 'success', 
+        'message': 'Successfully updated data',
+        'audit': audit_entries
+    })
