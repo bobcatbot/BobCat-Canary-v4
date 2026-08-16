@@ -1,7 +1,7 @@
-import os
 import time
 import discord
 import traceback
+import pathlib
 from bunnet import init_bunnet
 from pymongo import MongoClient
 from datetime import datetime
@@ -61,15 +61,18 @@ def initialise_database() -> None:
             time.sleep(delay)
 
 def discover_extensions() -> list[str]:
+    cogs_path = pathlib.Path(__file__).parent / "cogs"
     extensions = []
-    for category in os.listdir("./cogs"):
-        category_path = os.path.join("./cogs", category)
-        if not os.path.isdir(category_path) or category.startswith("__"):
+    for category_path in cogs_path.iterdir():
+        if not category_path.is_dir() or category_path.name.startswith("__"):
             continue
-        for filename in os.listdir(category_path):
-            if not filename.endswith(".py") or filename.startswith("__"):
+        for file_path in category_path.glob("*.py"):
+            if file_path.name.startswith("__"):
                 continue
-            extensions.append(f"cogs.{category}.{filename[:-3]}")
+            # Convert path to module name: cogs.category.filename
+            rel_path = file_path.relative_to(cogs_path.parent)
+            module_name = str(rel_path.with_suffix("")).replace("\\", ".")
+            extensions.append(module_name)
     return sorted(extensions)
 
 def load_extensions() -> None:

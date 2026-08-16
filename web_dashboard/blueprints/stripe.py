@@ -1,10 +1,8 @@
 import pytz
 import stripe
 from datetime import datetime, timezone
-from flask import Blueprint, current_app, jsonify, request, url_for
+from quart import Blueprint, current_app, jsonify, request, url_for
 
-from ..config import WEBHOOK_PREM
-from ..db import get_guild
 from ..consts import premium_types
 from ..utils import bearer_client
 
@@ -15,7 +13,7 @@ stripe_bp = Blueprint('stripe', __name__)
 
 # ── Checkout session ──────────────────────────────────────────────────────────
 @stripe_bp.route('/<int:guild_id>/stripe/pay/<type>')
-def stripe_pay(guild_id, type):
+async def stripe_pay(guild_id, type):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
 
@@ -42,7 +40,7 @@ def stripe_pay(guild_id, type):
 
 # ── Billing portal ────────────────────────────────────────────────────────────
 @stripe_bp.route('/stripe/portal/<customer_id>', methods=['POST'])
-def stripe_portal(customer_id):
+async def stripe_portal(customer_id):
     # Use Bunnet to find guild with this customer
     guild_doc = Guild.find_one({"premium.customer": customer_id}).run()
     if not guild_doc:
@@ -57,12 +55,12 @@ def stripe_portal(customer_id):
 
 # ── Webhook ───────────────────────────────────────────────────────────────────
 @stripe_bp.route('/webhook/stripe', methods=['POST'])
-def stripe_webhook():
+async def stripe_webhook():
     if request.content_length > 1024 * 1024:
         return "REQUEST TOO BIG", 400
 
-    payload = request.get_data()
-    sig_header = request.environ.get('HTTP_STRIPE_SIGNATURE')
+    payload = await request.get_data()
+    sig_header = request.headers.get('HTTP_STRIPE_SIGNATURE') or request.headers.get('Stripe-Signature')
     endpoint_secret = current_app.config["STRIPE_WEBHOOK_KEY"]
 
     try:

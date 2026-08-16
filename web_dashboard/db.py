@@ -1,6 +1,5 @@
-# web_dashboard/db.py – MINIMAL VERSION
+# web_dashboard/db.py – QUART VERSION (NO FLASK g)
 
-from flask import g
 from modules.models import Guild, Notification
 
 def _guild_id(guild) -> str:
@@ -8,19 +7,11 @@ def _guild_id(guild) -> str:
 
 def get_guild(guild) -> Guild | None:
     """
-    Fetch the full Guild Bunnet document, cached once per request on Flask's `g`.
+    Fetch the full Guild Bunnet document.
+    Removed Flask's `g` caching - Quart handles this differently.
     """
     guild_id = _guild_id(guild)
-    cache_key = f"guild_doc_{guild_id}"
-
-    cached = getattr(g, cache_key, None)
-    if cached is not None:
-        return cached
-
-    doc = Guild.get(guild_id).run()
-    if doc is not None:
-        setattr(g, cache_key, doc)
-    return doc
+    return Guild.get(guild_id).run()
 
 def get_settings_config(guild) -> dict | None:
     doc = get_guild(guild)
@@ -37,6 +28,3 @@ def get_premium_config(guild) -> dict | None:
 def get_notifications(guild) -> list[Notification]:
     guild_id = _guild_id(guild)
     return Notification.find(Notification.guild_id == guild_id).run()
-
-# ── REMOVED: get_server_config(), update_config() ──
-# Blueprints now use Bunnet models directly.

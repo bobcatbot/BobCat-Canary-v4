@@ -1,7 +1,10 @@
+<!-- web_dashboard/templates/dashboard/plugins/stats.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -25,26 +28,33 @@
     <!-- Auto Setup -->
     <section class="section">
       <div class="feature_card">
-        <div class="title">
-          <h2>Auto Setup</h2>
-          <p>Quickly create default stats channels for your server</p>
+        <div class="title d-flex justify-content-between align-items-center">
+          <div>
+            <h2>Auto Setup</h2>
+            <p>Quickly create default stats channels for your server</p>
+          </div>
+          <button id="auto-setup-btn" class="btn btn-blurple">
+            <i class="bi bi-magic"></i> Auto Setup
+          </button>
         </div>
         
         <hr>
-        <button id="auto-setup-btn" class="btn btn-blurple">
-          <i class="bi bi-magic"></i> Auto Setup
-        </button>
-        <span id="auto-setup-status" class="ms-2"></span>
+        <div class="d-flex justify-content-between align-items-center">
+          <span id="auto-setup-status" class="text-muted">Click Auto Setup to create default stats channels</span>
+          <button id="stats-refresh-btn" class="btn btn-secondary">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Now
+          </button>
+        </div>
       </div>
     </section>
 
-    <!-- Stats Counters -->
+    <!-- Stats Cards List -->
     <section class="section">
       <div class="feature_card">
         <div class="title d-flex justify-content-between align-items-center">
           <div>
-            <h2>Stats Counters</h2>
-            <p>Configure which statistics to track</p>
+            <h2>Stats Channels</h2>
+            <p class="mb-0">Voice channels that display server statistics in real-time</p>
           </div>
           <button id="add-counter-btn" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#AddCounterModal">
             <i class="bi bi-plus-lg"></i> Add Counter
@@ -52,121 +62,43 @@
         </div>
         
         <hr>
-        
         {% if data['counters'] %}
-        <div class="table-responsive">
-          <table class="table table-dark table-hover">
-            <thead>
-              <tr>
-                <th>Statistic</th>
-                <th>Channel</th>
-                <th>Template</th>
-                <th>Current Count</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for counter in data['counters'] %}
-              <tr>
-                <td>{{ counter.target }}</td>
-                <td>
+        <div class="stats-list" id="stats-list">
+          {% for counter in data['counters'] %}
+          <div class="stats-row" data-index="{{ loop.index0 }}" data-target="{{ counter.target }}">
+            <div style="display: flex;gap: 16px;">
+              <span class="drag-handle" title="Drag to reorder">
+                <i class="bi bi-grip-vertical"></i>
+              </span>
+
+              <div class="stats-info">
+                <span class="stats-label">{{ counter.target | formatStatLabel }}</span>
+                <div class="stats-channel">
                   {% if counter.channel_id %}
                     {% set channel = guild.get_channel(counter.channel_id | int) %}
                     {% if channel %}
-                      <a href="https://discord.com/channels/{{guild.id}}/{{channel.id}}" target="_blank">
-                        #{{ channel.name }}
-                      </a>
+                      <i class="bi bi-volume-up"></i> {{ channel.name }}
                     {% else %}
-                      <span class="text-danger">Channel deleted</span>
+                      <span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Deleted</span>
                     {% endif %}
                   {% else %}
-                    <span class="text-muted">Not set</span>
+                    <span class="text-muted"><i class="bi bi-slash-circle"></i> No channel</span>
                   {% endif %}
-                </td>
-                <td><code>{{ counter.text }}</code></td>
-                <td>{{ counter.count }}</td>
-                <td>
-                  <button class="btn btn-sm btn-primary set-channel-btn" data-index="{{ loop.index0 }}">
-                    <i class="bi bi-pencil"></i> Set Channel
-                  </button>
-                  <button class="btn btn-sm btn-danger delete-counter-btn" data-index="{{ loop.index0 }}">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div class="text-center py-4">
-          <i class="bi bi-bar-chart" style="font-size: 48px; color: var(--text-muted);"></i>
-          <p class="mt-2 text-muted">No stats counters configured. Add one above or use Auto Setup!</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-actions">
+              <button class="btn btn-danger delete-counter-btn" data-index="{{ loop.index0 }}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          {% endfor %}
         </div>
         {% endif %}
       </div>
     </section>
-
-    <!-- Add Counter Modal -->
-    <div class="modal dark fade" id="AddCounterModal" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add Stats Counter</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="counter-target" class="form-label">Statistic</label>
-              <select id="counter-target" class="form-select">
-                <option value="totalMembers">Total Members</option>
-                <option value="onlineCount">Online Members</option>
-                <option value="botCount">Bots</option>
-                <option value="humanCount">Humans</option>
-                <option value="totalChannels">Total Channels</option>
-                <option value="textCount">Text Channels</option>
-                <option value="voiceCount">Voice Channels</option>
-                <option value="roleCount">Roles</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="counter-template" class="form-label">Text Template</label>
-              <input type="text" id="counter-template" class="form-control" value="👥 Members: {count}">
-              <small class="text-muted">Use <code>{count}</code> for the number, <code>{target}</code> for the statistic name</small>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" id="save-counter-btn" class="btn btn-blurple">Add Counter</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Set Channel Modal -->
-    <div class="modal dark fade" id="SetChannelModal" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Set Channel for Counter</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <p>Select a voice channel to display this statistic.</p>
-            <select id="channel-select" class="form-select">
-              <option value="">Select a voice channel...</option>
-              {% for channel in guild.voice_channels %}
-                <option value="{{ channel.id }}">#{{ channel.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" id="save-channel-btn" class="btn btn-blurple">Set Channel</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Danger Zone -->
     <section class="section">
@@ -183,11 +115,84 @@
       </div>
     </section>
 
+    <!-- Add Counter Modal -->
+    <div class="modal dark fade" id="AddCounterModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Add Stats Counter</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="counter-target" class="form-label fw-bold">Statistic</label>
+              <select id="counter-target" class="form-select">
+                <option value="bots">Bots</option>
+                <option value="humans">Humans</option>
+                <option value="roles">Roles</option>
+                <option value="onlineMembers">Online Members</option>
+                <option value="totalMembers">Total Members</option>
+                <option value="totalChannels">Total Channels</option>
+                <option value="textChannels">Text Channels</option>
+                <option value="voiceChannels">Voice Channels</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="counter-template" class="form-label fw-bold">Discord channel name</label>
+              <p class="mb-0 text-muted">Only {kind} and {count} are supported here. Only {count} is required.</p>
+              <input type="text" id="counter-template" class="form-control" value="{kind}: {count}">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="save-counter-btn" class="btn btn-blurple">Add Counter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Set Channel Modal -->
+    <div class="modal dark fade" id="SetChannelModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Set Channel</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted">Select a voice channel to display this statistic.</p>
+            <select id="channel-select" class="form-select">
+              <option value="">Select a voice channel...</option>
+              {% for channel in guild.voice_channels %}
+                <option value="{{ channel.id }}">🔊 {{ channel.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="save-channel-btn" class="btn btn-blurple">Set Channel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {% include 'components/PremiumModal.html' %}
     {% include 'components/save-toast.html' %}
   </main>
 
   <script>
+    // Format stat label from camelCase to readable text
+    function formatStatLabel(target) {
+      let label = target;
+      label = label.replace(/([A-Z])/g, ' $1'); // Insert space before capital letters
+      
+      // Capitalize first letter of each word
+      label = label.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
+      return label.trim();
+    }
+
     // Status toggle
     document.querySelector('#stats-status').addEventListener('change', (e) => {
       fetch("/dashboard/{{guild.id}}/data/post", {
@@ -197,13 +202,14 @@
       });
     });
 
-    // Auto Setup
+    // Auto Setup - Creates default channels
     document.querySelector('#auto-setup-btn').addEventListener('click', async () => {
       const btn = document.querySelector('#auto-setup-btn');
       const status = document.querySelector('#auto-setup-status');
       
       btn.disabled = true;
-      status.innerHTML = '<span class="text-warning">⏳ Creating channels...</span>';
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Creating...';
+      status.innerHTML = '<span class="text-warning">⏳ Creating default stats channels...</span>';
       
       try {
         const response = await fetch(`/dashboard/{{guild.id}}/stats/setup`, {
@@ -212,50 +218,243 @@
         const data = await response.json();
         
         if (data.status === 'success') {
-          status.innerHTML = '<span class="text-success">✅ Done! Refreshing...</span>';
+          status.innerHTML = '<span class="text-success">✅ Created ' + data.created + ' default channels! Refreshing...</span>';
           setTimeout(() => window.location.reload(), 1500);
         } else {
           status.innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
           btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-magic"></i> Auto Setup';
         }
       } catch (error) {
         status.innerHTML = `<span class="text-danger">❌ Error: ${error.message}</span>`;
         btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic"></i> Auto Setup';
       }
     });
 
-    // Add Counter
-    document.querySelector('#save-counter-btn').addEventListener('click', () => {
+    // Refresh Stats
+    document.querySelector('#stats-refresh-btn').addEventListener('click', async () => {
+      const btn = document.querySelector('#stats-refresh-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Refreshing...';
+      
+      try {
+        const response = await fetch(`/dashboard/{{guild.id}}/stats/refresh`, {
+          method: "POST",
+        });
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          btn.innerHTML = '<i class="bi bi-check-lg"></i> Refreshed!';
+          setTimeout(() => {
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Now';
+            btn.disabled = false;
+          }, 1000);
+        } else {
+          btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Now';
+          btn.disabled = false;
+          alert('Failed to refresh stats: ' + data.message);
+        }
+      } catch (error) {
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Now';
+        btn.disabled = false;
+        alert('Error: ' + error.message);
+      }
+    });
+
+    // Add Counter - Creates NEW channel + adds counter
+    document.querySelector('#save-counter-btn').addEventListener('click', async () => {
       const target = document.querySelector('#counter-target').value;
       const template = document.querySelector('#counter-template').value || `${target}: {count}`;
       
-      fetch("/dashboard/{{guild.id}}/data/post", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          "stats.counters": [
-            ...JSON.parse('{{ data["counters"] | tojson | safe }}'),
-            { target, text: template, channel_id: "", count: 0 }
-          ]
-        }),
-      }).then(() => {
-        const modal = bootstrap.Modal.getInstance(document.querySelector('#AddCounterModal'));
-        modal.hide();
-        window.location.reload();
-      });
+      const btn = document.querySelector('#save-counter-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Creating...';
+
+      try {
+        const response = await fetch(`/dashboard/{{guild.id}}/stats/create-counter`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ target: target, formated_target: formatStatLabel(target), template: template }),
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          const modal = bootstrap.Modal.getInstance(document.querySelector('#AddCounterModal'));
+          modal.hide();
+          btn.innerHTML = 'Create & Add Counter';
+          btn.disabled = false;
+          
+          // Insert new counter into the list without refreshing
+          const newCounter = data.counter;
+          console.log('New counter created:', newCounter);
+
+          const counterList = document.querySelector('.stats-list');
+          const counter = document.createElement('div');
+          counter.classList.add('stats-row');
+          counter.dataset.index = data.index;
+          counter.innerHTML = `
+            <div class="stats-row-content">
+              <div class="stats-row-left">
+                <span class="stats-label" data-target="${newCounter.target}">${formatStatLabel(newCounter.target)}</span>
+              </div>
+              <div class="stats-row-right">
+                <div class="stats-actions">
+                  <button class="btn btn-danger delete-counter-btn" data-index="2" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="stats-row-footer">
+              <div class="stats-channel">
+                ${data.channel_name ? `# ${data.channel_name}` : '<span class="text-muted"><i class="bi bi-slash-circle"></i> No channel</span>'}
+              </div>
+            </div>
+          `;
+          counterList.appendChild(counter);
+        } else {
+          alert('Failed to create counter: ' + data.message);
+          btn.innerHTML = 'Create & Add Counter';
+          btn.disabled = false;
+        }
+      } catch (error) {
+        console.error(error);
+
+        alert('Error: ' + error.message);
+        btn.innerHTML = 'Create & Add Counter';
+        btn.disabled = false;
+      }
     });
+
+    // ── DRAG & DROP WITH AUTO-SAVE ────────────────────────────
+    // Check if SortableJS is loaded
+    if (typeof Sortable !== 'undefined') {
+      const statsList = document.getElementById('stats-list');
+      let isSaving = false;
+      let saveTimeout = null;
+
+      if (statsList) {
+        const sortable = new Sortable(statsList, {
+          handle: '.drag-handle',
+          animation: 150,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          dragClass: 'sortable-drag',
+          delay: 100,
+          delayOnTouchOnly: true,
+          touchStartThreshold: 5,
+
+          onEnd: function(evt) {
+            // Update data-index attributes on all rows
+            document.querySelectorAll('.stats-row').forEach((el, idx) => {
+              el.dataset.index = idx;
+              // Update any buttons with data-index
+              el.querySelectorAll('[data-index]').forEach(btn => {
+                btn.dataset.index = idx;
+              });
+            });
+
+            // Show saving indicator
+            const status = document.getElementById('order-status');
+            if (status) {
+              status.innerHTML = '<span class="text-warning"><i class="bi bi-arrow-repeat spinner"></i> Saving...</span>';
+            }
+
+            // Get the new order
+            const order = [];
+            document.querySelectorAll('.stats-row').forEach(el => {
+              const target = el.dataset.target;
+              if (target) order.push(target);
+            });
+
+            // Debounce save to prevent multiple rapid saves
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+              saveOrder(order);
+            }, 300);
+          }
+        });
+
+        // ── Save Order Function ──────────────────────────────
+        async function saveOrder(order) {
+          if (isSaving) return;
+          if (!order || order.length === 0) return;
+
+          isSaving = true;
+          const status = document.getElementById('order-status');
+
+          try {
+              const response = await fetch(`/dashboard/{{guild.id}}/stats/reorder`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ order: order })
+              });
+
+              const data = await response.json();
+
+              if (data.status === 'success') {
+                if (status) {
+                  status.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Order saved! ✅</span>';
+                  // Clear success message after 2.5 seconds
+                  setTimeout(() => {
+                    if (status) {
+                      status.innerHTML = '<span class="text-muted"><i class="bi bi-grip-vertical"></i> Drag cards to reorder (auto-saves)</span>';
+                    }
+                  }, 2500);
+                }
+              } else {
+                if (status) {
+                  status.innerHTML = `<span class="text-danger">❌ ${data.message || 'Failed to save order'}</span>`;
+                  // Clear error after 4 seconds
+                  setTimeout(() => {
+                    if (status) {
+                      status.innerHTML = '<span class="text-muted"><i class="bi bi-grip-vertical"></i> Drag cards to reorder (auto-saves)</span>';
+                    }
+                  }, 4000);
+                }
+                console.error('Failed to save order:', data);
+              }
+          } catch (error) {
+            console.error('Error saving order:', error);
+            if (status) {
+              status.innerHTML = `<span class="text-danger">❌ Error: ${error.message}</span>`;
+              setTimeout(() => {
+                if (status) {
+                  status.innerHTML = '<span class="text-muted"><i class="bi bi-grip-vertical"></i> Drag cards to reorder (auto-saves)</span>';
+                }
+              }, 4000);
+            }
+          } finally {
+            isSaving = false;
+          }
+        }
+      }
+    } else {
+      console.warn('SortableJS not loaded. Drag and drop will not work.');
+    }
+    // ────────────────────────────────────────────────────────
 
     // Set Channel
     let currentCounterIndex = null;
-    
     document.querySelectorAll('.set-channel-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         currentCounterIndex = parseInt(btn.dataset.index);
+        
+        const counters = JSON.parse('{{ data["counters"] | tojson | safe }}');
+        const currentChannelId = counters[currentCounterIndex]?.channel_id;
+        if (currentChannelId) {
+          document.querySelector('#channel-select').value = currentChannelId;
+        } else {
+          document.querySelector('#channel-select').value = '';
+        }
+        
         const modal = new bootstrap.Modal(document.querySelector('#SetChannelModal'));
         modal.show();
       });
     });
 
+    // Save Channel Selection - DEPRICATED: Use the dedicated endpoint for setting channel instead
     document.querySelector('#save-channel-btn').addEventListener('click', () => {
       const channelId = document.querySelector('#channel-select').value;
       
@@ -282,30 +481,54 @@
     document.querySelectorAll('.delete-counter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!confirm('Delete this counter? The associated channel will also be deleted.')) return;
-        
+            
         const index = parseInt(btn.dataset.index);
-        const counters = JSON.parse('{{ data["counters"] | tojson | safe }}');
         
-        // Try to delete the channel
-        const channelId = counters[index]?.channel_id;
-        if (channelId) {
-          // The bot will handle channel deletion on the backend
-        }
-        
-        counters.splice(index, 1);
-        
-        fetch("/dashboard/{{guild.id}}/data/post", {
-          method: "POST",
+        // Use the dedicated delete endpoint that handles both DB and Discord channel deletion
+        fetch(`/dashboard/{{guild.id}}/stats/counter/${index}/delete`, {
+          method: "DELETE",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ "stats.counters": counters }),
-        }).then(() => window.location.reload());
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              // Remove the row from DOM instead of reloading
+              const row = document.querySelector(`.stats-row[data-index="${index}"]`);
+              if (row) row.remove();
+              
+              // Re-index remaining rows
+              document.querySelectorAll('.stats-row').forEach((el, idx) => {
+                el.dataset.index = idx;
+                const btns = el.querySelectorAll('.set-channel-btn, .delete-counter-btn');
+                btns.forEach(btn => btn.dataset.index = idx);
+              });
+              
+              // Show empty state if no rows left
+              if (document.querySelectorAll('.stats-row').length === 0) {
+                const list = document.querySelector('#stats-list');
+                if (list) {
+                  list.innerHTML = `
+                    <div id="empty-state" class="empty-state">
+                      <i class="bi bi-bar-chart" style="font-size: 64px; color: var(--text-muted);"></i>
+                      <h5 class="mt-3">No stats configured</h5>
+                      <p class="text-muted">Click <strong>Add Counter</strong> or use <strong>Auto Setup</strong> to get started</p>
+                    </div>
+                  `;
+                }
+              }
+            } else {
+              alert('Failed to delete counter: ' + data.message);
+            }
+          })
+          .catch(error => {
+            alert('Error deleting counter: ' + error.message);
+        });
       });
     });
 
     // Reset Stats
     document.querySelector('#reset-stats-btn').addEventListener('click', () => {
-      if (!confirm('⚠️ This will delete ALL stats channels and clear the configuration. Are you sure?')) return;
-      if (!confirm('This action cannot be undone. Confirm?')) return;
+      if (!confirm('⚠️ This will delete ALL stats channels and clear the configuration. This action cannot be undone. Are you sure?')) return;
       
       fetch("/dashboard/{{guild.id}}/stats/reset", {
         method: "POST",
@@ -314,24 +537,395 @@
   </script>
 
   <style>
-    .table-dark {
-      --bs-table-color: var(--text-color);
-      --bs-table-bg: transparent;
-      --bs-table-border-color: var(--border-color);
-      --bs-table-hover-color: var(--text-color);
-      --bs-table-hover-bg: rgba(255,255,255,0.05);
+    /* ── Stats List Container ──────────────────────────────────── */
+    .stats-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 60px;
+      padding: 4px 0;
     }
-    
-    .table-dark td,
-    .table-dark th {
+
+    /* ── Stats Row ─────────────────────────────────────────────── */
+    .stats-row {
+      background: var(--color-card-1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      cursor: default;
+      user-select: none;
+      position: relative;
+      display: flex;
+      gap: 4px;
+      justify-content: space-between;
+    }
+
+    .stats-row:hover {
+      background: var(--color-card-2);
       border-color: var(--border-color);
     }
-    
-    code {
-      background: var(--bg-dark);
-      padding: 2px 6px;
+
+    .stats-row:active {
+      cursor: grabbing;
+    }
+
+    /* ── Row Content - Top Row ─────────────────────────────────── */
+    .stats-row-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ── Left Side ────────────────────────────────────────────── */
+    .stats-row-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    /* Drag Handle - Shows on hover only */
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-muted);
+      /* padding: 4px 4px; */
       border-radius: 4px;
-      color: #a5d6ff;
+      transition: all 0.2s ease;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .drag-handle:hover {
+      color: var(--text-color);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+      color: var(--blurple);
+    }
+
+    .drag-handle i {
+      font-size: 16px;
+    }
+
+    /* Label - Clean & Bold */
+    .stats-label {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-color);
+      text-transform: capitalize;
+    }
+
+    /* ── Right Side ────────────────────────────────────────────── */
+    .stats-row-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Channel Display - Simple */
+    .stats-channel {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      /* padding: 2px 10px; */
+      background: var(--bg-dark);
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .stats-channel i {
+      font-size: 14px;
+    }
+
+    .stats-channel .text-danger {
+      color: var(--red) !important;
+    }
+
+    .stats-channel .text-muted {
+      color: var(--text-muted) !important;
+    }
+
+    /* ── Action Buttons - Hidden by default ───────────────────── */
+    .stats-actions {
+      display: flex;
+      gap: 4px;
+      transition: opacity 0.2s ease;
+    }
+
+    .stats-actions .btn {
+      padding: 4px 8px;
+      font-size: 14px;
+      line-height: 1;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .stats-actions .btn-danger {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: rgb(255, 0, 0);
+      --bs-btn-border-color: transparent;
+      color: var(--red);
+    }
+
+    .stats-actions .btn-danger:hover {
+      --bs-btn-bg: rgb(255, 0, 0);
+      transform: scale(1.05);
+    }
+
+    .stats-actions .btn-danger:active {
+      transform: scale(0.95);
+    }
+
+    /* ── Stats Row Footer - Channel Name with # ────────────────── */
+    .stats-row-footer {
+      padding-left: 28px;
+      /* Aligns with the label above */
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stats-row-footer .channel-name {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .stats-row-footer .channel-name i {
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
+    /* ── Status Bar ────────────────────────────────────────────── */
+    #order-status {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    #order-status .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    #order-status .text-success {
+      color: var(--green) !important;
+    }
+
+    #order-status .text-warning {
+      color: var(--yellow) !important;
+    }
+
+    #order-status .text-danger {
+      color: var(--red) !important;
+    }
+
+    /* ── Counter Badge ─────────────────────────────────────────── */
+    #counter-count {
+      font-size: 13px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: var(--color-secondary-3);
+      color: var(--text-color);
+      font-weight: 500;
+    }
+
+    /* ── SortableJS Custom Classes ────────────────────────────── */
+    .sortable-ghost {
+      opacity: 0.3;
+      background: var(--blurple) !important;
+      border: 2px dashed var(--blurple) !important;
+      border-radius: 8px;
+      transform: scale(0.98);
+    }
+
+    .sortable-chosen {
+      background: var(--color-card-2) !important;
+      border-color: var(--blurple) !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+    }
+
+    .sortable-drag {
+      opacity: 0.9;
+      transform: scale(1.02);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ── Empty State ───────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      background: var(--color-card-1);
+      border-radius: 12px;
+      border: 2px dashed var(--border-color);
+      transition: all 0.3s ease;
+    }
+
+    .empty-state:hover {
+      border-color: var(--color-secondary-2);
+      background: var(--color-card-2);
+    }
+
+    .empty-state i {
+      font-size: 64px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .empty-state h5 {
+      color: var(--text-color);
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+
+    .empty-state p {
+      color: var(--text-muted);
+      margin-bottom: 0;
+    }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .stats-row-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .stats-row-left {
+        min-width: unset;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-start;
+      }
+
+      .stats-row-right {
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .drag-handle {
+        opacity: 0.5;
+        /* Always visible on mobile for usability */
+        padding: 8px 8px;
+        font-size: 18px;
+      }
+
+      .drag-handle i {
+        font-size: 18px;
+      }
+
+      .stats-label {
+        font-size: 15px;
+      }
+
+      .stats-channel {
+        font-size: 12px;
+        padding: 2px 8px;
+      }
+
+      .stats-actions {
+        opacity: 1;
+        /* Always visible on mobile */
+      }
+
+      .stats-actions .btn {
+        padding: 6px 10px;
+        font-size: 16px;
+      }
+
+      .stats-row-footer {
+        padding-left: 0px;
+      }
+
+      #order-status {
+        font-size: 12px;
+        flex-wrap: wrap;
+      }
+
+      .empty-state {
+        padding: 40px 16px;
+      }
+
+      .empty-state i {
+        font-size: 48px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-row {
+        padding: 10px 12px;
+        border-radius: 6px;
+      }
+
+      .stats-row-left {
+        gap: 6px;
+      }
+
+      .stats-label {
+        font-size: 13px;
+      }
+
+      .stats-channel {
+        font-size: 11px;
+        padding: 1px 6px;
+      }
+
+      .stats-channel i {
+        font-size: 12px;
+      }
+
+      .stats-actions .btn {
+        padding: 4px 8px;
+        font-size: 14px;
+      }
+
+      .stats-row-footer .channel-name {
+        font-size: 12px;
+      }
+    }
+
+    /* ── Accessibility ──────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      .stats-row,
+      .drag-handle,
+      .stats-actions .btn,
+      .sortable-ghost,
+      .sortable-chosen,
+      .sortable-drag {
+        transition: none !important;
+        animation: none !important;
+      }
+
+      .sortable-ghost {
+        opacity: 0.5 !important;
+      }
     }
   </style>
 </body>

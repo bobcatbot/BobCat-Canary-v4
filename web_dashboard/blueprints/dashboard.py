@@ -1,18 +1,17 @@
 from datetime import datetime
-from flask import Blueprint, jsonify, redirect, render_template, request, session
+from quart import Blueprint, jsonify, redirect, render_template, request, session
 from modules import bot as v
 from modules.models import Guild, Notification, Economy
 from ..config import CLIENT_ID, URL_BASE
 from ..consts import langs, premium_faqs, premium_types, tz
 from ..utils import bearer_client, login_required
-from ..db import get_guild, get_dash_config
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
 # ── Guild picker ──────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard")
 @login_required
-def guilds():
+async def guilds():
     current_user = bearer_client().get_current_user()
     guild_ids = [g.id for g in v.client.guilds]
     guilds = []
@@ -49,7 +48,7 @@ def guilds():
 
     guilds.sort(key=lambda x: ( x['btn_name'] != "Go" and x['color'] != "#5865F2" ))
 
-    return render_template(
+    return await render_template(
         "dashboard/guilds.html", 
         user=current_user, guilds=guilds
     )
@@ -58,7 +57,7 @@ def guilds():
 # ── Dashboard home ────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>")
 @login_required
-def dashboard_home(guild_id):
+async def dashboard_home(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     session['guild_id'] = guild_id
@@ -70,7 +69,7 @@ def dashboard_home(guild_id):
             f"&response_type=code&redirect_uri={URL_BASE}/dashboard"
         )
 
-    return render_template(
+    return await render_template(
         "dashboard/dashboard.html", 
         user=current_user, guild=guild
     )
@@ -79,12 +78,12 @@ def dashboard_home(guild_id):
 # ── Settings ──────────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/settings")
 @login_required
-def settings(guild_id):
+async def settings(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     config = Guild.get(str(guild.id)).run()
     data = config.settings if config else {}
-    return render_template(
+    return await render_template(
         "dashboard/settings.html",
         user=current_user, guild=guild, data=data, languages=langs, timezones=tz
     )
@@ -93,14 +92,14 @@ def settings(guild_id):
 # ── Premium ───────────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/premium", methods=["GET", "POST"])
 @login_required
-def premium(guild_id):
+async def premium(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     config = Guild.get(str(guild.id)).run()
     prem_data = config.premium if config else {}
 
     if not prem_data.get('status', False):
-        return render_template(
+        return await render_template(
             "dashboard/premium/index.html",
             user=current_user, guild=guild, data=prem_data,
             faqs=premium_faqs, types=premium_types
@@ -121,7 +120,7 @@ def premium(guild_id):
         'user': {'avatar': user.avatar.url if user else '', 'name': user.name if user else 'Unknown'},
     } | prem_data
 
-    return render_template(
+    return await render_template(
         "dashboard/premium/manage.html",
         user=current_user, guild=guild, data=data, types=premium_types
     )
@@ -130,14 +129,14 @@ def premium(guild_id):
 # ── Notifications ─────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/notifications", methods=["GET", "POST"])
 @login_required
-def notifications(guild_id):
+async def notifications(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     
     all_notifs = Notification.find(Notification.guild_id == str(guild.id)).run()
 
     if request.method == 'POST':
-        res = request.get_json()
+        res = await request.get_json()
         notif = next((n for n in all_notifs if n.notification_id == res['id']), None)
         if notif:
             res.pop('id')
@@ -166,7 +165,7 @@ def notifications(guild_id):
         notifications_by_date[date].sort(key=lambda x: x['created_at']['time'], reverse=True)
     notifications_by_date = dict(reversed(list(notifications_by_date.items())))
 
-    return render_template(
+    return await render_template(
         "dashboard/notifications.html",
         user=current_user, guild=guild, config=all_notifs, data=notifications_by_date
     )
@@ -174,7 +173,7 @@ def notifications(guild_id):
 
 # ── Data post (catch-all config update) ──────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
-def data_post(guild_id):
+async def data_post(guild_id):
     """
     Catch-all endpoint for dashboard setting updates.
     Handles:
@@ -187,7 +186,7 @@ def data_post(guild_id):
     if guild is None:
         return {'status': 'error', 'message': 'Guild not found'}, 404
 
-    data = request.get_json()
+    data = await request.get_json()
     if not data:
         return {'status': 'error', 'message': 'No data provided'}, 400
 

@@ -1,7 +1,7 @@
 import logging
 import stripe
 from threading import Thread
-from flask import Flask, render_template, flash, session, redirect, request, url_for
+from quart import Quart, render_template, flash, session, redirect, request, url_for
 from zenora import BadTokenError
 
 from modules import bot as v
@@ -32,8 +32,8 @@ from .blueprints.plugins.leveling import leveling_bp
 from .blueprints.plugins.birthdays import birthdays_bp
 from .blueprints.plugins.giveaways import giveaways_bp
 from .blueprints.plugins.economy import economy_bp
- 
-app = Flask(__name__)
+
+app = Quart(__name__)
 
 app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
@@ -41,7 +41,7 @@ app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
 
 stripe.api_key = stripe_config["SECRET_KEY"]
 
-logging.getLogger('werkzeug').setLevel(logging.ERROR)
+logging.getLogger('quart.serving').setLevel(logging.ERROR)
 
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -72,18 +72,18 @@ app.register_blueprint(economy_bp)
 
 # ── Global error handlers ─────────────────────────────────────────────────
 @app.errorhandler(404)
-def page_not_found(e):
-    return render_template('error/404.html'), 404
+async def page_not_found(e):
+    return await render_template('error/404.html'), 404
 
 @app.errorhandler(BadTokenError)
-def handle_bad_token(e):
+async def handle_bad_token(e):
     session.pop("token", None)
     return redirect(OAUTH_URL)
 
 @app.errorhandler(PremiumModuleError)
-def handle_premium_error(e):
+async def handle_premium_error(e):
     guild_id = request.view_args.get('guild_id')
-    flash("You don't have access to this module", "PremiumModal")
+    await flash("You don't have access to this module", "PremiumModal")
     return redirect(url_for('dashboard.dashboard_home', guild_id=guild_id))
 
 # ── Template filters ──────────────────────────────────────────────────────
@@ -95,11 +95,19 @@ def titlecase(s):
 def lowercase(s):
     return f"{s}".lower()
 
+@app.template_filter('formatStatLabel')
+def format_stat_label_filter(target):
+    """Format camelCase stat target into readable label."""
+    label = target
+    label = ''.join(' ' + c if c.isupper() else c for c in label).strip()
+    label = ' '.join(word.capitalize() for word in label.split())
+    return label
+
 # ── Context processors ────────────────────────────────────────────────────
 register_context_processors(app)
 
-# ── Run ───────────────────────────────────────────────────────────
-import waitress
+# ── Run ───────────────────────────────────────────────────────────────────
+import uvicorn
 
 app_started = False
 
@@ -111,7 +119,7 @@ async def on_ready():
 def run_app():
     global app_started
     app_started = True
-    waitress.serve(app, host='localhost', port=8000, threads=16, connection_limit=200)
+    uvicorn.run(app, host="localhost", port=8000, log_level="warning")
 
 def run_dashboard():
     Thread(target=run_app).start()

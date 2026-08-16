@@ -1,4 +1,5 @@
 import discord
+import random
 from typing import Dict
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
@@ -20,32 +21,34 @@ class Stats(commands.Cog):
         
         # Counter definitions - maps config target to function
         self.COUNTER_HANDLERS = {
-            "botCount": lambda s: s["members"]["bots"],
-            "humanCount": lambda s: s["members"]["humans"],
-            "onlineCount": lambda s: s["members"]["online"],
+            "bots": lambda s: s["members"]["bots"],
+            "humans": lambda s: s["members"]["humans"],
+            "onlineMembers": lambda s: s["members"]["online"],
             "totalMembers": lambda s: s["members"]["total"],
-            "textCount": lambda s: s["channels"]["text"],
-            "voiceCount": lambda s: s["channels"]["voice"],
-            "categoryCount": lambda s: s["channels"]["categories"],
+            "textChannels": lambda s: s["channels"]["text"],
+            "voiceChannels": lambda s: s["channels"]["voice"],
+            "category": lambda s: s["channels"]["categories"],
             "totalChannels": lambda s: s["channels"]["total"],
-            "roleCount": lambda s: s["roles"]["total"],
+            "roles": lambda s: s["roles"]["total"],
         }
         
         # Guilds flagged for refresh by event listeners
         self.dirty_guilds: set[int] = set()
         
-        # Per-channel cooldown tracking (Discord allows ~2 name edits per 10 minutes)
+        # Per-channel cooldown tracking
         self.last_edit: Dict[int, datetime] = {}
-        self.EDIT_COOLDOWN = timedelta(minutes=10)
+        self.EDIT_COOLDOWN = timedelta(minutes=15)  # ⬆️ Increased from 10 to 15 minutes
         
-        # Track if the loop is running
+        # Track failed edits to back off further
+        self.failed_edits: Dict[int, int] = {}  # channel_id -> failure count
+        self.max_failures = 3
+        
         self._loop_started = False
 
     # ── Event Listeners ──────────────────────────────────────────────────────
     
     @commands.Cog.listener()
     async def on_ready(self):
-        """Start the refresh loop when the bot is ready."""
         if not self._loop_started:
             self.refresh_loop.start()
             self._loop_started = True
@@ -84,11 +87,6 @@ class Stats(commands.Cog):
         self.dirty_guilds.add(channel.guild.id)
 
     @commands.Cog.listener()
-    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
-        """Mark guild as dirty when a channel is updated."""
-        self.dirty_guilds.add(after.guild.id)
-
-    @commands.Cog.listener()
     async def on_guild_role_create(self, role: discord.Role):
         """Mark guild as dirty when a role is created."""
         self.dirty_guilds.add(role.guild.id)
@@ -108,157 +106,128 @@ class Stats(commands.Cog):
     def calculate_statistics(self, guild: discord.Guild) -> dict:
         """Calculate all statistics for a guild."""
         members = guild.members
-        
-        # Count statuses
-        online = 0
-        idle = 0
-        dnd = 0
-        offline = 0
-        
-        for member in members:
-            if member.bot:
-                continue
-            if member.status == discord.Status.online:
-                online += 1
-            elif member.status == discord.Status.idle:
-                idle += 1
-            elif member.status == discord.Status.dnd:
-                dnd += 1
-            else:
-                offline += 1
-        
         return {
             "members": {
                 "total": len(members),
                 "humans": sum(1 for m in members if not m.bot),
                 "bots": sum(1 for m in members if m.bot),
-                "online": online,
-                "idle": idle,
-                "dnd": dnd,
-                "offline": offline,
+                "online": sum(1 for m in members if not m.bot and m.status != discord.Status.offline),
             },
             "channels": {
                 "total": len(guild.channels),
                 "text": len(guild.text_channels),
                 "voice": len(guild.voice_channels),
                 "categories": len(guild.categories),
-                "forums": len(guild.forums),
-                "stage": len(guild.stage_channels),
             },
             "roles": {
                 "total": len(guild.roles),
-            },
-            "emojis": {
-                "total": len(guild.emojis),
-                "animated": sum(1 for e in guild.emojis if e.animated),
-                "static": sum(1 for e in guild.emojis if not e.animated),
             }
         }
 
     # ── Stats Update Logic ──────────────────────────────────────────────────
     
     async def update_guild_stats(self, guild: discord.Guild, force: bool = False) -> bool:
-        """Update all stats channels for a guild.
+        """Update all stats channels for a guild."""
+        guild_doc = Guild.get(str(guild.id)).run()
+        if guild_doc is None:
+            return False
         
-        Args:
-            guild: The guild to update
-            force: If True, ignore cooldowns
-            
-        Returns:
-            bool: True if any channels were updated
-        """
-        # Get guild config
-        guild_doc: Guild = Guild.get(str(guild.id)).run()
         stats_config = guild_doc.dashboard.stats
-
-        statsStatus = stats_config.get("status", False) 
-        statsCounters = stats_config.get("counters", [])
+        statsStatus = stats_config.get('status', False)
+        statsCounters = stats_config.get('counters', [])
         
-        # Check if stats are enabled
         if not statsStatus:
             return False
-            
-        counters = statsCounters
-        if not counters:
+        if not statsCounters:
             return False
-            
+        
         stats = self.calculate_statistics(guild)
         now = datetime.now()
         updated = False
         
-        for counter in counters:
+        for counter in statsCounters:
             target = counter.get("target")
+            channel_id = counter.get("channel_id")
             handler = self.COUNTER_HANDLERS.get(target)
             
             if handler is None:
                 continue
-                
-            channel_id = counter.get("channel_id")
+            
             if not channel_id:
                 continue
-                
+            
             try:
                 channel_id_int = int(channel_id)
             except (TypeError, ValueError):
                 continue
-                
+            
             channel = guild.get_channel(channel_id_int)
             if channel is None:
                 continue
-                
-            # Check if the channel is a voice channel
+            
             if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
                 continue
-                
-            # Respect cooldown unless forced
+            
+            # Check if this channel has been failing
+            failures = self.failed_edits.get(channel.id, 0)
+            if failures >= self.max_failures:
+                # Skip updating this channel until next restart
+                continue
+            
+            # Check cooldown
             last_edit = self.last_edit.get(channel.id)
             if not force and last_edit and (now - last_edit) < self.EDIT_COOLDOWN:
                 continue
-                
+            
             try:
                 count = handler(stats)
-                text_template = counter.get("text", "{target}: {count}")
+                text_template = counter.get("text", "{kind}: {count}")
                 
-                # Replace placeholders
                 new_name = text_template.format(
+                    kind=target.replace("Count", "").lower(),
                     count=count,
-                    target=target.replace("Count", "").lower(),
-                    guild_name=guild.name[:20],  # Prevent too long names
                 )
                 
-                # Discord voice channel name limit is 100 characters
                 if len(new_name) > 100:
                     new_name = new_name[:97] + "..."
-                    
+                
                 if channel.name != new_name:
                     await channel.edit(name=new_name, reason="Stats update")
                     self.last_edit[channel.id] = now
+                    # Reset failures on success
+                    self.failed_edits[channel.id] = 0
                     updated = True
-                    
-            except (discord.Forbidden, discord.HTTPException) as e:
-                # Log but continue with other channels
-                print(f"Failed to update stats channel {channel.id} in {guild.id}: {e}")
+            except discord.Forbidden:
+                # Don't have permission to edit
+                self.failed_edits[channel.id] = failures + 1
+                print(f"⚠️ Missing permission to edit stats channel {channel.name} in {guild.name}")
                 continue
-                
-        # Update the counter cache in the database
+            except discord.HTTPException as e:
+                # Rate limited or other error
+                self.failed_edits[channel.id] = failures + 1
+                if "rate limited" in str(e).lower():
+                    print(f"⏳ Rate limited on stats channel {channel.name}, backing off...")
+                continue
+        
+        # Update stored counts
         if updated:
-            # Update the stored counts
-            for counter in counters:
+            for counter in statsCounters:
                 target = counter.get("target")
                 handler = self.COUNTER_HANDLERS.get(target)
                 if handler:
                     counter["count"] = handler(stats)
                     
-            # Save the updated config
-            guild_doc.dashboard.stats["counters"] = counters
+            current_stats = getattr(guild_doc.dashboard, "stats", {})
+            current_stats["counters"] = statsCounters
+            guild_doc.dashboard.stats = current_stats
             guild_doc.updated_at = discord.utils.utcnow()
             guild_doc.save()
-            
+        
         return updated
 
     # ── Background Task ─────────────────────────────────────────────────────
     
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=10)
     async def refresh_loop(self):
         """Periodically refresh stats for all guilds."""
         # Get dirty guilds that need immediate updates
@@ -269,14 +238,17 @@ class Stats(commands.Cog):
         for guild in self.client.guilds:
             if guild.id in dirty:
                 await self.update_guild_stats(guild, force=True)
+                # Add a small delay between updates to prevent rate limits
+                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=random.uniform(1, 3)))
                 
         # Then update all guilds (respecting cooldowns)
         for guild in self.client.guilds:
             await self.update_guild_stats(guild, force=False)
+            # Add a small delay between updates
+            await discord.utils.sleep_until(datetime.now() + timedelta(seconds=random.uniform(1, 2)))
 
     @refresh_loop.before_loop
     async def before_refresh_loop(self):
-        """Wait for the bot to be ready before starting the loop."""
         await self.client.wait_until_ready()
 
 def setup(client):

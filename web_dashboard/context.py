@@ -1,5 +1,3 @@
-from flask import session
-
 from modules import bot as v
 from modules.models import Guild, Notification
 from .db import get_guild, get_dash_config
@@ -8,7 +6,7 @@ from .utils import bearer_client, GuildModels
 
 def register_context_processors(app):
     @app.context_processor
-    def utility_processor():
+    async def utility_processor():
 
         def plugs(guild):
             guild_dash = get_dash_config(guild)
@@ -21,6 +19,10 @@ def register_context_processors(app):
             )
 
         def get_user_guilds():
+            from quart import session
+            if "token" not in session:
+                return []
+            
             guild_ids = {g.id for g in v.client.guilds}
             
             if "cached_guilds" in session:

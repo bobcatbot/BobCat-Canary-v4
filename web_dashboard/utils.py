@@ -1,6 +1,6 @@
 import discord
 from functools import wraps
-from flask import session, request, render_template, url_for
+from quart import session, request, render_template, url_for
 from zenora import APIClient
 
 from modules import bot as v
@@ -21,11 +21,11 @@ def bearer_client():
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    async def decorated_function(*args, **kwargs):
         if 'token' not in session:
             session['redirect'] = request.url
-            return render_template("login.html", logInWithDiscord=url_for('auth.login'))
-        return f(*args, **kwargs)
+            return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+        return await f(*args, **kwargs)
     return decorated_function
 
 
@@ -35,7 +35,6 @@ class PremiumModuleError(Exception):
 
 def is_premium(guild) -> bool:
     """Single source of truth for premium checks using Bunnet directly."""
-    # Handle both Guild object and guild ID
     guild_id = str(getattr(guild, "id", guild))
     doc = Guild.get(guild_id).run()
     

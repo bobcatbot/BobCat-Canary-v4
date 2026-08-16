@@ -1,32 +1,39 @@
-from flask import Blueprint, render_template
+import logging
+from quart import Blueprint, render_template
+
 from modules import bot as v
-from modules.models import  Guild
+from modules.models import Guild
 from ...db import get_guild
 from ...utils import bearer_client, login_required, premium_module
 
 moderation_bp = Blueprint('moderation', __name__)
+logger = logging.getLogger(__name__)
 
 @moderation_bp.route("/dashboard/<int:guild_id>/moderator")
 @login_required
-def moderation(guild_id):
-    premium_module(guild_id, 'moderation')
-    
-    current_user = bearer_client().get_current_user()
-    
-    guild = v.client.get_guild(guild_id)
-    if guild is None:
-        return render_template("error/404.html"), 404
+async def moderation(guild_id):
+    try:
+        premium_module(guild_id, 'moderation')
+        
+        current_user = bearer_client().get_current_user()
+        
+        guild = v.client.get_guild(guild_id)
+        if guild is None:
+            return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.moderation
+        # Get the guild document using Bunnet
+        config = Guild.get(str(guild.id)).run().dashboard.moderation
 
-    # Get logging config from moderation
-    logging_config = config.get('logging', {})
-    
-    return render_template(
-        "dashboard/plugins/moderation.html",
-        user=current_user,
-        guild=guild,
-        data=config,
-        logging=logging_config
-    )
+        # Get logging config from moderation
+        logging_config = config.get('logging', {})
+        
+        return await render_template(
+            "dashboard/plugins/moderation.html",
+            user=current_user,
+            guild=guild,
+            data=config,
+            logging=logging_config
+        )
+    except Exception as e:
+        logger.error(f"Error loading moderation page for guild {guild_id}: {e}", exc_info=True)
+        return await render_template("error/500.html"), 500

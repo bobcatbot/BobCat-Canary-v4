@@ -1,5 +1,4 @@
 python-dotenv
-
 pytz
 aiohttp
 psutil
@@ -14,8 +13,11 @@ speedtest-cli
 pymongo
 bunnet
 
-Flask[async]
-flask-socketio
 zenora
 requests
 stripe
+
+# REPLACED Flask with Quart
+quart
+quart-cors
+uvicorn  
