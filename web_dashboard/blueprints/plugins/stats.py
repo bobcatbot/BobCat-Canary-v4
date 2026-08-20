@@ -1,7 +1,7 @@
 import asyncio
 import discord
 import logging
-from quart import Blueprint, request, render_template, jsonify, flash
+from quart import Blueprint, request, render_template, jsonify
 
 from modules import bot as v
 from modules.models import Guild

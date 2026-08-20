@@ -24,7 +24,7 @@
             
       <div class="buttons">
         <button type="button" id="discard-form-btn" class="btn btn-secondary">Discard</button>
-        <button type="button" id="save-form-btn" class="btn btn-blurple" disabled>Save</button>
+        <button type="button" id="save-form-btn" class="btn btn-blurple">Save</button>
       </div>
     </div>
     
@@ -40,8 +40,8 @@
           <input type="text" id="form-name" class="text-input" value="Form" required />
         </div>
         <div class="mb-2">
-          <label for="form-desc">Form description <span class="text-danger">*</span></label><br>
-          <input type="text" id="form-desc" class="text-input" value="" required />
+          <label for="form-desc">Form description</label><br>
+          <input type="text" id="form-desc" class="text-input" value="" />
         </div>
       </div>
     </section>
@@ -194,131 +194,162 @@
   </main>
 
   <script>
-    var save_data = {}
-    
-    const saveFormBtn = document.querySelector('#save-form-btn')
-    
-    new Select('.sub-chan-select-wrapper.single', {
-      placeholder: "Select a channel",
-      type: 'channel',
-      multiple: false,
-      maxItems: 1,
-      options: []
-    });
-    new Select('.sub-views-select-wrapper.multi', {
-      placeholder: "Select some roles",
-      type: 'role',
-      multiple: true,
-      removeBtn: true,
-      maxItems: 0,
-      options: []
-    });
-    new Select('.sub-mangers-select-wrapper.multi', {
-      placeholder: "Select some roles",
-      type: 'role',
-      multiple: true,
-      removeBtn: true,
-      maxItems: 0,
-      options: []
-    });
-    
-    new Select('.mentions-select-wrapper.multi', {
-      placeholder: "Select roles",
-      type: 'role',
-      multiple: true,
-      removeBtn: true,
-      maxItems: 0,
-      options: []
-    });
-
-    new EmojiPicker({
-      trigger: '#plus-emoji',
-      position: ['top', 'right'],
-      dir: "{{url_for('static', filename='Emojis.json')}}",
-      plug: '',
-      emit(emoji) {
-
-        const div = document.createElement('div')
-        div.classList.add('position-relative', 'reaction', 'add')
-        div.innerHTML = `
-          <span>${emoji.icon}</span>
-          <div class="delete-icon">
-            <i class="bi bi-x"></i>
-          </div>
-        `
-        document.querySelector('.reactions').appendChild(div)
-        
-        save_data['settings.options.reactions.emojis'].push(emoji.icon)
-        deleteEmoji()
-      }
-    });
-    function deleteEmoji() {
-      document.querySelectorAll('.reaction.add').forEach((add) => {
-        add.addEventListener('click', (e) => {
-          const item = add.querySelector('.delete-icon')
-          item.closest('.reaction.add').remove()
-
-          const emoji = item.closest('.reaction.add').querySelector('span').innerText
-          const index = save_data['settings.options.reactions.emojis'].indexOf(emoji)
-          if (index > -1) {
-            save_data['settings.options.reactions.emojis'].splice(index, 1)
-          }
-        })
-      })
-    }
-    deleteEmoji()
-
-    const title = document.querySelector('.page-title')
-    const emName = document.querySelector('#form-name')
-    document.addEventListener('DOMContentLoaded', () => {
-      title.innerText = emName.value
-
-      const sortable = new Sortable(document.getElementById('question-list'), {
-        animation: 150, // Animation speed in milliseconds
-        handle: '#reorder-grab', // id of the handle element for dragging
-        onEnd: function (evt) {
-          // Callback function triggered after the item is dropped
-        },
-      });
-
-      // reactions-toggle
-      save_data['settings.options.reactions.emojis'] = []
-      var reactionsToggle = document.querySelector('#reactions-toggle')
-      var reactionsContainer = document.querySelector('.reactions-container')
-      if (reactionsToggle.checked) {
-        reactionsContainer.classList.remove('d-none')
-        reactionsContainer.classList.add('d-flex')
-      } else {
-        reactionsContainer.classList.remove('d-flex')
-        reactionsContainer.classList.add('d-none')          
-      }
-    });
-    
-    emName.addEventListener('input', (e) => {
-      title.innerText = emName.value
-    })
-
-    document.querySelector('#discard-form-btn').addEventListener('click', (e) => {
-      // track what changed
-      if (Object.keys(save_data).length > 0) {
-        var res = confirm("Are you sure you want to discard changes?")
-        if (res) {
-          window.location.href = '/dashboard/{{guild.id}}/forms'
+  // Initialize save_data with proper structure
+  var save_data = {
+    'name': '',
+    'description': '',
+    'questions': [],
+    'settings': {
+      'submission_channel': '',
+      'submission_viewers': [],
+      'submission_managers': [],
+      'options': {
+        'thread': false,
+        'mentions': [],
+        'reactions': {
+          'status': false,
+          'emojis': []
         }
-      } else {
+      }
+    },
+    'status': true,
+    'responses': []
+  }
+  
+  const saveFormBtn = document.querySelector('#save-form-btn')
+  
+  new Select('.sub-chan-select-wrapper.single', {
+    placeholder: "Select a channel",
+    type: 'channel',
+    multiple: false,
+    maxItems: 1,
+    options: []
+  });
+  new Select('.sub-views-select-wrapper.multi', {
+    placeholder: "Select some roles",
+    type: 'role',
+    multiple: true,
+    removeBtn: true,
+    maxItems: 0,
+    options: []
+  });
+  new Select('.sub-mangers-select-wrapper.multi', {
+    placeholder: "Select some roles",
+    type: 'role',
+    multiple: true,
+    removeBtn: true,
+    maxItems: 0,
+    options: []
+  });
+  
+  new Select('.mentions-select-wrapper.multi', {
+    placeholder: "Select roles",
+    type: 'role',
+    multiple: true,
+    removeBtn: true,
+    maxItems: 0,
+    options: []
+  });
+
+  new EmojiPicker({
+    trigger: '#plus-emoji',
+    position: ['top', 'right'],
+    dir: "{{url_for('static', filename='Emojis.json')}}",
+    plug: '',
+    emit(emoji) {
+      const div = document.createElement('div')
+      div.classList.add('position-relative', 'reaction', 'add')
+      div.innerHTML = `
+        <span>${emoji.icon}</span>
+        <div class="delete-icon">
+          <i class="bi bi-x"></i>
+        </div>
+      `
+      document.querySelector('.reactions').appendChild(div)
+      
+      save_data.settings.options.reactions.emojis.push(emoji.icon)
+      deleteEmoji()
+    }
+  });
+  
+  function deleteEmoji() {
+    document.querySelectorAll('.reaction.add').forEach((add) => {
+      add.addEventListener('click', (e) => {
+        const item = add.querySelector('.delete-icon')
+        const emoji = item.closest('.reaction.add').querySelector('span').innerText
+        const index = save_data.settings.options.reactions.emojis.indexOf(emoji)
+        if (index > -1) {
+          save_data.settings.options.reactions.emojis.splice(index, 1)
+        }
+        item.closest('.reaction.add').remove()
+      })
+    })
+  }
+  deleteEmoji()
+
+  const title = document.querySelector('.page-title')
+  const emName = document.querySelector('#form-name')
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    title.innerText = emName.value || 'Form'
+    save_data.name = emName.value || 'Form'
+
+    const sortable = new Sortable(document.getElementById('question-list'), {
+      animation: 150,
+      handle: '#reorder-grab',
+      onEnd: function (evt) {
+        // Optional: reorder questions array
+      },
+    });
+
+    // reactions-toggle
+    var reactionsToggle = document.querySelector('#reactions-toggle')
+    var reactionsContainer = document.querySelector('.reactions-container')
+    if (reactionsToggle.checked) {
+      reactionsContainer.classList.remove('d-none')
+      reactionsContainer.classList.add('d-flex')
+      save_data.settings.options.reactions.status = true
+    } else {
+      reactionsContainer.classList.remove('d-flex')
+      reactionsContainer.classList.add('d-none')
+      save_data.settings.options.reactions.status = false
+    }
+  });
+  
+  emName.addEventListener('input', (e) => {
+    title.innerText = e.target.value || 'Form'
+    save_data.name = e.target.value || 'Form'
+  })
+
+  document.querySelector('#form-desc').addEventListener('input', (e) => {
+    save_data.description = e.target.value
+  })
+
+  document.querySelector('#discard-form-btn').addEventListener('click', (e) => {
+    const hasChanges = save_data.name && save_data.name !== 'Form' || 
+                      save_data.description || 
+                      save_data.questions.length > 0 || 
+                      save_data.settings.submission_channel
+    
+    if (hasChanges) {
+      var res = confirm("Are you sure you want to discard changes?")
+      if (res) {
         window.location.href = '/dashboard/{{guild.id}}/forms'
       }
-    })
+    } else {
+      window.location.href = '/dashboard/{{guild.id}}/forms'
+    }
+  })
 
-    document.querySelector('#add-question').addEventListener('click', (e) => {
-      var list = document.querySelector('#question-list')
-      var index = list.children.length+1
-      const li = `
+  document.querySelector('#add-question').addEventListener('click', (e) => {
+    var list = document.querySelector('#question-list')
+    var index = list.children.length + 1
+    const li = `
       <li class="question ${index}">
         <i id="reorder-grab" class="bi bi-grip-vertical"></i>
         <div class="d-flex flex-column gap-2 w-100">
           <div class="d-flex gap-2">
-            <input type="text" id="q-title" class="text-input" style="--input-width: 100%;" placeholder="Question" value="${index}. Question">
+            <input type="text" id="q-title" class="text-input" style="--input-width: 100%;" placeholder="Question" value="Question ${index}">
             <select id="type" class="select" style="--select-width: 20%;" data-index="${index}">
               <option value="paragraph" selected>Paragraph</option>
               <option value="short">Short</option>
@@ -343,189 +374,170 @@
           </div>
         </div>
       </li>
-      `
-      list.insertAdjacentHTML("beforeend", li)
+    `
+    list.insertAdjacentHTML("beforeend", li)
 
-      if (list.children.length > 0) {
-        saveFormBtn.disabled = false
-      } else {
-        saveFormBtn.disabled = true
-      }
-
-      deleteQuestionBtn();
-      changeSelectType();
-    });
-
-    function deleteQuestionBtn() { // event listener for delete item button in all questions
-      const qList = document.querySelectorAll('.question');
-      for (let i = 0; i < qList.length; i++) {
-        const item = qList[i].querySelector('#delete-item')
-
-        if (qList.length <= 1) {
-          item.disabled = true;
-          return
-        } else {
-          for (let i = 0; i < qList.length; i++) {
-            const item = qList[i].querySelector('#delete-item')
-            item.disabled = false;
-          }
-          item.disabled = false;
-        }
-
-        item.addEventListener('click', (e) => {
-          const question = item.closest('li');
-          question.remove();
-        });
-      }
-    }
     deleteQuestionBtn();
+    changeSelectType();
+  });
 
-    function changeSelectType() {
-      document.querySelectorAll('#type').forEach((typeSelect) => {
-        typeSelect.addEventListener('change', (e) => {
-          const selectedType = typeSelect.value;
-          const answerInput = typeSelect.closest('li').querySelector('#AnswerInput');
-          
-          if (selectedType === 'paragraph') {
-            answerInput.innerHTML = `
-              <textarea class="text-input paragraph-answer" style="--input-width: 100%;" placeholder="Answer!"></textarea>
-            `;
-          }
-          if (selectedType === 'short') {
-            answerInput.innerHTML = `
-              <input type="text" class="text-input" style="--input-width: 100%;" placeholder="Answer!" disabled />
-            `;
-          }
-        });
+  function deleteQuestionBtn() {
+    const qList = document.querySelectorAll('.question');
+    for (let i = 0; i < qList.length; i++) {
+      const item = qList[i].querySelector('#delete-item')
+
+      if (qList.length <= 1) {
+        item.disabled = true;
+        return
+      } else {
+        item.disabled = false;
+      }
+
+      const newItem = item.cloneNode(true)
+      item.parentNode.replaceChild(newItem, item)
+      
+      newItem.addEventListener('click', (e) => {
+        const question = newItem.closest('li');
+        question.remove();
+        // if (document.querySelectorAll('.question').length <= 0) {
+        //   saveFormBtn.disabled = true
+        // }
+        deleteQuestionBtn();
+      });
+    }
+  }
+  deleteQuestionBtn();
+
+  function changeSelectType() {
+    document.querySelectorAll('#type').forEach((typeSelect) => {
+      const newSelect = typeSelect.cloneNode(true)
+      typeSelect.parentNode.replaceChild(newSelect, typeSelect)
+      
+      newSelect.addEventListener('change', (e) => {
+        const selectedType = newSelect.value;
+        const answerInput = newSelect.closest('li').querySelector('#AnswerInput');
+        
+        if (selectedType === 'paragraph') {
+          answerInput.innerHTML = `
+            <textarea class="text-input paragraph-answer" style="--input-width: 100%;" placeholder="Answer!" disabled></textarea>
+          `;
+        }
+        if (selectedType === 'short') {
+          answerInput.innerHTML = `
+            <input type="text" class="text-input" style="--input-width: 100%;" placeholder="Answer!" disabled />
+          `;
+        }
+      });
+    })
+  }
+  changeSelectType();
+
+  var subChanSelectWrapper = document.querySelector('.sub-chan-select-wrapper.single')
+  subChanSelectWrapper.addEventListener('select:update', function (event) {
+    const selectedOptions = event.detail.selectedOptions;
+    const option = selectedOptions[0] ? selectedOptions[0] : ''
+    
+    save_data.settings.submission_channel = option
+  });
+
+  var subViewsSelectWrapper = document.querySelector('.sub-views-select-wrapper.multi')
+  subViewsSelectWrapper.addEventListener('select:update', function (event) {
+    const selectedOptions = event.detail.selectedOptions;
+    save_data.settings.submission_viewers = selectedOptions
+  });
+  
+  var subMansSelectWrapper = document.querySelector('.sub-mangers-select-wrapper.multi')
+  subMansSelectWrapper.addEventListener('select:update', function (event) {
+    const selectedOptions = event.detail.selectedOptions;
+    save_data.settings.submission_managers = selectedOptions
+  });
+  
+  var mentionsSelectWrapper = document.querySelector('.mentions-select-wrapper.multi')
+  mentionsSelectWrapper.addEventListener('select:update', function (event) {
+    const selectedOptions = event.detail.selectedOptions;
+    save_data.settings.options.mentions = selectedOptions
+  });
+  
+  document.querySelector('#ThreadCreate').addEventListener('change', (e) => {
+    save_data.settings.options.thread = e.target.checked
+  })
+  
+  document.querySelector('#reactions-toggle').addEventListener('change', (e) => {
+    save_data.settings.options.reactions.status = e.target.checked
+    
+    var reactionsContainer = document.querySelector('.reactions-container')
+    if (e.target.checked) {
+      reactionsContainer.classList.remove('d-none')
+      reactionsContainer.classList.add('d-flex')
+    } else {
+      reactionsContainer.classList.remove('d-flex')
+      reactionsContainer.classList.add('d-none')
+    }
+  })
+
+  document.querySelector('#save-form-btn').addEventListener('click', (e) => {
+    var questions_list = document.querySelector('#question-list').children
+    var questions = []
+
+    save_data.name = document.querySelector('#form-name').value || 'Untitled Form'
+    save_data.description = document.querySelector('#form-desc').value || ""
+    save_data.status = true
+
+    for (let i = 0; i < questions_list.length; i++) {
+      var question = questions_list[i]
+
+      questions.push({
+        "title": question.querySelector("#q-title").value || `Question ${i + 1}`,
+        "description": question.querySelector("#q-desc").value || "",
+        "type": question.querySelector("#type").value,
+        "required": question.querySelector("#required").checked
       })
     }
-    changeSelectType();
-  
-    document.querySelector('#form-name').addEventListener('input', (e) => {
-      save_data['name'] = e.target.value
+    save_data.questions = questions
 
-      if (e.target.value) {
-        saveFormBtn.disabled = false
+    if (!save_data.settings.submission_channel) {
+      save_data.settings.submission_channel = ""
+    }
+    if (!save_data.settings.submission_viewers) {
+      save_data.settings.submission_viewers = []
+    }
+    if (!save_data.settings.submission_managers) {
+      save_data.settings.submission_managers = []
+    }
+    if (!save_data.settings.options.thread) {
+      save_data.settings.options.thread = false
+    }
+    if (!save_data.settings.options.mentions) {
+      save_data.settings.options.mentions = []
+    }
+    if (!save_data.settings.options.reactions.status) {
+      save_data.settings.options.reactions.status = false
+    }
+    if (!save_data.settings.options.reactions.emojis) {
+      save_data.settings.options.reactions.emojis = []
+    }
+
+    save_data.responses = []
+    
+    fetch('creation', {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(save_data),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status == 'success') {
+        window.location.href = '/dashboard/{{guild.id}}/forms'
       } else {
-        saveFormBtn.disabled = true
+        alert('Error creating form: ' + data.message)
       }
     })
-    document.querySelector('#form-desc').addEventListener('input', (e) => {
-      save_data['description'] = e.target.value
-
-      if (e.target.value) {
-        saveFormBtn.disabled = false
-      } else {
-        saveFormBtn.disabled = true
-      }
+    .catch(error => {
+      console.error('Error:', error)
+      alert('An error occurred while creating the form.')
     })
-
-    var subChanSelectWrapper = document.querySelector('.sub-chan-select-wrapper.single')
-    subChanSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      const option = selectedOptions[0] ? selectedOptions[0] : ''
-      
-      save_data['settings.submission_channel'] = option
-      if (option) {
-        saveFormBtn.disabled = false
-      } else {
-        saveFormBtn.disabled = true
-      }
-    });
-
-    var subViewsSelectWrapper = document.querySelector('.sub-views-select-wrapper.multi')
-    subViewsSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.submission_viewers'] = selectedOptions
-    });
-    
-    var subMansSelectWrapper = document.querySelector('.sub-mangers-select-wrapper.multi')
-    subMansSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.submission_managers'] = selectedOptions
-    });
-    
-    var mentionsSelectWrapper = document.querySelector('.mentions-select-wrapper.multi')
-    mentionsSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.options.mentions'] = selectedOptions
-    });
-    
-    document.querySelector('#ThreadCreate').addEventListener('change', (e) => {
-      save_data['settings.options.thread'] = e.target.checked
-    })
-    
-    document.querySelector('#reactions-toggle').addEventListener('change', (e) => {
-      save_data['settings.options.reactions.status'] = e.target.checked
-      
-      var reactionsContainer = document.querySelector('.reactions-container')
-      if (e.target.checked) {
-        reactionsContainer.classList.remove('d-none')
-        reactionsContainer.classList.add('d-flex')
-      } else {
-        reactionsContainer.classList.remove('d-flex')
-        reactionsContainer.classList.add('d-none')
-      }
-    })
-
-    
-    document.querySelector('#save-form-btn').addEventListener('click', (e) => {
-      var questions_list = document.querySelector('#question-list').children
-      var questions = []
-
-      save_data['status'] = true
-      save_data['name'] = document.querySelector('#form-name').value
-      save_data['description'] = document.querySelector('#form-desc').value || ""
-
-      for (let i=0; i < questions_list.length; i++) {
-        var question = questions_list[i]
-
-        questions.push({
-          "title": question.querySelector("#q-title").value,
-          "description": question.querySelector("#q-desc").value,
-          "type": question.querySelector("#type").value,
-          "required": question.querySelector("#required").checked
-        })
-      }
-      save_data['questions'] = questions
-
-      if (!save_data['settings.submission_channel']) {
-        save_data['settings.submission_channel'] = ""
-      }
-      if (!save_data['settings.submission_viewers']) {
-        save_data['settings.submission_viewers'] = []
-      }
-      if (!save_data['settings.submission_managers']) {
-        save_data['settings.submission_managers'] = []
-      }
-      if (!save_data['settings.options.thread']) {
-        save_data['settings.options.thread'] = false
-      }
-      if (!save_data['settings.options.mentions']) {
-        save_data['settings.options.mentions'] = []
-      }
-      if (!save_data['settings.options.reactions.status']) {
-        save_data['settings.options.reactions.status'] = false
-      }
-      if (!save_data['settings.options.reactions.emojis']) {
-        save_data['settings.options.reactions.emojis'] = []
-      }
-
-      save_data['responses'] = []
-      
-      fetch('creation', {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(save_data),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status == 'success') {
-            window.location.href = '/dashboard/{{guild.id}}/forms'
-          }
-        })
-    })
-  </script>
+  })
+</script>
 
   <style>
     .page-title {

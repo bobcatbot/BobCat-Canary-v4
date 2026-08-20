@@ -7,7 +7,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 </head>
-<body onkeydown="handleKeyPress(event)">
+<body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/Navbar.html' %}
   
@@ -18,7 +18,7 @@
       <h1>{{guild.name}}</h1>
     </div>
     
-    <section id="form" class="" style="display: block;">
+    <section id="form-section" style="display: block;">
       <div class="container form">
         <div class="title">
           <h2>{{data.name}}</h2>
@@ -26,87 +26,95 @@
         </div>
         <hr>
 
-        {% for question in data['questions'] %}
-        <div class="question">
-          <div class="title_desc">
-            <h4>{{question.title}}</h4>
-            {% if question.description %}
-            <p>{{question.description}}</p>
-            {% endif %}
+        <form id="form-submission">
+          {% for question in data['questions'] %}
+          <div class="question">
+            <div class="title_desc">
+              <h4>{{question.title}}</h4>
+              {% if question.description %}
+              <p>{{question.description}}</p>
+              {% endif %}
+            </div>
+            <div class="answer">
+              {% if question.type == "paragraph" %}
+              <textarea id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %}></textarea>
+              {% elif question.type == "short" %}
+              <input id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %} />
+              {% endif %}
+            </div>
           </div>
-          <div class="answer">
-            {% if question.type == "paragraph" %}
-            <textarea id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;"></textarea>
-            {% elif question.type == "short" %}
-            <input    id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" />
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
+          {% endfor %}
 
-        <hr>
-        <div class="d-flex justify-content-end">
-          <button id="submit" class="btn btn-blurple">Submit</button>
-        </div>
+          <hr>
+          <div class="d-flex justify-content-end">
+            <button type="button" id="submit-btn" class="btn btn-blurple">Submit</button>
+          </div>
+        </form>
       </div>
     </section>
 
-    <section id="sub-msg" class="" style="display: none;">
+    <section id="success-msg" style="display: none;">
       <div class="container form">
         <div class="title">
           <h2>Thank you for submitting!</h2>
+          <p>Your response has been recorded.</p>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-center">
+          <button type="button" id="new-submission-btn" class="btn btn-secondary">Submit Another Response</button>
         </div>
       </div>
     </section>
   </main>
 
   <script>
-    function startConfetii() {
-      const jsConfetti = new JSConfetti();
+    const submitBtn = document.querySelector('#submit-btn')
+    const newSubBtn = document.querySelector('#new-submission-btn')
+    const formSection = document.querySelector('#form-section')
+    const successSection = document.querySelector('#success-msg')
 
+    function startConfetti() {
+      const jsConfetti = new JSConfetti()
       jsConfetti.addConfetti({
-        canvas: document.querySelector("#confetti"),
         confettiNumber: 700,
-      });
+      })
     }
 
-    const submitBtn = document.querySelector('#submit')
+    function generateCode(length = 8) {
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+      let code = ""
+      for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length)
+        code += charset[randomIndex]
+      }
+      return code
+    }
 
-    function handleKeyPress(event) {
-      if (event.keyCode === 13) { // 13 code for the "Enter" key
-        event.preventDefault(); // Prevent form submission if the input is within a form
-        submitBtn.click();
-      }
-    }
-    
-    let code = "";
-    function generateCode(length=8) {
-      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      
-      for (let i = 0; i <= length; i++) {
-        const randomIndex = Math.floor(Math.random() * charset.length);
-        code += charset[randomIndex];
-      }
-      return code;
-    }
-    
     submitBtn.addEventListener('click', (e) => {
-      const questions = document.querySelector('.question').children
-
-      var response = {}
-
-      response['id'] = generateCode(length=8)
-      response['user'] = {
-        'id': '{{user.id}}',
-        'name': '{{user.username}}',
-        'avatar': '{{user.avatar_url}}'
-      }
-      response['answers'] = []
-      response['submitted_at'] = new Date()
+      // Get all answers
+      const answerInputs = document.querySelectorAll('[id^="AnswerInput-"]')
+      const answers = []
       
-      for (let i=0; i < questions.length; i++) {
-        const answers = document.querySelectorAll('[id^="AnswerInput-"]');
-        response['answers'].push(answers[i].value)
+      for (let i = 0; i < answerInputs.length; i++) {
+        const value = answerInputs[i].value.trim()
+        // Check if required and empty
+        if (answerInputs[i].hasAttribute('required') && !value) {
+          alert(`Please answer question ${i + 1}`)
+          answerInputs[i].focus()
+          return
+        }
+        answers.push(value)
+      }
+
+      const response = {
+        id: generateCode(8),
+        user: {
+          id: '{{user.id}}',
+          name: '{{user.username}}',
+          avatar: '{{user.avatar_url}}'
+        },
+        answers: answers,
+        submitted_at: new Date().toISOString()
       }
 
       fetch('/form/{{guild.id}}/{{data.id}}', {
@@ -114,21 +122,40 @@
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(response),
       })
-        .then(res => res.json())
-        .then(data => {
-          code = ""
-          if (data.status == 200) {
-            document.querySelector('#form').style.display = 'none'
-            document.querySelector('#sub-msg').style.display = 'block'
-
-            startConfetii();
-          }
-        })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status == 200 || data.status == 'success') {
+          formSection.style.display = 'none'
+          successSection.style.display = 'block'
+          startConfetti()
+        } else {
+          alert('Error submitting form: ' + (data.message || 'Unknown error'))
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error)
+        alert('An error occurred while submitting the form.')
+      })
     })
 
-    document.querySelector('#new-sub').addEventListener('click', (e) => {
-      document.querySelector('#form').style.display = 'block'
-      document.querySelector('#sub-msg').style.display = 'none'
+    newSubBtn.addEventListener('click', () => {
+      // Clear all inputs
+      document.querySelectorAll('[id^="AnswerInput-"]').forEach(input => {
+        input.value = ''
+      })
+      formSection.style.display = 'block'
+      successSection.style.display = 'none'
+    })
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const activeElement = document.activeElement
+        if (activeElement && activeElement.id && activeElement.id.startsWith('AnswerInput-')) {
+          e.preventDefault()
+          submitBtn.click()
+        }
+      }
     })
   </script>
 
