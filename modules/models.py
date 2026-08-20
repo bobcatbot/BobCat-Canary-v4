@@ -62,6 +62,16 @@ class Notification(Document):
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
+class StripeEvent(Document):
+    """Record of a processed Stripe webhook event, used for idempotency."""
+
+    class Settings:
+        name = "stripe_events"
+
+    id: str = Field(alias="_id")  # Stripe event ID (evt_...)
+    type: str
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class Warning(Document):
     class Settings:
         name = "warnings"
@@ -225,6 +235,7 @@ class TempChannel(Document):
 ALL_MODELS = [
     Guild,
     Notification,
+    StripeEvent,
     Warning,
     Economy,
     Leveling,

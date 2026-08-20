@@ -10,7 +10,7 @@ def fetch_plugins(dash):
   guild's DashConfig. `dash` is a pydantic DashConfig object.
   Uses getattr() instead of .get() because DashConfig is not a dict.
   """
-  result = copy.deepcopy(PLUGIN_LIST)
+  result = PLUGIN_LIST
   
   if dash is not None:
     for item, plugin in result.items():

@@ -71,11 +71,8 @@
       <script>
         // #manage-sub
         document.querySelector('#manage-sub').addEventListener('click', () => {
-          fetch(`/stripe/portal/{{data['customer']}}`, {
+          fetch(`/{{guild.id}}/stripe/portal`, {
             method: "POST",
-            body: JSON.stringify({
-              guild_id: '{{guild.id}}'  
-            }),
           })
             .then((result) => result.json())
             .then((data) => {

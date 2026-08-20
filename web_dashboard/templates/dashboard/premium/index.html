@@ -163,7 +163,7 @@
           const typeID = radio.id.split('-')[1]
           const type = types[typeID]
 
-          fetch(`/{{guild.id}}/stripe/pay/${type}`)
+          fetch(`/{{guild.id}}/stripe/pay/${type}`, { method: "POST" })
             .then((result) => result.json())
             .then((data) => {
               var stripe = Stripe(data.checkout_public_key);

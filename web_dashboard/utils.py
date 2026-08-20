@@ -29,6 +29,44 @@ def login_required(f):
     return decorated_function
 
 
+def check_guild_permission(guild, user_id) -> tuple[bool, str]:
+    """Check if user has permission to modify guild settings."""
+    try:
+        member = guild.get_member(user_id)
+        if member is None:
+            return False, "Not a member of this guild"
+
+        # Check if user is guild owner
+        if guild.owner_id == user_id:
+            return True, "Owner"
+
+        # Get guild config for custom roles
+        config = Guild.get(str(guild.id)).run()
+        if config is None:
+            return False, "Guild config not found"
+
+        settings = config.settings
+
+        # Check if user has administrator permission
+        if member.guild_permissions.administrator:
+            return True, "Administrator"
+
+        # Check custom admin roles
+        admin_roles = settings.get('admin_roles', [])
+        if any(str(role.id) in admin_roles for role in member.roles):
+            return True, "Admin Role"
+
+        # Check bot master roles
+        bot_masters = settings.get('bot_masters', [])
+        if any(str(role.id) in bot_masters for role in member.roles):
+            return True, "Bot Master"
+
+        return False, "Insufficient permissions"
+
+    except Exception as e:
+        return False, f"Error checking permissions: {str(e)}"
+
+
 # ── Premium helpers ───────────────────────────────────────────────────────────
 class PremiumModuleError(Exception):
     pass
