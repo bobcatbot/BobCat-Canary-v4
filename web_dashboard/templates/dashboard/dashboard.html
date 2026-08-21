@@ -154,6 +154,24 @@
     </section>
 
     {% include 'components/PremiumModal.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% if messages %}
+        <div class="toast-container p-3 position-fixed bottom-0 start-50 translate-middle-x">
+        {% for category, message in messages %} 
+          <div id="ToastBS" class="toast" role="alert" data-cate="{{category}}">
+            <div class="toast-header d-flex justify-content-between align-items-center">
+              <strong id="cate" class="text-capitalize">{{category}}</strong>
+              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+              <p class="m-0">{{message}}</p>
+            </div>
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
   </main>
 
   <style>

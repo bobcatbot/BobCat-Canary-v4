@@ -441,7 +441,7 @@
       btn.addEventListener('click', () => {
         currentCounterIndex = parseInt(btn.dataset.index);
         
-        const counters = JSON.parse('{{ data["counters"] | tojson | safe }}');
+        const counters = JSON.parse('{{ data.get("counters", []) | tojson | safe }}');
         const currentChannelId = counters[currentCounterIndex]?.channel_id;
         if (currentChannelId) {
           document.querySelector('#channel-select').value = currentChannelId;
@@ -463,7 +463,7 @@
         return;
       }
       
-      const counters = JSON.parse('{{ data["counters"] | tojson | safe }}');
+      const counters = JSON.parse('{{ data.get("counters", []) | tojson | safe }}');
       counters[currentCounterIndex].channel_id = channelId;
       
       fetch("/dashboard/{{guild.id}}/data/post", {

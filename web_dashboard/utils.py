@@ -1,6 +1,6 @@
 import discord
 from functools import wraps
-from quart import session, request, render_template, url_for
+from quart import session, request, render_template, url_for, redirect
 from zenora import APIClient
 
 from modules import bot as v
@@ -80,7 +80,7 @@ def is_premium(guild) -> bool:
         return False
     
     premium = doc.premium
-    return bool(premium.get('status') and premium.get('active'))
+    return premium.get('status') and premium.get('active')
 
 def premium_module(guild, module):
     """Check if a guild has access to a premium module."""

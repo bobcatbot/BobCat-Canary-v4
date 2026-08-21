@@ -88,9 +88,9 @@
     "db_key": "stats",
     "icon": "insights",
     "url": "stats",
-    "badge": "beta",
+    "badge": "prem-beta",
     "category": "utilities",
-    "premium": false,
+    "premium": true,
     "status": false,
     "max": 5,
     "max_premium": 15

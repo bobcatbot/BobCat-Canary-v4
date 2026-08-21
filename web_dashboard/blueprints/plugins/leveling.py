@@ -121,25 +121,21 @@ async def leaderboard_home(guild_id):
 @leveling_bp.route("/dashboard/<int:guild_id>/leveling")
 @login_required
 async def levelling(guild_id):
-    try:
-        premium_module(guild_id, 'leveling')
-        
-        current_user = bearer_client().get_current_user()
-        
-        guild = v.client.get_guild(guild_id)
-        if guild is None:
-            return await render_template("error/404.html"), 404
+    premium_module(guild_id, 'leveling')
+    
+    current_user = bearer_client().get_current_user()
+    
+    guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return await render_template("error/404.html"), 404
 
-        # Get the guild document using Bunnet
-        config = Guild.get(str(guild.id)).run().dashboard.leveling
-            
-        return await render_template(
-            "dashboard/plugins/leveling.html",
-            user=current_user,
-            guild=guild,
-            data=config,
-            server_cards=_get_rank_cards()
-        )
-    except Exception as e:
-        logger.error(f"Error loading leveling page for guild {guild_id}: {e}", exc_info=True)
-        return await render_template("error/500.html"), 500
+    # Get the guild document using Bunnet
+    config = Guild.get(str(guild.id)).run().dashboard.leveling
+        
+    return await render_template(
+        "dashboard/plugins/leveling.html",
+        user=current_user,
+        guild=guild,
+        data=config,
+        server_cards=_get_rank_cards()
+    )
