@@ -222,9 +222,10 @@ class Owner(commands.Cog):
 
         code = v.uuid(length=16, strCase="upper/lower/nums")
 
-        code_expiry = None
+        now = datetime.datetime.now()
+        period_end = None
         if plan == "trial":
-            code_expiry = datetime.datetime.now() + datetime.timedelta(days=TRIAL_DAYS[trail_length])
+            period_end = now + datetime.timedelta(days=TRIAL_DAYS[trail_length])
 
         premium = {
             "id": code,
@@ -232,8 +233,9 @@ class Owner(commands.Cog):
             "active": True,
             "plan": plan,
             "user_id": ctx.author.id,
-            "subscribed_at": datetime.datetime.now(),
-            "code_expiry": code_expiry,
+            "subscribed_at": now,
+            "period_end": period_end,  # ✅ Use period_end instead of code_expiry
+            "code_expiry": period_end,  # Keep for backwards compatibility
         }
 
         doc.premium = premium
@@ -248,6 +250,7 @@ class Owner(commands.Cog):
                 f"\n> **Plan:** {premium['plan']}"
                 if plan == "lifetime" else
                 f"\n> **Plan:** {premium['plan']} for {trail_length}"
+                f"\n> **Expires:** {period_end.strftime('%Y-%m-%d %H:%M:%S') if period_end else 'Never'}"
             )
         )
         await ctx.respond(embed=emb)

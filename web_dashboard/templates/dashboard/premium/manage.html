@@ -22,24 +22,34 @@
         <hr>
 
         <div class="plan-info">
-          <h2 class="plan-title m-0"><span class="text-capitalize">{{data.plan}}</span> plan</h2>
+          <h2 class="plan-title m-0">
+            <span class="text-capitalize">{{data.plan}}</span> plan
+            {% if data.is_trial %}
+            <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7rem;">TRIAL</span>
+            {% endif %}
+            {% if data.is_expired %}
+            <span class="badge bg-danger ms-2" style="font-size: 0.7rem;">EXPIRED</span>
+            {% endif %}
+          </h2>
           {% if data.plan == 'monthly' %}
           <p class="text-muted">{{types['monthly']['price']}} / month</p>
           {% elif data.plan == 'yearly' %}
           <p class="text-muted">{{types['yearly']['price']}} / year</p>
           {% elif data.plan == 'lifetime' %}
           <p class="text-muted">{{types['lifetime']['price']}} / one time payment</p>
+          {% elif data.plan == 'trial' %}
+          <p class="text-muted">Free trial</p>
           {% endif %}
         </div>
         
         <div class="info">
           <div class="field">
             <h6 class="title">Next payment</h6>
-            <p>{{data.next_bill}} (in {{data.countdown}} days)</p>
+            <p>{{data.next_bill}} {% if data.countdown != '0' and data.countdown != 'Never' %}(in {{data.countdown}} days){% endif %}</p>
           </div>
           <div class="field">
             <h6 class="title">Amount</h6>
-            <p>{{types[data.plan]['price']}}</p>
+            <p>{% if data.plan == 'trial' %}Free{% else %}{{types[data.plan]['price']}}{% endif %}</p>
           </div>
           <div class="field">
             <h6 class="title">Paid by</h6>
@@ -56,36 +66,187 @@
             <h6 class="title">Guild Name</h6>
             <p>{{guild.name}}</p>
           </div>
+          {% if data.is_trial and data.code_expiry %}
+          <div class="field">
+            <h6 class="title">Trial expires</h6>
+            <p>{{data.next_bill}}</p>
+          </div>
+          {% endif %}
         </div>
       </div>
     </section>
 
-    {% if data.customer != '' %}
+    <!-- Manage Subscription In Stripe Portal -->
+    {% if data.customer and not data.is_trial %}
     <div class="manage-sub-wrapper">
-      <button id="manage-sub" class="alert alert-custom  d-flex justify-content-between" role="alert">
+      <button id="manage-sub" class="alert alert-custom d-flex justify-content-between" role="alert">
         <span>
           Manage your subscription
         </span>
-        <i class="bi bi-arrow-right"></i>
+        <i class="bi bi-chevron-right"></i>
       </button>
-      <script>
-        // #manage-sub
-        document.querySelector('#manage-sub').addEventListener('click', () => {
-          fetch(`/{{guild.id}}/stripe/portal`, {
+    </div>
+    {% endif %}
+
+    <!-- Transfer Button -->
+    {% if data.status and not data.is_expired and not data.is_trial %}
+    <div class="transfer-wrapper mt-2">
+      <button id="openTransferModal" class="alert alert-custom-transfer d-flex justify-content-between" role="alert" data-bs-toggle="modal" data-bs-target="#transferModal">
+        <span>
+          <i class="bi bi-arrow-left-right me-2"></i>
+          Transfer premium to another server
+        </span>
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+    {% endif %}
+
+    <!-- Cancel button -->
+    {% if data.status and not data.is_expired and not data.is_trial and not data.is_lifetime %}
+    <div class="cancel-wrapper mt-2">
+      <button id="cancel-sub" class="alert alert-custom-danger d-flex justify-content-between" role="alert">
+        <span>
+          Cancel subscription
+        </span>
+        <i class="bi bi-x-circle"></i>
+      </button>
+    </div>
+    {% endif %}
+
+    <!-- Transfer Premium Modal -->
+    <div class="modal dark" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg model-dark">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="transferModalLabel">
+              <i class="bi bi-arrow-left-right me-2"></i>
+              Transfer Premium
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="alert alert-warning mb-3" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <strong>Warning:</strong> This action cannot be undone. Premium will be removed from <strong>{{guild.name}}</strong> immediately.
+            </div>
+
+            <form id="transferForm">
+              <div class="mb-3">
+                <label for="transferGuildSelect" class="form-label">Select target server</label>
+                <select class="form-select" id="transferGuildSelect" required>
+                  <option value="">Choose a server...</option>
+                  {% if user_guilds %}
+                    {% for guild in user_guilds %}
+                      <option value="{{guild.id}}" data-name="{{guild.name}}" data-perm="{{guild.perm}}">
+                        {{guild.name}} 
+                        {% if guild.is_bot_in_guild %}
+                          <span class="badge bg-success"> - Bot is in</span>
+                        {% else %}
+                          <span class="badge bg-warning text-dark"> - Setup required</span>
+                        {% endif %}
+                        <span class="badge bg-secondary">- {{guild.perm}}</span>
+                        - ({{guild.id}})
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="" disabled>No eligible servers found</option>
+                  {% endif %}
+                </select>
+                <div class="form-text">Only servers where you have Administrator permissions are shown.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="confirmServerName" class="form-label">
+                  Type the server name to confirm: <span id="targetServerNameDisplay" class="text-warning">(select a server first)</span>
+                </label>
+                <input type="text" class="form-control" id="confirmServerName" 
+                      placeholder="Type the target server name exactly..." required disabled>
+                <div class="form-text">This prevents accidental transfers.</div>
+              </div>
+
+              <!-- Transfer Details Preview -->
+              <div id="transferPreview" class="info mt-3" style="display: none;">
+                <h6 class="mb-2">Transfer Details:</h6>
+                <div class="field">
+                  <h6 class="title">From</h6>
+                  <p><strong>{{guild.name}}</strong> ({{guild.id}})</p>
+                </div>
+                <div class="field">
+                  <h6 class="title">To</h6>
+                  <p><strong id="previewTargetName"></strong> (<span id="previewTargetId"></span>)</p>
+                </div>
+                <div class="field">
+                  <h6 class="title">Plan</h6>
+                  <p><span class="text-capitalize">{{data.plan}}</span></p>
+                </div>
+                <div class="field">
+                  <h6 class="title">Expires</h6>
+                  <p>{{data.next_bill}}</p>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="bi bi-x-circle"></i> Cancel
+            </button>
+            <button type="button" id="confirmTransferBtn" class="btn btn-warning" disabled>
+              <i class="bi bi-arrow-left-right"></i> Transfer Premium
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    // ✅ Beautiful Manage Subscription Button
+    const manageBtn = document.querySelector('#manage-sub');
+    if (manageBtn) {
+      manageBtn.addEventListener('click', () => {
+        fetch(`/{{guild.id}}/stripe/portal`, {
+          method: "POST",
+        })
+          .then((result) => result.json())
+          .then((data) => {
+            if (data.url) {
+              location.href = data.url;
+            }
+          })
+          .catch((err) => {
+            console.error('Error opening portal:', err);
+          });
+      });
+    }
+
+    // Cancel Subscription
+    const cancelBtn = document.querySelector('#cancel-sub');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to cancel your subscription? You will lose access to premium features immediately.')) {
+          fetch(`/{{guild.id}}/stripe/cancel`, {
             method: "POST",
           })
             .then((result) => result.json())
             .then((data) => {
-              location.href = data.url
+              if (data.status === 'success') {
+                location.reload();
+              } else {
+                alert('Error cancelling subscription: ' + (data.error || 'Unknown error'));
+              }
             })
-          /**/
-        })
-      </script>
-    </div>
-    {% endif %}
-  </main>
+            .catch((err) => {
+              console.error('Error cancelling:', err);
+              alert('Error cancelling subscription');
+            });
+        }
+      });
+    }
+  </script>
 
-  <script src="https://js.stripe.com/v3/"></script>
   <style>
     .plan-title {
       font-size: 1rem;
@@ -118,23 +279,93 @@
       margin: 0;
     }
 
+    /* ✅ YOUR ORIGINAL BEAUTIFUL MANAGE BUTTON - No transform */
     .manage-sub-wrapper {
       padding: 3px;
-      margin: 0 25px 25px 25px;
+      margin: 10px 25px 15px 25px;
       background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
       border-radius: 0.375rem;
+      transition: all 0.2s ease;
     }
-    
+    .manage-sub-wrapper:hover {
+      box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+      /* No transform! */
+    }
+
     .alert-custom {
       --bs-alert-color: #fff;
       --bs-alert-bg: #17181e;
-    }
-    .alert {
       width: 100%;
       margin-bottom: 0;
       border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .alert-custom:hover {
+      opacity: 0.9;
+      /* No transform! */
     }
 
+    /* Cancel button (matching style but red) */
+    .cancel-wrapper {
+      padding: 3px;
+      margin: 0 25px 15px 25px;
+      background: linear-gradient(90deg, #dc3545 0%, #ff6b6b 100%);
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+    }
+    .cancel-wrapper:hover {
+      box-shadow: 0 4px 20px rgba(220, 53, 69, 0.4);
+      /* No transform! */
+    }
+
+    /* Transfer button */
+    .transfer-wrapper {
+      padding: 3px;
+      margin: 0 25px 15px 25px;
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+    }
+    .transfer-wrapper:hover {
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    }
+
+    .alert-custom-transfer {
+      --bs-alert-color: #fff;
+      --bs-alert-bg: #17181e;
+      width: 100%;
+      margin-bottom: 0;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: white;
+    }
+    .alert-custom-transfer:hover {
+      opacity: 0.9;
+      color: white;
+    }
+
+    .alert-custom-danger {
+      --bs-alert-color: #fff;
+      --bs-alert-bg: #17181e;
+      width: 100%;
+      margin-bottom: 0;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .alert-custom-danger:hover {
+      opacity: 0.9;
+      /* No transform! */
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
   </style>
 
   {% include 'components/PremiumModal.html' %}

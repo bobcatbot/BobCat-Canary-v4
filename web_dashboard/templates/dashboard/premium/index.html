@@ -14,94 +14,49 @@
       <h1>Take your server to the next level</h1>
       <p>Unlock everything BobCat has to offer and get the most out your server!</p>
     </div>
-
+ 
     <div class="grid">
-      <div class="card-wrapper">
+      {% for plan in plans %}
+      <div class="card-wrapper" data-plan="{{plan.key}}">
         <div class="card">
           <div class="card-body">
             <div class="card-title d-flex align-items-center justify-content-start gap-2">
-              <input type="radio" id="radio-183585fe8d28" style="height: 16px;width: 16px;vertical-align: middle;" checked>
-              <h5>Monthly</h5>
+              <input type="radio" id="radio-{{plan.key}}" style="height: 16px;width: 16px;vertical-align: middle;" 
+                     {% if loop.first %}checked{% endif %}>
+              <h5>{{plan.name}}</h5>
             </div>
   
             <div class="mt-3">
-              <h3 class="m-0 fw-bold">{{types['monthly']['price']}}</h3>
-              <p class="text-muted">per month</p>
+              <h3 class="m-0 fw-bold">${{plan.price}}</h3>
+              <p class="text-muted">
+                {% if plan.mode == 'subscription' %}
+                  per month
+                {% elif plan.mode == 'payment' %}
+                  one time payment
+                {% else %}
+                  {{plan.mode}}
+                {% endif %}
+              </p>
             </div>
             
             <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
+              {% for feature in plan.features %}
               <li class="d-flex align-items-center">
                 <i class="bi bi-check icon"></i>
-                Access to our premium plugins & features
+                {{feature}}
               </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Early access
-              </li>
+              {% endfor %}
             </ul>
           </div>
         </div>
       </div>
-      
-      <div class="card-wrapper">
-        <div class="card">
-          <div class="card-body">
-            <div class="card-title d-flex align-items-center justify-content-start gap-2">
-              <input type="radio" id="radio-b6a03dad42c2" style="height: 16px;width: 16px;vertical-align: middle;">
-              <h5>Yearly</h5>
-            </div>
-  
-            <div class="mt-3">
-              <h3 class="m-0 fw-bold">{{types['yearly']['price']}}</h3>
-              <p class="text-muted">per year</p>
-            </div>
-            
-            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Access to our premium plugins & features
-              </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Early access
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-wrapper">
-        <div class="card">
-          <div class="card-body">
-            <div class="card-title d-flex align-items-center justify-content-start gap-2">
-              <input type="radio" id="radio-3fbbafc6fe6c" style="height: 16px;width: 16px;vertical-align: middle;">
-              <h5>Lifetime</h5>
-            </div>
-
-            <div class="mt-3">
-              <h3 class="m-0 fw-bold">{{types['lifetime']['price']}}</h3>
-              <p class="text-muted">one time payment</p>
-            </div>
-
-            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Access to our premium plugins & features
-              </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Early access
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
-
+ 
     <div class="prem-btns d-flex gap-2 justify-content-center mt-3">
       <button id="buy-now-btn" class="btn btn-premium">Continue to payment</button>
     </div>
-
+ 
     <section id="faq" class="pt-5">
       <div class="section-title">
         <h3 class="fw-bold">Frequently asked questions</h3>
@@ -110,9 +65,63 @@
       <div id="accordion" class="accordion mt-2">
       </div>
     </section>
+
+    <!-- Custom Checkout Modal -->
+    <div class="modal dark checkout-modal" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content checkout-content">
+          <button type="button" class="btn-close checkout-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  
+          <div class="checkout-layout">
+            <!-- Order summary -->
+            <div class="checkout-summary">
+              <div class="checkout-summary-top">
+                <span class="checkout-summary-label">Your order</span>
+                <span class="checkout-cancel" data-bs-dismiss="modal" role="button">Cancel</span>
+              </div>
+  
+              <div class="checkout-item">
+                <div class="checkout-item-info">
+                  <div class="checkout-item-name" id="checkout-plan-name">—</div>
+                  <div class="checkout-item-price" id="checkout-plan-price">—</div>
+                </div>
+              </div>
+  
+              <div class="checkout-summary-footer">
+                <div class="checkout-row">
+                  <span>Subtotal</span>
+                  <span id="checkout-subtotal">—</span>
+                </div>
+                <div class="checkout-row checkout-total">
+                  <span>Total Price</span>
+                  <span id="checkout-total">—</span>
+                </div>
+              </div>
+            </div>
+  
+            <!-- Payment form -->
+            <div class="checkout-payment">
+              <div class="checkout-tabs">
+                <span class="checkout-tab active">Make Payment</span>
+              </div>
+  
+              <div id="express-checkout-element"></div>
+              <div id="express-checkout-divider" class="checkout-divider" style="display:none;">
+                <span>or pay with card</span>
+              </div>
+  
+              <div id="payment-element"></div>
+              <div id="checkout-errors" class="checkout-errors"></div>
+  
+              <button id="checkout-pay-btn" class="btn btn-premium w-100 mt-3" disabled>Pay Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
   
-  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://js.stripe.com/clover/stripe.js"></script>
   <script>
     const cards = document.querySelectorAll('.card')
     cards.forEach((card) => {
@@ -123,7 +132,7 @@
       
       card.addEventListener('click', (e) => {
         var inputRadio = card.querySelector('[id^="radio"]')
-
+ 
         // set the previous card back to default
         cards.forEach((item) => {
           var input = item.querySelector('[id^="radio"]');
@@ -132,91 +141,231 @@
             item.closest('.card-wrapper').classList.remove('active');
           }
         });
-
+ 
         inputRadio.checked = !inputRadio.checked;
         card.closest('.card-wrapper').classList.add('active');
       })
     })
-
+ 
     const radios = document.querySelectorAll('[id^="radio"]')
     radios.forEach((radio) => {
       if (radio.checked) {
         radio.checked = true;
-
+ 
         const card = radio.closest('.card');
         card.closest('.card-wrapper').classList.add('active');
       }
     })
-
-    
-    document.querySelector('#buy-now-btn').addEventListener('click', () => {
-      const radios = document.querySelectorAll('[id^="radio"]')
-
-      const types = {
-        '183585fe8d28': 'monthly',
-        'b6a03dad42c2': 'yearly',
-        '3fbbafc6fe6c': 'lifetime'
+ 
+    // Buy Now Button - Custom Checkout (Payment Element in our own modal layout)
+    let checkoutInstance = null;
+    let checkoutActions = null;
+    const checkoutModalEl = document.querySelector('#checkoutModal');
+    let checkoutModal = null; // created lazily, see getCheckoutModal()
+    const payBtn = document.querySelector('#checkout-pay-btn');
+ 
+    function getCheckoutModal() {
+      // bootstrap.bundle.min.js is loaded with `defer`, so it may not exist yet
+      // at the moment this inline script first runs. Creating the Modal instance
+      // here (on first use, after the page has fully loaded) avoids that race.
+      if (!checkoutModal) {
+        checkoutModal = new bootstrap.Modal(checkoutModalEl);
+        checkoutModalEl.addEventListener('hidden.bs.modal', () => {
+          checkoutInstance = null;
+          checkoutActions = null;
+          document.querySelector('#express-checkout-element').innerHTML = '';
+          document.querySelector('#express-checkout-divider').style.display = 'none';
+          document.querySelector('#payment-element').innerHTML = '';
+          document.querySelector('#checkout-errors').textContent = '';
+          payBtn.disabled = true;
+          payBtn.innerHTML = 'Pay Now';
+        });
       }
-      
-      radios.forEach((radio) => {
-        if (radio.checked) {
-          const typeID = radio.id.split('-')[1]
-          const type = types[typeID]
-
-          fetch(`/{{guild.id}}/stripe/pay/${type}`, { method: "POST" })
-            .then((result) => result.json())
-            .then((data) => {
-              var stripe = Stripe(data.checkout_public_key);
-              stripe.redirectToCheckout({
-                sessionId: data.checkout_session_id,
-              }).then(function (result) {
-                // If `redirectToCheckout` fails due to a browser or network
-                // error, display the localized error message to your customer
-                // using `result.error.message`.
-                console.error(result.error.message)
-              });
-            })
-          /**/
+      return checkoutModal;
+    }
+ 
+    document.querySelector('#buy-now-btn').addEventListener('click', async function() {
+      this.disabled = true;
+      this.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Loading checkout...
+      `;
+      this.classList.add('opacity-75');
+ 
+      try {
+        const radios = document.querySelectorAll('[id^="radio"]');
+        let selectedPlan = null;
+        let selectedCard = null;
+ 
+        radios.forEach((radio) => {
+          if (radio.checked) {
+            selectedPlan = radio.id.split('-')[1];
+            selectedCard = radio.closest('.card');
+          }
+        });
+ 
+        if (!selectedPlan) {
+          throw new Error('Please select a plan');
         }
-      })
-    })
+ 
+        // Fill in the order summary from the plan card that's already on the page
+        const planName = selectedCard.querySelector('h5').textContent.trim();
+        const planPrice = selectedCard.querySelector('h3').textContent.trim();
+        document.querySelector('#checkout-plan-name').textContent = planName;
+        document.querySelector('#checkout-plan-price').textContent = planPrice;
+        document.querySelector('#checkout-subtotal').textContent = planPrice;
+        document.querySelector('#checkout-total').textContent = planPrice;
+ 
+        const response = await fetch(`/{{guild.id}}/stripe/pay/${selectedPlan}`, {
+          method: "POST"
+        });
+        const data = await response.json();
+ 
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create checkout session');
+        }
+ 
+        const stripe = Stripe(data.checkout_public_key);
+ 
+        checkoutInstance = await stripe.initCheckout({
+          clientSecret: data.checkout_client_secret,
+          elementsOptions: {
+            appearance: {
+              theme: 'night',
+              variables: {
+                colorBackground: '#17181e',
+                colorText: '#ffffff',
+                colorPrimary: '#7de97c',
+              }
+            }
+          },
+        });
+ 
+        const paymentMethodOrder = ['apple_pay', 'google_pay', 'link', 'paypal', 'card', ];
 
+        const expressCheckoutElement = checkoutInstance.createExpressCheckoutElement({
+          paymentMethodOrder,
+        });
+        expressCheckoutElement.mount('#express-checkout-element');
+ 
+        // Only show the "or pay with card" divider if a wallet button actually rendered
+        // (Apple Pay / Google Pay depend on device + browser support, so this varies per user)
+        expressCheckoutElement.on('ready', ({ availablePaymentMethods }) => {
+          // Temporary debug aid: check this in devtools if wallet buttons don't show up.
+          // Common causes: Apple Pay needs the domain verified in the Stripe Dashboard and
+          // Safari/macOS or iOS; Google Pay needs a saved card in the signed-in Google account.
+          console.log('[checkout] available wallet methods:', availablePaymentMethods);
+          const divider = document.querySelector('#express-checkout-divider');
+          divider.style.display = availablePaymentMethods ? 'flex' : 'none';
+        });
+ 
+        // Wallet buttons (Apple Pay, Google Pay, PayPal, Link) confirm through this
+        // element directly rather than the Pay Now button.
+        expressCheckoutElement.on('confirm', async () => {
+          document.querySelector('#checkout-errors').textContent = '';
+          try {
+            const result = await checkoutActions.confirm();
+            await handleConfirmResult(result, null, null);
+          } catch (err) {
+            document.querySelector('#checkout-errors').textContent = err.message;
+          }
+        });
+ 
+        const paymentElement = checkoutInstance.createPaymentElement({
+          paymentMethodOrder,
+        });
+        paymentElement.mount('#payment-element');
+ 
+        const loadActionsResult = await checkoutInstance.loadActions();
+        if (loadActionsResult.type !== 'success') {
+          throw new Error('Could not load the payment form. Please try again.');
+        }
+        checkoutActions = loadActionsResult.actions;
+ 
+        payBtn.disabled = false;
+        getCheckoutModal().show();
+ 
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Something went wrong: ' + error.message);
+      } finally {
+        this.disabled = false;
+        this.innerHTML = 'Continue to payment';
+        this.classList.remove('opacity-75');
+      }
+    });
+ 
+    async function handleConfirmResult(result, busyButton, busyLabel) {
+      const errorsEl = document.querySelector('#checkout-errors');
+      if (result.type === 'error') {
+        errorsEl.textContent = result.error.message;
+        if (busyButton) {
+          busyButton.disabled = false;
+          busyButton.innerHTML = busyLabel;
+        }
+      } else {
+        // Payment succeeded. Reload so the server-rendered page reflects the
+        // new premium status once the webhook has processed it.
+        if (busyButton) {
+          busyButton.innerHTML = 'Payment successful — activating premium...';
+        }
+        setTimeout(() => location.reload(), 1500);
+      }
+    }
+ 
+    payBtn.addEventListener('click', async function() {
+      if (!checkoutActions) return;
+ 
+      document.querySelector('#checkout-errors').textContent = '';
+      this.disabled = true;
+      this.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Processing...`;
+ 
+      try {
+        const result = await checkoutActions.confirm();
+        await handleConfirmResult(result, this, 'Pay Now');
+      } catch (err) {
+        document.querySelector('#checkout-errors').textContent = err.message;
+        this.disabled = false;
+        this.innerHTML = 'Pay Now';
+      }
+    });
+
+ 
+    // FAQ
     const faqs = JSON.parse('{{faqs | tojson}}')
     for (let i = 0; i < faqs.length; i++) {
       const accordion_item = document.createElement("div");
       accordion_item.classList = "accordion-item";
-
+ 
       const accordion_header = document.createElement("h2");
       accordion_header.classList = "accordion-header";
-
+ 
       const accordion_button = document.createElement("button");
       accordion_button.type = "button";
       accordion_button.classList = "accordion-button collapsed";
       accordion_button.setAttribute("data-bs-toggle", "collapse");
       accordion_button.setAttribute("data-bs-target", `#item-${i}`);
-
+ 
       accordion_button.innerText = `${faqs[i].title}`;
       accordion_header.appendChild(accordion_button);
       accordion_item.appendChild(accordion_header);
-
+ 
       const accordion_collapse = document.createElement("div");
       accordion_collapse.id = `item-${i}`;
       accordion_collapse.classList = "accordion-collapse collapse";
-
+ 
       const accordion_body = document.createElement("div");
       accordion_body.classList = "accordion-body";
       accordion_body.innerText = `${faqs[i].desc}`;
-
+ 
       accordion_collapse.appendChild(accordion_body);
       accordion_item.appendChild(accordion_collapse);
-
+ 
       document.querySelector("#accordion").appendChild(accordion_item);
     }
   </script>
 
   <style>
-    /* .pagetitle {
-    } */
     .pagetitle h1 {
       font-size: 32px;
       font-weight: 700;
@@ -263,6 +412,22 @@
       margin: 0;
     }
 
+    .btn-premium:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-premium .spinner-border {
+      width: 1rem;
+      height: 1rem;
+      border-width: 0.15em;
+    }
+
+    .opacity-75 {
+      opacity: 0.75;
+    }
+
     .accordion {
       --bs-accordion-color: var(--text-color);
       --bs-accordion-bg: var(--color-secondary-4);
@@ -291,8 +456,154 @@
       background-color: var(--color-secondary-4);
       box-shadow: none;
     }
+
+    /* ── Custom Checkout Modal ── */
+    .checkout-modal .modal-content.checkout-content {
+      background: #0e0f13;
+      color: #fff;
+      border-radius: 12px;
+      border: 1px solid #26272f;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .checkout-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 5;
+      filter: invert(1);
+      opacity: 0.7;
+    }
+    .checkout-close:hover {
+      opacity: 1;
+    }
+
+    .checkout-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 320px) 1fr;
+      min-height: 480px;
+    }
+    @media (max-width: 767px) {
+      .checkout-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left: order summary */
+    .checkout-summary {
+      background: #111217;
+      padding: 24px;
+      border-right: 1px solid #26272f;
+      display: flex;
+      flex-direction: column;
+    }
+    .checkout-summary-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .checkout-summary-label {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .checkout-cancel {
+      font-size: 0.85rem;
+      text-decoration: underline;
+      color: #9aa0aa;
+      cursor: pointer;
+    }
+    .checkout-cancel:hover {
+      color: #fff;
+    }
+
+    .checkout-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #26272f;
+    }
+    .checkout-item-name {
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+    }
+    .checkout-item-price {
+      color: #9aa0aa;
+      font-size: 0.85rem;
+      margin-top: 2px;
+    }
+
+    .checkout-summary-footer {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid #26272f;
+    }
+    .checkout-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: #9aa0aa;
+      margin-bottom: 8px;
+    }
+    .checkout-row.checkout-total {
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.05rem;
+      border-top: 1px solid #26272f;
+      padding-top: 10px;
+      margin-top: 4px;
+    }
+
+    /* Right: payment form */
+    .checkout-payment {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+    }
+    .checkout-tabs {
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      color: #9aa0aa;
+    }
+    .checkout-tab.active {
+      color: var(--premium, #7de97c);
+      font-weight: 700;
+    }
+
+    #payment-element {
+      min-height: 220px;
+    }
+
+    #express-checkout-element {
+      margin-bottom: 12px;
+    }
+
+    .checkout-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #9aa0aa;
+      font-size: 0.8rem;
+      margin: 4px 0 16px 0;
+    }
+    .checkout-divider::before,
+    .checkout-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #26272f;
+    }
+
+    .checkout-errors {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      min-height: 18px;
+    }
   </style>
-  
-  {% include 'components/PremiumModal.html' %}
 </body>
 </html>
