@@ -347,7 +347,7 @@
       type: 'role',
       multiple: true,
       maxItems: 0,
-      options: ['{{data["manager_roles"] | tojson}}']
+      options: JSON.parse('{{data["manager_roles"] | tojson}}')
     });
 
     // Category select

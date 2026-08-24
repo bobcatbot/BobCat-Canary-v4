@@ -30,7 +30,7 @@ class Owner(commands.Cog):
 
     dev_command = discord.SlashCommandGroup(name="dev", description="Developer only commands", guild_ids=v.guild_ids, checks=[is_dev().predicate])
     
-    @dev_command.command(name="guilds", description="Gets all the guilds the bot is in") # TODO: Fix this
+    @dev_command.command(name="guilds", description="Gets all the guilds the bot is in")
     async def guilds(self, ctx):
         embed1 = discord.Embed(
             colour=0xed5757, 
@@ -84,7 +84,7 @@ class Owner(commands.Cog):
         )
         await ctx.respond(embed=embedCMD)
     
-    @dev_command.command(name="reload", description="Reloads all the cogs") # TODO: Fix this
+    @dev_command.command(name="reload", description="Reloads all the cogs")
     async def _reboot(self, ctx):
         rl_ac = discord.Embed(title="Reloading all cogs", colour=0xed5757)
         msg = await ctx.respond(embed=rl_ac)

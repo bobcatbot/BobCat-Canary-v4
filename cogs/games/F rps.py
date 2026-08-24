@@ -390,26 +390,6 @@ class RPSGame(commands.Cog):
             await msg.edit(embed=result_embed, view=None)
         else:
             await ctx.send(embed=result_embed)
-            
-    @commands.command(name="rps_stats", aliases=["rpsstats"])
-    async def rps_stats(self, ctx, member: Optional[discord.Member] = None):
-        """View your Rock Paper Scissors statistics."""
-        target = member or ctx.author
-        stats = self.scores.get(target.id, {"wins": 0, "losses": 0, "ties": 0})
-        
-        embed = discord.Embed(
-            title=f"📊 RPS Stats for {target.display_name}",
-            color=discord.Color.blue()
-        )
-        embed.add_field(name="🏆 Wins", value=stats["wins"], inline=True)
-        embed.add_field(name="💔 Losses", value=stats["losses"], inline=True)
-        embed.add_field(name="🤝 Ties", value=stats["ties"], inline=True)
-        
-        total = stats["wins"] + stats["losses"] + stats["ties"]
-        win_rate = f"{stats['wins']/total*100:.1f}%" if total > 0 else "No games played"
-        embed.add_field(name="📈 Win Rate", value=win_rate, inline=True)
-        
-        await ctx.send(embed=embed)
 
 def setup(client):
     client.add_cog(RPSGame(client))

@@ -6,7 +6,6 @@ from discord.ext import commands
 class GamesCoinfilp(commands.Cog):
     def __init__(self, client):
         self.client = client
-    # TODO: support economy plugin
 
     @commands.slash_command(description="Lets you flip a coin for Heads/Tails")
     async def coinflip(self, ctx):

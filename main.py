@@ -159,6 +159,3 @@ async def start() -> None:
 
 if __name__ == "__main__":
     asyncio.run(start())
-
-
-# TODO: Read C:\Users\Tyler\BobCatBot\BobCat-Canary-v4 - Depricated\forms-limits-explanation.md

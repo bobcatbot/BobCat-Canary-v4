@@ -28,7 +28,6 @@ class DashConfig(BaseModel):
     giveaways: Dict[str, Any] = Field(default_factory=dict)
     economy: Dict[str, Any] = Field(default_factory=dict)
 
-    # TODO: add these
     # sticky_messages: Dict[str, Any] = Field(default_factory=dict)
 
 # =========================================================

@@ -7,7 +7,6 @@ from discord.ext import commands
 class GamesDiceroll(commands.Cog):
     def __init__(self, client):
         self.client = client
-    # TODO: support economy plugin
 
     @commands.slash_command(description="Rolls a 6 sided dice")
     async def diceroll(self, ctx):
