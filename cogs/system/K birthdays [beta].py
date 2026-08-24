@@ -1,51 +1,179 @@
 import discord
 import datetime
 from discord.ext import commands, tasks
-import pytz
 from modules import bot as v
-
+from modules.models import Birthday, Guild
 
 def ordinal(n):
     if 10 <= n % 100 <= 20:
-        suffix = 'th'
+        suffix = "th"
     else:
-        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
 
-def next_birthday(date: datetime.datetime) -> datetime.datetime:
-    """Returns the next occurrence of a birthday from today."""
-    now = datetime.datetime.now()
+def next_birthday(date: datetime.datetime, now: datetime.datetime = None) -> tuple[datetime.datetime, int]:
+    """Returns the next occurrence of a birthday and the age they'll be."""
+    if now is None:
+        now = datetime.datetime.now()
+    
+    # FIX: Make date timezone-aware if now has timezone
+    if now.tzinfo and date.tzinfo is None:
+        date = date.replace(tzinfo=now.tzinfo)
+    
     next_bd = date.replace(year=now.year)
+    age = now.year - date.year
+    
     if next_bd < now:
         next_bd = next_bd.replace(year=now.year + 1)
-    return next_bd
+        age = now.year + 1 - date.year
+    
+    return next_bd, age
 
-def get_bdays(guild_id) -> dict:
-    return v.db.get_server_config(guild_id)["birthdays"]
+def get_bdays(guild_id) -> list[Birthday]:
+    return Birthday.find(Birthday.guild_id == str(guild_id)).run()
 
-
-# ── Background Tasks ──────────────────────────────────────────────────────────
-class Birthdays(commands.Cog):
+class BirthdayTimers(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
         self.birthday_check.start()
         self.role_reset.start()
+        self.birthday_reminder.start()
 
     def cog_unload(self):
         self.birthday_check.cancel()
         self.role_reset.cancel()
+        self.birthday_reminder.cancel()
 
     @tasks.loop(minutes=1)
     async def birthday_check(self):
-        now = datetime.datetime.now()
-
+        """Check for birthdays every minute (respecting timezones via v.datetimes)."""
         for guild in self.client.guilds:
-            dash = v.db.get_dash(guild.id)
-            if not dash:
+            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+
+            if not config.get("status"):
                 continue
 
-            config = dash["birthdays"]
-            if not config.get("status"):
+            # FIX: v.datetimes returns a timezone, use it with datetime.now()
+            tz = v.datetimes(guild.id)
+            now = datetime.datetime.now(tz)
+
+            channel_id = config.get("channel_id")
+            if not channel_id:
+                continue
+
+            channel = guild.get_channel(int(channel_id))
+            if not channel:
+                continue
+
+            birthdays = get_bdays(guild.id)
+
+            for birthday in birthdays:
+                if birthday.wished or not birthday.date:
+                    continue
+
+                date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
+                
+                # Check if it's their birthday in the guild's timezone
+                if now.day != date.day or now.month != date.month:
+                    continue
+
+                member = guild.get_member(int(birthday.user_id))
+                if not member:
+                    continue
+
+                # Calculate actual age
+                age = now.year - date.year
+
+                # Assign birthday role
+                birthday_role_id = config.get("birthday_role")
+                if birthday_role_id:
+                    role = guild.get_role(int(birthday_role_id))
+                    if role:
+                        # ✅ Check bot permissions first
+                        if guild.me.guild_permissions.manage_roles:
+                            if role.position < guild.me.top_role.position:
+                                try:
+                                    await member.add_roles(role, reason="Birthday!")
+                                except discord.Forbidden:
+                                    print(f"❌ Could not add birthday role to {member} in {guild.name}")
+                                except Exception as e:
+                                    print(f"❌ Error adding birthday role: {e}")
+                            else:
+                                print(f"⚠️ Birthday role {role.name} is above bot's highest role")
+                        else:
+                            print(f"⚠️ Bot missing manage_roles permission in {guild.name}")
+
+                # Send birthday message
+                message_template = config.get("message", "🎉 Happy Birthday {user}! You are now {age} years old! 🎂")
+                await channel.send(v.render_placeholders(
+                    message_template,
+                    user=member,
+                    age=age,
+                    server=guild.name
+                ))
+
+                # Send DM if enabled
+                if config.get("dm", False):
+                    try:
+                        await member.send(f"🎉 Happy Birthday {member.display_name}! 🎂\n\nHope you have an amazing day! 🎈")
+                    except:
+                        pass
+
+                birthday.wished = True
+                birthday.wished_at = now.isoformat()
+                birthday.age = age
+                birthday.save()
+
+    @tasks.loop(hours=1)
+    async def role_reset(self):
+        """Removes birthday role at end of birthday (midnight in guild timezone)."""
+        for guild in self.client.guilds:
+            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+            birthday_role_id = config.get("birthday_role")
+            
+            if not birthday_role_id:
+                continue
+                
+            # FIX: v.datetimes returns a timezone, use it with datetime.now()
+            tz = v.datetimes(guild.id)
+            now = datetime.datetime.now(tz)
+
+            # Only run at midnight (or close to it)
+            if now.hour != 0 or now.minute > 5:
+                continue
+
+            birthdays = get_bdays(guild.id)
+            role = guild.get_role(int(birthday_role_id))
+            
+            if not role:
+                continue
+
+            for birthday in birthdays:
+                if not birthday.wished or not birthday.wished_at:
+                    continue
+
+                wished_at = datetime.datetime.fromisoformat(birthday.wished_at)
+                
+                # If it's past midnight after their birthday, remove role
+                if wished_at.date() < now.date():
+                    member = guild.get_member(int(birthday.user_id))
+                    if member and role in member.roles:
+                        try:
+                            await member.remove_roles(role, reason="Birthday over")
+                        except:
+                            pass
+
+                    birthday.wished = False
+                    birthday.wished_at = None
+                    birthday.save()
+
+    @tasks.loop(hours=12)
+    async def birthday_reminder(self):
+        """Send reminder 1 day before someone's birthday."""
+        for guild in self.client.guilds:
+            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+
+            if not config.get("status") or not config.get("reminder", False):
                 continue
 
             channel_id = config.get("channel_id")
@@ -56,105 +184,71 @@ class Birthdays(commands.Cog):
             if not channel:
                 continue
 
-            bdays = v.db.get_server_config(guild.id)["birthdays"]
+            tz = v.datetimes(guild.id)
+            now = datetime.datetime.now(tz)
 
-            for user_id, birthday in bdays.items():
-                # Skip if already wished today
-                if birthday.get("wished", False):
+            birthdays = get_bdays(guild.id)
+
+            for birthday in birthdays:
+                if not birthday.date:
                     continue
 
-                date = datetime.datetime.strptime(birthday["date"], "%Y-%m-%d")
-                if now.day != date.day or now.month != date.month:
+                date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
+                
+                # Check if birthday is tomorrow
+                next_bd, age = next_birthday(date, now)
+                days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
+                
+                if days_away != 1:
                     continue
 
-                member = guild.get_member(int(user_id))
+                member = guild.get_member(int(birthday.user_id))
                 if not member:
                     continue
 
-                # Add birthday role if configured
-                birthday_role_id = config.get("birthday_role")
-                if birthday_role_id:
-                    role = guild.get_role(int(birthday_role_id))
-                    if role:
-                        await member.add_roles(role)
+                # Check if we already sent reminder
+                if birthday.reminded:  # ✅ Now works because field exists
+                    continue
 
-                age = now.year - date.year
-                await channel.send(config["message"].format(user=member, age=age))
+                await channel.send(f"🎈 Reminder: {member.mention} has their birthday **tomorrow**! ({next_bd.strftime('%d %B')})")
+                
+                birthday.reminded = True  # ✅ Now works because field exists
+                birthday.save()
 
-                # Single atomic write
-                v.db.update_server_config(guild.id, key=f"birthdays.{user_id}", value={
-                    **birthday,
-                    "wished": True,
-                    "wished_at": now.strftime("%Y-%m-%d %H:%M:%S")
-                })
     @birthday_check.before_loop
     async def before_birthday_check(self):
         await self.client.wait_until_ready()
 
-    @tasks.loop(hours=24)
-    async def role_reset(self):
-        """Removes birthday role 24 hours after it was assigned."""
-        now = datetime.datetime.now()
-
-        for guild in self.client.guilds:
-            dash = v.db.get_dash(guild.id)
-            if not dash:
-                continue
-
-            config = dash["birthdays"]
-            birthday_role_id = config.get("birthday_role")
-            bdays = v.db.get_server_config(guild.id)["birthdays"]
-
-            for user_id, birthday in bdays.items():
-                if not birthday.get("wished", False):
-                    continue
-
-                # Guard against None wished_at
-                wished_at_str = birthday.get("wished_at")
-                if not wished_at_str:
-                    continue
-
-                wished_at = datetime.datetime.strptime(wished_at_str, "%Y-%m-%d %H:%M:%S")
-                if (now - wished_at).total_seconds() < 86400:
-                    continue
-
-                # Remove birthday role if configured
-                if birthday_role_id:
-                    member = guild.get_member(int(user_id))
-                    if member:
-                        role = guild.get_role(int(birthday_role_id))
-                        if role:
-                            await member.remove_roles(role)
-
-                # Single atomic write
-                v.db.update_server_config(guild.id, key=f"birthdays.{user_id}", value={
-                    **birthday,
-                    "wished": False,
-                    "wished_at": None
-                })
     @role_reset.before_loop
     async def before_role_reset(self):
         await self.client.wait_until_ready()
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+    @birthday_reminder.before_loop
+    async def before_birthday_reminder(self):
+        await self.client.wait_until_ready()
+
 class BirthdayCommands(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
 
     @commands.slash_command(name="birthdays", description="Show all birthdays for the current month")
     async def birthdays(self, ctx: discord.ApplicationContext):
-        bdays = get_bdays(ctx.guild.id)
-        now = datetime.datetime.now()
-
+        birthdays = get_bdays(ctx.guild.id)
+        tz = v.datetimes(ctx.guild.id)
+        now = datetime.datetime.now(tz)
         entries = []
-        for user_id, birthday_info in bdays.items():
-            birthday_date = datetime.datetime.strptime(birthday_info["date"], "%Y-%m-%d")
+
+        for birthday in birthdays:
+            if not birthday.date:
+                continue
+
+            birthday_date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
             if birthday_date.month != now.month:
                 continue
 
-            user = ctx.guild.get_member(int(user_id))
-            username = user.mention if user else f"<@{user_id}>"
-            age = now.year - birthday_date.year
+            user = ctx.guild.get_member(int(birthday.user_id))
+            username = user.mention if user else f"<@{birthday.user_id}>"
+            age = birthday.age or (now.year - birthday_date.year)
             entries.append(f"**{birthday_date.strftime('%d %B')}** — {username} ({ordinal(age)})")
 
         if not entries:
@@ -162,28 +256,30 @@ class BirthdayCommands(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title=f"Birthdays in {now.strftime('%B')}",
+            title=f"🎂 Birthdays in {now.strftime('%B')}",
             description="\n".join(entries)
         )
         await ctx.respond(embed=embed)
 
     @commands.slash_command(name="next-birthdays", description="Shows the next 10 upcoming birthdays")
     async def next_birthdays(self, ctx: discord.ApplicationContext):
-        bdays = get_bdays(ctx.guild.id)
+        birthdays = get_bdays(ctx.guild.id)
 
-        if not bdays:
+        if not birthdays:
             return await ctx.respond("I don't know **any** birthdays **yet**.", ephemeral=True)
 
-        now = datetime.datetime.now()
+        tz = v.datetimes(ctx.guild.id)
+        now = datetime.datetime.now(tz)
         entries = []
 
-        for user_id, birthday_info in bdays.items():
-            birthday_date = datetime.datetime.strptime(birthday_info["date"], "%Y-%m-%d")
-            next_bd = next_birthday(birthday_date)  # sort by upcoming date, not birth year
+        for birthday in birthdays:
+            if not birthday.date:
+                continue
 
-            user = ctx.guild.get_member(int(user_id))
-            username = user.mention if user else f"<@{user_id}>"
-            age = next_bd.year - birthday_date.year
+            birthday_date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
+            next_bd, age = next_birthday(birthday_date, now)
+            user = ctx.guild.get_member(int(birthday.user_id))
+            username = user.mention if user else f"<@{birthday.user_id}>"
             entries.append((next_bd, f"**{next_bd.strftime('%d %B')}** — {username} ({ordinal(age)})"))
 
         entries.sort(key=lambda x: x[0])
@@ -191,8 +287,8 @@ class BirthdayCommands(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title="Upcoming Birthdays",
-            description="\n".join(e[1] for e in top10)
+            title="📅 Upcoming Birthdays",
+            description="\n".join(entry[1] for entry in top10)
         )
         await ctx.respond(embed=embed)
 
@@ -200,19 +296,20 @@ class BirthdayCommands(commands.Cog):
     @discord.option("member", description="The member to view", required=False)
     async def view_birthday(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         member = member or ctx.author
-        bdays = get_bdays(ctx.guild.id)
+        birthday = Birthday.get(f"{ctx.guild.id}_{member.id}").run()
 
-        if not bdays.get(str(member.id)):
-            return await ctx.respond(
-                embed=discord.Embed(color=v.style(ctx.guild.id), description=f"{member.mention} has no birthday set."),
-                ephemeral=True
+        if birthday is None or not birthday.date:
+            embed = discord.Embed(
+                color=v.style(ctx.guild.id),
+                description=f"{member.mention} has no birthday set."
             )
+            return await ctx.respond(embed=embed, ephemeral=True)
 
-        birthday = bdays[str(member.id)]
-        date = datetime.datetime.strptime(birthday["date"], "%Y-%m-%d")
-        next_bd = next_birthday(date)
-        age = next_bd.year - date.year
-        days_away = (next_bd - datetime.datetime.now()).days + 1
+        tz = v.datetimes(ctx.guild.id)
+        now = datetime.datetime.now(tz)
+        date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
+        next_bd, age = next_birthday(date, now)
+        days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
@@ -225,53 +322,64 @@ class BirthdayCommands(commands.Cog):
     @discord.option("member", description="The member to set the birthday of", required=False)
     async def set_birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member = None):
         member = member or ctx.author
-        bdays = get_bdays(ctx.guild.id)
-
-        if bdays.get(str(member.id)):
-            return await ctx.respond(
-                embed=discord.Embed(color=v.style(ctx.guild.id), description=f"{member.mention} already has a birthday set."),
-                ephemeral=True
+        
+        existing = Birthday.get(f"{ctx.guild.id}_{member.id}").run()
+        if existing is not None:
+            embed = discord.Embed(
+                color=v.style(ctx.guild.id),
+                description=f"{member.mention} already has a birthday set."
             )
+            return await ctx.respond(embed=embed, ephemeral=True)
 
-        # Validate date format
         try:
             parsed = datetime.datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
-            return await ctx.respond(
-                embed=discord.Embed(color=v.error, description="❌ Invalid date format. Please use `YYYY-MM-DD`."),
-                ephemeral=True
+            embed = discord.Embed(
+                color=v.error,
+                description="❌ Invalid date format. Please use `YYYY-MM-DD`."
             )
+            return await ctx.respond(embed=embed, ephemeral=True)
 
-        next_bd = next_birthday(parsed)
-        age = next_bd.year - parsed.year
-        days_away = (next_bd - datetime.datetime.now()).days + 1
+        # Prevent setting birthday in the future (can't be born tomorrow)
+        tz = v.datetimes(ctx.guild.id)
+        now = datetime.datetime.now(tz)
+        if parsed > now:
+            return await ctx.respond("❌ Birthday can't be in the future!", ephemeral=True)
 
-        v.db.update_server_config(ctx.guild.id, key=f"birthdays.{member.id}", value={
-            "date": parsed.strftime("%Y-%m-%d"),
-            "wished": False,
-            "wished_at": None
-        })
+        next_bd, age = next_birthday(parsed, now)
+        days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
+
+        Birthday(
+            id=f"{ctx.guild.id}_{member.id}",
+            guild_id=str(ctx.guild.id),
+            user_id=str(member.id),
+            date=parsed.strftime("%Y-%m-%d"),
+            age=age,
+            wished=False,
+            wished_at=None,
+            reminded=False
+        ).insert()
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            description=f"Duly noted, I'll wish {member.mention}'s **{ordinal(age)}** birthday in **{days_away}** days on **{parsed.strftime('%d %B %Y')}**."
+            description=f"📝 Duly noted, I'll wish {member.mention}'s **{ordinal(age)}** birthday in **{days_away}** days on **{parsed.strftime('%d %B %Y')}**."
         )
         await ctx.respond(embed=embed)
 
     @commands.slash_command(name="remove-birthday", description="Remove your birthday")
     async def remove_birthday(self, ctx: discord.ApplicationContext):
-        bdays = get_bdays(ctx.guild.id)
+        birthday = Birthday.get(f"{ctx.guild.id}_{ctx.author.id}").run()
 
-        if not bdays.get(str(ctx.author.id)):
-            return await ctx.respond(
-                embed=discord.Embed(color=v.style(ctx.guild.id), description="You have no birthday set."),
-                ephemeral=True
+        if birthday is None:
+            embed = discord.Embed(
+                color=v.style(ctx.guild.id),
+                description="You have no birthday set."
             )
+            return await ctx.respond(embed=embed, ephemeral=True)
 
-        bdays.pop(str(ctx.author.id))
-        v.db.update_server_config(ctx.guild.id, key="birthdays", value=bdays)
-        await ctx.respond("I will no longer wish **your** birthday.", ephemeral=True)
+        birthday.delete()
+        await ctx.respond("✅ I will no longer wish **your** birthday.", ephemeral=True)
 
 def setup(client):
-    client.add_cog(Birthdays(client))
+    client.add_cog(BirthdayTimers(client))
     client.add_cog(BirthdayCommands(client))

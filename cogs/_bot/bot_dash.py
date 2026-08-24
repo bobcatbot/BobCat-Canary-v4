@@ -1,43 +1,12 @@
 import discord
-from modules import bot as v
 from discord.ext import commands
+from modules import bot as v
+from modules.models import Guild, Leveling as LevelingModel
 
-def init_database(guild: discord.Guild):
-    warn_users = {}
-    lvl_users = {}
-    eco_users = {}
-    
-    for member in guild.members:
-        if member.bot:
-            continue
-        
-        warn_users[f"{member.id}"] = []
-        
-        lvl_users[f"{member.id}"] = {}
-        lvl_users[f"{member.id}"]["exp"] = 0
-        lvl_users[f"{member.id}"]["lvl"] = 0
-
-        eco_users[f"{member.id}"] = {}
-        eco_users[f"{member.id}"]["wallet"] = 0
-        eco_users[f"{member.id}"]["bank"] = 0
-        eco_users[f"{member.id}"]["bag"] = []
-
-    guild_data = {
-        "moderation": {
-            "warnings": warn_users
-        },
-        "economy": eco_users,
-        "leveling": lvl_users,
-        'starboards': [],
-        'suggestions': [],
-        'giveaways': [],
-        'forms': [],
-        'tickets': [],
-        'temporary_channels': [],
-        'birthdays': {},
-    }
-    
-    dashboard_data = {
+def _default_dashboard() -> dict:
+    """Default `dashboard` (Dash) config for a brand new guild.
+    Keys here must match DashConfig's fields in models.py exactly."""
+    return {
         "welcome": {
             'status': False,
             'join': {
@@ -54,85 +23,52 @@ def init_database(guild: discord.Guild):
                 'channel': None,
                 'message': {'type': 'text', 'content': '**{user}** just left the server. Bye!'},
             },
-            'autoRoles': {
-                'status': False,
-                'roles': []
-            }
+            'autoRoles': {'status': False, 'roles': []},
         },
         "moderation": {
             'status': False,
             'automod': {
-                'Timeout': { 'enabled': False },
-                'ServerInvites': { 'enabled': False },
-                'Externallinks': { 'enabled': False },
-                'GhostPing': { 'enabled': False },
+                'Timeout': {'enabled': False},
+                'ServerInvites': {'enabled': False},
+                'Externallinks': {'enabled': False},
+                'GhostPing': {'enabled': False},
             },
-            'settings': { # ['server', 'action', 'mod', 'reason']
-                'kick': { 'dm': [] },
-                'ban':  { 'dm': [], 'deleteMessageDays': '0' },
-                'mute': { 'dm': [], 'type': 'timeout', 'duration': '60-sec'},
-                'warn': { 'dm': [] }
+            'settings': {
+                'kick': {'dm': []},
+                'ban': {'dm': [], 'deleteMessageDays': '0'},
+                'mute': {'dm': [], 'type': 'timeout', 'duration': '60-sec'},
+                'warn': {'dm': []},
             },
             'logging': {
                 "channel": None,
                 "bots": False,
                 "events": {
-                    'ModerationKick': False, 'ModerationBan': False, 'ModerationUnban': False, 'ModerationMute': False, 'ModerationUnmute': False, 'ModerationWarn': False,
+                    'ModerationKick': False, 'ModerationBan': False, 'ModerationUnban': False,
+                    'ModerationMute': False, 'ModerationUnmute': False, 'ModerationWarn': False,
                     'ModerationUnwarn': False,
                     'Verification': False,
-                    'MemberJoin': False, 'MemberLeave': False, 'MemberUpdate': False, 'MemberBan': False, 'MemberUnban': False, 
-                    'MessageDelete': False, 'MessageEdit': False, 
-                    'ServerUpdate': False, 'ServerInviteCreate': False, 'ServerInviteDelete': False, 'ServerEmojis': False, 
-                    'ChannelCreate': False, 'ChannelDelete': False, 'ChannelUpdate': False, 
-                    'RoleCreate': False, 'RoleDelete': False, 'RoleUpdate': False, 
-                }
-            }
+                    'MemberJoin': False, 'MemberLeave': False, 'MemberUpdate': False,
+                    'MemberBan': False, 'MemberUnban': False,
+                    'MessageDelete': False, 'MessageEdit': False,
+                    'ServerUpdate': False, 'ServerInviteCreate': False, 'ServerInviteDelete': False,
+                    'ServerEmojis': False,
+                    'ChannelCreate': False, 'ChannelDelete': False, 'ChannelUpdate': False,
+                    'RoleCreate': False, 'RoleDelete': False, 'RoleUpdate': False,
+                },
+            },
         },
         "leveling": {
             'status': False,
             'channel': None,
-            'message': {
-                'status': 'CurrentChannel', 
-                'content': 'Congrats, {user} You has reached level {level}'
-            },
-            'roleRewards': {
-                "stacked": False,
-                "roles": []
-            },
-            'leaderboard': {
-                'public': False,
-                'url': '',
-                'banner': ''
-            },
+            'message': {'status': 'CurrentChannel', 'content': 'Congrats, {user} You has reached level {level}'},
+            'roleRewards': {"stacked": False, "roles": []},
+            'leaderboard': {'public': False, 'url': '', 'banner': ''},
             'card': 'blurple-rank.png',
             'economy': False,
             'auto_reset': True,
             'cooldown': 60,
             'max_level': 0,
             'noXP': [],
-        },
-        "economy": {
-            'status': False,
-            'shop': [
-                {"name": "Teddy", "price": 50, "icon": "🧸", "description": "Very sot cuddly teddy bear", "type": "string", "max_limit": 5},
-                {"name": "Watch", "price": 100, "icon": "⌚", "description": "A thing to tell the time", "type": "string", "max_limit": 5},
-                {"name": "Phone", "price": 500, "icon": "📱", "description": "A phone", "type": "string", "max_limit": 5},
-                {"name": "Laptop", "price": 1000, "icon": "💻", "description": "A nice laptop for work and play", "type": "string", "max_limit": 5},
-            ],
-            'name': 'BobCat Coin',
-            'icon': '🪙',
-            'MaxGambling': '250',
-            'MaxPayment': '500'
-        },
-        "starboard": {
-            'status': False,
-            'channel': None,
-            'emoji': '⭐',
-            'limit': '3',
-            'jumpLink': True,
-            'selfStar': False,
-            'locked': False,
-            'ignore': []
         },
         "verification": {
             'status': False,
@@ -145,66 +81,85 @@ def init_database(guild: discord.Guild):
                     "title": "Verification",
                     "desc": "To enter this server and see all channels, you must first prove that you are human. \nClick on the button below to start...",
                     "color": "#5865f2",
-                    "author": {
-                        "name": ""
-                    },
-                    "footer": {
-                        "text": ""
-                    }
+                    "author": {"name": ""},
+                    "footer": {"text": ""},
                 },
-                "btn": {
-                    "emoji": "\u2705",
-                    "title": "Verify",
-                    "color": "green"
-                }
+                "btn": {"emoji": "\u2705", "title": "Verify", "color": "green"},
             },
             "message_id": "",
-            "message_published": False
+            "message_published": False,
         },
-        "giveaway": {
+        "starboard": {
             'status': False,
+            'channel': None,
+            'emoji': '⭐',
+            'limit': '3',
+            'jumpLink': True,
+            'selfStar': False,
+            'locked': False,
+            'ignore': [],
         },
-        "forms": {
-            'status': False,
-        },
-        "ticketing": {
-            'status': False,
-            'panels': []
-        },
-        "temporary_channels": {
-            'status': False,
-            'hubs': []
-        },
+        "forms": { 'status': False, },
+        "temporary_channels": {'status': False, 'hubs': []},
+        "ticketing": {'status': False, 'panels': []},
         "birthdays": {
             "status": False,
             "channel_id": "",
             "message_hour": "0",
             "birthday_role": "",
-            "message": "**Happy birthday, {user.mention}!** They are now {age} years old."
-        }
+            "message": "**Happy birthday, {user.mention}!** They are now {age} years old.",
+        },
+        "giveaways": {},
+        "economy": {
+            'status': False,
+            'shop': [
+                {"name": "Teddy", "price": 50, "icon": "🧸", "description": "Very soft cuddly teddy bear", "type": "string", "max_limit": 5},
+                {"name": "Watch", "price": 100, "icon": "⌚", "description": "A thing to tell the time", "type": "string", "max_limit": 5},
+                {"name": "Phone", "price": 500, "icon": "📱", "description": "A phone", "type": "string", "max_limit": 5},
+                {"name": "Laptop", "price": 1000, "icon": "💻", "description": "A nice laptop for work and play", "type": "string", "max_limit": 5},
+            ],
+            'name': 'BobCat Coin',
+            'icon': '🪙',
+            'MaxGambling': '250',
+            'MaxPayment': '500',
+        },
+        "stats": {"status": False, "counters": []},
     }
+
+def init_database(guild: discord.Guild) -> bool:
+    """Creates the Guild document for a new server. No-op if one already exists."""
+    if Guild.get(str(guild.id)).run() is not None:
+        return False
 
     admin_roles = [str(role.id) for role in guild.roles if role.permissions.administrator]
 
-    config = {
-        "_id": f'{guild.id}',
-        "premium": {
-            "status": False,
-        },
-        "settings": {
+    Guild(
+        id=str(guild.id),
+        premium={"status": False},
+        settings={
             'language': guild.preferred_locale,
             'timezone': "UTC",
             'color': "#5865f2",
             "admin_roles": admin_roles,
             "bot_masters": [],
-            "moderator_roles": [], 
+            "moderator_roles": [],
         },
-        "notifications": [],
-        "Bot": guild_data,
-        "Dash": dashboard_data
-    }
-    v.db.create_server_config(config)
+        dashboard=_default_dashboard(),
+    ).insert()
+
     return True
+
+def sync_admin_roles(guild: discord.Guild) -> None:
+    """Keeps settings.admin_roles in line with which roles actually
+    have the Administrator permission right now."""
+    doc = Guild.get(str(guild.id)).run()
+    if doc is None:
+        return
+
+    doc.settings["admin_roles"] = [
+        str(role.id) for role in guild.roles if role.permissions.administrator
+    ]
+    doc.save()
 
 class GuildEvents(commands.Cog):
     def __init__(self, client):
@@ -212,11 +167,9 @@ class GuildEvents(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # Ensure all guilds are initialized
         for guild in self.client.guilds:
-            if not v.db.get_server_config(guild):
-                init_database(guild)
-    
+            init_database(guild)  # no-op if the guild already has a doc
+
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         init_database(guild)
@@ -231,55 +184,45 @@ class GuildEvents(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
-        guild = after
+        sync_admin_roles(after)
 
-        admin_roles = [
-            str(role.id)
-            for role in guild.roles
-            if role.permissions.administrator
-        ]
-        v.db.update_server_config(after, key="settings.admin_roles", value=admin_roles)
-    
+    @commands.Cog.listener()
+    async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
+        if before.permissions.administrator == after.permissions.administrator:
+            return
+        sync_admin_roles(after.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_role_delete(self, role: discord.Role):
+        sync_admin_roles(role.guild)
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         if member.bot:
             return
 
-        guild = member.guild
-        uid = str(member.id)
-
-        data = v.db.get_server_config(guild)
-        if not data:
-            init_database(guild)
-            data = v.db.get_server_config(guild)
-
-        data["moderation"]["warnings"][uid] = []
-        data["leveling"][uid] = {"exp": 0, "lvl": 0}
-        data["economy"][uid] = {"wallet": 0, "bank": 0, "bag": []}
-
-        # Single atomic write
-        v.db.update_server_config(guild, key="Bot", value=data)
+        # Per-user data (leveling/economy/warnings) is created lazily on
+        # first use by their own cogs — nothing to pre-populate here.
+        if Guild.get(str(member.guild.id)).run() is None:
+            init_database(member.guild)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         if member.bot:
             return
 
-        guild = member.guild
-        user_id = str(member.id)
-
-        dash = v.db.get_dash(guild.id)
-        if not dash.get("leveling", {}).get("auto_reset"):
+        doc = Guild.get(str(member.guild.id)).run()
+        if doc is None:
             return
 
-        config = v.db.get_server_config(guild)
-        leveling_data = config.get("leveling", {})
-
-        removed = leveling_data.pop(user_id, None)
-        if removed is None:
+        # Safely get the leveling config
+        leveling_config = getattr(doc.dashboard, "leveling", {})
+        if not leveling_config.get("auto_reset", False):
             return
-        
-        v.db.update_server_config(guild, key="leveling", value=leveling_data)
+
+        lvl = LevelingModel.get(f"{member.guild.id}_{member.id}").run()
+        if lvl is not None:
+            lvl.delete()
 
 def setup(client):
     client.add_cog(GuildEvents(client))

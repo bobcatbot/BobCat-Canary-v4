@@ -1,47 +1,164 @@
-import os
+import asyncio
+import time
 import discord
+import traceback
+import pathlib
+from bunnet import init_bunnet
+from pymongo import MongoClient
 from datetime import datetime
 from modules import bot as v
-from web_dashboard.index import run_dashboard
+from modules.models import ALL_MODELS
+from web_dashboard.index import serve_dashboard
 
 client = v.client
 
-client.shard_uptime = {}  # {shard_id: datetime}
+client.shard_uptime = {}
+client.bunnet_initialized = False
 
-async def on_ready():
-    print(f'{client.user.name} has connected to Discord')
-    print("Shards: ", len(client.shards))
+async def initialise_database() -> None:
+    if client.bunnet_initialized:
+        return
 
-    for shard_id, shard in client.shards.items():
-        if shard_id not in client.shard_uptime:
-            client.shard_uptime[shard_id] = datetime.now()
-        
-        await client.change_presence(
-            shard_id=shard_id,
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"Shard {shard_id}/{len(client.shards)}"
+    max_attempts = 5
+    base_delay = 2
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            print(f"🔄 Database connection attempt {attempt}/{max_attempts}...")
+
+            mongo_client = MongoClient(
+                v.mongoURI_db,
+                serverSelectionTimeoutMS=15_000,
+                connectTimeoutMS=15_000,
             )
+
+            database = mongo_client["Data"]
+
+            init_bunnet(
+                database=database,
+                document_models=ALL_MODELS,
+            )
+
+            # Force a real connection test.
+            mongo_client.admin.command("ping")
+
+            client.mongo_client = mongo_client
+            client.bunnet_initialized = True
+
+            print(f"✅ Database connected: {database.name}")
+            print(f"✅ Bunnet initialised with {len(ALL_MODELS)} models")
+            return
+
+        except Exception as e:
+            print(f"❌ Database connection attempt {attempt} failed: {e}")
+            traceback.print_exc()
+
+            if attempt == max_attempts:
+                print("❌ All database connection attempts failed. Bot cannot start.")
+                raise
+
+            delay = base_delay * (2 ** (attempt - 1))
+            print(f"⏳ Waiting {delay} seconds before retry...")
+            time.sleep(delay)
+
+def discover_extensions() -> list[str]:
+    cogs_path = pathlib.Path(__file__).parent / "cogs"
+    extensions = []
+    for category_path in cogs_path.iterdir():
+        if not category_path.is_dir() or category_path.name.startswith("__"):
+            continue
+        for file_path in category_path.glob("*.py"):
+            if file_path.name.startswith("__"):
+                continue
+            # Convert path to module name: cogs.category.filename
+            rel_path = file_path.relative_to(cogs_path.parent)
+            module_name = str(rel_path.with_suffix("")).replace("\\", ".")
+            extensions.append(module_name)
+    return sorted(extensions)
+
+def load_extensions() -> None:
+    extensions = discover_extensions()
+    loaded = []
+    failed = []
+    for extension in extensions:
+        try:
+            client.load_extension(extension)
+            loaded.append(extension)
+        except Exception as error:
+            failed.append((extension, error))
+            print(f"❌ Failed to load {extension}")
+            traceback.print_exc()
+    print("─" * 50)
+    print(f"Extensions loaded: {len(loaded)}")
+    print(f"Extensions failed: {len(failed)}")
+    if failed:
+        print("Failed extensions:")
+        for extension, error in failed:
+            print(f"  - {extension}: {error}")
+    print("─" * 50)
+
+async def update_shard_presence() -> None:
+    """Update presence for all shards with rate limit handling"""
+    shard_count = len(client.shards)
+    for shard_id in client.shards:
+        client.shard_uptime.setdefault(shard_id, discord.utils.utcnow())
+        try:
+            await client.change_presence(
+                shard_id=shard_id,
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{shard_id + 1}/{shard_count} shards • {len(client.guilds)} guilds",
+                ),
+            )
+        except discord.HTTPException as e:
+            print(f"Failed to update presence for shard {shard_id}: {e}")
+
+@client.event
+async def on_ready():
+    print("─" * 50)
+    print(f"✅ Logged in as {client.user}")
+    print(f"✅ Guilds: {len(client.guilds)}")
+    print(f"✅ Shards: {len(client.shards)}")
+    print(f"✅ Started at: {datetime.now()}")
+    print("─" * 50)
+    await update_shard_presence()
+
+@client.event
+async def on_shard_ready(shard_id: int):
+    print("─" * 50)
+    client.shard_uptime[shard_id] = discord.utils.utcnow()
+    print(f"✅ Shard {shard_id} ready")
+
+@client.event
+async def on_shard_disconnect(shard_id: int):
+    client.shard_uptime.pop(shard_id, None)
+    print(f"⚠️ Shard {shard_id} disconnected")
+
+@client.event
+async def on_shard_resumed(shard_id: int):
+    client.shard_uptime[shard_id] = discord.utils.utcnow()
+    print(f"🔄 Shard {shard_id} resumed")
+
+async def start() -> None:
+    print("Starting BobCat Bot")
+    print("─" * 60)
+
+    await initialise_database()
+    load_extensions()
+
+    print("🌐 Starting Web Dashboard")
+    print("🤖 Starting Discord client")
+
+    # Both run as tasks on this same event loop — no separate thread,
+    # no separate Motor/Beanie init, one shared set of model classes.
+    async with client:
+        await asyncio.gather(
+            client.start(v.token),
+            serve_dashboard(),
         )
-client.add_listener(on_ready, "on_ready")
 
-@client.event
-async def on_shard_ready(shard_id):
-    client.shard_uptime[shard_id] = datetime.now()
-
-@client.event
-async def on_shard_disconnect(shard_id):
-    client.shard_uptime.pop(shard_id, None)  # clear uptime when disconnected
+if __name__ == "__main__":
+    asyncio.run(start())
 
 
-def load_extensions():
-    for foldername in os.listdir('./cogs'):
-        for filename in os.listdir(f"./cogs/{foldername}"):
-            if filename.endswith('.py'):
-                ext = f'cogs.{foldername}.{filename[:-3]}'
-                client.load_extension(ext)
-                # print(f"{ext} -> loaded")
-
-load_extensions()
-run_dashboard()
-client.run(v.token)
+# TODO: Read C:\Users\Tyler\BobCatBot\BobCat-Canary-v4 - Depricated\forms-limits-explanation.md

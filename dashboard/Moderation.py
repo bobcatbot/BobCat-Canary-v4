@@ -1,9 +1,8 @@
 import discord
-from datetime import datetime
 from modules import bot as v
-from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select
-)
+from modules.models import Guild
+from discord.ui import DesignerView, Container, ActionRow, button, select, channel_select, role_select
+from dashboard._components import save_dash, refresh_footer, FooterRow, StatusToggle
 
 PM_OPTIONS = [ 
     { "label": "Server", "desc": "Include the server name" }, 
@@ -14,569 +13,454 @@ PM_OPTIONS = [
 
 AUDIT_EVENTS = {
     "Moderation": [
-        { "name": "Ban", "value": "mod_ban"},
-        { "name": "Unbanned", "value": "mod_unban"},
-        { "name": "Kick", "value": "mod_kick"},
-        { "name": "Muted", "value": "mod_mute"},
-        { "name": "Unmuted", "value": "mod_unmute"},
-        { "name": "Warn", "value": "mod_warn"},
-        { "name": "Unwarn", "value": "mod_unwarn"},
+        {"name": "Ban", "value": "ModerationBan"},
+        {"name": "Unban", "value": "ModerationUnban"},
+        {"name": "Kick", "value": "ModerationKick"},
+        {"name": "Mute", "value": "ModerationMute"},
+        {"name": "Unmute", "value": "ModerationUnmute"},
+        {"name": "Warn", "value": "ModerationWarn"},
+        {"name": "Unwarn", "value": "ModerationUnwarn"},
+        {"name": "Message Edited", "value": "MessageEdit"},
+        {"name": "Message Deleted", "value": "MessageDelete"},
     ],
     "Server": [
-        { "name": "Updated", "value": "server_update"},
-        { "name": "Emojis Updated", "value": "server_emoji"},
-        { "name": "Invite Created", "value": "server_invite_create"},
-        { "name": "Invite Deleted", "value": "server_invite_delete"},
+        {"name": "Server Updated", "value": "ServerUpdate"},
+        {"name": "Emojis Updated", "value": "ServerEmojis"},
+        {"name": "Invite Created", "value": "ServerInviteCreate"},
+        {"name": "Invite Deleted", "value": "ServerInviteDelete"},
     ],
-    "Roles": [
-        { "name": "Updated", "value": "role_update"},
-        { "name": "Created", "value": "role_create"},
-        { "name": "Deleted", "value": "role_delete"},
+    "Roles & Channels": [
+        {"name": "Role Updated", "value": "RoleUpdate"},
+        {"name": "Role Created", "value": "RoleCreate"},
+        {"name": "Role Deleted", "value": "RoleDelete"},
+        {"name": "Channel Updated", "value": "ChannelUpdate"},
+        {"name": "Channel Created", "value": "ChannelCreate"},
+        {"name": "Channel Deleted", "value": "ChannelDelete"},
     ],
-    "Channel": [
-        { "name": "Updated", "value": "channel_update"},
-        { "name": "Created", "value": "channel_create"},
-        { "name": "Deleted", "value": "channel_delete"},
+    "Members": [
+        {"name": "Member Joined", "value": "MemberJoin"},
+        {"name": "Member Left", "value": "MemberLeave"},
+        {"name": "Member Updated", "value": "MemberUpdate"},
     ],
-    # "Member": [
-    #     { "name": "Join", "value": "member_join"},
-    #     { "name": "Leave", "value": "member_leave"},
-    #     { "name": "Updated", "value": "member_update"},
-    #     { "name": "Banned", "value": "member_ban"},
-    #     { "name": "Unbanned", "value": "member_unban"},
-    # ],
-    # "Message": [
-    #     { "name": "Message Edit", "value": "message_edit"},
-    #     { "name": "Message Delete", "value": "message_delete"},
-    # ],
-    # "Systems": [
-    #     { "name": "Verification", "value": "sys_verification"},
-    # ],
+    "Systems": [
+        {"name": "Verification Events", "value": "Verification"},
+    ],
 }
 
 class ModeratorKickContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['moderation']['settings']['kick']
-        
-        container = Container(
-            color=v.style(guild),
-        )
-        container.add_text("# Kick Settings")
-        container.add_text("All the settings for kicking")
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['settings']['kick']
+        active_dm_options = data.get('dm', [])
 
+        container = Container(color=v.style(guild))
+        container.add_text("# Kick Settings")
+        container.add_text("Configure options for kicking members.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("### Privete Message")
-        container.add_text("Send a private message to the user when they are kicked")
+        container.add_text("### Private Message")
+        container.add_text("Send a private message to the user when they are kicked.")
         class KickMessageSelect(ActionRow):
             @select(
-                placeholder="Select an option",
+                placeholder="Select DM details to include",
                 options=[
                     discord.SelectOption(
-                        label=option['label'], 
+                        label=option['label'],
                         description=option['desc'],
-                        default=option['label'].lower() in data['dm'],
-                    ) 
+                        default=option['label'].lower() in active_dm_options,
+                    )
                     for option in PM_OPTIONS
                 ],
-                min_values=1,
+                min_values=0,
                 max_values=len(PM_OPTIONS),
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                new_values = [option.lower() for option in select.values]
-
-                v.db.update_dash(guild, 'moderation.settings.kick.dm', new_values)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                new_values = [opt.lower() for opt in select.values]
+                save_dash(guild, 'moderation.settings.kick.dm', new_values)
 
                 for option in select.options:
                     option.default = option.label.lower() in new_values
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(KickMessageSelect())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginModeration(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, btn, itr):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginModeration(guild)))
 
 class ModeratorBanContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['moderation']['settings']['ban']
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['settings']['ban']
+        active_dm_options = data.get('dm', [])
+        active_purge_days = str(data.get('deleteMessageDays', '0'))
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# Ban Settings")
-        container.add_text("All the settings for banning")
-
+        container.add_text("Configure options for banning members.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # ── Private Message ──────────────────────────────────────────────
         container.add_text("## Private Message")
-        container.add_text("Send a private message to the user when they are banned")
+        container.add_text("Send a private message to the user when they are banned.")
         class BanMessageSelect(ActionRow):
             @select(
-                placeholder="Select an option",
+                placeholder="Select DM details to include",
                 options=[
                     discord.SelectOption(
-                        label=option['label'], 
+                        label=option['label'],
                         description=option['desc'],
-                        default=option['label'].lower() in data['dm'],
-                    ) 
+                        default=option['label'].lower() in active_dm_options,
+                    )
                     for option in PM_OPTIONS
                 ],
-                min_values=1,
+                min_values=0,
                 max_values=len(PM_OPTIONS),
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                new_values = [option.lower() for option in select.values]
-
-                v.db.update_dash(guild, 'moderation.settings.ban.dm', new_values)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                new_values = [opt.lower() for opt in select.values]
+                save_dash(guild, 'moderation.settings.ban.dm', new_values)
 
                 for option in select.options:
                     option.default = option.label.lower() in new_values
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(BanMessageSelect())
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Default message purge")
-        container.add_text("Select the previous days of messages to purge when a user is banned")
+        # ── Message Purge ────────────────────────────────────────────────
+        container.add_text("## Default Message Purge")
+        container.add_text("Select the previous days of messages to purge when a user is banned.")
         class BanPurgeSelect(ActionRow):
             @select(
-                placeholder="Select an option",
-                options=[discord.SelectOption(label=str(option), default=str(option) in data['deleteMessageDays']) for option in range(7)],
+                placeholder="Select purge duration",
+                options=[
+                    discord.SelectOption(
+                        label=f"{day} Day(s)" if day > 0 else "Don't Delete Any",
+                        value=str(day),
+                        default=str(day) == active_purge_days,
+                    )
+                    for day in range(8)
+                ],
                 min_values=1,
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 new_value = select.values[0]
-
-                v.db.update_dash(guild, 'moderation.settings.ban.deleteMessageDays', new_value)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'moderation.settings.ban.deleteMessageDays', new_value)
 
                 for option in select.options:
-                    option.default = option.label in new_value
+                    option.default = option.value == new_value
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(BanPurgeSelect())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginModeration(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, btn, itr):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginModeration(guild)))
 
 class ModeratorMuteContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['moderation']['settings']['mute']
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['settings']['mute']
+        active_dm_options = data.get('dm', [])
+        active_type = data.get('type', 'timeout').lower()
+        active_duration = data.get('duration', '10-min').lower()
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# Mute Settings")
-        container.add_text("All the settings for muting")
-
+        container.add_text("Configure options for muting members.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # ── Private Message ──────────────────────────────────────────────
         container.add_text("### Private Message")
-        container.add_text("Send a private message to the user when they are muted")
+        container.add_text("Send a private message to the user when they are muted.")
         class MuteMessageSelect(ActionRow):
             @select(
-                placeholder="Select an option",
+                placeholder="Select DM details to include",
                 options=[
                     discord.SelectOption(
-                        label=option['label'], 
+                        label=option['label'],
                         description=option['desc'],
-                        default=option['label'].lower() in data['dm'],
-                    ) 
+                        default=option['label'].lower() in active_dm_options,
+                    )
                     for option in PM_OPTIONS
                 ],
-                min_values=1,
+                min_values=0,
                 max_values=len(PM_OPTIONS),
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                new_values = [option.lower() for option in select.values]
-
-                v.db.update_dash(guild, 'moderation.settings.mute.dm', new_values)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                new_values = [opt.lower() for opt in select.values]
+                save_dash(guild, 'moderation.settings.mute.dm', new_values)
 
                 for option in select.options:
                     option.default = option.label.lower() in new_values
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(MuteMessageSelect())
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # ── Mute Type ───────────────────────────────────────────────────
         container.add_text("### Mute Type")
-        container.add_text("Select the type of mute to apply")
+        container.add_text("Select the mechanism to apply when muting.")
         class MuteTypeSelect(ActionRow):
             @select(
-                placeholder="Select an option",
+                placeholder="Select mute method",
                 options=[
-                    discord.SelectOption(label="Role", default=data['type'] == "role"),
-                    discord.SelectOption(label="Timeout", default=data['type'] == "timeout"),
+                    discord.SelectOption(label="Role", value="role", default=active_type == "role"),
+                    discord.SelectOption(label="Timeout", value="timeout", default=active_type == "timeout"),
                 ],
                 min_values=1,
             )
-            async def callback(self, select, interaction: discord.Interaction):
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 new_value = select.values[0]
-                
+                save_dash(guild, 'moderation.settings.mute.type', new_value)
+
                 for option in select.options:
-                    option.default = option.label == new_value
+                    option.default = option.value == new_value
 
-                v.db.update_dash(guild, 'moderation.settings.mute.type', new_value.lower())
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(MuteTypeSelect())
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # ── Duration ────────────────────────────────────────────────────
         container.add_text("### Default Mute Duration")
-        container.add_text("Select the mute duration")
+        container.add_text("Select default timeout duration.")
         class MuteTimeSelect(ActionRow):
-            time_option = ["60 SEC", "5 MIN", "10 MIN", "1 HOUR", "1 DAY", "1 WEEK"]
+            time_options = [
+                ("60 SEC", "60-sec"),
+                ("5 MIN", "5-min"),
+                ("10 MIN", "10-min"),
+                ("1 HOUR", "1-hour"),
+                ("1 DAY", "1-day"),
+                ("1 WEEK", "1-week"),
+            ]
+
             @select(
-                placeholder="Select an option",
-                options=[discord.SelectOption(label=option, default=option.replace(" ", "-").lower() in data['duration']) for option in time_option],
+                placeholder="Select duration",
+                options=[
+                    discord.SelectOption(label=label, value=val, default=val == active_duration)
+                    for label, val in time_options
+                ],
                 min_values=1,
             )
-            async def callback(self, select, interaction: discord.Interaction):
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 new_value = select.values[0]
-                
+                save_dash(guild, 'moderation.settings.mute.duration', new_value)
+
                 for option in select.options:
-                    option.default = option.label == new_value
+                    option.default = option.value == new_value
 
-                v.db.update_dash(guild, 'moderation.settings.mute.duration', new_value.replace(" ", "-").lower())
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(MuteTimeSelect())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginModeration(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, btn, itr):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginModeration(guild)))
 
 class ModeratorWarnContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild)['moderation']['settings']['warn']
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['settings']['warn']
+        active_dm_options = data.get('dm', [])
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# Warn Settings")
-        container.add_text("All the settings for Warning")
-
+        container.add_text("Configure options for warning members.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("## Private Message")
-        container.add_text("Send a private message to the user when they are warned")
+        container.add_text("Send a private message to the user when they are warned.")
+
         class WarnMessageSelect(ActionRow):
             @select(
-                placeholder="Select an option",
+                placeholder="Select DM details to include",
                 options=[
                     discord.SelectOption(
-                        label=option['label'], 
+                        label=option['label'],
                         description=option['desc'],
-                        default=option['label'].lower() in data['dm'],
-                    ) 
+                        default=option['label'].lower() in active_dm_options,
+                    )
                     for option in PM_OPTIONS
                 ],
-                min_values=1,
+                min_values=0,
                 max_values=len(PM_OPTIONS),
             )
-            async def callback(self, select, interaction: discord.Interaction): 
-                new_values = [option.lower() for option in select.values]
-
-                v.db.update_dash(guild, 'moderation.settings.warn.dm', new_values)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                new_values = [opt.lower() for opt in select.values]
+                save_dash(guild, 'moderation.settings.warn.dm', new_values)
 
                 for option in select.options:
                     option.default = option.label.lower() in new_values
 
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(WarnMessageSelect())
 
         self.add_item(container)
+        self.add_item(FooterRow(guild, lambda: PluginModeration(guild)))
 
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginModeration(guild))
+class SelectAuditChannel(DesignerView):
+    def __init__(self, guild: discord.Guild):
+        super().__init__(timeout=None)
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['logging']
 
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
+        channel_container = Container(color=v.style(guild))
+        channel_container.add_text("# Logging Channel")
+        channel_container.add_text("Select the channel where audit logs should be sent.")
+        channel_container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        # Safe channel lookup guard
+        current_chan = [
+            chan for ch_id in [data.get('channel')]
+            if ch_id and (chan := guild.get_channel(int(ch_id))) is not None
+        ]
+
+        class SelectAuditChannelSelect(ActionRow):
+            @channel_select(
+                placeholder="Select a channel",
+                channel_types=[discord.ChannelType.text],
+                min_values=1,
+                max_values=1,
+                default_values=current_chan,
             )
-            async def updateStatus(self, btn, itr):
-                pass
-        self.add_item(ViewButtons())
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                save_dash(guild, 'moderation.logging.channel', str(select.values[0].id))
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
+        channel_container.add_item(SelectAuditChannelSelect())
+
+        self.add_item(channel_container)
+        self.add_item(FooterRow(guild, lambda: AuditLoggingContainer(guild)))
+
+class SelectAuditEvents(DesignerView):
+    def __init__(self, guild: discord.Guild, active_category: str = "Moderation"):
+        super().__init__(timeout=None)
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['logging']
+        enabled_events: dict = data.get('events', {})
+
+        container = Container(color=v.style(guild))
+        container.add_text("# Audit Event Logging")
+        container.add_text("Select a category, then pick which events to log.")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        # ── Category Selector Dropdown ─────────────────────────────────
+        class CategorySelectRow(ActionRow):
+            @select(
+                placeholder="Choose Event Category...",
+                options=[
+                    discord.SelectOption(
+                        label=cat, 
+                        default=cat == active_category
+                    ) for cat in AUDIT_EVENTS.keys()
+                ],
+                min_values=1,
+                max_values=1,
+            )
+            async def callback(self, select_obj: discord.ui.Select, interaction: discord.Interaction):
+                chosen_cat = select_obj.values[0]
+                await interaction.response.edit_message(view=SelectAuditEvents(guild, active_category=chosen_cat))
+        container.add_item(CategorySelectRow())
+
+        container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
+
+        # ── Event Multi-Select Dropdown ────────────────────────────────
+        category_events = AUDIT_EVENTS.get(active_category, [])
+
+        class EventMultiSelectRow(ActionRow):
+            @select(
+                placeholder=f"Configure {active_category} Events...",
+                options=[
+                    discord.SelectOption(
+                        label=evt["name"],
+                        value=evt["value"],
+                        default=bool(enabled_events.get(evt["value"], False)),
+                    ) for evt in category_events
+                ],
+                min_values=0,
+                max_values=len(category_events),
+            )
+            async def callback(self, select_obj: discord.ui.Select, interaction: discord.Interaction):
+                current_events = Guild.get(str(guild.id)).run().dashboard.moderation['logging'].get('events', {})
+                
+                # Update status for all events in this category
+                selected_set = set(select_obj.values)
+                for evt in category_events:
+                    current_events[evt["value"]] = evt["value"] in selected_set
+
+                # Update options default state visually
+                for option in select_obj.options:
+                    option.default = option.value in selected_set
+
+                save_dash(guild, 'moderation.logging.events', current_events)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
+
+        container.add_item(EventMultiSelectRow())
+
+        self.add_item(container)
+        self.add_item(FooterRow(guild, lambda: AuditLoggingContainer(guild)))
 
 class AuditLoggingContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['moderation']['logging']
-        enabled_events: list = data.get('events', [])
- 
+        data = Guild.get(str(guild.id)).run().dashboard.moderation['logging']
+
         container = Container(color=v.style(guild))
         container.add_text("# Audit Logging")
-        container.add_text("Set a logging channel and choose which events get logged. Don't miss anything happening in your server!")
+        container.add_text("Set a logging channel and choose which events get logged.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        class SelectAuditChannel(DesignerView):
-            def __init__(self, guild: discord.Guild):
-                super().__init__(timeout=None)
-
-                channelContainer = Container(color=v.style(guild))
-                channelContainer.add_text("# Logging channel")
-                channelContainer.add_text("Set a logging channel and choose which events get logged!")
-                channelContainer.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-                class SelectAuditChannel(ActionRow):
-                    @channel_select(
-                        placeholder="Select an option",
-                        min_values=1,
-                        max_values=1,
-                    )
-                    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                        v.db.update_dash(guild, 'moderation.logging.channel', select.values[0])
-                        await interaction.response.edit_message(view=interaction.view)
-
-                channelContainer.add_item(SelectAuditChannel())
-
-                self.add_item(channelContainer)
-                
-                class ViewButtons(ActionRow):
-                    @button(label="Go Back", style=discord.ButtonStyle.primary)
-                    async def goBack(self, button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AuditLoggingContainer(guild))
-        
-                    @button(
-                        label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                        style=discord.ButtonStyle.gray,
-                        custom_id="SaveSuccess",
-                        disabled=True,
-                    )
-                    async def updateStatus(self, btn, itr):
-                        pass
-                self.add_item(ViewButtons())
-        
-        class SelecAuditEvents(DesignerView):
-            def __init__(self, guild: discord.Guild):
-                super().__init__(timeout=None)
-
-                eventsContainer = Container(color=v.style(guild))
-                eventsContainer.add_text("# Events")
-                eventsContainer.add_text("Choose which events get logged!")
-                eventsContainer.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-                for group_name, events in AUDIT_EVENTS.items():
-                    eventsContainer.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-                    eventsContainer.add_text(f"**{group_name}**")
-
-                    def make_row(gevents):
-                        attrs = {}
-                        for evt in gevents:
-                            enabled = evt["value"] in enabled_events
-                            async def _cb(self, btn: discord.ui.Button, interaction: discord.Interaction, _val=evt["value"]):
-                                current = v.db.get_dash(guild.id)['moderation']['audit_logging'].get('events', [])
-                                if _val in current:
-                                    current.remove(_val)
-                                    btn.style = discord.ButtonStyle.gray
-                                else:
-                                    current.append(_val)
-                                    btn.style = discord.ButtonStyle.green
-                                v.db.update_dash(guild.id, 'moderation.audit_logging.events', current)
-                                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                                update_at = interaction.view.get_item("SaveSuccess")
-                                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                                await interaction.response.edit_message(view=interaction.view)
-
-                            attrs[f'btn_{evt["value"]}'] = button(
-                                label=evt["name"],
-                                style=discord.ButtonStyle.green if enabled else discord.ButtonStyle.gray,
-                                custom_id=f'audit_{evt["value"]}',
-                            )(_cb)
-
-                        return type('EventRow', (ActionRow,), attrs)()
-
-                    for i in range(0, len(events), 4):
-                        eventsContainer.add_item(make_row(events[i:i+4]))
-
-                self.add_item(eventsContainer)
-
-                class ViewButtons(ActionRow):
-                    @button(label="Go Back", style=discord.ButtonStyle.primary)
-                    async def goBack(self, button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=SelectAuditChannel(guild))
-        
-                    @button(
-                        label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                        style=discord.ButtonStyle.gray,
-                        custom_id="SaveSuccess",
-                        disabled=True,
-                    )
-                    async def updateStatus(self, btn, itr):
-                        pass
-                self.add_item(ViewButtons())
-
         class Buttons(ActionRow):
-            @button(
-                label="Channel",
-                style=discord.ButtonStyle.gray,
-            )
+            @button(label="Channel", style=discord.ButtonStyle.gray)
             async def channel_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                button.style = discord.ButtonStyle.primary
                 await interaction.response.edit_message(view=SelectAuditChannel(guild))
 
-            @button(
-                label="Events",
-                style=discord.ButtonStyle.gray,
-            )
+            @button(label="Events", style=discord.ButtonStyle.gray)
             async def events_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                button.style = discord.ButtonStyle.primary
-                await interaction.response.edit_message(view=SelecAuditEvents(guild))
-            
+                await interaction.response.edit_message(view=SelectAuditEvents(guild))
+
             @button(
-                label="Don't log bot actions: OFF" if not data.get('ignore_bots', False) else "Don't log bot actions: ON",
-                style=discord.ButtonStyle.red if not data.get('ignore_bots', False) else discord.ButtonStyle.green,
+                label="Don't log bot actions: ON" if data.get('bots', False) else "Don't log bot actions: OFF",
+                style=discord.ButtonStyle.green if data.get('bots', False) else discord.ButtonStyle.red,
                 custom_id="ignore_bots_toggle",
             )
             async def botlog_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                current = v.db.get_dash(guild.id)['moderation']['audit_logging'].get('ignore_bots', False)
+                current = Guild.get(str(guild.id)).run().dashboard.moderation['logging'].get('bots', False)
                 new_val = not current
-                v.db.update_dash(guild.id, 'moderation.audit_logging.ignore_bots', new_val)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+
+                save_dash(guild, 'moderation.logging.bots', new_val)
+
                 button.label = "Don't log bot actions: ON" if new_val else "Don't log bot actions: OFF"
                 button.style = discord.ButtonStyle.green if new_val else discord.ButtonStyle.red
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
-        
-        container.add_item(Buttons())
-        self.add_item(container)
 
-        class ViewButtons(ActionRow):
-            @button(label="Go Back", style=discord.ButtonStyle.primary)
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginModeration(guild))
- 
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, btn, itr):
-                pass
-        self.add_item(ViewButtons())
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
+        container.add_item(Buttons())
+
+        self.add_item(container)
+        self.add_item(FooterRow(guild, lambda: PluginModeration(guild)))
 
 class PluginModeration(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['moderation']
+        data = Guild.get(str(guild.id)).run().dashboard.moderation
 
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Moderation")
         container.add_text("Keep your server safe with auto-moderation & empower your mods with powerful moderation tools")
-       
-        class StatusButton(ActionRow):
-            @button(
-                label="Disabled" if data['status'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['status'] == False else discord.ButtonStyle.green,
-                custom_id="status",
-            )
-            async def callback(self, button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild, 'moderation.status', True)
 
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild, 'moderation.status', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.edit_message(view=interaction.view)
-        container.add_item(StatusButton())
+        container.add_item(StatusToggle(guild, 'moderation.status', data['status']))
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("**Configure**")
         class PluginButtons(ActionRow):
             @button(
                 label="Kick",
@@ -614,5 +498,4 @@ class PluginModeration(DesignerView):
                 await interaction.response.edit_message(view=AuditLoggingContainer(guild))
 
         container.add_item(PluginButtons())
-
         self.add_item(container)

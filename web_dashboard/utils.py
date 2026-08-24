@@ -1,11 +1,12 @@
 import discord
 from functools import wraps
-from flask import session, request, render_template, url_for
+from quart import session, request, render_template, url_for, redirect
 from zenora import APIClient
 
 from modules import bot as v
+from modules.models import Guild
 from .config import BOT_TOKEN, CLIENT_SECRET
-from .db import get_server_config
+from .db import get_guild
 from .plugins import PLUGIN_LIST
 
 # ── Discord OAuth client ───────────────────────────────────────────────────────
@@ -20,27 +21,70 @@ def bearer_client():
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    async def decorated_function(*args, **kwargs):
         if 'token' not in session:
             session['redirect'] = request.url
-            return render_template("login.html", logInWithDiscord=url_for('auth.login'))
-        return f(*args, **kwargs)
+            return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+        return await f(*args, **kwargs)
     return decorated_function
+
+
+def check_guild_permission(guild, user_id) -> tuple[bool, str]:
+    """Check if user has permission to modify guild settings."""
+    try:
+        member = guild.get_member(user_id)
+        if member is None:
+            return False, "Not a member of this guild"
+
+        # Check if user is guild owner
+        if guild.owner_id == user_id:
+            return True, "Owner"
+
+        # Get guild config for custom roles
+        config = Guild.get(str(guild.id)).run()
+        if config is None:
+            return False, "Guild config not found"
+
+        settings = config.settings
+
+        # Check if user has administrator permission
+        if member.guild_permissions.administrator:
+            return True, "Administrator"
+
+        # Check custom admin roles
+        admin_roles = settings.get('admin_roles', [])
+        if any(str(role.id) in admin_roles for role in member.roles):
+            return True, "Admin Role"
+
+        # Check bot master roles
+        bot_masters = settings.get('bot_masters', [])
+        if any(str(role.id) in bot_masters for role in member.roles):
+            return True, "Bot Master"
+
+        return False, "Insufficient permissions"
+
+    except Exception as e:
+        return False, f"Error checking permissions: {str(e)}"
 
 
 # ── Premium helpers ───────────────────────────────────────────────────────────
 class PremiumModuleError(Exception):
     pass
 
-def is_premium(guild_id) -> bool:
-    """Single source of truth for premium checks."""
-    data = get_server_config(guild_id, True)
-    if not data:
+def is_premium(guild) -> bool:
+    """Single source of truth for premium checks using Bunnet directly."""
+    guild_id = str(getattr(guild, "id", guild))
+    doc = Guild.get(guild_id).run()
+    
+    if not doc:
         return False
-    return bool(data['premium']['status'] and data['premium']['active'])
+    
+    premium = doc.premium
+    return premium.get('status') and premium.get('active')
 
 def premium_module(guild, module):
-    plug = PLUGIN_LIST[module]
+    """Check if a guild has access to a premium module."""
+    plug = PLUGIN_LIST.get(module, {})
     if plug.get('premium') and not is_premium(guild):
         raise PremiumModuleError(f"Guild {guild} does not have access to {module}.")
 
@@ -56,7 +100,7 @@ class GuildModels:
             {
                 'id': role.id,
                 'name': role.name,
-                'color': role.colors.primary,
+                'color': role.colors.primary if hasattr(role.colors, 'primary') else 0,
                 'permissions': role.permissions.value,
                 'position': role.position,
                 'disabled': role.position >= self.guild.me.top_role.position,

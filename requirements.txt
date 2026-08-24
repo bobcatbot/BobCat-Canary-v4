@@ -1,5 +1,4 @@
 python-dotenv
-
 pytz
 aiohttp
 psutil
@@ -12,10 +11,13 @@ clipboard
 pychalk
 speedtest-cli
 pymongo
-jishaku
+bunnet
 
-Flask[async]
-flask-socketio
 zenora
 requests
 stripe
+
+# REPLACED Flask with Quart
+quart
+quart-cors
+uvicorn  

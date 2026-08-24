@@ -1,34 +1,39 @@
 import logging
-from threading import Thread
-
 import stripe
-from flask import Flask, render_template, flash, session, redirect, request, url_for
+from threading import Thread
+from quart import Quart, render_template, flash, session, redirect, request, url_for
 from zenora import BadTokenError
 
 from modules import bot as v
- 
+
 from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config
 from .context import register_context_processors
 from .utils import PremiumModuleError
- 
+
 from .blueprints.auth import auth_bp
 from .blueprints.web import web_bp
 from .blueprints.dashboard import dashboard_bp
 from .blueprints.stripe import stripe_bp
 
+# ── Server Management ──────────────────────────────────────────────────────
 from .blueprints.plugins.welcome import welcome_bp
 from .blueprints.plugins.moderation import moderation_bp
 from .blueprints.plugins.verification import verification_bp
+
+# ── Utilities ──────────────────────────────────────────────────────────────
 from .blueprints.plugins.starboard import starboard_bp
 from .blueprints.plugins.forms import forms_bp
 from .blueprints.plugins.temporary_channels import temporary_channels_bp
 from .blueprints.plugins.ticketing import ticketing_bp
+from .blueprints.plugins.stats import stats_bp
+
+# ── Games & Fun ────────────────────────────────────────────────────────────
 from .blueprints.plugins.leveling import leveling_bp
 from .blueprints.plugins.birthdays import birthdays_bp
 from .blueprints.plugins.giveaways import giveaways_bp
 from .blueprints.plugins.economy import economy_bp
- 
-app = Flask(__name__)
+
+app = Quart(__name__)
 
 app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
@@ -36,7 +41,7 @@ app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
 
 stripe.api_key = stripe_config["SECRET_KEY"]
 
-logging.getLogger('werkzeug').setLevel(logging.ERROR)
+logging.getLogger('quart.serving').setLevel(logging.ERROR)
 
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -47,14 +52,19 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(stripe_bp)
 
-# Plugin blueprints
+# Server Management
 app.register_blueprint(welcome_bp)
 app.register_blueprint(moderation_bp)
 app.register_blueprint(verification_bp)
+
+# Utilities
 app.register_blueprint(starboard_bp)
 app.register_blueprint(forms_bp)
 app.register_blueprint(temporary_channels_bp)
 app.register_blueprint(ticketing_bp)
+app.register_blueprint(stats_bp)
+
+# Games & Fun
 app.register_blueprint(leveling_bp)
 app.register_blueprint(birthdays_bp)
 app.register_blueprint(giveaways_bp)
@@ -62,18 +72,18 @@ app.register_blueprint(economy_bp)
 
 # ── Global error handlers ─────────────────────────────────────────────────
 @app.errorhandler(404)
-def page_not_found(e):
-    return render_template('error/404.html'), 404
+async def page_not_found(e):
+    return await render_template('error/404.html'), 404
 
 @app.errorhandler(BadTokenError)
-def handle_bad_token(e):
+async def handle_bad_token(e):
     session.pop("token", None)
     return redirect(OAUTH_URL)
 
 @app.errorhandler(PremiumModuleError)
-def handle_premium_error(e):
+async def handle_premium_error(e):
     guild_id = request.view_args.get('guild_id')
-    flash("You don't have access to this module", "PremiumModal")
+    await flash("You don't have access to this module", "PremiumModal")
     return redirect(url_for('dashboard.dashboard_home', guild_id=guild_id))
 
 # ── Template filters ──────────────────────────────────────────────────────
@@ -81,25 +91,33 @@ def handle_premium_error(e):
 def titlecase(s):
     return f"{s}".capitalize()
 
+@app.template_filter('lowercase')
+def lowercase(s):
+    return f"{s}".lower()
+
+@app.template_filter('formatStatLabel')
+def format_stat_label_filter(target):
+    """Format camelCase stat target into readable label."""
+    label = target
+    label = ''.join(' ' + c if c.isupper() else c for c in label).strip()
+    label = ' '.join(word.capitalize() for word in label.split())
+    return label
+
 # ── Context processors ────────────────────────────────────────────────────
 register_context_processors(app)
 
-# ── Run ───────────────────────────────────────────────────────────
-import waitress
+# ── Run ───────────────────────────────────────────────────────────────────
+import asyncio
+import uvicorn
 
-app_started = False # Define a flag to check if the app is running
+async def serve_dashboard() -> None:
+    """Run the dashboard on the same event loop as the Discord client."""
+    config = uvicorn.Config(app, host="localhost", port=8000, log_level="warning")
+    server = uvicorn.Server(config)
 
-@v.client.event
-async def on_ready():
-    if app_started:
-        print("Dashboard is Online")
+    serve_task = asyncio.create_task(server.serve())
+    while not server.started:
+        await asyncio.sleep(0.1)
+    print("🌐 Dashboard is Online")
 
-def run_app():
-    global app_started
-    app_started = True  # Update the flag when the app starts
-
-    # app.run(host='localhost', port=8000, debug=True, use_reloader=False)
-    waitress.serve(app, host='localhost', port=8000, threads=16, connection_limit=200)
-
-def run_dashboard():
-    Thread(target=run_app).start()
+    await serve_task

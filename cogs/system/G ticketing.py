@@ -1,7 +1,97 @@
 import discord
-from datetime import datetime
-from discord.ext import commands
-from modules import bot as v
+import asyncio
+import io
+from datetime import datetime, timedelta
+from discord.ext import commands, tasks
+from modules.models import Guild, Ticket
+
+def get_ticketing(guild: discord.Guild) -> dict:
+    return Guild.get(str(guild.id)).run().dashboard.ticketing
+
+def get_guild_tickets(guild: discord.Guild) -> list[Ticket]:
+    return Ticket.find(Ticket.guild_id == str(guild.id)).run()
+
+def get_channel_ticket(guild: discord.Guild, channel_id: int) -> Ticket | None:
+    return Ticket.find_one(
+        Ticket.guild_id == str(guild.id),
+        Ticket.channel_id == str(channel_id),
+    ).run()
+
+# ── MOVED TO CLASS SCOPE ──────────────────────────────────────────────────
+async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator: discord.Member, panel: dict) -> dict:
+    """Generate transcript data (CPU-bound work)."""
+    user_message_count = {}
+    for msg in ticket.transcript:
+        user_id = msg['user']['id']
+        if msg['user']['bot']:
+            continue
+        user_message_count[user_id] = user_message_count.get(user_id, 0) + 1
+    
+    participants = [f"{count} messages by <@{user_id}>" for user_id, count in user_message_count.items()]
+
+    def format_time(time_str):
+        try:
+            time = datetime.fromisoformat(time_str)
+            return f'<t:{int(time.timestamp())}:R>'
+        except (ValueError, TypeError):
+            return time_str
+
+    transcript_em = discord.Embed(
+        color=0x5865f2,
+        title=f"Ticket #{ticket.id[:8]} in {guild.name}",
+        timestamp=datetime.now()
+    )
+    transcript_em.set_author(name=creator.name, icon_url=creator.avatar.url if creator.avatar else None)
+    transcript_em.add_field(name="Type", value=f"{panel['panel_button']['emoji']} `{panel['panel_button']['label']}`", inline=False)
+    transcript_em.add_field(name="Created by", value=f"<@{ticket.creator_id}> {format_time(ticket.created_at.isoformat())}", inline=False)
+    
+    if ticket.claimed and ticket.claimed.get('status'):
+        transcript_em.add_field(
+            name="Claimed by", 
+            value=f"<@{ticket.claimed.get('user', '')}> {format_time(ticket.claimed.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.closed and ticket.closed.get('status'):
+        transcript_em.add_field(
+            name="Closed by", 
+            value=f"<@{ticket.closed.get('user', '')}> {format_time(ticket.closed.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.reopened and ticket.reopened.get('status'):
+        transcript_em.add_field(
+            name="Reopened by", 
+            value=f"<@{ticket.reopened.get('user', '')}> {format_time(ticket.reopened.get('updated_at', ''))}", 
+            inline=False
+        )
+    if ticket.deleted and ticket.deleted.get('status'):
+        transcript_em.add_field(
+            name="Deleted by", 
+            value=f"<@{ticket.deleted.get('user', '')}> {format_time(ticket.deleted.get('updated_at', ''))}", 
+            inline=False
+        )
+    
+    transcript_em.add_field(name="Participants", value="\n".join(participants) or "No participants", inline=False)
+    
+    # Build text transcript
+    transcript_text = f"Ticket #{ticket.id[:8]} - {guild.name}\n"
+    transcript_text += "=" * 50 + "\n\n"
+    for msg in ticket.transcript:
+        timestamp = msg.get('timestamp', {}).get('formatted', 'Unknown')
+        author = msg.get('user', {}).get('name', 'Unknown')
+        content = msg.get('content', '')
+        transcript_text += f"[{timestamp}] {author}: {content}\n"
+        if msg.get('attachments'):
+            for att in msg['attachments']:
+                transcript_text += f"  📎 {att}\n"
+    
+    return {"embed": transcript_em, "text": transcript_text}
+
+def create_transcript_file(text: str, ticket_id: str) -> discord.File:
+    """Create transcript file (runs in thread pool)."""
+    text_file = io.BytesIO()
+    text_file.write(text.encode('utf-8'))
+    text_file.seek(0)
+    return discord.File(text_file, filename=f"ticket_{ticket_id}.txt")
 
 class TicketControls(discord.ui.View):
     def __init__(self, client):
@@ -10,64 +100,50 @@ class TicketControls(discord.ui.View):
 
     @discord.ui.button(emoji="🎟️", label="Claim", style=discord.ButtonStyle.blurple, custom_id="claim_ticket")
     async def claim_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
-        panels = v.db.get_dash(interaction.guild)['ticketing']['panels']
-        tickets = v.db.get_server_config(interaction.guild)['tickets']
+        panels = get_ticketing(interaction.guild)['panels']
+        ticket = get_channel_ticket(interaction.guild, interaction.channel.id)
+        panel = next((p for p in panels if p['id'] == ticket.panel_id), None)
 
-        ticket = next((t for t in tickets if t['channelid'] == str(interaction.channel.id)), None)
-        panel = next((p for p in panels if p['id'] == ticket['panelid']), None)
+        if interaction.user.id == int(ticket.creator_id):
+            return await interaction.response.send_message("> **Warning:** You cannot claim your own ticket.", ephemeral=True)
 
-        panelCategoryClaimed = panel['category_claimed']
+        if ticket.claimed['status'] == True:
+            return await interaction.response.send_message(f"> **Warning:** This ticket is already claimed by <@{ticket.claimed['user']}>.", ephemeral=True)
 
-        # Prevnt users from claiming their own ticket
-        if interaction.user.id == int(ticket['creator']['id']):
-            return await interaction.response.send_message(
-                f"> **Warning:** You cannot claim your own ticket.", ephemeral=True
-            )
-
-        if ticket['claimed']['status'] == True:
-            return await interaction.response.send_message(
-                f"> **Warning:** This ticket is already claimed by <@{ticket['claimed']['user']}>.", ephemeral=True
-            )
-
-
+        panelCategoryClaimed = panel.get('category_claimed', '')
         move_to = '.'
-        if panelCategoryClaimed != '':
+        if panelCategoryClaimed:
             claimed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClaimed))
-            await interaction.channel.edit(category=claimed_category)
-            
-            move_to = f' and it has been moved to **<#{panelCategoryClaimed}>** category' 
-        
-        ticket_idx = tickets.index(ticket)
-        v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.claimed', value={
+            if claimed_category:
+                await interaction.channel.edit(category=claimed_category)
+                move_to = f' and it has been moved to **{claimed_category.name}** category'
+
+        ticket.claimed = {
             "status": True,
             "user": interaction.user.id,
             "updated_at": f"{datetime.now()}"
-        })
+        }
+        ticket.claimed_by = str(interaction.user.id)
+        ticket.save()
 
-        embed = discord.Embed(
-            color=0x5865f2,
-            description=f"{interaction.user.mention}, you claimed the ticket{move_to}"
-        )
+        embed = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, you claimed the ticket{move_to}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
         await interaction.channel.send(f"{interaction.user.mention} claimed the ticket.")
 
         button.disabled = True
         button.label = "Claimed"
-        msg = await interaction.channel.fetch_message(int(ticket['messageid']))
+        msg = await interaction.channel.fetch_message(int(ticket.message_id))
         await msg.edit(view=self)
 
-    @discord.ui.button(emoji="🔒", label="Close", style=discord.ButtonStyle.gray, custom_id="close_ticket", disabled=False)
+    @discord.ui.button(emoji="🔒", label="Close", style=discord.ButtonStyle.gray, custom_id="close_ticket")
     async def close_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
-        panels = v.db.get_dash(interaction.guild)['ticketing']['panels']
-        tickets = v.db.get_server_config(interaction.guild)['tickets']
-
-        ticket = next((t for t in tickets if t['channelid'] == str(interaction.channel.id)), None)
-        panel = next((p for p in panels if p['id'] == ticket['panelid']), None)
-
-        panelCategoryClose = panel['category_close']
+        panels = get_ticketing(interaction.guild)['panels']
+        ticket = get_channel_ticket(interaction.guild, interaction.channel.id)
+        panel = next((p for p in panels if p['id'] == ticket.panel_id), None)
+        panelCategoryClose = panel.get('category_closed', '')
         
         ctbtns = self
+        
         class MyModal(discord.ui.Modal):
             def __init__(self, *args, **kwargs) -> None:
                 super().__init__(*args, **kwargs)
@@ -75,25 +151,23 @@ class TicketControls(discord.ui.View):
 
             async def callback(self, interaction: discord.Interaction):
                 move_to = '.'
-                if panelCategoryClose != '':
+                if panelCategoryClose:
                     closed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClose))
-                    await interaction.channel.edit(category=closed_category)
-                    
-                    move_to = f' and it has been moved to **<#{panelCategoryClose}>** category' 
-                
-                close_em = discord.Embed(
-                    color=0x5865f2,
-                    description=f"{interaction.user.mention}, this ticket has been closed{move_to}"
-                )
+                    if closed_category:
+                        await interaction.channel.edit(category=closed_category)
+                        move_to = f' and it has been moved to **{closed_category.name}** category'
+
+                close_em = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, this ticket has been closed{move_to}")
                 await interaction.response.send_message(embed=close_em, ephemeral=True)
 
-                ticket_idx = tickets.index(ticket)
-                v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed', value={
+                ticket.closed = {
                     "status": True,
                     "reason": self.children[0].value,
-                    "user": interaction.user.id,
+                    "user": int(interaction.user.id),
                     "updated_at": f"{datetime.now()}"
-                })
+                }
+                ticket.status = "closed"
+                ticket.save()
 
                 embed = discord.Embed(title="Close ticket with reason")
                 embed.add_field(name="Reason", value=self.children[0].value)
@@ -105,49 +179,38 @@ class TicketControls(discord.ui.View):
                     if child.custom_id == "reopen_ticket":
                         child.disabled = False
 
-                msg = await interaction.channel.fetch_message(int(ticket['messageid']))
+                msg = await interaction.channel.fetch_message(int(ticket.message_id))
                 await msg.edit(view=ctbtns)
-                return
         await interaction.response.send_modal(MyModal(title="Close Ticket Reason"))
 
     @discord.ui.button(emoji="🔓", label="Reopen", style=discord.ButtonStyle.green, custom_id="reopen_ticket", disabled=True)
     async def reopen_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
-        panels = v.db.get_dash(interaction.guild)['ticketing']['panels']
-        tickets = v.db.get_server_config(interaction.guild)['tickets']
+        panels = get_ticketing(interaction.guild)['panels']
+        ticket = get_channel_ticket(interaction.guild, interaction.channel.id)
+        panel = next((p for p in panels if p['id'] == ticket.panel_id), None)
+        panelCategoryOpen = panel.get('category_open', '')
 
-        ticket = next((t for t in tickets if t['channelid'] == str(interaction.channel.id)), None)
-        panel = next((p for p in panels if p['id'] == ticket['panelid']), None)
-
-        ticket_idx = tickets.index(ticket)
-        panelCategoryOpen = panel['category_open']
-
-        if ticket['closed']['status'] == False:
+        if ticket.closed['status'] == False:
             return await interaction.response.send_message(embed=discord.Embed(description="This ticket is not closed yet.", color=0x5865f2), ephemeral=True)
 
         move_to = '.'
-        if panelCategoryOpen != '':
+        if panelCategoryOpen:
             categoryopen = discord.utils.get(interaction.guild.categories, id=int(panelCategoryOpen))
-            await interaction.channel.edit(category=categoryopen)
-            
-            move_to = f' and it has been moved to **<#{panelCategoryOpen}>** category'
+            if categoryopen:
+                await interaction.channel.edit(category=categoryopen)
+                move_to = f' and it has been moved to **{categoryopen.name}** category'
 
-        if ticket['closed']['status'] == True: # If the ticket is closed, we need to update the database to reflect that it has been reopened
-            ticket_idx = tickets.index(ticket)
-            v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.status', value=False)
-            v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.user', value='')
+        ticket.closed["status"] = False
+        ticket.closed["user"] = ""
+        ticket.reopened = {
+            "status": True,
+            "user": interaction.user.id,
+            "updated_at": f"{datetime.now()}"
+        }
+        ticket.status = "open"
+        ticket.save()
 
-            v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.reopened.status', value=True)
-            v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.reopened', value={
-                "status": True,
-                "user": interaction.user.id,
-                "updated_at": f"{datetime.now()}"
-            })
-
-        reopen_em = discord.Embed(
-            color=0x5865f2,
-            description=f"{interaction.user.mention}, you reopened this ticket{move_to}"
-        )
-
+        reopen_em = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, you reopened this ticket{move_to}")
         await interaction.response.send_message(embed=reopen_em, ephemeral=True)
 
         embed = discord.Embed(title="Ticket reopened.")
@@ -159,132 +222,156 @@ class TicketControls(discord.ui.View):
                 child.disabled = False
             if child.custom_id == "reopen_ticket":
                 child.disabled = True
-        
-        msg = await interaction.channel.fetch_message(int(interaction.message.id))
+
+        msg = await interaction.channel.fetch_message(int(ticket.message_id))
         await msg.edit(view=self)
 
     @discord.ui.button(emoji="🗑️", label="Delete", style=discord.ButtonStyle.red, custom_id="delete_ticket")
     async def delete_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
-        panels = v.db.get_dash(interaction.guild)['ticketing']['panels']
-        tickets = v.db.get_server_config(interaction.guild)['tickets']
+        panels = get_ticketing(interaction.guild)['panels']
+        ticket = get_channel_ticket(interaction.guild, interaction.channel.id)
+        panel = next((p for p in panels if p['id'] == ticket.panel_id), None)
 
-        ticket = next((t for t in tickets if t['channelid'] == str(interaction.channel.id)), None)
-        panel = next((p for p in panels if p['id'] == ticket['panelid']), None)
-        ticket_idx = tickets.index(ticket)
-
-        # Prevnt users from deleting their own ticket
-        if ticket['closed']['status'] == True and ticket['closed']['user'] == interaction.user.id:
-            return await interaction.response.send_message(
-                f"> **Warning:** You cannot delete your own ticket. Please close it first.", ephemeral=True
-            )
+        if ticket.closed['status'] == True and ticket.closed['user'] == interaction.user.id:
+            return await interaction.response.send_message("> **Warning:** You cannot delete your own ticket. Please close it first.", ephemeral=True)
 
         delete_confirm_em = discord.Embed(
             color=0x5865f2,
-            description=f"{interaction.user.mention}, are you sure you want to delete this ticket? \nThe channel will be deleted and a transcript will be generated (soon)."
+            description=f"{interaction.user.mention}, are you sure you want to delete this ticket? The channel will be deleted and a transcript will be generated."
         )
+        
         class DeleteTicketConfirm(discord.ui.View):
-            def __init__(self):
+            def __init__(self, parent_view, ticket_data, panel_data, guild_data):
                 super().__init__(timeout=None)
-            @discord.ui.button(emoji="🗑️", label="Confirm", style=discord.ButtonStyle.red, custom_id="open_ticket")
-            async def open_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
+                self.parent_view = parent_view
+                self.ticket = ticket_data
+                self.panel = panel_data
+                self.guild = guild_data
+                
+            @discord.ui.button(emoji="🗑️", label="Confirm", style=discord.ButtonStyle.red, custom_id="confirm_delete")
+            async def confirm_delete(self, button: discord.ui.Button, interaction: discord.Interaction):
                 await interaction.response.defer(invisible=False, ephemeral=True)
 
-                creator: discord.Member = await interaction.guild.fetch_member(ticket['creator']['id'])
+                creator: discord.Member = await interaction.guild.fetch_member(int(self.ticket.creator_id))
 
-                # if ticket is not closed then close and delete
-                if ticket['closed']['status'] == False: 
-                    v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.status', value=True)
-                    v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.user', value=interaction.user.id)
-                    v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.closed.updated_at', value=f"{datetime.now()}")
-                
-                v.db.update_server_config(interaction.guild, key=f'tickets.{ticket_idx}.deleted', value={
+                if self.ticket.closed['status'] == False:
+                    self.ticket.closed = {
+                        "status": True,
+                        "reason": "Ticket deleted",
+                        "user": interaction.user.id,
+                        "updated_at": f"{datetime.now()}"
+                    }
+
+                self.ticket.deleted = {
                     "status": True,
                     "user": interaction.user.id,
                     "updated_at": f"{datetime.now()}"
-                })
+                }
+                self.ticket.status = "deleted"
+                self.ticket.save()
 
-                user_message_count = {}
-
-                # Count messages for each user
-                for msg in ticket['transcript']:
-                    user_id = msg['user']['id']
-                    
-                    if msg['user']['bot']:
-                        continue
-                    if user_id in user_message_count:
-                        user_message_count[user_id] += 1
-                    else:
-                        user_message_count[user_id] = 1
-                participants = [
-                    f"{count} messages by `{user_id}` <@{user_id}>"
-                    for user_id, count in user_message_count.items()
-                ]
-
-                def format_time(time):
-                    time = datetime.fromisoformat(time)
-                    epoch_end = int(time.timestamp())
-                    return f'<t:{epoch_end}:R>'
+                await interaction.channel.send(f"{interaction.user.mention} deleted the ticket.")
                 
-                panel_channel = await interaction.guild.fetch_channel(int(panel['channel_id']))
-
-                transcript_em = discord.Embed(
-                    color=0x5865f2,
-                    title=f"Ticket #{len(tickets)} in {interaction.guild.name}",
+                # ── FIX: Use the properly scoped functions ──────────────────
+                transcript_data = await generate_transcript_data(
+                    self.ticket, 
+                    self.guild, 
+                    creator, 
+                    self.panel
                 )
-                transcript_em.set_author(name=creator.name, icon_url=creator.avatar.url)
-                transcript_em.add_field(name="Type", value=f"{panel['panel_button']['emoji']} `{panel['panel_button']['label']}` from Panel in {panel_channel.mention}", inline=False)
-                transcript_em.add_field(name="Created by", value=f"<@{ticket['creator']['id']}> {format_time(ticket['created_at'])}", inline=False)
                 
-                if ticket['claimed']['status'] == True:
-                    transcript_em.add_field(name="Claimed by", value=f"<@{ticket['claimed']['user']}> {format_time(ticket['claimed']['updated_at'])}", inline=False)
-                if ticket['closed']['status'] == True:
-                    transcript_em.add_field(name="Closed by", value=f"<@{ticket['closed']['user']}> {format_time(ticket['closed']['updated_at'])}", inline=False)
-                if ticket['reopened']['status'] == True:
-                    transcript_em.add_field(name="Reopened by", value=f"<@{ticket['reopened']['user']}> {format_time(ticket['reopened']['updated_at'])}", inline=False)
-                if ticket['deleted']['status'] == True:
-                    transcript_em.add_field(name="Deleted by", value=f"<@{ticket['deleted']['user']}> {format_time(ticket['deleted']['updated_at'])}", inline=False)
+                # Send transcript to log channel
+                if self.panel.get('transcript_channel'):
+                    log_channel = interaction.guild.get_channel(int(self.panel['transcript_channel']))
+                    if log_channel:
+                        # ✅ Correct asyncio.to_thread usage with proper function
+                        file = await asyncio.to_thread(
+                            create_transcript_file, 
+                            transcript_data['text'], 
+                            self.ticket.id[:8]
+                        )
+                        await log_channel.send(file=file, embed=transcript_data['embed'])
                 
-                transcript_em.add_field(name="Participants", value="\n".join(participants), inline=False)
-                
-                await interaction.channel.send(f"{interaction.user.mention} closed the ticket.") # Send a message to the channel
-                await interaction.channel.delete(reason="Ticket deleted by user.") # Delete the channel
+                if self.panel.get('transcript_dm'):
+                    try:
+                        file = await asyncio.to_thread(
+                            create_transcript_file, 
+                            transcript_data['text'], 
+                            self.ticket.id[:8]
+                        )
+                        await creator.send(file=file, embed=transcript_data['embed'])
+                    except:
+                        pass
 
-                # Send to the transcript channel
-                if panel['transcript_channel'] != '':
-                    await interaction.guild.get_channel(int(panel['transcript_channel'])).send(embed=transcript_em)
+                await interaction.channel.delete(reason="Ticket deleted by user.")
 
-                if panel['transcript_dm']:
-                    await interaction.guild.get_member(int(ticket['creator']['id'])).send(embed=transcript_em)
-        ##
-        await interaction.response.send_message(embed=delete_confirm_em, view=DeleteTicketConfirm(), ephemeral=True)
+        await interaction.response.send_message(embed=delete_confirm_em, view=DeleteTicketConfirm(self, ticket, panel, interaction.guild), ephemeral=True)
 
 class Ticketing(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.persistent_views_added = False
+        self.ticket_timeouts = {}  # {channel_id: expiry_time}
+        self.auto_close_timeout = 86400  # 24 hours
+        self.auto_close_check.start()
+
+    @tasks.loop(minutes=30)
+    async def auto_close_check(self):
+        """Auto-close tickets after 24 hours of inactivity."""
+        now = datetime.now()
+        for channel_id, expiry in list(self.ticket_timeouts.items()):
+            if now > expiry:
+                channel = self.client.get_channel(channel_id)
+                if channel:
+                    ticket = get_channel_ticket(channel.guild, channel.id)
+                    if ticket and ticket.status == "open":
+                        ticket.closed = {
+                            "status": True,
+                            "reason": "Auto-closed due to 24 hours of inactivity",
+                            "user": 0,
+                            "updated_at": f"{datetime.now()}"
+                        }
+                        ticket.status = "closed"
+                        ticket.save()
+                        
+                        try:
+                            await channel.send("🔒 This ticket has been auto-closed due to 24 hours of inactivity.")
+                            msg = await channel.fetch_message(int(ticket.message_id))
+                            view = TicketControls(self.client)
+                            for child in view.children:
+                                if child.custom_id == "close_ticket":
+                                    child.disabled = True
+                                if child.custom_id == "reopen_ticket":
+                                    child.disabled = False
+                            await msg.edit(view=view)
+                        except:
+                            pass
+                        
+                        self.ticket_timeouts.pop(channel_id, None)
 
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.persistent_views_added:
             self.client.add_view(TicketControls(self.client))
             self.persistent_views_added = True
+            
+        if not self.auto_close_check.is_running():
+            self.auto_close_check.start()
 
     # ── Ticket Creation ──────────────────────────────────────────
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.data.get("custom_id") == "create_ticket":
-            panels = v.db.get_dash(interaction.guild)['ticketing']['panels']
-            tickets = v.db.get_server_config(interaction.guild)['tickets']
+            panels = get_ticketing(interaction.guild)['panels']
+            tickets = get_guild_tickets(interaction.guild)
             
             panel = next((p for p in panels if p['channel_id'] == str(interaction.channel.id)), None)
             
             category = discord.utils.get(interaction.guild.categories, id=int(panel['category_open']))
 
             for channel in category.channels:
-                if channel.name == f"{len([t for t in tickets if not t['closed']['status']])+1}-{interaction.user.name}".lower():
-                    return await interaction.response.send_message(
-                        "> **Warning:** You already have an open ticket", ephemeral=True
-                    )
+                if channel.name == f"{len([t for t in tickets if not t.closed['status']])+1}-{interaction.user.name}".lower():
+                    return await interaction.response.send_message("> **Warning:** You already have an open ticket", ephemeral=True)
                 
             overwrites = {
                 interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
@@ -306,9 +393,11 @@ class Ticketing(commands.Cog):
                 ),
             )
 
+            self.ticket_timeouts[channel.id] = datetime.now() + timedelta(seconds=self.auto_close_timeout)
+
             move_to = '.'
-            if panel['category_open'] != '':
-                move_to = f' and it has been moved to **<#{panel["category_open"]}>** category' 
+            if panel['category_open']:
+                move_to = f' and it has been moved to **<#{panel["category_open"]}>** category'
 
             create_em = discord.Embed(
                 color=0x5865f2,
@@ -322,27 +411,21 @@ class Ticketing(commands.Cog):
             msg: discord.Message = await channel.send(embed=embed, view=TicketControls(self.client))
             await msg.pin()
 
-            data = {
-                "id": v.uuid(12, strCase="upper/lower/nums"),
-                "channelid": f"{channel.id}",
-                "messageid": f"{msg.id}",
-                "panelid": f"{panel['id']}",
-                "created_at": f"{datetime.now()}",
-                "creator": {
-                    "id": f"{interaction.user.id}",
-                    "name": f"{interaction.user.name}",
-                    "avatar": f"{interaction.user.avatar.url}",
+            Ticket(
+                guild_id=str(interaction.guild.id),
+                channel_id=str(channel.id),
+                message_id=str(msg.id),
+                creator_id=str(interaction.user.id),
+                creator={
+                    "name": interaction.user.name,
+                    "avatar": interaction.user.display_avatar.url,
                 },
-                "claimed": { "status": False, "user": "", "updated_at": "" },
-                "closed": { "status": False, "user": "", "updated_at": "" },
-                "reopened": { "status": False, "user": "", "updated_at": "" },
-                "deleted": { "status": False, "user": "", "updated_at": "" },
-                "transcript": []
-            }
-
-            v.db.update_server_config(interaction.guild, key=f'tickets.{len(tickets)}', value=data)
-        ##
-    
+                panel_id=str(panel['id']),
+                claimed={"status": False, "user": "", "updated_at": ""},
+                closed={"status": False, "reason": "", "user": "", "updated_at": ""},
+                reopened={"status": False, "user": "", "updated_at": ""},
+                deleted={"status": False, "user": "", "updated_at": ""},
+            ).insert()
 
     # ── Ticketing Transcript Listeners ──────────────────────────────────────────
     @commands.Cog.listener()
@@ -353,15 +436,18 @@ class Ticketing(commands.Cog):
             return
 
         try:
-            panels = v.db.get_dash(message.guild).get('ticketing', {}).get('panels', [])
-            tickets = v.db.get_server_config(message.guild).get('tickets', [])
+            panels = get_ticketing(message.guild).get('panels', [])
+            tickets = get_guild_tickets(message.guild)
 
             if not tickets or not panels:
                 return
 
-            ticket = next((t for t in tickets if t['channelid'] == str(message.channel.id)), None)
+            ticket = get_channel_ticket(message.guild, message.channel.id)
             if not ticket:
                 return
+
+            if ticket.status == "open":
+                self.ticket_timeouts[message.channel.id] = datetime.now() + timedelta(seconds=self.auto_close_timeout)
 
             msg_content = message.content
 
@@ -379,7 +465,7 @@ class Ticketing(commands.Cog):
                     "id": str(message.author.id),
                     "name": message.author.display_name,
                     "avatar": message.author.avatar.url if message.author.avatar else message.author.default_avatar.url,
-                    "color": next((role.colors.primary for role in message.author.roles if role.hoist), ''),
+                    "color": int(message.author.color),
                     "bot": message.author.bot
                 },
                 "content": msg_content,
@@ -393,17 +479,12 @@ class Ticketing(commands.Cog):
                 "channel": {
                     "id": str(message.channel.id),
                     "name": message.channel.name,
-                    "catagory": message.channel.category.name
+                    "catagory": message.channel.category.name if message.channel.category else None
                 }
             }
 
-            ticket_idx = tickets.index(ticket)
-            transcript_idx = len(ticket.get('transcript', []))
-            v.db.update_server_config(
-                message.guild,
-                key=f'tickets.{ticket_idx}.transcript.{transcript_idx}',
-                value=new_entry
-            )
+            ticket.transcript.append(new_entry)
+            ticket.save()
 
         except AttributeError:
             return
@@ -418,24 +499,20 @@ class Ticketing(commands.Cog):
             return
 
         try:
-            tickets = v.db.get_server_config(message.guild).get('tickets', [])
+            tickets = get_guild_tickets(message.guild)
             if not tickets:
                 return
 
-            ticket = next((t for t in tickets if t['channelid'] == str(message.channel.id)), None)
+            ticket = get_channel_ticket(message.guild, message.channel.id)
             if not ticket:
                 return
 
-            transcript = ticket.get('transcript', [])
+            transcript = ticket.transcript
             updated_transcript = [msg for msg in transcript if str(msg['id']) != str(message.id)]
 
             if len(updated_transcript) != len(transcript):
-                ticket_idx = tickets.index(ticket)
-                v.db.update_server_config(
-                    message.guild,
-                    key=f'tickets.{ticket_idx}.transcript',
-                    value=updated_transcript
-                )
+                ticket.transcript = updated_transcript
+                ticket.save()
         except AttributeError:
             return
 
@@ -448,7 +525,6 @@ class Ticketing(commands.Cog):
         overwrites.send_messages = True
         overwrites.read_message_history = True
         await ctx.interaction.channel.set_permissions(user, overwrite=overwrites)
-
         await ctx.respond(f"> **{user.mention}** was added to the ticket.")
 
     @commands.slash_command(name="ticket-remove", description="Removes a user from a ticket")
@@ -459,7 +535,6 @@ class Ticketing(commands.Cog):
         overwrites.send_messages = False
         overwrites.read_message_history = False
         await ctx.interaction.channel.set_permissions(user, overwrite=overwrites)
-
         await ctx.respond(f"> **{user.mention}** was removed from the ticket.")
 
 def setup(client):

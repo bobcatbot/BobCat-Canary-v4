@@ -1,919 +1,480 @@
 import discord
-from datetime import datetime
 from modules import bot as v
-from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select
-)
+from modules.models import Guild
+from discord.ui import DesignerView, Container, ActionRow, button, select, channel_select
+from dashboard._components import BackButton, FooterRow, StatusToggle, save_dash, refresh_footer
 
-class AddNewTempChannelHub(DesignerView):
-    def __init__(self, guild: discord.Guild, user: discord.User, data: dict = None):
+PRESET_LIMITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 20, 25, 30, 40, 50, 60, 70, 80, 99]
+BITRATE_STEPS = [8000, 16000, 32000, 64000, 96000, 128000, 256000, 384000]
+
+def default_hub_data() -> dict:
+    return {
+        "id": v.uuid(length=12, strCase="upper/lower/nums"),
+        "default": True,
+        "hub_name": "Hub - Join to create",
+        "name": "#{index} - {username}'s Channel",
+        "user_limit": 4,
+        "bitrate": 64000,
+        "category_id": "",
+        "channel_id": "",
+        "sync_hub_category": False,
+        "permissions": {
+            "manage_channels": False,
+            "manage_permissions": False,
+            "priority_speaker": False,
+            "move_members": False,
+        },
+    }
+
+class TempChannelHubEditor(DesignerView):
+    def __init__(
+        self,
+        guild: discord.Guild,
+        user: discord.User,
+        data: dict | None = None,
+        idx: int | None = None,
+        page: str = "menu",
+    ):
         super().__init__(timeout=None)
-        
-        if data is None: # If data none then inint
-            data = {}
-            data['id'] = v.uuid(length=12, strCase='upper/lower/nums')
+        self.guild = guild
+        self.user = user
+        self.idx = idx
+        self.is_new = idx is None
 
-            def load_default_data():
-                data["default"] = True
-                data["hub_name"] = "Hub - Join to create"
-                data["name"] = "#{index} - {username}'s Channel"
-                data["user_limit"] = "4"
-                data["bitrate"] = "64"
-                data["sync_hub_category"] = False
-                data["permissions"] = {
-                    "manage_channels": False,
-                    "manage_permissions": False,
-                    "priority_speaker": False,
-                    "move_members": False
-                }
-                return data
-            load_default_data()
+        if data is not None:
+            self.data = data
+        elif self.is_new:
+            self.data = default_hub_data()
+        else:
+            self.data = Guild.get(str(guild.id)).run().dashboard.temporary_channels["hubs"][idx]
 
-        maincontainer = Container(
-            color=discord.Color.embed_background(),
+        if page == "hub":
+            self._build_hub_page()
+        elif page == "settings":
+            self._build_settings_page()
+        elif page == "permissions":
+            self._build_permissions_page()
+        else:
+            self._build_menu()
+
+    def editor(self, page: str = "menu"):
+        return TempChannelHubEditor(
+            guild=self.guild,
+            user=self.user,
+            data=self.data,
+            idx=self.idx,
+            page=page,
         )
-        maincontainer.add_text("## Create New Temporary Channel Hub")
-        maincontainer.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        class MainHubView(DesignerView):
-            def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
-                )
-                container.add_text("# Main Hub")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-                
-                container.add_text("## Hub Name")
-                class HubModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "Hub Name",
-                                discord.ui.InputText(
-                                    placeholder="Hub name here...",
-                                    value=f"{data['hub_name']}",
-                                    style=discord.InputTextStyle.short,
-                                    required=False,
-                                    max_length=32,
-                                ),
-                            ),
-                            title="Edit Hub Name",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        data['hub_name'] = self.children[0].item.value
+    def save_value(self, key: str, value) -> None:
+        current = self.data
+        parts = key.split(".")
 
-                        await interaction.response.send_message(f"Saving Hub Name to {data['hub_name']}", ephemeral=True)
-                class EditHubNameButton(ActionRow):
-                    @button(
-                        label="Edit Hub Name",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(HubModal())
-                container.add_item(EditHubNameButton())
+        for part in parts[:-1]:
+            current = current[part]
 
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        current[parts[-1]] = value
 
-                container.add_text("## Temporary Channels Name")
-                class TemporaryChannelsNameModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "Hub Name",
-                                discord.ui.InputText(
-                                    placeholder="Channel name here...",
-                                    value=f"{data['name']}",
-                                    style=discord.InputTextStyle.short,
-                                    required=False,
-                                    max_length=32,
-                                ),
-                            ),
-                            title="Edit Hub Name",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        data['name'] = self.children[0].item.value
-
-                        btn = container.get_item("previewButton")
-                        btn.label = f"{data['name']}".format(index="1", username=user.name)
-                        await interaction.response.edit_message(view=container.view)
-
-                        await interaction.followup.send(f"Saving Channel Name to {data['name']}", ephemeral=True)
-                class EditChannelsNameButton(ActionRow):
-                    @button(
-                        label="Edit Hub Name",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(TemporaryChannelsNameModal())
-                container.add_item(EditChannelsNameButton())
-
-                container.add_text("Preview:")
-                class PreviewChannelsNameButton(ActionRow):
-                    @button(
-                        label=f"{data['name']}".format(index="1", username=user.name),
-                        style=discord.ButtonStyle.gray,
-                        custom_id="previewButton",
-                        disabled=True
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        pass
-                container.add_item(PreviewChannelsNameButton())
-
-                self.add_item(container)
-                
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
-                self.add_item(GoToMainSettingsButton())
-        class HubSettingsView(DesignerView):
-            def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
-                )
-                container.add_text("# Main Settings")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-                
-                container.add_text("## User limit")
-                class UserLimitModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "User limit",
-                                discord.ui.InputText(
-                                    placeholder="0-99",
-                                    value=f"{data['user_limit']}",
-                                    style=discord.InputTextStyle.short,
-                                    max_length=2,
-                                ),
-                                description="Default user limit for all temporary voice channels. Max limit 0-99"
-                            ),
-                            title="Edit User limit",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        data['user_limit'] = self.children[0].item.value
-
-                        await interaction.response.send_message(f"Saving user limit to {data['user_limit']}", ephemeral=True)
-                class EditUserLimitButton(ActionRow):
-                    @button(
-                        label="Edit User limit",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(UserLimitModal())
-                container.add_item(EditUserLimitButton())
-
-                container.add_text("## Bitrate")
-                class BitrateModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "User limit",
-                                discord.ui.InputText(
-                                    placeholder="0-96000",
-                                    value=f"{data['bitrate']}",
-                                    style=discord.InputTextStyle.short,
-                                    max_length=2,
-                                ),
-                                description="Default user limit for all temporary voice channels. Max limit 0-96000"
-                            ),
-                            title="Edit Temp Channel Bitrate",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        data['bitrate'] = self.children[0].item.value
-                        await interaction.response.send_message(f"Saving bitrate to {data['bitrate']}", ephemeral=True)
-                class EditBitrateButton(ActionRow):
-                    @button(
-                        label="Edit Bitrate",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(BitrateModal())
-                container.add_item(EditBitrateButton())
-
-                self.add_item(container)
-                
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
-                self.add_item(GoToMainSettingsButton())
-        class HubPermissionsView(DesignerView):
-            def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
-                )
-                container.add_text("# Permissions")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-                container.add_text("## Synchronize permissions with Hub category")
-                container.add_text("Synchronize the permissions of the temporary channels when they are created with the permissions of the Hub category.")
-                
-                class SynchronizePermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled",
-                        style=discord.ButtonStyle.red,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            data["sync_hub_category"] = True
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-
-                            syncPermsSelect = container.get_item("SyncPermsSelect")
-                            syncPermsSelect.disabled = False
-                        else:
-                            data["sync_hub_category"] = False
-
-                            syncPermsSelect = container.get_item("SyncPermsSelect")
-                            syncPermsSelect.disabled = True
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(SynchronizePermissionsButton())
-
-                class SynchronizePermissionsSelect(ActionRow):
-                    @channel_select(
-                        placeholder="Select a hub feature",
-                        channel_types=[discord.ChannelType.category],
-                        custom_id="SyncPermsSelect",
-                        disabled=True
-                    )
-                    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                        pass
-                container.add_item(SynchronizePermissionsSelect())
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-                container.add_text("## Owner Permissions")
-
-                container.add_text("### Manage Channels")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled",
-                        style=discord.ButtonStyle.red,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            data["permissions"]["manage_channels"] = True
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            data["permissions"]["manage_channels"] = False
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-
-                container.add_text("### Manage Permissions")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                if guild.me.guild_permissions.administrator == False:
-                    container.add_text("**Your bot must have the 'Administrator' permission in order to set the 'Manage Permissions' permission on a channel**")
-
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled",
-                        style=discord.ButtonStyle.red,
-                        disabled=True if guild.me.guild_permissions.administrator == False else False
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            data["permissions"]["manage_permissions"] = True
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            data["permissions"]["manage_permissions"] = False
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-
-                container.add_text("### Priority Speaker")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled",
-                        style=discord.ButtonStyle.red,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            data["permissions"]["priority_speaker"] = True
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            data["permissions"]["priority_speaker"] = False
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-                container.add_text("### Move Members")
-                container.add_text("The user that triggered the temporary channels creation can move other users from the temporary voice channel on Discord.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled",
-                        style=discord.ButtonStyle.red,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            data["permissions"]["move_members"] = True
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            data["permissions"]["move_members"] = False
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-                
-                self.add_item(container)
-                
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=AddNewTempChannelHub(guild, user, data))
-                self.add_item(GoToMainSettingsButton())
-
-        class NewHubSelect(ActionRow):
-            @select(
-                placeholder="Select a hub feature",
-                options=[
-                    discord.SelectOption(label="Hub"),
-                    discord.SelectOption(label="Settings"),
-                    discord.SelectOption(label="Permissions"),
-                ],
+        if not self.is_new:
+            save_dash(
+                self.guild,
+                f"temporary_channels.hubs.{self.idx}.{key}",
+                value,
             )
-            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                if select.values[0] == "Hub":
-                    return await interaction.response.edit_message(view=MainHubView())
-                if select.values[0] == "Settings":
-                    return await interaction.response.edit_message(view=HubSettingsView())
-                if select.values[0] == "Permissions":
-                    return await interaction.response.edit_message(view=HubPermissionsView())
-        maincontainer.add_item(NewHubSelect())
-        
-        self.add_item(maincontainer)
 
-        class SaveNewHubButton(ActionRow):
-            @button(
-                label="Create",
-                style=discord.ButtonStyle.success,
-            )
-            async def OnCreate(self, button: discord.ui.Button, interaction: discord.Interaction):
-                if data['sync_hub_category'] == True:
-                    if data['category_id'] == '':
-                        # create category
-                        category = await guild.create_category_channel(data['hub_name'], reason=f"Temporary category for hub {data['id']}")
-                        data['category_id'] = category.id
+    def _add_navigation(self, container: Container):
+        editor = self
+
+        class NavigationButtons(ActionRow):
+            @button(label="Hub", style=discord.ButtonStyle.gray)
+            async def hub(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=editor.editor("hub"))
+
+            @button(label="Settings", style=discord.ButtonStyle.gray)
+            async def settings(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=editor.editor("settings"))
+
+            @button(label="Permissions", style=discord.ButtonStyle.gray)
+            async def permissions(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=editor.editor("permissions"))
+
+        container.add_item(NavigationButtons())
+
+    def _build_menu(self):
+        container = Container(color=discord.Color.embed_background())
+        title = "Create New Temporary Channel Hub" if self.is_new else f"{self.data['hub_name']} ({self.data['id']})"
+        container.add_text(f"## {title}")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        self._add_navigation(container)
+        self.add_item(container)
+
+        if self.is_new:
+            editor = self
+
+            class CreateHubButton(ActionRow):
+                @button(label="Create", style=discord.ButtonStyle.success)
+                async def create(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                    if editor.data.get("sync_hub_category"):
+                        category_id = editor.data.get("category_id")
+
+                        if category_id:
+                            category = editor.guild.get_channel(int(category_id))
+                        else:
+                            category = await editor.guild.create_category_channel(
+                                editor.data["hub_name"],
+                                reason=f"Temporary category for hub {editor.data['id']}",
+                            )
+                            editor.data["category_id"] = str(category.id)
                     else:
-                        category = await guild.fetch_channel(data['category_id'])
-                        data['category_id'] = category.id
-                else:
-                    category = guild
-                
-                vc = await category.create_voice_channel(data['hub_name'], reason=f"Temporary voice channel for hub {data['id']}")
-                data['channel_id'] = vc.id
-                
-                was_default = data.pop('default') # remove key 'default' before saving to the database
+                        category = editor.guild
 
-                # Save the data
-                idx = len(v.db.get_dash(guild.id)['temporary_channels']['hubs'])
-                v.db.update_dash(guild, f'temporary_channels.hubs.{idx}', data)
+                    channel = await category.create_voice_channel(
+                        editor.data["hub_name"],
+                        reason=f"Temporary voice channel for hub {editor.data['id']}",
+                    )
+                    editor.data["channel_id"] = str(channel.id)
 
-                await interaction.response.send_message((
-                    f"Successfully created hub {data['id']}"
-                    "\n\n**Please be aware that you created a new hub with default settings. You can change them in the hub settings menu.**" if was_default == True else ""
-                ), ephemeral=True)
-        self.add_item(SaveNewHubButton())
+                    was_default = editor.data.pop("default", False)
+                    hubs = Guild.get(str(editor.guild.id)).run().dashboard.temporary_channels.get("hubs", [])
+                    save_dash(editor.guild, f"temporary_channels.hubs.{len(hubs)}", editor.data)
 
-class EditTempChannelHub(DesignerView):
-    def __init__(self, guild: discord.Guild, user: discord.User, idx: int):
-        super().__init__(timeout=None)
-        data = v.db.get_dash(guild)['temporary_channels']['hubs'][idx]
-        
-        maincontainer = Container(
-            color=discord.Color.embed_background(),
-        )
-        maincontainer.add_text(f"## {data['hub_name']} ({data['id']})")
-        maincontainer.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+                    message = f"Successfully created hub `{editor.data['id']}`."
+                    if was_default:
+                        message += "\n\nThe hub was created with default settings."
 
-        class MainHubView(DesignerView):
+                    await interaction.response.send_message(message, ephemeral=True)
+
+            self.add_item(CreateHubButton())
+        else:
+            self.add_item(FooterRow(self.guild, lambda: PluginTempChannels(self.guild)))
+
+    def _build_hub_page(self):
+        container = Container(color=discord.Color.embed_background())
+        container.add_text("# 🏷️ Main Hub Settings")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        container.add_text("## Hub Name")
+
+        editor = self
+
+        class HubNameModal(discord.ui.DesignerModal):
             def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
+                super().__init__(
+                    discord.ui.Label(
+                        "Hub Name",
+                        discord.ui.InputText(
+                            value=editor.data["hub_name"],
+                            style=discord.InputTextStyle.short,
+                            required=True,
+                            max_length=32,
+                        ),
+                    ),
+                    title="Edit Hub Name",
                 )
-                container.add_text("# Main Hub")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-                
-                container.add_text("## Hub Name")
-                class HubModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "Hub Name",
-                                discord.ui.InputText(
-                                    placeholder="Hub name here...",
-                                    value=f"{data['hub_name']}",
-                                    style=discord.InputTextStyle.short,
-                                    required=False,
-                                    max_length=32,
-                                ),
-                            ),
-                            title="Edit Hub Name",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        hubName = self.children[0].item.value
 
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.hub_name', hubName)
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())                       
+            async def callback(self, interaction: discord.Interaction):
+                value = self.children[0].item.value
+                editor.save_value("hub_name", value)
+                await interaction.response.edit_message(view=editor.editor("hub"))
+                await interaction.followup.send(f"Updated Hub Name to **{value}**", ephemeral=True)
 
-                        await interaction.response.send_message(f"Saving Hub Name to {hubName}", ephemeral=True)
-                class EditHubNameButton(ActionRow):
-                    @button(
-                        label="Edit Hub Name",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(HubModal())
-                container.add_item(EditHubNameButton())
+        class HubNameButton(ActionRow):
+            @button(label="Edit Hub Name", style=discord.ButtonStyle.primary, emoji="✏️")
+            async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.send_modal(HubNameModal())
 
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        container.add_item(HubNameButton())
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        container.add_text("## Channel Naming Template")
+        container.add_text("> `{username}` — channel creator\n> `{index}` — temporary channel number")
 
-                container.add_text("## Temporary Channels Name")
-                class TemporaryChannelsNameModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Channel Name
-                                "Channel Name",
-                                discord.ui.InputText(
-                                    placeholder="Channel name here...",
-                                    value=f"{data['name']}",
-                                    style=discord.InputTextStyle.short,
-                                    required=False,
-                                    max_length=32,
-                                ),
-                            ),
-                            title="Edit Channel Name",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        channelName = self.children[0].item.value
-
-                        btn = container.get_item("previewButton")
-                        btn.label = f"{channelName}".format(index="1", username=user.name)
-                        await interaction.response.edit_message(view=container.view)
-
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.name', channelName)
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                        await interaction.followup.send(f"Saving Channel Name to {channelName}", ephemeral=True)
-                class EditChannelNameButton(ActionRow):
-                    @button(
-                        label="Edit Channel Name",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(TemporaryChannelsNameModal())
-                container.add_item(EditChannelNameButton())
-
-                container.add_text("Preview:")
-                class PreviewChannelNameButton(ActionRow):
-                    @button(
-                        label=f"{data['name']}".format(index="1", username=user.name),
-                        style=discord.ButtonStyle.gray,
-                        custom_id="previewButton",
-                        disabled=True
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        pass
-                container.add_item(PreviewChannelNameButton())
-
-                self.add_item(container)
-
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=EditTempChannelHub(guild, user, idx))
-                self.add_item(GoToMainSettingsButton())
-        class HubSettingsView(DesignerView):
+        class ChannelNameModal(discord.ui.DesignerModal):
             def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
+                super().__init__(
+                    discord.ui.Label(
+                        "Channel Template",
+                        discord.ui.InputText(
+                            value=editor.data["name"],
+                            style=discord.InputTextStyle.short,
+                            required=True,
+                            max_length=32,
+                        ),
+                    ),
+                    title="Edit Channel Naming Template",
                 )
-                container.add_text("# Main Settings")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-                
-                container.add_text("## User limit")
-                class UserLimitModal(discord.ui.DesignerModal):
-                    def __init__(self):
-                        super().__init__(
-                            discord.ui.Label( # Hub Name
-                                "User limit",
-                                discord.ui.InputText(
-                                    placeholder="0-99",
-                                    value=f"{data['user_limit']}",
-                                    style=discord.InputTextStyle.short,
-                                    max_length=2,
-                                ),
-                                description="Default user limit for all temporary voice channels. 0-99 (0 = unlimited)"
-                            ),
-                            title="Edit User limit",
-                        )
-                    async def callback(self, interaction: discord.Interaction):
-                        userLimit = self.children[0].item.value
 
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.user_limit', userLimit) # save data
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow()) # update updated_at
+            async def callback(self, interaction: discord.Interaction):
+                value = self.children[0].item.value
 
-                        await interaction.response.send_message(f"Saving user limit to {userLimit}", ephemeral=True)
-                class EditUserLimitButton(ActionRow):
-                    @button(
-                        label="Edit User limit",
-                        style=discord.ButtonStyle.primary,
+                try:
+                    value.format(index=1, username=editor.user.name)
+                except (KeyError, ValueError):
+                    return await interaction.response.send_message(
+                        "That template contains an invalid variable.",
+                        ephemeral=True,
                     )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.send_modal(UserLimitModal())
-                container.add_item(EditUserLimitButton())
 
-                container.add_text("## Bitrate")
-                container.add_text("ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.")
-                BitrateSelectOptions = [
-                    discord.SelectOption(label="8 kbps", value="8"),
-                    discord.SelectOption(label="16 kbps", value="16"),
-                    discord.SelectOption(label="32 kbps", value="32"),
-                    discord.SelectOption(label="64 kbps", value="64"),
-                    discord.SelectOption(label="96 kbps", value="96"),
-                ]
-                if guild.premium_tier >= 1:
-                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
-                if guild.premium_tier >= 2:
-                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
-                    BitrateSelectOptions.append(discord.SelectOption(label="256 kbps", value="256"))
-                if guild.premium_tier >= 3:
-                    BitrateSelectOptions.append(discord.SelectOption(label="128 kbps", value="128"))
-                    BitrateSelectOptions.append(discord.SelectOption(label="256 kbps", value="256"))
-                    BitrateSelectOptions.append(discord.SelectOption(label="384 kbps", value="384"))
-                class BitrateSelect(ActionRow):
-                    @select(
-                        placeholder="Select bitrate",
-                        options=BitrateSelectOptions,
-                    )
-                    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                        bitrate = select.values[0]
+                editor.save_value("name", value)
+                await interaction.response.edit_message(view=editor.editor("hub"))
+                await interaction.followup.send(f"Updated template to `{value}`", ephemeral=True)
 
-                        v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.bitrate', bitrate) # save data
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow()) # update updated_at
+        class ChannelNameButton(ActionRow):
+            @button(label="Edit Channel Template", style=discord.ButtonStyle.primary, emoji="📝")
+            async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.send_modal(ChannelNameModal())
 
-                        await interaction.response.send_message(f"Saving bitrate to {bitrate} kbps", ephemeral=True)
-                container.add_item(BitrateSelect())
+        container.add_item(ChannelNameButton())
+        container.add_text("### Live Preview")
 
-                self.add_item(container)
-                
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=EditTempChannelHub(guild, user, idx))
-                self.add_item(GoToMainSettingsButton())
-        class HubPermissionsView(DesignerView):
-            def __init__(self):
-                super().__init__(timeout=None)
-                container = Container(
-                    color=discord.Color.embed_background(),
-                )
-                container.add_text("# Permissions")
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        try:
+            preview = self.data["name"].format(index=1, username=self.user.name)
+        except (KeyError, ValueError):
+            preview = "⚠️ Invalid format variables used!"
 
-                container.add_text("## Synchronize permissions with Hub category")
-                container.add_text("Synchronize the permissions of the temporary channels when they are created with the permissions of the Hub category.")
-                
-                class SynchronizePermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled" if data['sync_hub_category'] == False else "Enabled",
-                        style=discord.ButtonStyle.red if data['sync_hub_category'] == False else discord.ButtonStyle.green,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
+        class PreviewButton(ActionRow):
+            @button(label=preview[:80], style=discord.ButtonStyle.secondary, disabled=True, emoji="🔊")
+            async def callback(self, btn, interaction):
+                pass
 
-                            syncPermsSelect = container.get_item("SyncPermsSelect")
-                            syncPermsSelect.disabled = False
-                        else:
-                            syncPermsSelect = container.get_item("SyncPermsSelect")
-                            syncPermsSelect.disabled = True
+        container.add_item(PreviewButton())
+        self.add_item(container)
+        self.add_item(FooterRow(self.guild, lambda: self.editor()))
 
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(SynchronizePermissionsButton())
+    def _build_settings_page(self):
+        container = Container(color=discord.Color.embed_background())
+        container.add_text("# Main Settings")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        editor = self
 
-                class SynchronizePermissionsSelect(ActionRow):
-                    @channel_select(
-                        placeholder="Select a hub feature",
-                        channel_types=[discord.ChannelType.category],
-                        custom_id="SyncPermsSelect",
-                        disabled=True if data['sync_hub_category'] == False else False,
-                        default_values=[ discord.utils.get(guild.categories, id=data['category_id']) ] if data['category_id'] != '' else None,
-                    )
-                    async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                        category = select.values[0]
-                        print(category)
-                container.add_item(SynchronizePermissionsSelect())
-                container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        current_limit = int(self.data.get("user_limit", 0))
+        limits = list(PRESET_LIMITS)
 
-                container.add_text("## Owner Permissions")
+        if current_limit not in limits:
+            limits.append(current_limit)
 
-                container.add_text("### Manage Channels")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled" if data['permissions']['manage_channels'] == False else "Enabled",
-                        style=discord.ButtonStyle.red if data['permissions']['manage_channels'] == False else discord.ButtonStyle.green,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.manage_channels', True)
+        limits = sorted(set(limits))[:25]
 
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.manage_channels', False)
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-
-                container.add_text("### Manage Permissions")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                if guild.me.guild_permissions.administrator == False:
-                    container.add_text("**Your bot must have the 'Administrator' permission in order to set the 'Manage Permissions' permission on a channel**")
-
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled" if data['permissions']['manage_permissions'] == False else "Enabled",
-                        style=discord.ButtonStyle.red if data['permissions']['manage_permissions'] == False else discord.ButtonStyle.green,
-                        disabled=True if guild.me.guild_permissions.administrator == False else False
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.manage_permissions', True)
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.success
-                        else:
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.manage_permissions', False)
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-
-                container.add_text("### Priority Speaker")
-                container.add_text("The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled" if data['permissions']['priority_speaker'] == False else "Enabled",
-                        style=discord.ButtonStyle.red if data['permissions']['priority_speaker'] == False else discord.ButtonStyle.green,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.priority_speaker', True)
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.priority_speaker', False)
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-                container.add_text("### Move Members")
-                container.add_text("The user that triggered the temporary channels creation can move other users from the temporary voice channel on Discord.")
-                class ManageChannelsPermissionsButton(ActionRow):
-                    @button(
-                        label="Disabled" if data['permissions']['move_members'] == False else "Enabled",
-                        style=discord.ButtonStyle.red if data['permissions']['move_members'] == False else discord.ButtonStyle.green,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        if button.label == "Disabled":
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.move_members', True)
-
-                            button.label = "Enabled"
-                            button.style = discord.ButtonStyle.green
-                        else:
-                            v.db.update_dash(guild, f'temporary_channels.hubs.{idx}.permissions.move_members', False)
-
-                            button.label = "Disabled"
-                            button.style = discord.ButtonStyle.red
-                        
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                        await interaction.response.edit_message(view=interaction.view)
-                container.add_item(ManageChannelsPermissionsButton())
-                container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-                
-                self.add_item(container)
-                
-                class GoToMainSettingsButton(ActionRow):
-                    @button(
-                        label="Go Back",
-                        style=discord.ButtonStyle.primary,
-                    )
-                    async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        await interaction.response.edit_message(view=EditTempChannelHub(guild, user, idx))
-                self.add_item(GoToMainSettingsButton())
-
-        class NewHubSelect(ActionRow):
+        class UserLimitSelect(ActionRow):
             @select(
-                placeholder="Select a hub feature",
+                placeholder="Select user limit",
                 options=[
-                    discord.SelectOption(label="Hub"),
-                    discord.SelectOption(label="Settings"),
-                    discord.SelectOption(label="Permissions"),
+                    discord.SelectOption(
+                        label="Unlimited (0)" if value == 0 else f"{value} users",
+                        value=str(value),
+                        default=value == current_limit,
+                    )
+                    for value in limits
                 ],
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                if select.values[0] == "Hub":
-                    return await interaction.response.edit_message(view=MainHubView())
-                if select.values[0] == "Settings":
-                    return await interaction.response.edit_message(view=HubSettingsView())
-                if select.values[0] == "Permissions":
-                    return await interaction.response.edit_message(view=HubPermissionsView())
-        maincontainer.add_item(NewHubSelect())
-        
-        self.add_item(maincontainer)
+                value = int(select.values[0])
+                editor.save_value("user_limit", value)
+                refresh_footer(interaction.view, editor.guild)
+                await interaction.response.edit_message(view=editor.editor("settings"))
 
-        class DeleteHubButton(ActionRow):
-            @button(
-                label="Delete Hub",
-                style=discord.ButtonStyle.danger,
-            )
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                class ConfirmDeleteHubView(discord.ui.View):
-                    def __init__(self):
-                        super().__init__(timeout=None)
+        container.add_text("## User Limit")
+        container.add_item(UserLimitSelect())
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-                    @discord.ui.button(
-                        label="Delete",
-                        style=discord.ButtonStyle.danger,
+        current_bitrate = int(self.data.get("bitrate", 64000))
+        rates = [rate for rate in BITRATE_STEPS if rate <= int(self.guild.bitrate_limit)]
+
+        if current_bitrate not in rates and current_bitrate <= int(self.guild.bitrate_limit):
+            rates.append(current_bitrate)
+
+        rates = sorted(set(rates))[:25]
+
+        class BitrateSelect(ActionRow):
+            @select(
+                placeholder="Select bitrate",
+                options=[
+                    discord.SelectOption(
+                        label=f"{rate // 1000} kbps",
+                        value=str(rate),
+                        default=rate == current_bitrate,
                     )
-                    async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        # delete category and all channels in it if sync_hub_category is enabled
-                        if data['sync_hub_category'] == True and data['category_id'] != '':
-                            category = discord.utils.get(guild.categories, id=data['category_id'])
-                            if category:
-                                await category.delete(reason=f"Hub {data['id']} deleted")
+                    for rate in rates
+                ],
+            )
+            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                value = int(select.values[0])
+                editor.save_value("bitrate", value)
+                refresh_footer(interaction.view, editor.guild)
+                await interaction.response.edit_message(view=editor.editor("settings"))
 
-                        # delete the temporary voice channel if sync_hub_category is disabled or if there is no category
-                        elif data['channel_id'] != '':
-                            channel = discord.utils.get(guild.voice_channels, id=data['channel_id'])
-                            if channel:
-                                await channel.delete(reason=f"Hub {data['id']} deleted")
+        container.add_text("## Bitrate")
+        container.add_item(BitrateSelect())
 
-                        # remove hub from database
-                        tcs = v.db.get_dash(guild.id)['temporary_channels']
-                        tcs['hubs'].pop(idx)
+        if not self.is_new:
+            container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+            container.add_text("## ⚠️ Danger Zone")
+            container.add_text("Deleting this hub removes its configuration and Discord hub channel.")
 
-                        v.db.update_dash(guild, key=f'temporary_channels.hubs', value=tcs['hubs'])
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+            class DeleteHubButton(ActionRow):
+                @button(label="Delete Hub", style=discord.ButtonStyle.danger)
+                async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                    class ConfirmDelete(discord.ui.View):
+                        @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger)
+                        async def confirm(self, btn: discord.ui.Button, inter: discord.Interaction):
+                            category_id = editor.data.get("category_id")
+                            channel_id = editor.data.get("channel_id")
 
-                        await interaction.response.send_message(f"Hub {data['id']} has been deleted", ephemeral=True)
+                            if editor.data.get("sync_hub_category") and category_id:
+                                category = editor.guild.get_channel(int(category_id))
+                                if category:
+                                    await category.delete(reason=f"Hub {editor.data['id']} deleted")
+                            elif channel_id:
+                                channel = editor.guild.get_channel(int(channel_id))
+                                if channel:
+                                    await channel.delete(reason=f"Hub {editor.data['id']} deleted")
 
-                    @discord.ui.button(
-                        label="Cancel",
-                        style=discord.ButtonStyle.secondary,
+                            config = Guild.get(str(editor.guild.id)).run()
+                            hubs = config.dashboard.temporary_channels.get("hubs", [])
+                            hubs.pop(editor.idx)
+                            config.dashboard.temporary_channels["hubs"] = hubs
+                            config.updated_at = discord.utils.utcnow()
+                            config.save()
+
+                            await inter.response.edit_message(
+                                content=f"Hub `{editor.data['id']}` has been deleted.",
+                                view=None,
+                            )
+
+                        @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+                        async def cancel(self, btn: discord.ui.Button, inter: discord.Interaction):
+                            await inter.response.edit_message(content="Cancelled.", view=None)
+
+                    await interaction.response.send_message(
+                        "Are you sure? This action cannot be undone.",
+                        view=ConfirmDelete(),
+                        ephemeral=True,
                     )
-                    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-                        for child in self.children:
-                            child.disabled = True
-                        
-                        await interaction.response.edit_message(content="Canceled", view=self)
 
-                await interaction.response.send_message("### Are you sure you want to delete this hub? This action cannot be undone.", view=ConfirmDeleteHubView(), ephemeral=True)
-        self.add_item(DeleteHubButton())
+            container.add_item(DeleteHubButton())
 
-        class GoBackToMainButton(ActionRow):
+        self.add_item(container)
+        self.add_item(FooterRow(self.guild, lambda: self.editor()))
+
+    def _build_permissions_page(self):
+        container = Container(color=discord.Color.embed_background())
+        container.add_text("# Permissions")
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        editor = self
+
+        sync_enabled = bool(self.data.get("sync_hub_category"))
+        category = self.guild.get_channel(int(self.data["category_id"])) if self.data.get("category_id") else None
+
+        class SyncToggle(ActionRow):
             @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
+                label="Enabled" if sync_enabled else "Disabled",
+                style=discord.ButtonStyle.green if sync_enabled else discord.ButtonStyle.red,
             )
-            async def GoBack(self, button: discord.ui.Button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginTempChannels(guild))
-            
-            @button(
-                label="Updated at: " + datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime("%d-%m-%Y %H:%M"),
-                style=discord.ButtonStyle.gray,
-                disabled=True
+            async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                enabled = btn.label == "Disabled"
+                editor.save_value("sync_hub_category", enabled)
+                refresh_footer(interaction.view, editor.guild)
+                await interaction.response.edit_message(view=editor.editor("permissions"))
+
+        container.add_text("## Synchronise permissions with Hub category")
+        container.add_item(SyncToggle())
+
+        class CategorySelect(ActionRow):
+            @channel_select(
+                placeholder="Select a category",
+                channel_types=[discord.ChannelType.category],
+                min_values=0,
+                max_values=1,
+                disabled=not sync_enabled,
+                default_values=[category] if category else None,
             )
-            async def UpdateButton(self, b, i):
-                pass
-        self.add_item(GoBackToMainButton())
+            async def callback(self, select: discord.ui.ChannelSelect, interaction: discord.Interaction):
+                value = str(select.values[0].id) if select.values else ""
+                editor.save_value("category_id", value)
+                refresh_footer(interaction.view, editor.guild)
+                await interaction.response.edit_message(view=editor.editor("permissions"))
+
+        container.add_item(CategorySelect())
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        container.add_text("## Owner Permissions")
+
+        permission_meta = [
+            ("manage_channels", "Manage Channels", False),
+            ("manage_permissions", "Manage Permissions", not self.guild.me.guild_permissions.administrator),
+            ("priority_speaker", "Priority Speaker", False),
+            ("move_members", "Move Members", False),
+        ]
+
+        for permission, label, disabled in permission_meta:
+            enabled = bool(self.data["permissions"].get(permission))
+            editor_ref = editor
+
+            def make_row(permission_name: str, button_label: str, active: bool, is_disabled: bool):
+                class PermissionToggle(ActionRow):
+                    @button(
+                        label="Enabled" if active else "Disabled",
+                        style=discord.ButtonStyle.green if active else discord.ButtonStyle.red,
+                        disabled=is_disabled,
+                    )
+                    async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                        value = btn.label == "Disabled"
+                        editor_ref.save_value(f"permissions.{permission_name}", value)
+                        refresh_footer(interaction.view, editor_ref.guild)
+                        await interaction.response.edit_message(view=editor_ref.editor("permissions"))
+
+                return PermissionToggle()
+
+            container.add_text(f"### {label}")
+            container.add_item(make_row(permission, label, enabled, disabled))
+
+        self.add_item(container)
+        self.add_item(FooterRow(self.guild, lambda: self.editor()))
+
 
 class PluginTempChannels(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['temporary_channels']
+        data = Guild.get(str(guild.id)).run().dashboard.temporary_channels
 
-        container = Container(
-            color=discord.Color.embed_background(),
-        )
+        container = Container(color=discord.Color.embed_background())
         container.add_text("# Temporary Channels")
-        container.add_text("Allow your members to create temporary voice channels in one click in your server")
-
-        class StatusButton(ActionRow):
-            @button(
-                label="Disabled" if data['status'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['status'] == False else discord.ButtonStyle.green,
-                custom_id="status",
-            )
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild.id, 'temporary_channels.status', True)
-
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild.id, 'temporary_channels.status', True)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild.id, 'temporary_channels.status', True)
-                await interaction.response.edit_message(view=interaction.view)
-        container.add_item(StatusButton())
-
+        container.add_text("Allow members to create temporary voice channels.")
+        container.add_item(StatusToggle(guild, "temporary_channels.status", data.get("status", False)))
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        class CreateTempChannelButton(ActionRow):
-            @button(
-                label="New Hub",
-                style=discord.ButtonStyle.primary,
-            )
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                await interaction.response.send_message(view=AddNewTempChannelHub(guild=guild, user=interaction.user), ephemeral=True)
-        container.add_item(CreateTempChannelButton())
+        class CreateHubButton(ActionRow):
+            @button(label="New Hub", style=discord.ButtonStyle.primary)
+            async def callback(self, btn: discord.ui.Button, interaction: discord.Interaction):
+                await interaction.response.send_message(
+                    view=TempChannelHubEditor(guild, interaction.user),
+                    ephemeral=True,
+                )
 
-        container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-        container.add_text("## Your Hubs")
-        class SelectTempChans(ActionRow):
-            @select(
-                placeholder="Select a hub",
-                options=[
-                    discord.SelectOption(label=f"{option['hub_name']}",) 
-                    for option in data["hubs"]
-                ],
-            )
-            async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                hub_idx = None
-                for idx, option in enumerate(data["hubs"]):
-                    if option['hub_name'] == select.values[0]:
-                        hub_idx = idx
-                        break
+        container.add_item(CreateHubButton())
 
-                await interaction.response.edit_message(view=EditTempChannelHub(guild=guild, user=interaction.user, idx=hub_idx))
-        container.add_item(SelectTempChans())
+        hubs = data.get("hubs", [])
+        if hubs:
+            container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
+            container.add_text("## Your Hubs")
 
-        # Main container for the view
+            class HubSelect(ActionRow):
+                @select(
+                    placeholder="Select a hub",
+                    options=[
+                        discord.SelectOption(label=hub["hub_name"], value=str(index))
+                        for index, hub in enumerate(hubs)
+                    ],
+                )
+                async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
+                    index = int(select.values[0])
+                    await interaction.response.edit_message(
+                        view=TempChannelHubEditor(
+                            guild,
+                            interaction.user,
+                            idx=index,
+                        )
+                    )
+
+            container.add_item(HubSelect())
+        else:
+            container.add_text("*No hubs configured yet.*")
+
         self.add_item(container)

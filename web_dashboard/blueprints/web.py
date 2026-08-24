@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, jsonify, render_template, request, session
+from quart import Blueprint, jsonify, render_template, request, session
 
 from modules import bot as v
 from ..config import OAUTH_URL, INVITE_URL
@@ -9,60 +9,60 @@ web_bp = Blueprint('web', __name__)
 
 # ── Public pages ──────────────────────────────────────────────────────────────
 @web_bp.route("/")
-def index():
+async def index():
     if "token" not in session:
-        return render_template("index.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("index.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("index.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("index.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route("/plugins/management")
-def web_token_management():
+async def web_token_management():
     if "token" not in session:
-        return render_template("web-plugins/management.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("web-plugins/management.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("web-plugins/management.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("web-plugins/management.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route("/plugins/utilities")
-def web_token_utilities():
+async def web_token_utilities():
     if "token" not in session:
-        return render_template("web-plugins/utilities.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("web-plugins/utilities.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("web-plugins/utilities.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("web-plugins/utilities.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route("/plugins/engagement-and-fun")
-def web_token_engagement():
+async def web_token_engagement():
     if "token" not in session:
-        return render_template("web-plugins/engagement-and-fun.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("web-plugins/engagement-and-fun.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("web-plugins/engagement-and-fun.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("web-plugins/engagement-and-fun.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route('/contact-us')
-def contactUs():
+async def contactUs():
     if "token" not in session:
-        return render_template("contact-us.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("contact-us.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("contact-us.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("contact-us.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route('/thanks')
-def thanks():
+async def thanks():
     if "token" not in session:
-        return render_template("thanks.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template("thanks.html", logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template("thanks.html", user=current_user, inviteURL=INVITE_URL)
+    return await render_template("thanks.html", user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route('/terms')
-def terms():
+async def terms():
     if "token" not in session:
-        return render_template('terms.html', logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
+        return await render_template('terms.html', logInWithDiscord=OAUTH_URL, inviteURL=INVITE_URL)
     
     current_user = session["user"]
-    return render_template('terms.html', user=current_user, inviteURL=INVITE_URL)
+    return await render_template('terms.html', user=current_user, inviteURL=INVITE_URL)
 
 @web_bp.route("/docs")
 @web_bp.route("/docs/<section>")
@@ -77,10 +77,10 @@ async def docs(section=None, page_id=None):
 
     if "token" not in session:
         session['redirect'] = request.url
-        return render_template('docs.html', logInWithDiscord=OAUTH_URL, initial_page=initial_page, inviteURL=INVITE_URL)
+        return await render_template('docs.html', logInWithDiscord=OAUTH_URL, initial_page=initial_page, inviteURL=INVITE_URL)
 
     current_user = session["user"]
-    return render_template('docs.html', user=current_user, initial_page=initial_page, inviteURL=INVITE_URL)
+    return await render_template('docs.html', user=current_user, initial_page=initial_page, inviteURL=INVITE_URL)
 
 
 # ── Bot status ────────────────────────────────────────────────────────────────
@@ -112,14 +112,14 @@ def _fetch_shard_data(user=None):
     return shard_list
 
 @web_bp.route("/status")
-def status():
+async def status():
     if "token" not in session:
-        return render_template("status.html", logInWithDiscord=OAUTH_URL, shards=_fetch_shard_data(), inviteURL=INVITE_URL)
+        return await render_template("status.html", logInWithDiscord=OAUTH_URL, shards=_fetch_shard_data(), inviteURL=INVITE_URL)
     current_user = bearer_client().get_current_user()
-    return render_template("status.html", user=current_user, shards=_fetch_shard_data(current_user), inviteURL=INVITE_URL)
+    return await render_template("status.html", user=current_user, shards=_fetch_shard_data(current_user), inviteURL=INVITE_URL)
 
 @web_bp.route("/api/shard_status")
-def api_shard_status():
+async def api_shard_status():
     try:
         current_user = bearer_client().get_current_user()
     except Exception:

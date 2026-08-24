@@ -2,23 +2,27 @@ import discord
 from discord.ext import commands
 from datetime import datetime as d
 from modules import bot as v
-
-LOGGING_KEY = 'moderation.logging'
-LOGGING_EVENTS = 'moderation.logging.events'
-
+from modules.models import Guild
 
 class events(commands.Cog):
     def __init__(self, client):
         self.client = client
 
     # ── Helper ────────────────────────────────────────────────────────────────
+    def _get_logging(self, guild_id: int) -> dict:
+        return Guild.get(str(guild_id)).run().dashboard.moderation["logging"]
+
     def _get_log_channel(self, guild_id: int, event: str) -> discord.TextChannel | None:
         """Returns the log channel if the event is enabled, otherwise None."""
-        if not v.dashboard(guild_id, f"{LOGGING_EVENTS}.{event}"):
+        logging = self._get_logging(guild_id)
+
+        if not logging["events"].get(event, False):
             return None
-        log_channel = v.dashboard(guild_id, f"{LOGGING_KEY}.channel")
+
+        log_channel = logging.get("channel")
         if not log_channel:
             return None
+
         return self.client.get_channel(int(log_channel))
 
     def _author(self, embed: discord.Embed, user: discord.User | discord.Member) -> discord.Embed:
@@ -156,7 +160,7 @@ class events(commands.Cog):
             return
 
         # Skip bot messages if the setting says to
-        if v.dashboard(message.guild.id, f"{LOGGING_KEY}.bots") and message.author.bot:
+        if self._get_logging(message.guild.id).get("bots", False) and message.author.bot:
             return
 
         content = message.content or "*[No text content]*"
@@ -172,6 +176,21 @@ class events(commands.Cog):
         )
         self._author(embed, message.author)
         embed.set_footer(text=f"Message ID: {message.id}")
+
+        # Add attachments if present
+        if message.attachments:
+            attachment_urls = "\n".join([f"[{a.filename}]({a.url})" for a in message.attachments])
+            embed.add_field(
+                name="📎 Attachments",
+                value=attachment_urls[:1024],
+                inline=False
+            )
+        
+        # Also add image preview if it's an image
+        for attachment in message.attachments:
+            if attachment.content_type and attachment.content_type.startswith('image/'):
+                embed.set_image(url=attachment.url)
+                break
 
         embeds = [embed] + list(message.embeds)
         await channel.send(embeds=embeds[:10])  # Discord max is 10 embeds per message
@@ -189,7 +208,7 @@ class events(commands.Cog):
         if not channel:
             return
 
-        if v.dashboard(after.guild.id, f"{LOGGING_KEY}.bots") and after.author.bot:
+        if self._get_logging(after.guild.id).get("bots", False) and after.author.bot:
             return
 
         embed = discord.Embed(
@@ -318,7 +337,7 @@ class events(commands.Cog):
             color=0xED4245,
             timestamp=d.now(),
             title=f"{kind} Channel Deleted",
-            description=f"**Name:** #{channel.name}\n**Category:** {channel.category or 'None'}"
+            description=f"**Name:** {channel.name}\n**Category:** {channel.category or 'None'}"
         )
         embed.set_footer(text=f"Channel ID: {channel.id}")
         await log.send(embed=embed)

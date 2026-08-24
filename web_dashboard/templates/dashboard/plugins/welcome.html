@@ -3,19 +3,21 @@
 <head>
   {% include 'include/dash-links.html' %}
   <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" />
+  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
   {% include 'components/Sidebar.html' %}
-  
+
   <!-- ======= Main ======= -->
   <main id="main" class="main">
     <div class="pagetitle plugin">
       <div>
         {% with plugin = get_plugin(guild, 'welcome') %}
-          <h1>{{plugin['title']}}</h1>
-          <p class="m-0">{{plugin['description']}}</p>
+        <h1>{{plugin['title']}}</h1>
+        <p class="m-0">{{plugin['description']}}</p>
         {% endwith %}
       </div>
       <div class="form-switch">
@@ -33,7 +35,7 @@
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a message when a user joins the server</h2>
             <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle" ></i>
+              <i class="bi bi-info-circle"></i>
             </button>
           </div>
           <div class="form-switch">
@@ -44,7 +46,7 @@
             {% endif %}
           </div>
         </div>
-        
+
         <div id="join-data">
           <hr>
           <div>
@@ -54,7 +56,8 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for channel in guild_models(guild).channels.text %}
-                    <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}">{{channel.name}}</div>
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}">
+                    {{channel.name}}</div>
                   {% endfor %}
                 </div>
               </div>
@@ -65,45 +68,52 @@
           <div>
             <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link join-msg active" data-bs-toggle="tab" data-bs-target="#text">Text Message</button>
+                <button class="nav-link join-msg {{'active' if data['join']['message']['type'] == 'text' else ''}}" data-bs-toggle="tab" data-bs-target="#join-text-pane">Text Message</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link join-msg" data-bs-toggle="tab" data-bs-target="#embed" disabled>Embed Message</button>
+                <button class="nav-link join-msg {{'active' if data['join']['message']['type'] == 'embed' else ''}}" data-bs-toggle="tab" data-bs-target="#join-embed-pane">Embed Message</button>
               </li>
             </ul>
             <div class="tab-content pt-2">
-              <div id="text" class="tab-pane active show" role="tabpanel">
+              <div id="join-text-pane" class="tab-pane {{'active show' if data['join']['message']['type'] == 'text' else ''}}" role="tabpanel">
                 <div>
                   <textarea id="join-message" class="text-input" name="" placeholder="Write your message here"></textarea>
                   <script>document.querySelector('#join-message').value = "{{data['join']['message']['content']}}"</script>
                 </div>
-                <!-- <hr>
-                <div>
-                  <p>Send a welcome card when a user joins the server</p>
-                </div> -->
               </div>
-              <div id="embed" class="tab-pane embed" role="tabpanel">
-                <div id="join-embed" class="e-bdFBtt">
-                  <div class="author">
-                    <div class="icon"></div>
-                    <input type="text" id="author" name="" placeholder="Header">
+
+              <div id="join-embed-pane" class="tab-pane {{'active show' if data['join']['message']['type'] == 'embed' else ''}}" role="tabpanel">
+                <div class="d-flex gap-2">
+                  <div class="con color-picker full">
+                    <div class="clr-field" style="color: {{data['join']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                      <button aria-labelledby="clr-open-label"></button>
+                      <input type="text" name="jec" class="coloris-join-embed-color" id="join-embed-color" value="{{data['join']['message'].get('embed', {}).get('color', '#ffffff')}}">
+                    </div>
                   </div>
 
-                  <div class="title embedMargin-2PsaQ4">
-                    <input type="text" id="title" name="title" placeholder="Title text">
-                  </div>
-                  <div class="desc embedMargin-2PsaQ4">
-                    <textarea id="message" name="" rows="3" placeholder="Write your message here"></textarea>
-                    <script>document.querySelector('#join-message').value = "{{data['join']['message']['content']}}"</script>
-                  </div>
+                  <div class="embed" style="border-left-color: {{data['join']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                    <div class="e-bdFBtt">
+                      <div class="author">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="jean" id="join-embed-author" placeholder="Author"
+                          value="{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
+                      </div>
 
-                  <div class="footer">
-                    <div class="icon"></div>
-                    <input type="text" name="" id="" placeholder="Footer">
+                      <div class="title embedMargin-2PsaQ4">
+                        <input type="text" name="jet" id="join-embed-title" placeholder="Title" value="{{ data['join']['message'].get('embed', {}).get('title', '') }}">
+                      </div>
+                      <div class="desc embedMargin-2PsaQ4">
+                        <input type="text" name="jed" id="join-embed-desc" placeholder="Description" value="{{ data['join']['message'].get('embed', {}).get('desc', '') }}">
+                      </div>
+
+                      <div class="foter">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="jeft" id="join-embed-footer" placeholder="Footer" value="{{  data['join']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              
             </div>
           </div>
         </div>
@@ -117,47 +127,75 @@
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a private message to new users</h2>
             <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle" ></i>
+              <i class="bi bi-info-circle"></i>
             </button>
           </div>
           <div class="form-switch">
             {% if data['dm']['status'] == True %}
-            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch" style="font-size: 19px;" checked>
+            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch"
+              style="font-size: 19px;" checked>
             {% else %}
-            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch" style="font-size: 19px;">
+            <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch"
+              style="font-size: 19px;">
             {% endif %}
           </div>
-          
+
         </div>
-        
+
         <div id="dm-data">
           <hr>
-          
           <div>
             <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link dm-msg active" data-bs-toggle="tab" data-bs-target="#text">Text Message</button>
+                <button class="nav-link dm-msg {{'active' if data['dm']['message']['type'] == 'text' else ''}}" data-bs-toggle="tab" data-bs-target="#dm-text-pane">Text Message</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link dm-msg" data-bs-toggle="tab" data-bs-target="#embed" disabled>Embed Message</button>
+                <button class="nav-link dm-msg {{'active' if data['dm']['message']['type'] == 'embed' else ''}}" data-bs-toggle="tab" data-bs-target="#dm-embed-pane">Embed Message</button>
               </li>
             </ul>
             <div class="tab-content pt-2">
-              <div id="text" class="tab-pane active show" role="tabpanel">
+              <div id="dm-text-pane" class="tab-pane {{'active show' if data['dm']['message']['type'] == 'text' else ''}}" role="tabpanel">
                 <div>
                   <textarea id="dm-message" class="text-input" placeholder="Write your message here"></textarea>
                   <script>document.querySelector('#dm-message').value = "{{data['dm']['message']['content']}}"</script>
                 </div>
               </div>
-              
-              <div id="embed" class="tab-pane" role="tabpanel">
-                <p>Coming soon...</p>
+
+              <div id="dm-embed-pane" class="tab-pane {{'active show' if data['dm']['message']['type'] == 'embed' else ''}}" role="tabpanel">
+                <div class="d-flex gap-2">
+                  <div class="con color-picker full">
+                    <div class="clr-field" style="color: {{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                      <button aria-labelledby="clr-open-label"></button>
+                      <input type="text" class="coloris-dm-embed-color" id="dm-embed-color" value="{{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}}">
+                    </div>
+                  </div>
+
+                  <div class="embed" style="border-left-color: {{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                    <div class="e-bdFBtt">
+                      <div class="author">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="dmean" id="dm-embed-author" placeholder="Author"
+                          value="{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
+                      </div>
+
+                      <div class="title embedMargin-2PsaQ4">
+                        <input type="text" name="det" id="dm-embed-title" placeholder="Title" value="{{ data['dm']['message'].get('embed', {}).get('title', '') }}">
+                      </div>
+                      <div class="desc embedMargin-2PsaQ4">
+                        <input type="text" name="ded" id="dm-embed-desc" placeholder="Description" value="{{ data['dm']['message'].get('embed', {}).get('desc', '') }}">
+                      </div>
+
+                      <div class="foter">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="deft" id="dm-embed-footer" placeholder="Footer" value="{{  data['dm']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
             </div>
           </div>
         </div>
-        
       </div>
     </section>
     
@@ -167,7 +205,7 @@
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a message when a user leaves the server</h2>
             <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle" ></i>
+              <i class="bi bi-info-circle"></i>
             </button>
           </div>
           <div class="form-switch">
@@ -178,7 +216,7 @@
             {% endif %}
           </div>
         </div>
-        
+
         <div id="leave-data">
           <hr>
           <div>
@@ -188,21 +226,68 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for channel in guild_models(guild).channels.text %}
-                    <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                  <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">
+                    {{channel.name}}</div>
                   {% endfor %}
                 </div>
               </div>
             </div>
           </div>
           <hr>
-          
+
           <div>
-            <textarea id="leave-message" class="text-input" placeholder="Write your message here"></textarea>
-            <script>document.querySelector('#leave-message').value = "{{data['leave']['message']['content']}}"</script>
+            <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link leave-msg {{'active' if data['leave']['message']['type'] == 'text' else ''}}" data-bs-toggle="tab" data-bs-target="#leave-text-pane">Text Message</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link leave-msg {{'active' if data['leave']['message']['type'] == 'embed' else ''}}" data-bs-toggle="tab" data-bs-target="#leave-embed-pane">Embed Message</button>
+              </li>
+            </ul>
+            <div class="tab-content pt-2">
+              <div id="leave-text-pane" class="tab-pane {{'active show' if data['leave']['message']['type'] == 'text' else ''}}" role="tabpanel">
+                <div>
+                  <textarea id="leave-message" class="text-input" name="" placeholder="Write your message here"></textarea>
+                  <script>document.querySelector('#leave-message').value = "{{data['leave']['message']['content']}}"</script>
+                </div>
+              </div>
+
+              <div id="leave-embed-pane" class="tab-pane {{'active show' if data['leave']['message']['type'] == 'embed' else ''}}" role="tabpanel">
+                <div class="d-flex gap-2">
+                  <div class="con color-picker full">
+                    <div class="clr-field" style="color: {{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                      <button aria-labelledby="clr-open-label"></button>
+                      <input type="text" name="jec" class="coloris-leave-embed-color" id="leave-embed-color" value="{{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}}">
+                    </div>
+                  </div>
+
+                  <div class="embed" style="border-left-color: {{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}};">
+                    <div class="e-bdFBtt">
+                      <div class="author">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="jean" id="leave-embed-author" placeholder="Author"
+                          value="{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
+                      </div>
+
+                      <div class="title embedMargin-2PsaQ4">
+                        <input type="text" name="jet" id="leave-embed-title" placeholder="Title" value="{{ data['leave']['message'].get('embed', {}).get('title', '') }}">
+                      </div>
+                      <div class="desc embedMargin-2PsaQ4">
+                        <input type="text" name="jed" id="leave-embed-desc" placeholder="Description" value="{{ data['leave']['message'].get('embed', {}).get('desc', '') }}">
+                      </div>
+
+                      <div class="foter">
+                        <!-- <div class="icon"></div> -->
+                        <input type="text" name="jeft" id="leave-embed-footer" placeholder="Footer" value="{{  data['leave']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          
+
         </div>
-        
       </div>
     </section>
 
@@ -211,14 +296,16 @@
         <div class="title d-flex justify-content-between align-items-center">
           <h2>Give a role to new users</h2>
           <div class="form-switch">
-            {% if data['leave']['status'] == True %}
-            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles" style="font-size: 19px;" checked>
+            {% if data['autoRoles']['status'] == True %}
+            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles"
+              style="font-size: 19px;" checked>
             {% else %}
-            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles" style="font-size: 19px;">
+            <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles"
+              style="font-size: 19px;">
             {% endif %}
           </div>
         </div>
-        
+
         <div id="autoroles-data">
           <hr>
           <div>
@@ -228,14 +315,14 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for role in guild_models(guild).roles %}
-                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}"
+                    data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
                   {% endfor %}
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
       </div>
     </section>
 
@@ -243,25 +330,6 @@
     {% include 'components/PremiumModal.html' %}
     {% include 'components/save-toast.html' %}
   </main>
-
-  <style>
-    .embed input, 
-    .embed textarea {
-      color: #fff;
-      width: 100%;
-      background: none;
-      border: none;
-    }
-    .embed input:focus-visible,
-    .embed textarea:focus-visible {
-      outline: none;
-      border: none;
-    }
-
-    .nav-tabs-bordered {
-      margin: 0;
-    }
-  </style>
 
   <script>
     new Select('.join-select-wrapper.single', {
@@ -285,20 +353,62 @@
       maxItems: 5,
       options: JSON.parse(`{{data['autoRoles']['roles'] | tojson}}`)
     });
-    
+
+    Coloris({
+      el: '.coloris-join-embed-color',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    });
+
+    Coloris({
+      el: '.coloris-dm-embed-color',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    });
+
+    Coloris({
+      el: '.coloris-leave-embed-color',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    });
+
     var save_data = {}
-    
+
     document.querySelector('#welcome-status').addEventListener('change', (e) => {
       fetch("/dashboard/{{guild.id}}/data/post", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ "welcome.status": e.target.checked }),
       });
     })
-    
-    // join
+
+    /* Join */
     const joinStatus = document.querySelector('#join-status');
     const joinData = document.querySelector('#join-data');
+
+    const welcomeSelectWrapper = document.querySelector('.join-select-wrapper.single');
+    welcomeSelectWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      const option = selectedOptions[0] ? selectedOptions[0] : null
+
+      show_toast("welcome.join.channel", "{{data['join']['channel']}}", option)
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       if (!joinStatus.checked) {
         joinData.remove()
@@ -315,32 +425,64 @@
 
       show_toast("welcome.join.status", "{{data['join']['status']}}", joinStatus.checked)
     })
+
     document.querySelectorAll('button.nav-link.join-msg').forEach((button) => {
       button.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('active')) return
-        var tab = e.target.dataset.bsTarget.replace('#', '')
+        if (!e.target.classList.contains('active')) return;
+
+        var tab = e.target.dataset.bsTarget.replace('#join-', '').replace('-pane', '')
 
         show_toast("welcome.join.message.type", "{{data['join']['message']['type']}}", tab)
       })
     })
+
+    // Welcome Message Text
     document.querySelector('#join-message').addEventListener('input', (e) => {
-      var tabs = document.querySelector('button.nav-link.join-msg.active').dataset.bsTarget.replace('#', '')
-      
-      if (tabs == "text") {
-        var val = e.target.value;
-        show_toast("welcome.join.message.content", `{{data['join']['message']['content']}}`, val)
-      }
+      var val = e.target.value;
+      show_toast("welcome.join.message.content", `{{data['join']['message']['content']}}`, val)
     })
-    
-    const welcomeSelectWrapper = document.querySelector('.join-select-wrapper.single');
-    welcomeSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      const option = selectedOptions[0] ? selectedOptions[0] : null
 
-      show_toast("welcome.join.channel", "{{data['join']['channel']}}", option)
-    });
+    // Welcome Message Embed 
+    document.querySelector('#join-embed-color').addEventListener('change', (e) => {
+      var val = e.target.value;
+      show_toast("welcome.join.message.embed.color", `{{ data['join']['message'].get('embed', {}).get('color', '') }}`, val)
+    })
+    document.querySelector('#join-embed-author').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.join.message.embed.author.name",
+        `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#join-embed-title').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.join.message.embed.title",
+        `{{ data['join']['message'].get('embed', {}).get('title', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#join-embed-desc').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.join.message.embed.desc",
+        `{{ data['join']['message'].get('embed', {}).get('desc', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#join-embed-footer').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.join.message.embed.footer.text",
+        `{{ data['join']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
+        val
+      )
+    })
 
-    // dm
+    // =============================================================================
+
+    /* DM */
     const dmStatus = document.querySelector('#dm-status');
     const dmData = document.querySelector('#dm-data');
     document.addEventListener('DOMContentLoaded', () => {
@@ -356,31 +498,69 @@
       } else {
         document.querySelector('.feature_card.dm').appendChild(dmData);
       }
-      
+
       show_toast("welcome.dm.status", "{{data['dm']['status']}}", dmStatus.checked)
     })
+
     document.querySelectorAll('button.nav-link.dm-msg').forEach((button) => {
       button.addEventListener('click', (e) => {
         if (!e.target.classList.contains('active')) return
-        var tab = e.target.dataset.bsTarget.replace('#', '')
+        var tab = e.target.dataset.bsTarget.replace('#dm-', '').replace('-pane', '')
 
-        show_toast("welcome.join.message.type", "{{data['join']['message']['type']}}", tab)
+        show_toast("welcome.dm.message.type", "{{data['dm']['message']['type']}}", tab)
       })
     })
+
+    // == DM Welcome Message Text ==
     document.querySelector('#dm-message').addEventListener('input', (e) => {
-      var tabs = document.querySelector('button.nav-link.dm-msg.active').dataset.bsTarget.replace('#', '')
-      
-      if (tabs == "text") {
-        var val = e.target.value;
-        show_toast("welcome.dm.message.content", `{{data['dm']['message']['content']}}`, val)
-      }
+      var val = e.target.value;
+      show_toast("welcome.dm.message.content", `{{data['dm']['message']['content']}}`, val)
     })
-    /* Message embed */
-    
-        
-    // Leave
+
+    // == DM Welcome Message Embed ==
+    document.querySelector('#dm-embed-color').addEventListener('change', (e) => {
+      var val = e.target.value;
+      show_toast("welcome.dm.message.embed.color", `{{ data['dm']['message'].get('embed', {}).get('color', '') }}`, val)
+    })
+    document.querySelector('#dm-embed-author').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.dm.message.embed.author.name",
+        `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#dm-embed-title').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.dm.message.embed.title",
+        `{{ data['dm']['message'].get('embed', {}).get('title', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#dm-embed-desc').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.dm.message.embed.desc",
+        `{{ data['dm']['message'].get('embed', {}).get('desc', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#dm-embed-footer').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.dm.message.embed.footer.text",
+        `{{ data['dm']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
+        val
+      )
+    })
+
+    // =============================================================================
+
+    /* Leave */
     const leaveStatus = document.querySelector('#leave-status')
     const leaveData = document.querySelector('#leave-data')
+
     document.addEventListener('DOMContentLoaded', () => {
       if (!leaveStatus.checked) {
         leaveData.remove()
@@ -394,24 +574,74 @@
       } else {
         document.querySelector('.feature_card.leave').appendChild(leaveData);
       }
-      
+
       show_toast("welcome.leave.status", "{{data['leave']['status']}}", leaveStatus.checked)
     })
-    document.querySelector('#leave-message').addEventListener('input', (e) => {
-      var val = e.target.value;
-      
-      show_toast("welcome.leave.message.content", `{{data['leave']['message']['content']}}`, val)
-    })
-    
+
     const leaveSelectWrapper = document.querySelector('.leave-select-wrapper.single');
     leaveSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
-      
+
       show_toast("welcome.leave.channel", "{{data['leave']['channel']}}", option)
     });
 
-    // Autoroles
+    document.querySelectorAll('button.nav-link.leave-msg').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('active')) return
+        var tab = e.target.dataset.bsTarget.replace('#leave-', '').replace('-pane', '')
+
+        show_toast("welcome.leave.message.type", "{{data['leave']['message']['type']}}", tab)
+      })
+    })
+
+    // == Leave Message Text ==
+    document.querySelector('#leave-message').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast("welcome.leave.message.content", `{{data['leave']['message']['content']}}`, val)
+    })
+
+    // == Leave Message Embed ==
+    document.querySelector('#leave-embed-color').addEventListener('change', (e) => {
+      var val = e.target.value;
+      show_toast("welcome.leave.message.embed.color", `{{ data['leave']['message'].get('embed', {}).get('color', '') }}`, val)
+    })
+    document.querySelector('#leave-embed-author').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.leave.message.embed.author.name",
+        `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#leave-embed-title').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.leave.message.embed.title",
+        `{{ data['leave']['message'].get('embed', {}).get('title', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#leave-embed-desc').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.leave.message.embed.desc",
+        `{{ data['leave']['message'].get('embed', {}).get('desc', '') }}`,
+        val
+      )
+    })
+    document.querySelector('#leave-embed-footer').addEventListener('input', (e) => {
+      var val = e.target.value;
+      show_toast(
+        "welcome.leave.message.embed.footer.text",
+        `{{ data['leave']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
+        val
+      )
+    })
+
+    // =============================================================================
+
+    /* Auto Roles */
     const autorolesStatus = document.querySelector('#autoroles-status')
     const autorolesData = document.querySelector('#autoroles-data')
     document.addEventListener('DOMContentLoaded', () => {
@@ -427,16 +657,37 @@
       } else {
         document.querySelector('.feature_card.autoroles').appendChild(autorolesData);
       }
-      
+
       show_toast("welcome.autoRoles.status", "{{data['autoRoles']['status']}}", autorolesStatus.checked)
     })
 
     const autorolesSelectWrapper = document.querySelector('.autoroles-select-wrapper.multiple');
     autorolesSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
-      
+
       show_toast("welcome.autoRoles.roles", "{{data['autoRoles']['roles']}}", selectedOptions)
     });
   </script>
+
+  <style>
+    .embed input,
+    .embed textarea {
+      color: #fff;
+      width: 100%;
+      background: none;
+      border: none;
+    }
+
+    .embed input:focus-visible,
+    .embed textarea:focus-visible {
+      outline: none;
+      border: none;
+    }
+
+    .nav-tabs-bordered {
+      margin: 0;
+    }
+  </style>
+
 </body>
 </html>

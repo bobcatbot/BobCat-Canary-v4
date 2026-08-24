@@ -1,18 +1,24 @@
 import pymongo
 import discord
-from datetime import datetime
 from modules import bot as v
-from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select
-)
+from modules.models import Guild
+from discord.ui import DesignerView, Container, ActionRow, button, select, channel_select
+from dashboard._components import BackButton, FooterRow, StatusToggle, save_dash, refresh_footer
 
 mongo_cdn_client = pymongo.MongoClient(v.mongo_cdn)
 mongoRankCards = mongo_cdn_client['RankCards']['Cards']
 
+GALLERY_ORDER = [
+    # Default Colors
+    "Blurple", "Yellow", "Red", "Green", "Black", "White", "Fuchsia",
+    # Picture Backgrounds
+    "BobCat", "BobCat Blob", "Discord Games", "Discord", "Galaxy", "Mountains", "Forest", "Purple Sky"
+]
+
 class LevelingLevelingUpContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['leveling']
+        data = Guild.get(str(guild.id)).run().dashboard.leveling
 
         container = Container(
             color=v.style(guild),
@@ -21,495 +27,402 @@ class LevelingLevelingUpContainer(DesignerView):
         container.add_text("Whenever the user gains a level, BobCat can send a message.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Level up announcement")
-
+        # --- SECTION 1: ANNOUNCEMENT LOCATION ---
+        container.add_text("## Level Up Announcement")
         class LevelUpSettingSelect(ActionRow):
             @select(
                 placeholder="Select a option",
                 options=[
                     discord.SelectOption(label="Disabled", value="disabled", default=data['message']['status'] == 'disabled'),
                     discord.SelectOption(label="Current Channel", value="current", default=data['message']['status'] == 'current'),
-                    discord.SelectOption(label="Private Message", value="dm", default=data['message']['status'] == 'dm'),
+                    discord.SelectOption(label="Private Message (DM)", value="dm", default=data['message']['status'] == 'dm'),
                     discord.SelectOption(label="Custom Channel", value="custom", default=data['message']['status'] == 'custom'),
                 ],
                 custom_id="level_up_setting_select",
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                settingSelect: discord.ui.Select = container.get_item("level_up_setting_select")
-                
-                if select.values[0] == "custom":
-                    for option in settingSelect.options:
-                        option.default = False
-                    
-                    settingSelect.options[3].default = True
-                    
-                    lvlupChannelSelect = container.get_item("LevelUpChannel")
-                    lvlupChannelSelect.disabled = False
-
-                    v.db.update_dash(guild, 'leveling.message.status', select.values[0])
-                    v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                    return await interaction.response.edit_message(view=interaction.view)
-
                 selected_value = select.values[0]
 
-                # Reset all defaults
-                for option in settingSelect.options:
-                    option.default = False
+                for option in select.options:
+                    option.default = (option.value == selected_value)
 
-                # Apply new default
-                for option in settingSelect.options:
-                    if option.value == selected_value:
-                        option.default = True
+                save_dash(guild, 'leveling.message.status', selected_value)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=LevelingLevelingUpContainer(guild))
 
-                v.db.update_dash(guild, 'leveling.message.status', selected_value)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                if selected_value != "custom": # Disable channel select if not custom
-                    lvlupChannelSelect = container.get_item("LevelUpChannel")
-                    lvlupChannelSelect.disabled = True
-
-                await interaction.response.edit_message(view=interaction.view)
         container.add_item(LevelUpSettingSelect())
-        
-        container.add_text("Announcement Channel")
+
+        # --- SECTION 2: CUSTOM ANNOUNCEMENT CHANNEL ---
+        container.add_text("### Announcement Channel")
         
         df_value = []
-        if data['channel'] != None and data['message']['status'] == 'custom':
-            df_value = [ guild.get_channel(int(data['channel'])) ]
+        if data['channel'] and data['message']['status'] == 'custom':
+            chan_obj = guild.get_channel(int(data['channel']))
+            if chan_obj:
+                df_value = [chan_obj]
 
         class LevelUpChannelSelect(ActionRow):
             @channel_select(
-                placeholder="Select a channel",
+                placeholder="Select a custom channel",
                 channel_types=[discord.ChannelType.text],
                 custom_id="LevelUpChannel",
                 default_values=df_value,
-                disabled=False if data['message']['status'] == 'custom' else True,
+                disabled=(data['message']['status'] != 'custom'),
                 min_values=0
             )
             async def callback(self, select: discord.ui.ChannelSelect, interaction: discord.Interaction):
-                chan: discord.TextChannel = select.values[0]
+                selected_channel = str(select.values[0].id) if select.values else None
+                
+                save_dash(guild, 'leveling.channel', selected_channel)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=LevelingLevelingUpContainer(guild))
 
-                v.db.update_dash(guild, 'leveling.channel', str(chan.id))
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                await interaction.response.edit_message(view=interaction.view)
         container.add_item(LevelUpChannelSelect())
 
-        container.add_text("Level Up Announcement Message")
-        class LevelUpAnnouncementButton(ActionRow): # Message & Button
+        container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        # --- SECTION 3: ANNOUNCEMENT MESSAGE TEMPLATE & PREVIEW ---
+        container.add_text("## Level Up Announcement Message")
+        container.add_text(
+            "> **Available Variables:**\n"
+            "> • `{user}` - Mentions the user who leveled up\n"
+            "> • `{level}` - The new level reached"
+        )
+        class LevelUpAnnouncementButton(ActionRow):
             @button(
                 label="Edit Announcement Message",
                 style=discord.ButtonStyle.primary,
+                # emoji="📝"
             )
             async def callback(self, btn, interaction: discord.Interaction):
+                MainMenuView = interaction.view
                 class LevelUpAnnouncementModal(discord.ui.DesignerModal):
                     def __init__(self):
                         super().__init__(
                             discord.ui.Label(
-                                "Message",
+                                "Message Template",
                                 discord.ui.InputText(
                                     value=data['message']['content'],
                                     style=discord.InputTextStyle.long,
-                                    placeholder="Congratulations {user}, you just reached level {level}!",
+                                    placeholder="Congratulations {user}, you reached level {level}!",
+                                    required=True
                                 )
                             ),
-                            title="Level Up Announcement Message",
+                            title="Edit Level Up Message",
                         )
                     async def callback(self, interaction: discord.Interaction):
-                        message = self.children[0].item.value
+                        new_message = self.children[0].item.value
 
-                        v.db.update_dash(guild, 'leveling.message.content', message)
-                        v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                        save_dash(guild, 'leveling.message.content', new_message)
+                        refresh_footer(MainMenuView, guild)
 
-                        await interaction.response.send_message("Level up announcement message updated!", ephemeral=True)
+                        await interaction.response.edit_message(view=LevelingLevelingUpContainer(guild))
+                        await interaction.followup.send("Level up announcement message updated!", ephemeral=True)
+
                 await interaction.response.send_modal(LevelUpAnnouncementModal())
         container.add_item(LevelUpAnnouncementButton())
-        
+
         self.add_item(container)
-
-        class GoBackButton(ActionRow):
-            @button(
-                label="Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def callback(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginLeveling(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(GoBackButton())
+        self.add_item(FooterRow(guild, lambda: PluginLeveling(guild)))
 
 class LevelingServerCardContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['leveling']
+        data = Guild.get(str(guild.id)).run().dashboard.leveling
 
-        DEFAULT_CARDS_URI = "https://i.postimg.cc/J4jxTTT8/defaul-gallery.png"
-        FUN_CARDS_URI = "https://i.postimg.cc/jdyc888R/fun-gallery.png"
+        DEFAULT_CARDS_URI = "https://i.ibb.co/3mj3F5LL/default-gallery.png"
+        FUN_CARDS_URI = "https://i.ibb.co/JRF2c977/fun-gallery.png"
 
-        default_cards = [
-            card
-            for card in mongoRankCards.find({"theme": "default"}).sort("theme", pymongo.ASCENDING)
-        ]
-        fun_cards = [
-            card
-            for card in mongoRankCards.find({"theme": "bobcat"}).sort("theme", pymongo.ASCENDING)
-        ]
+        # Fetch cards from DB
+        raw_cards = list(mongoRankCards.find({"theme": {"$in": ["default", "bobcat"]}}))
+
+        # Sort according to GALLERY_ORDER index
+        all_cards = sorted(
+            raw_cards,
+            key=lambda c: GALLERY_ORDER.index(c['card_name']) if c['card_name'] in GALLERY_ORDER else 99
+        )
+
+        current_card_id = data.get('card')
 
         container = Container(
             color=v.style(guild),
         )
-        container.add_text("# Server Card")
-        container.add_text("You can customize the default /rank card in your server. Every member of your server will have that rank card.")
+        container.add_text("# Server Rank Card")
+        container.add_text("Customize the default rank card background for all members in your server.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("## Default Colors")
         default_gallery = discord.ui.MediaGallery()
-        default_gallery.add_item(
-            url=DEFAULT_CARDS_URI,
-        )
+        default_gallery.add_item(url=DEFAULT_CARDS_URI)
         container.add_item(default_gallery)
 
         container.add_text("## Picture Backgrounds")
         picture_gallery = discord.ui.MediaGallery()
-        picture_gallery.add_item(
-            url=FUN_CARDS_URI,
-        )
+        picture_gallery.add_item(url=FUN_CARDS_URI)
         container.add_item(picture_gallery)
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        card_options = [
+            discord.SelectOption(
+                label=card['card_name'],
+                value=card['card'],
+                default=(current_card_id == card['card'])
+            )
+            for card in all_cards
+        ]
         class ImgSelect(ActionRow):
-            defc = [ 
-                discord.SelectOption(label=f"{option['card_name']}", value=option['card'], default=data['card'] == option['card']) for option in default_cards
-            ]
-            func = [
-                discord.SelectOption(label=f"{option['card_name']}", value=option['card'], default=data['card'] == option['card']) for option in fun_cards
-            ]
             @select(
-                placeholder="Select an Image",
-                options=defc + func,
+                placeholder="Select a Rank Card Background",
+                options=card_options,
                 custom_id="img_select",
-                disabled=False,
                 select_type=discord.ComponentType.string_select,
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
                 selected_card = select.values[0]
 
-                v.db.update_dash(guild, 'leveling.card', selected_card)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
+                save_dash(guild, 'leveling.card', selected_card)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=LevelingServerCardContainer(guild))
 
-                # Reset all defaults
-                for option in select.options:
-                    option.default = False
+                card_name = next((c['card_name'] for c in all_cards if c['card'] == selected_card), "Selected Card")
+                await interaction.followup.send(f"Updated server rank card to **{card_name}**!", ephemeral=True)
 
-                # Apply new default
-                for option in select.options:
-                    if option.value == selected_card:
-                        option.default = True
-
-                await interaction.response.edit_message(view=interaction.view)
-
-                card = [ option['card_name'] for option in default_cards + fun_cards if option['card'] == selected_card ][0]
-                await interaction.followup.send(f"Updated your rank card to {card}!", ephemeral=True)
         container.add_item(ImgSelect())
-
+        
         self.add_item(container)
-
-        class GoBackButton(ActionRow):
-            @button(
-                label="Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def callback(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginLeveling(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(GoBackButton())
+        self.add_item(FooterRow(guild, lambda: PluginLeveling(guild)))
 
 class LevelingRoleRewardsContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['leveling']
+        data = Guild.get(str(guild.id)).run().dashboard.leveling
 
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Role Rewards")
-        container.add_text("Role Rewards are given to users when they hit the respective level.")
-        container.add_text("when checked users can have multiple rewards at once but the highest reward will be given. when unchecked only the highest reward will be given and the previous rewards will be removed")
+        container.add_text("Role rewards are automatically assigned to users when they reach specific levels.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # Stacking preference
+        is_stacked = data['roleRewards'].get('stacked', True)
         class RoleRewardsStackSelect(ActionRow):
             @select(
-                placeholder="Stack or Remove Rewards",
+                placeholder="Stacking Behavior",
                 options=[
-                    discord.SelectOption(label="Stack rewards", description="Users can have multiple rewards at once", default=True if data['roleRewards']['stacked'] == True else False),
-                    discord.SelectOption(label="Remove rewards", description="Users can only have the highest reward", default=True if data['roleRewards']['stacked'] == False else False),
+                    discord.SelectOption(label="Stack rewards", description="Users keep all unlocked reward roles", default=is_stacked),
+                    discord.SelectOption(label="Remove rewards", description="Users only keep the highest level reward role", default=not is_stacked),
                 ],
                 min_values=1,
                 max_values=1
             )
             async def callback(self, select: discord.ui.Select, interaction: discord.Interaction):
-                new_value = True if select.values[0] == "Stack rewards" else False
+                new_value = (select.values[0] == "Stack rewards")
                 
-                v.db.update_dash(guild, 'leveling.roleRewards.stacked', new_value)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.send_message(view=interaction.view)
-
-                await interaction.followup.send(f"Role rewards updated to {select.values[0].split(' ')[0]}!", ephemeral=True)
+                save_dash(guild, 'leveling.roleRewards.stacked', new_value)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=LevelingRoleRewardsContainer(guild))
+                await interaction.followup.send(f"Role rewards stacking set to **{'Enabled' if new_value else 'Disabled'}**!", ephemeral=True)
+                return
         container.add_item(RoleRewardsStackSelect())
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # Add Reward Modal
         class RoleAddRewardModal(discord.ui.DesignerModal):
             def __init__(self):
-                lvlselect = discord.ui.Label(
-                    "Level",
-                    discord.ui.InputText(
-                        placeholder="Select a number for level",
-                        style=discord.InputTextStyle.short,
-                        value="1",
-                        required=True,
-                    )
-                )
-                roleselect = discord.ui.Label(
-                    "Role",
-                    discord.ui.RoleSelect(
-                        select_type=discord.ComponentType.role_select,
-                        placeholder="Select a role",
-                        required=True
-                    )
-                )
                 super().__init__(
-                    lvlselect,
-                    roleselect,
+                    discord.ui.Label(
+                        "Level Required",
+                        discord.ui.InputText(
+                            placeholder="e.g. 5",
+                            style=discord.InputTextStyle.short,
+                            value="1",
+                            required=True,
+                        )
+                    ),
+                    discord.ui.Label(
+                        "Role",
+                        discord.ui.RoleSelect(
+                            select_type=discord.ComponentType.role_select,
+                            placeholder="Select a role",
+                            required=True
+                        )
+                    ),
                     title="Add Role Reward",
                 )
             async def callback(self, interaction: discord.Interaction):
-                level = self.children[0].item.value
-                role = self.children[1].item.values[0]
+                try:
+                    level = int(self.children[0].item.value)
+                except ValueError:
+                    return await interaction.response.send_message("Please enter a valid number for the level.", ephemeral=True)
 
+                role = self.children[1].item.values[0]
                 guild_role = guild.get_role(role.id)
 
-                if guild_role.position > guild.me.top_role.position:
-                    return await interaction.response.send_message("Whoops, I can't assign that role as it is higher than my highest role. Please change the role position in your server settings.", ephemeral=True)
+                if guild_role and guild_role.position >= guild.me.top_role.position:
+                    return await interaction.response.send_message(
+                        "⚠️ I cannot assign that role because it is higher than or equal to my highest role in the role hierarchy.",
+                        ephemeral=True
+                    )
+
+                roles = data['roleRewards'].get('roles', [])
+                roles.append({'id': str(role.id), 'level': level})
                 
-                roles = data['roleRewards']['roles']
-                roles.append({ 'id': str(role.id), 'level': int(level) })
-                v.db.update_dash(guild, 'leveling.roleRewards.roles', roles)
+                save_dash(guild, 'leveling.roleRewards.roles', roles)
+                refresh_footer(interaction.view, guild)
 
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.send_message(view=interaction.view)
-
-                await interaction.followup.send(f"Role rewards updated!\n**Level:** {self.children[0]}\n**Role:** {self.children[1]}")
+                await interaction.response.edit_message(view=LevelingRoleRewardsContainer(guild))
+                await interaction.followup.send(f"Added reward: **Level {level}** -> {role.mention}", ephemeral=True)
         class RoleAddReward(ActionRow):
             @button(
                 label="Add Role Reward",
                 style=discord.ButtonStyle.primary,
+                emoji="➕"
             )
             async def callback(self, button, interaction: discord.Interaction):
                 await interaction.response.send_modal(RoleAddRewardModal())
         container.add_item(RoleAddReward())
 
-        if guild.me.guild_permissions.manage_roles == False:
-            container.add_text("Whoops, it looks like I can't give any roles. Please fix that by giving me the MANAGE ROLES or ADMINISTRATOR permissions.")
+        if not guild.me.guild_permissions.manage_roles:
+            container.add_text("⚠️ **Bot Permissions Missing:** Grant me `Manage Roles` or `Administrator` permission to assign roles.")
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        for reward in data['roleRewards']['roles']:
-            container.add_text(f"**Level:** {reward['level']}\n**Role:** {guild.get_role(int(reward['id'])).mention}")
-            container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+        # List Existing Rewards
+        container.add_text("### Active Role Rewards")
+        existing_roles = data['roleRewards'].get('roles', [])
+        if not existing_roles:
+            container.add_text("*No role rewards configured yet.*")
+        else:
+            for reward in existing_roles:
+                role_obj = guild.get_role(int(reward['id']))
+                role_mention = role_obj.mention if role_obj else f"*(Deleted Role ID: {reward['id']})*"
+                container.add_text(f"• **Level {reward['level']}**: {role_mention}")
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginLeveling(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(BackButton(lambda: PluginLeveling(guild)))
 
 class LevelingXpOptionsContainer(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['leveling']
+        data = Guild.get(str(guild.id)).run().dashboard.leveling
 
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# XP Options & Modifiers")
-        container.add_text("Customize the other options of the XP system.")
+        container.add_text("Fine-tune XP gain rates, blacklists, and system behaviors.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Cooldown")
-        container.add_text("While acitivity is nice, spam isnt always good. Change how often members can gain XP.")
+        # --- COOLDOWN ---
+        container.add_text("## XP Cooldown")
         class XPCooldownButton(ActionRow):
             @button(
                 label="Set Cooldown",
                 style=discord.ButtonStyle.primary,
+                emoji="⏱️"
             )
             async def callback(self, button, interaction: discord.Interaction):
+                MainMenuView = interaction
                 class XPCooldownModal(discord.ui.DesignerModal):
                     def __init__(self):
                         super().__init__(
                             discord.ui.Label(
-                                "Cooldown in seconds",
+                                "Cooldown (seconds)",
                                 discord.ui.InputText(
-                                    placeholder="Select a number for cooldown",
+                                    placeholder="Enter seconds (e.g. 60)",
                                     style=discord.InputTextStyle.short,
-                                    value=str(data['cooldown']),
+                                    value=data['cooldown'],
+                                    required=True
                                 )
                             ),
-                            title="Set Cooldown",
+                            title="Set XP Cooldown",
                         )
                     async def callback(self, interaction: discord.Interaction):
-                        xpcooldown = int(self.children[0].item.value)
+                        try:
+                            xpcooldown = int(self.children[0].item.value)
+                        except ValueError:
+                            return await interaction.response.send_message("Please enter a valid number.", ephemeral=True)
 
-                        v.db.update_dash(guild, 'leveling.cooldown', xpcooldown)
+                        save_dash(guild, 'leveling.cooldown', xpcooldown)
+                        refresh_footer(MainMenuView.view, guild)
 
-                        # v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                        # update_at = interaction.view.get_item("SaveSuccess")
-                        # update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                        # await interaction.response.send_message(view=interaction.view)
-
-                        await interaction.response.send_message(f"Cooldown updated!\n**Cooldown:** {xpcooldown}s")
+                        await interaction.response.edit_message(view=LevelingXpOptionsContainer(guild))
+                        await interaction.followup.send(f"XP Cooldown set to **{xpcooldown} seconds**!", ephemeral=True)
                 await interaction.response.send_modal(XPCooldownModal())
         container.add_item(XPCooldownButton())
        
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # --- NO XP CHANNELS ---
         container.add_text("## No XP Channels")
-        container.add_text("Prevent your members from gaining XP if they send messages in certain text channels.")
+        container.add_text("Prevent members from gaining XP when sending messages in specific text channels.")
+
+        no_xp_channels = [guild.get_channel(int(ch_id)) for ch_id in data.get('noXP', []) if guild.get_channel(int(ch_id))]
+
         class NoXpChannelsSelect(ActionRow):
             @channel_select(
-                placeholder="Select a channel",
+                placeholder="Select channels to disable XP",
                 channel_types=[discord.ChannelType.text],
                 custom_id="noXPChannels",
-                default_values=[ guild.get_channel(int(channel)) for channel in data['noXP'] ] if len(data['noXP']) > 0 else None,
+                default_values=no_xp_channels if no_xp_channels else None,
                 max_values=25,
+                min_values=0
             )
-            async def callback(self, select, interaction: discord.Interaction):
+            async def callback(self, select: discord.ui.ChannelSelect, interaction: discord.Interaction):
                 channels: list[discord.TextChannel] = select.values
 
-                v.db.update_dash(guild, 'leveling.noXP', [str(channel.id) for channel in channels])
+                save_dash(guild, 'leveling.noXP', [str(ch.id) for ch in channels])
+                refresh_footer(interaction.view, guild)
 
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-
-                await interaction.response.edit_message(view=interaction.view)
-                await interaction.followup.send(f"No XP channels updated!\n**Channels:** {', '.join([channel.mention for channel in channels])}")
+                await interaction.response.edit_message(view=LevelingXpOptionsContainer(guild))
         container.add_item(NoXpChannelsSelect())
-        
+
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        container.add_text("## Auto Reset")
-        container.add_text("Should the bot reset user's level and XP if they leave the server?")
+        # --- AUTO RESET TOGGLE ---
+        auto_reset = data.get('auto_reset', False)
+        container.add_text("## Auto Reset on Leave")
+        container.add_text("Automatically reset a member's XP and Level if they leave the server.")
         class AutoResetToggle(ActionRow):
             @button(
-                label="Disabled" if data['auto_reset'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['auto_reset'] == False else discord.ButtonStyle.green,
+                label="Enabled" if auto_reset else "Disabled",
+                style=discord.ButtonStyle.green if auto_reset else discord.ButtonStyle.red,
             )
             async def callback(self, button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild, 'leveling.auto_reset', True)
+                new_state = not auto_reset
+                save_dash(guild, 'leveling.auto_reset', new_state)
+                refresh_footer(interaction.view, guild)
 
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild, 'leveling.auto_reset', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("update_at")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
+                await interaction.response.edit_message(view=LevelingXpOptionsContainer(guild))
         container.add_item(AutoResetToggle())
-        
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
+        # --- ECONOMY INTEGRATION ---
+        economy = data.get('economy', False)
         container.add_text("## Economy Integration")
-        container.add_text("Each time a user sends a message or levels up they gain coins.")
+        container.add_text("Award server coins to users whenever they chat or level up.")
         class EconomyToggle(ActionRow):
             @button(
-                label="Disabled" if data['economy'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['economy'] == False else discord.ButtonStyle.green,
+                label="Enabled" if economy else "Disabled",
+                style=discord.ButtonStyle.green if economy else discord.ButtonStyle.red,
             )
             async def callback(self, button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild, 'leveling.economy', True)
+                new_state = not economy
+                save_dash(guild, 'leveling.economy', new_state)
+                refresh_footer(interaction.view, guild)
 
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild, 'leveling.economy', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-                
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("update_at")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=interaction.view)
+                await interaction.response.edit_message(view=LevelingXpOptionsContainer(guild))
         container.add_item(EconomyToggle())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginLeveling(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, button, interaction):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginLeveling(guild)))
 
 class PluginLeveling(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['leveling']
+        data = Guild.get(str(guild.id)).run().dashboard.leveling
 
         container = Container(
             color=v.style(guild),
@@ -517,32 +430,10 @@ class PluginLeveling(DesignerView):
         container.add_text("# Leveling")
         container.add_text("Give your members XP and Levels when they send messages")
 
-        class StatusButton(ActionRow):
-            @button(
-                label="Disabled" if data['status'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['status'] == False else discord.ButtonStyle.green,
-                custom_id="status",
-            )
-            async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild, 'leveling.status', True)
-                    
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild, 'leveling.status', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.edit_message(view=interaction.view)
-        container.add_item(StatusButton())
+        container.add_item(StatusToggle(guild, 'leveling.status', data.get('status', False)))
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
-
-        container.add_text("**Configure**")
-
+        
         class PluginButtons(ActionRow):
             @button(
                 label="Message",
@@ -573,12 +464,4 @@ class PluginLeveling(DesignerView):
                 await interaction.response.edit_message(view=LevelingXpOptionsContainer(guild))
 
         container.add_item(PluginButtons())
-
         self.add_item(container)
-
-# options=[
-#     discord.SelectOption(label="Level Message", description="Send a message when a user levels up"),
-#     discord.SelectOption(label="Server Card", description="Reply with a card when they use the /rank command"),
-#     discord.SelectOption(label="Role Rewards", description="Give roles to users when they hit certain levels"),
-#     discord.SelectOption(label="XP Options & Modifiers", description="Customize other XP options"),
-# ],

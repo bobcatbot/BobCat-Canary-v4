@@ -66,22 +66,15 @@
 
         <ul id="question-list" class="questions">
         {% for question in data['questions'] %}
-          <li class="question {{ loop.index }}">
+          <li class="question {{ loop.index }}" data-question-type="{{ question.type }}">
             <i id="reorder-grab" class="bi bi-grip-vertical"></i>
             <div class="d-flex flex-column gap-2 w-100" style="--componet-max-width: 900px;max-width: var(--componet-max-width);">
               <div class="d-grid d-md-flex gap-2">
                 <input type="text" id="q-title" class="text-input" style="--input-width: 100%;" placeholder="Question" value="{{question.title}}">
-                <select id="type" class="select width" data-index="{{ loop.index }}">
+                <select id="question-type" class="select width" data-index="{{ loop.index }}">
                   <option value="paragraph">Paragraph</option>
                   <option value="short">Short</option>
                 </select>
-                <script>
-                  var selects = document.querySelectorAll('#type')
-                  selects.forEach(function(select) {
-                    const i = select.dataset.index - 1
-                    select.options[i].setAttribute('selected', select.options[i].value === '{{question.type}}')
-                  })
-                </script>
               </div>
               <div>
                 <input type="text" id="q-desc" class="text-input" style="--input-width: 100%;" placeholder="Description (optional)" value='{{question.description}}'/>
@@ -237,7 +230,7 @@
         <div class="mb-3">
           <p class="mb-1">Reactions</p>
           <div class="d-flex align-items-center checkbox">
-            {% if data.settings.options.reactions.staus == True %}
+            {% if data.settings.options.reactions.status == True %}
             <input type="checkbox" id="reactions-toggle" checked />
             {% else %}
             <input type="checkbox" id="reactions-toggle" />
@@ -332,16 +325,6 @@
       dir: "{{url_for('static', filename='Emojis.json')}}",
       plug: '',
       emit(emoji) {
-        var emojiPickerUL = document.querySelector('.emoji-picker-categories ul')
-
-        // add the server icon
-        var li = document.createElement('li')
-        li.setAttribute('class', 'active')
-        li.setAttribute('id', 'server')
-        li.setAttribute('data-index', 'server')
-        li.innerHTML = '<a href="#" class="emoji-picker-category" data-index="0">🟢</a>'
-        emojiPickerUL.appendChild(li)
-
         const div = document.createElement('div')
         div.classList.add('position-relative', 'reaction', 'add')
         div.innerHTML = `
@@ -352,21 +335,69 @@
         `
         document.querySelector('.reactions').appendChild(div)
         
-        save_data['settings.options.reactions.emojis'].push(emoji.icon)
+        save_data.settings.options.reactions.emojis.push(emoji.icon)
         deleteEmoji()
-      }
+      },
+      onload() {
+        console.log('emoji picker loaded')
+
+        var emojiPickerUL = document.querySelector('.emoji-picker-categories ul')
+        var li = document.createElement('li')
+        li.setAttribute('class', '')
+        li.setAttribute('id', 'server')
+        li.setAttribute('data-index', 'server')
+        li.innerHTML = '<a href="server"><img src="{{guild.icon.url}}" title="{{guild.name}}" width="20" height="20"></a>'
+        emojiPickerUL.appendChild(li)
+
+        var emojiPicker_emojisAllCategories = document.querySelector('.emoji-picker-all-categories')
+
+        // add ul emoji-picker-category
+        var ul = document.createElement('ul')
+        ul.setAttribute('id', 'server')
+        ul.setAttribute('class', 'emoji-picker-category')
+        
+        var title = document.createElement('div')
+        title.setAttribute('class', 'emoji-picker-container-title')
+        title.innerHTML = `<div style="margin-right:5px"><img src="{{guild.icon.url}}" width="20" height="20"></div> {{guild.name}}`
+        ul.appendChild(title)
+
+        var emojiGrid = document.createElement('div')
+        emojiGrid.setAttribute('class', 'emoji-picker-grid')
+        ul.appendChild(emojiGrid)
+
+        const guildEmojis = JSON.parse('{{guild_models(guild).emojis | tojson}}')
+        console.log(guildEmojis)
+
+        guildEmojis.forEach((emoji) => {
+          var emojii = document.createElement('li')
+          emojii.setAttribute('data-name', `${emoji.name}`)
+
+          const emojiElement = document.createElement('a');
+          emojiElement.className = 'emoji-picker-item';
+          emojiElement.href = `<:${emoji.name}:${emoji.id}>`;
+          emojiElement.title = emoji.name;
+          emojiElement.dataset.name = emoji.name;
+
+          emojiElement.innerHTML = `<img src="${emoji.url}" alt="${emoji.name}" width="34" height="34">`;
+
+          emojii.appendChild(emojiElement)
+          emojiGrid.appendChild(emojii);
+        })
+
+        emojiPicker_emojisAllCategories.appendChild(ul)
+      },
     });
+    
     function deleteEmoji() {
       document.querySelectorAll('.reaction.add').forEach((add) => {
         add.addEventListener('click', (e) => {
           const item = add.querySelector('.delete-icon')
-          item.closest('.reaction.add').remove()
-
           const emoji = item.closest('.reaction.add').querySelector('span').innerText
-          const index = save_data['settings.options.reactions.emojis'].indexOf(emoji)
+          const index = save_data.settings.options.reactions.emojis.indexOf(emoji)
           if (index > -1) {
-            save_data['settings.options.reactions.emojis'].splice(index, 1)
+            save_data.settings.options.reactions.emojis.splice(index, 1)
           }
+          item.closest('.reaction.add').remove()
         })
       })
     }
@@ -374,19 +405,19 @@
 
     const title = document.querySelector('.page-title')
     const emName = document.querySelector('#form-name')
+    
     document.addEventListener('DOMContentLoaded', () => {
       title.innerText = emName.value
 
       const sortable = new Sortable(document.getElementById('question-list'), {
-        animation: 150, // Animation speed in milliseconds
-        handle: '#reorder-grab', // id of the handle element for dragging
+        animation: 150,
+        handle: '#reorder-grab',
         onEnd: function (evt) {
           // Callback function triggered after the item is dropped
         },
       });
 
       // reactions-toggle
-      save_data['settings.options.reactions.emojis'] = JSON.parse('{{data["settings"]["options"]["reactions"]["emojis"] | tojson}}')
       var reactionsToggle = document.querySelector('#reactions-toggle')
       var reactionsContainer = document.querySelector('.reactions-container')
       if (reactionsToggle.checked) {
@@ -400,6 +431,11 @@
     
     emName.addEventListener('input', (e) => {
       title.innerText = emName.value
+      save_data.name = e.target.value
+    })
+
+    document.querySelector('#form-desc').addEventListener('input', (e) => {
+      save_data.description = e.target.value
     })
 
     document.querySelector('#delete-form-btn').addEventListener('click', (e) => {
@@ -429,16 +465,18 @@
       }
     })
 
+    // ──────────────────────────────────────────────
+
     document.querySelector('#add-question').addEventListener('click', (e) => {
       var list = document.querySelector('#question-list')
-      var index = list.children.length+1
+      var index = list.children.length + 1
       const li = `
       <li class="question ${index}">
         <i id="reorder-grab" class="bi bi-grip-vertical"></i>
         <div class="d-flex flex-column gap-2 w-100">
           <div class="d-flex gap-2">
             <input type="text" id="q-title" class="text-input" style="--input-width: 100%;" placeholder="Question" value="${index}. Question">
-            <select id="type" class="select" style="--select-width: 20%;" data-index="${index}">
+            <select id="question-type" class="select" style="--select-width: 20%;" data-index="${index}">
               <option value="paragraph" selected>Paragraph</option>
               <option value="short">Short</option>
             </select>
@@ -466,9 +504,10 @@
       list.insertAdjacentHTML("beforeend", li)
 
       deleteBtn();
+      changeSelectType();
     });
 
-    function deleteBtn() { // event listener for delete item button in all questions
+    function deleteBtn() {
       const qList = document.querySelectorAll('.question');
       for (let i = 0; i < qList.length; i++) {
         const item = qList[i].querySelector('#delete-item')
@@ -477,48 +516,54 @@
           item.disabled = true;
           return
         } else {
-          for (let i = 0; i < qList.length; i++) {
-            const item = qList[i].querySelector('#delete-item')
-            item.disabled = false;
-          }
           item.disabled = false;
         }
 
-        item.addEventListener('click', (e) => {
-          const question = item.closest('li');
+        // Remove existing listeners to avoid duplicates
+        const newItem = item.cloneNode(true)
+        item.parentNode.replaceChild(newItem, item)
+        
+        newItem.addEventListener('click', (e) => {
+          const question = newItem.closest('li');
           question.remove();
+          deleteBtn();
         });
       }
     }
     deleteBtn();
 
-    const typeSelects = document.querySelectorAll('#type');
-    for (let i = 0; i < typeSelects.length; i++) {
-      typeSelects[i].addEventListener('change', (e) => {
-        const selectedType = typeSelects[i].value;
-        const answerInput = typeSelects[i].closest('li').querySelector('#AnswerInput');
-    
-        if (selectedType === 'paragraph') {
-          answerInput.innerHTML = `
-            <textarea class="text-input paragraph-answer" placeholder="Answer!"></textarea>
-          `;
-        }
-        if (selectedType === 'short') {
-          answerInput.innerHTML = `
-            <input type="text" class="text-input" style="--input-width: 100%;" placeholder="Answer!" disabled />
-          `;
-        }
-      });
+    function changeSelectType() {
+      document.querySelectorAll('#question-type').forEach((typeSelect) => {
+        // Remove existing listeners
+        const newSelect = typeSelect.cloneNode(true)
+        typeSelect.parentNode.replaceChild(newSelect, typeSelect)
+        
+        newSelect.addEventListener('change', (e) => {
+          const selectedType = newSelect.value;
+          const answerInput = newSelect.closest('li').querySelector('#AnswerInput');
+      
+          if (selectedType === 'paragraph') {
+            answerInput.innerHTML = `
+              <textarea class="text-input paragraph-answer" placeholder="Answer!" style="--input-width: 100%;" disabled></textarea>
+            `;
+          }
+          if (selectedType === 'short') {
+            answerInput.innerHTML = `
+              <input type="text" class="text-input" style="--input-width: 100%;" placeholder="Answer!" disabled />
+            `;
+          }
+        });
+      })
     }
+    changeSelectType();
 
-    var save_data = {}
-    save_data['id'] = '{{data.id}}'
-    
-    document.querySelector('#form-name').addEventListener('input', (e) => {
-      save_data['name'] = e.target.value
-    })
-    document.querySelector('#form-desc').addEventListener('input', (e) => {
-      save_data['description'] = e.target.value
+    // Set the correct type for each select using data attribute
+    document.querySelectorAll('.question').forEach(function(questionLi) {
+      const questionType = questionLi.dataset.questionType;
+      const select = questionLi.querySelector('#question-type');
+      if (select) {
+        select.value = questionType;
+      }
     })
 
     var subChanSelectWrapper = document.querySelector('.sub-chan-select-wrapper.single')
@@ -526,33 +571,48 @@
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
       
-      save_data['settings.submission_channel'] = option
+      if (!save_data.settings) save_data.settings = {}
+      save_data.settings.submission_channel = option
     });
 
     var subViewsSelectWrapper = document.querySelector('.sub-views-select-wrapper.multi')
     subViewsSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.submission_viewers'] = selectedOptions
+
+      if (!save_data.settings) save_data.settings = {}
+      save_data.settings.submission_viewers = selectedOptions
     });
     
     var subMansSelectWrapper = document.querySelector('.sub-mangers-select-wrapper.multi')
     subMansSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.submission_managers'] = selectedOptions
+
+      if (!save_data.settings) save_data.settings = {}
+      save_data.settings.submission_managers = selectedOptions
     });
     
     var mentionsSelectWrapper = document.querySelector('.mentions-select-wrapper.multi')
     mentionsSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
-      save_data['settings.options.mentions'] = selectedOptions
+
+      if (!save_data.settings) save_data.settings = {}
+      if (!save_data.settings.options) save_data.settings.options = {}
+      save_data.settings.options.mentions = selectedOptions
     });
     
     document.querySelector('#ThreadCreate').addEventListener('change', (e) => {
-      save_data['settings.options.thread'] = e.target.checked
+      if (!save_data.settings) save_data.settings = {}
+      if (!save_data.settings.options) save_data.settings.options = {}
+      save_data.settings.options.thread = e.target.checked
     })
     
     document.querySelector('#reactions-toggle').addEventListener('change', (e) => {
-      save_data['settings.options.reactions.status'] = e.target.checked
+      // Initialize nested objects if they don't exist
+      if (!save_data.settings) save_data.settings = {}
+      if (!save_data.settings.options) save_data.settings.options = {}
+      if (!save_data.settings.options.reactions) save_data.settings.options.reactions = {}
+      
+      save_data.settings.options.reactions.status = e.target.checked
       
       var reactionsContainer = document.querySelector('.reactions-container')
       if (e.target.checked) {
@@ -564,22 +624,21 @@
       }
     })
 
-    
     document.querySelector('#save-form-btn').addEventListener('click', (e) => {
-      var questions_list = document.querySelector('#question-list').children
+      var questionList = document.getElementById('question-list').children
       var questions = []
       
-      for (let i=0; i < questions_list.length; i++) {
-        var question = questions_list[i]
-
+      for (let i = 0; i < questionList.length; i++) {
+        var question = questionList[i]
+      
         questions.push({
           "title": question.querySelector("#q-title").value,
           "description": question.querySelector("#q-desc").value,
-          "type": question.querySelector("#type").value,
+          "type": question.querySelector("#question-type").value,
           "required": question.querySelector("#required").checked
         })
       }
-      save_data['questions'] = questions
+      save_data.questions = questions
       
       fetch('edit', {
         method: "POST",
@@ -768,53 +827,3 @@
   </style>
 </body>
 </html>
-
-
-<!-- onload() {
-        console.log('emoji picker loaded')
-
-        var emojiPickerUL = document.querySelector('.emoji-picker-categories ul')
-        var li = document.createElement('li')
-        li.setAttribute('class', '')
-        li.setAttribute('id', 'server')
-        li.setAttribute('data-index', 'server')
-        li.innerHTML = '<a href="server"><img src="{{guild.icon.url}}" title="{{guild.name}}" width="20" height="20"></a>'
-        emojiPickerUL.appendChild(li)
-
-        var emojiPicker_emojisAllCategories = document.querySelector('.emoji-picker-all-categories')
-
-        // add ul emoji-picker-category
-        var ul = document.createElement('ul')
-        ul.setAttribute('id', 'server')
-        ul.setAttribute('class', 'emoji-picker-category')
-        
-        var title = document.createElement('div')
-        title.setAttribute('class', 'emoji-picker-container-title')
-        title.innerHTML = `<div style="margin-right:5px"><img src="{{guild.icon.url}}" width="20" height="20"></div> {{guild.name}}`
-        ul.appendChild(title)
-
-        var emojiGrid = document.createElement('div')
-        emojiGrid.setAttribute('class', 'emoji-picker-grid')
-        ul.appendChild(emojiGrid)
-
-        const guildEmojis = JSON.parse('{{guild_models(guild).emojis | tojson}}')
-        console.log(guildEmojis)
-
-        guildEmojis.forEach((emoji) => {
-          var emojii = document.createElement('li')
-          emojii.setAttribute('data-name', `${emoji.name}`)
-
-          const emojiElement = document.createElement('a');
-          emojiElement.className = 'emoji-picker-item';
-          emojiElement.href = `<:${emoji.name}:${emoji.id}>`;
-          emojiElement.title = emoji.name;
-          emojiElement.dataset.name = emoji.name;
-
-          emojiElement.innerHTML = `<img src="${emoji.url}" alt="${emoji.name}" width="34" height="34">`;
-
-          emojii.appendChild(emojiElement)
-          emojiGrid.appendChild(emojii);
-        })
-
-        emojiPicker_emojisAllCategories.appendChild(ul)
-      }, -->

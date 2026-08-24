@@ -82,6 +82,19 @@
     "max": 5,
     "max_premium": 15
   },
+  "stats": {
+    "title": "Stats",
+    "description": "View stats about your server",
+    "db_key": "stats",
+    "icon": "insights",
+    "url": "stats",
+    "badge": "prem-beta",
+    "category": "utilities",
+    "premium": true,
+    "status": false,
+    "max": 5,
+    "max_premium": 15
+  },
   "leveling": {
     "title": "Leveling",
     "description": "Give your members XP and Levels when they send messages",

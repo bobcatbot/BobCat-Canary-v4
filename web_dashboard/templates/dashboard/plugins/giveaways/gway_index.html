@@ -89,7 +89,7 @@
                 <div class="d-flex align-items-center justify-content-between d-md-block col col-md-3 m-0">
                   <div>
                     <p id="gway-prize" class="m-0">{{gway['name']}}</p>
-                    <p class="m-0 text-muted fs-7">#{{gway['channel']['name']}}</p>
+                    <p class="m-0 text-muted fs-7">#{{gway['channel_name']}}</p>
                   </div>
 
                   <div class="d-block d-md-none">
@@ -105,7 +105,7 @@
                 </div>
                 <p class="col col-md-2 m-0"><span class="d-block d-md-none text-muted">Participants:</span> {{gway['participants'] | length}}</p>
                 <p class="col col-md-2 m-0"><span class="d-block d-md-none text-muted">Status:</span> {{gway['status']}}</p>
-                <p class="col m-0"><span class="d-block d-md-none text-muted">End Time:</span> {{gway['time']['timestamp']}}</p>
+                <p class="col m-0"><span class="d-block d-md-none text-muted">End Time:</span> {{gway['end_timestamp']}}</p>
                 <div class="d-none d-lg-flex align-items-center justify-content-end col m-0">
                   <div class="dropdown">
                     <button class="btn btn-secondary" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">

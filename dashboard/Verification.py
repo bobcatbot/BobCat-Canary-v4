@@ -1,9 +1,8 @@
 import discord
-from datetime import datetime
 from modules import bot as v
-from discord.ui import (
-    DesignerView, Container, ActionRow, button, select, channel_select, role_select
-)
+from modules.models import Guild
+from discord.ui import DesignerView, Container, ActionRow, button, select, channel_select, role_select
+from dashboard._components import save_dash, refresh_footer, FooterRow, StatusToggle
 
 BUTTON_STYLES = {
     "gray": discord.ButtonStyle.gray,
@@ -12,251 +11,311 @@ BUTTON_STYLES = {
     "red": discord.ButtonStyle.red
 }
 
+class MessageModal(discord.ui.DesignerModal):
+    def __init__(self, guild: discord.Guild, data: dict, container_view: discord.ui.View):
+        super().__init__(
+            discord.ui.Label(
+                "Embed Color",
+                discord.ui.InputText(
+                    style=discord.InputTextStyle.short,
+                    value=data['message']['embed']['color'],
+                )
+            ),
+            discord.ui.Label(
+                "Embed Title",
+                discord.ui.InputText(
+                    style=discord.InputTextStyle.short,
+                    value=data['message']['embed']['title'],
+                )
+            ),
+            discord.ui.Label(
+                "Embed Description",
+                discord.ui.InputText(
+                    style=discord.InputTextStyle.long,
+                    value=data['message']['embed']['desc'],
+                )
+            ),
+            title="Verification Embed Message",
+        )
+        self.guild = guild
+        self.data = data
+        self.container_view = container_view
+
+    async def callback(self, interaction: discord.Interaction):
+        embed_color = self.children[0].item.value
+        embed_title = self.children[1].item.value
+        embed_desc = self.children[2].item.value
+
+        old_embed = self.data['message']['embed']
+        
+        # Check if anything actually changed
+        has_changed = (
+            embed_color != old_embed.get('color') or
+            embed_title != old_embed.get('title') or
+            embed_desc != old_embed.get('desc')
+        )
+
+        # Update Live Preview
+        self.container_view.get_item(100).content = f"# {embed_title}"
+        self.container_view.get_item(101).content = f"{embed_desc}"
+
+        # Save field values
+        save_dash(self.guild, 'verification.message.embed.color', embed_color)
+        save_dash(self.guild, 'verification.message.embed.title', embed_title)
+        save_dash(self.guild, 'verification.message.embed.desc', embed_desc)
+
+        # Only invalidate published state if something actually changed
+        if has_changed:
+            save_dash(self.guild, 'verification.message_published', False)
+            pub_btn = self.container_view.get_item("publish_btn")
+            if pub_btn:
+                pub_btn.label = "Publish Changes"
+                pub_btn.style = discord.ButtonStyle.blurple
+
+        refresh_footer(self.container_view, self.guild)
+        await interaction.response.edit_message(view=self.container_view)
+
+class EditVerifyButtonModal(discord.ui.DesignerModal):
+    def __init__(self, guild: discord.Guild, data: dict, container_view: discord.ui.View):
+        super().__init__(
+            discord.ui.Label(
+                "Color",
+                discord.ui.Select(
+                    options=[
+                        discord.SelectOption(label="Gray", value="gray", default=data['message']['btn']['color'] == "gray"),
+                        discord.SelectOption(label="Blurple", value="blurple", default=data['message']['btn']['color'] == "blurple"),
+                        discord.SelectOption(label="Green", value="green", default=data['message']['btn']['color'] == "green"),
+                        discord.SelectOption(label="Red", value="red", default=data['message']['btn']['color'] == "red"),
+                    ],
+                    placeholder="Select a color",
+                )
+            ),
+            discord.ui.Label(
+                "Emoji",
+                discord.ui.InputText(
+                    style=discord.InputTextStyle.short,
+                    value=data['message']['btn']['emoji'],
+                    required=False,
+                )
+            ),
+            discord.ui.Label(
+                "Title",
+                discord.ui.InputText(
+                    style=discord.InputTextStyle.short,
+                    value=data['message']['btn']['title'],
+                )
+            ),
+            title="Verification Button",
+        )
+        self.guild = guild
+        self.data = data
+        self.container_view = container_view
+
+    async def callback(self, interaction: discord.Interaction):
+        btn_color = self.children[0].item.values[0]
+        btn_emoji = self.children[1].item.value or ""
+        btn_title = self.children[2].item.value
+
+        old_btn = self.data['message']['btn']
+
+        # Check if anything actually changed
+        has_changed = (
+            btn_color != old_btn.get('color') or
+            btn_emoji != (old_btn.get('emoji') or "") or
+            btn_title != old_btn.get('title')
+        )
+
+        # Update Live Preview
+        btn = self.container_view.get_item(102)
+        btn.label = btn_title
+        btn.emoji = btn_emoji or None
+        btn.style = BUTTON_STYLES.get(btn_color, discord.ButtonStyle.gray)
+
+        # Save field values
+        save_dash(self.guild, 'verification.message.btn.title', btn_title)
+        save_dash(self.guild, 'verification.message.btn.emoji', btn_emoji)
+        save_dash(self.guild, 'verification.message.btn.color', btn_color)
+
+        # Only invalidate published state if something actually changed
+        if has_changed:
+            save_dash(self.guild, 'verification.message_published', False)
+            pub_btn = self.container_view.get_item("publish_btn")
+            if pub_btn:
+                pub_btn.label = "Publish Changes"
+                pub_btn.style = discord.ButtonStyle.blurple
+
+        refresh_footer(self.container_view, self.guild)
+        await interaction.response.edit_message(view=self.container_view)
+
 class VerificationMessage(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['verification']
+        data = Guild.get(str(guild.id)).run().dashboard.verification
+        is_published = data.get('message_published', False)
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# Verification Message")
         container.add_text("Set the message that will be sent in the verification channel.")
-
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
         container.add_text("### Embed Preview")
         container.add_text(f"# {data['message']['embed']['title']}", id=100)
         container.add_text(f"{data['message']['embed']['desc']}", id=101)
+
         class VerificationButtonPreview(ActionRow):
             @button(
-                emoji= f"{data['message']['btn']['emoji']}",
-                label= f"{data['message']['btn']['title']}",
-                style= BUTTON_STYLES.get(data['message']['btn']['color'], discord.ButtonStyle.gray),
+                emoji=data['message']['btn']['emoji'],
+                label=data['message']['btn']['title'],
+                style=BUTTON_STYLES.get(data['message']['btn']['color'], discord.ButtonStyle.gray),
                 disabled=True,
                 id=102,
             )
-            async def callback(s,b,i):
+            async def callback(self,b,i):
                 pass
+
         container.add_item(VerificationButtonPreview())
         container.add_text("-# Button is disabled because this is just a preview")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
-        class MessageModal(discord.ui.DesignerModal):
-            def __init__(self):
-                super().__init__(
-                    discord.ui.Label(
-                        "Embed Color",
-                        discord.ui.InputText(
-                            style=discord.InputTextStyle.short,
-                            value=data['message']['embed']['color'],
-                        )
-                    ),
-                    discord.ui.Label(
-                        "Embed Title",
-                        discord.ui.InputText(
-                            style=discord.InputTextStyle.short,
-                            value=data['message']['embed']['title'],
-                        )
-                    ),
-                    discord.ui.Label(
-                        "Embed Description",
-                        discord.ui.InputText(
-                            style=discord.InputTextStyle.long,
-                            value=data['message']['embed']['desc'],
-                        )
-                    ),
-                    title="Verification Embed Message",
-                )
-            async def callback(self, interaction: discord.Interaction):
-                embedColor = self.children[0].item.value
-                embedTitle = self.children[1].item.value
-                embedDesc = self.children[2].item.value
-
-                container.view.get_item(100).content = f"# {embedTitle}"
-                container.view.get_item(101).content = f"{embedDesc}"
-
-                v.db.update_dash(guild, 'verification.message.embed.color', embedColor)
-                v.db.update_dash(guild, 'verification.message.embed.title', embedTitle)
-                v.db.update_dash(guild, 'verification.message.embed.desc', embedDesc)
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_btn = container.view.get_item("SaveSuccess")
-                update_btn.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=container.view)
         class MessageButton(ActionRow):
-            @button(
-                label="Edit message",
-                style=discord.ButtonStyle.primary,
-            )
+            @button(label="Edit message", style=discord.ButtonStyle.primary)
             async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                await interaction.response.send_modal(MessageModal())
+                current_data = Guild.get(str(guild.id)).run().dashboard.verification
+                await interaction.response.send_modal(MessageModal(guild, current_data, interaction.view))
         container.add_item(MessageButton())
-        
-        class EditVerifyButtonModal(discord.ui.DesignerModal):
-            def __init__(self):
-                super().__init__(
-                    discord.ui.Label(
-                        "Color",
-                        discord.ui.Select(
-                            options=[
-                                discord.SelectOption(label="Gray", value="gray", default=data['message']['btn']['color'] == "gray"),
-                                discord.SelectOption(label="Blurple", value="blurple", default=data['message']['btn']['color'] == "blurple"),
-                                discord.SelectOption(label="Green", value="green", default=data['message']['btn']['color'] == "green"),
-                                discord.SelectOption(label="Red", value="red", default=data['message']['btn']['color'] == "red"),
-                            ],
-                            placeholder="Select a color",
-                        )
-                    ),
-                    discord.ui.Label(
-                        "Emoji",
-                        discord.ui.InputText(
-                            style=discord.InputTextStyle.short,
-                            value=data['message']['btn']['emoji'],
-                            required=False,
-                        )
-                    ),
-                    discord.ui.Label(
-                        "Title",
-                        discord.ui.InputText(
-                            style=discord.InputTextStyle.short,
-                            value=data['message']['btn']['title'],
-                        )
-                    ),
-                    title="Verification Button",
-                )
-            async def callback(self, interaction: discord.Interaction):
-                btnColor = self.children[0].item.values[0]
-                btnEmoji = self.children[1].item.value
-                btnTitle = self.children[2].item.value
 
-                btn = container.view.get_item(102)
-                btn.label = btnTitle
-                btn.emoji = btnEmoji
-                btn.style = BUTTON_STYLES.get(btnColor, discord.ButtonStyle.gray)
-
-                v.db.update_dash(guild, 'verification.message.btn.title', btnTitle)
-                v.db.update_dash(guild, 'verification.message.btn.emoji', btnEmoji)
-                v.db.update_dash(guild, 'verification.message.btn.color', btnColor)
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_btn = container.view.get_item("SaveSuccess")
-                update_btn.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=container.view)
         class EditVerifyButton(ActionRow):
-            @button(
-                label="Edit Verify Button",
-                style=discord.ButtonStyle.primary,
-            )
+            @button(label="Edit Verify Button", style=discord.ButtonStyle.primary)
             async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                await interaction.response.send_modal(EditVerifyButtonModal())
+                current_data = Guild.get(str(guild.id)).run().dashboard.verification
+                await interaction.response.send_modal(EditVerifyButtonModal(guild, current_data, interaction.view))
         container.add_item(EditVerifyButton())
 
         container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.large)
-        container.add_separator(divider=False, spacing=discord.SeparatorSpacingSize.small)
-        
+
         class VerifyButton(ActionRow):
             @button(
-                label="Publish" if not data['message_published'] else "Published",
-                style=discord.ButtonStyle.blurple if not data['message_published'] else discord.ButtonStyle.green,
+                label="Published" if is_published else "Publish",
+                style=discord.ButtonStyle.green if is_published else discord.ButtonStyle.gray,
+                custom_id="publish_btn"
             )
             async def callback(self, button: discord.ui.Button, interaction: discord.Interaction):
-                # Check for the right permissions before everything else
-                if guild.me.guild_permissions.manage_channels is False:
-                    return await interaction.response.send_message("I don't have permission to send messages in this server! \nPlease give me the 'Manage Channels' permission and try again.", ephemeral=True)
-                if guild.me.guild_permissions.manage_roles is False:
-                    return await interaction.response.send_message("I don't have permission to assign roles in this server! \nPlease give me the 'Manage Roles' permission and try again.", ephemeral=True)
-                
-                if data['channel'] is None:
-                    return await interaction.response.send_message("Oops! It looks like you haven't set a verification channel first. \nGo to the 'Channel & Role' settings.", ephemeral=True)
-                if data['role'] is None:
-                    return await interaction.response.send_message("Oops! It looks like you haven't set a verification role first. \nGo to the 'Channel & Role' settings.", ephemeral=True)
+                if not guild.me.guild_permissions.manage_channels:
+                    return await interaction.response.send_message(
+                        "I don't have permission to send messages in this server!\nPlease give me 'Manage Channels' and try again.",
+                        ephemeral=True
+                    )
+                if not guild.me.guild_permissions.manage_roles:
+                    return await interaction.response.send_message(
+                        "I don't have permission to assign roles in this server!\nPlease give me 'Manage Roles' and try again.",
+                        ephemeral=True
+                    )
 
-                config = v.db.get_dash(guild.id)['verification']
+                config = Guild.get(str(guild.id)).run().dashboard.verification
+
+                if not config.get('channel'):
+                    return await interaction.response.send_message(
+                        "Oops! You haven't set a verification channel yet.\nGo to 'Channel & Role' settings.",
+                        ephemeral=True
+                    )
+                if not config.get('role'):
+                    return await interaction.response.send_message(
+                        "Oops! You haven't set a verification role yet.\nGo to 'Channel & Role' settings.",
+                        ephemeral=True
+                    )
 
                 channel = guild.get_channel(int(config['channel']))
                 role = guild.get_role(int(config['role']))
-                
-                embed = discord.Embed.from_dict({
-                    "title": config['message']['embed']['title'],
-                    "description": config['message']['embed']['desc'],
-                    "color": int(config['message']['embed']['color'].replace("#", ""), 16)
-                })
+
+                if not channel or not role:
+                    return await interaction.response.send_message(
+                        "The configured channel or role no longer exists in this server.",
+                        ephemeral=True
+                    )
+
+                try:
+                    raw_color = str(config['message']['embed']['color']).replace("#", "")
+                    embed_color = int(raw_color, 16)
+                except ValueError:
+                    embed_color = v.style(guild)
+
+                embed = discord.Embed(
+                    title=config['message']['embed']['title'],
+                    description=config['message']['embed']['desc'],
+                    color=embed_color
+                )
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
                     label=config['message']['btn']['title'],
-                    emoji=config['message']['btn']['emoji'],
+                    emoji=config['message']['btn']['emoji'] or None,
                     style=BUTTON_STYLES.get(config['message']['btn']['color'], discord.ButtonStyle.gray),
                     custom_id="Verification",
                 ))
 
-                if config['message_published']:
-                    msg = await channel.fetch_message(int(config['message_id']))
-                    await msg.edit(embed=embed, view=view)
-                    return await interaction.response.send_message("Verification message updated!", ephemeral=True)
+                if config.get('message_id'):
+                    try:
+                        msg = await channel.fetch_message(int(config['message_id']))
+                        await msg.edit(embed=embed, view=view)
+
+                        save_dash(guild, 'verification.message_published', True)
+                        button.label = "Published"
+                        button.style = discord.ButtonStyle.gray
+                        refresh_footer(interaction.view, guild)
+                        await interaction.response.edit_message(view=interaction.view)
+                        return await interaction.followup.send_message("Verification message updated!", ephemeral=True)
+                    except discord.NotFound:
+                        pass  # If message was deleted manually, falls through to resend below
 
                 await channel.set_permissions(guild.default_role, overwrite=discord.PermissionOverwrite(read_messages=True, send_messages=False))
                 await channel.set_permissions(role, overwrite=discord.PermissionOverwrite(read_messages=False, send_messages=False))
 
-                await guild.default_role.edit( # @everyone
-                    reason="Verification system enabled",
-                    permissions=discord.Permissions(read_messages=False,)
-                )
+                try:
+                    await guild.default_role.edit(
+                        reason="Verification system enabled",
+                        permissions=discord.Permissions(read_messages=False)
+                    )
+                except discord.Forbidden:
+                    pass
 
-                if role.id == int(config['role']):
+                try:
                     await role.edit(
                         reason="Verification system enabled",
                         permissions=discord.Permissions(read_messages=True)
                     )
+                except discord.Forbidden:
+                    pass
 
                 msg = await channel.send(embed=embed, view=view)
-                v.db.update_dash(guild, 'verification.message_id', str(msg.id))
-                v.db.update_dash(guild, 'verification.message_published', True)
+                save_dash(guild, 'verification.message_id', str(msg.id))
+                save_dash(guild, 'verification.message_published', True)
 
                 button.label = "Published"
-                await interaction.followup.edit_message(interaction.message.id, view=interaction.view)
+                button.style = discord.ButtonStyle.green
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
                 await interaction.followup.send_message("Verification message sent!", ephemeral=True)
-
         container.add_item(VerifyButton())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginVerification(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%d-%m-%Y %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, b, i):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginVerification(guild)))
 
 class VerificationChanRoleOptions(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['verification']
+        data = Guild.get(str(guild.id)).run().dashboard.verification
 
-        chan = []
-        if data['channel']:
-            chan = [ guild.get_channel(int(data['channel'])) ]
+        chan = [
+            c for ch_id in [data.get('channel')]
+            if ch_id and (c := guild.get_channel(int(ch_id))) is not None
+        ]
 
-        role = []
-        if data['role']:
-            role = [ guild.get_role(int(data['role'])) ]
+        role = [
+            r for r_id in [data.get('role')]
+            if r_id and (r := guild.get_role(int(r_id))) is not None
+        ]
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# Verification Channel And Role")
         container.add_text("Configure your verification channel and role.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
@@ -271,24 +330,17 @@ class VerificationChanRoleOptions(DesignerView):
                 max_values=1,
                 default_values=chan,
             )
-            async def callback(self, select: discord.ui.ChannelSelect, interaction: discord.Interaction):
-                if len(select.values) > 0:
-                    channel = select.values[0]
-                    v.db.update_dash(guild, 'verification.channel', str(channel.id))
-                else:
-                    v.db.update_dash(guild, 'verification.channel', None)
-                
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_btn = container.view.get_item("SaveSuccess")
-                update_btn.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=container.view)
+            async def callback(self, select_obj: discord.ui.ChannelSelect, interaction: discord.Interaction):
+                val = str(select_obj.values[0].id) if select_obj.values else None
+                save_dash(guild, 'verification.channel', val)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
         container.add_item(ChannelSelect())
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("### Verification Role")
-        container.add_text("Select the role that will be given to the verified members.")
+        container.add_text("Select the role that will be given to verified members.")
         class RoleSelect(ActionRow):
             @role_select(
                 placeholder="Select a role",
@@ -296,75 +348,47 @@ class VerificationChanRoleOptions(DesignerView):
                 max_values=1,
                 default_values=role,
             )
-            async def callback(self, select: discord.ui.RoleSelect, interaction: discord.Interaction):
-                if len(select.values) > 0:
-                    role = select.values[0]
-                    v.db.update_dash(guild, 'verification.role', str(role.id))
-                else:
-                    v.db.update_dash(guild, 'verification.role', None)
-                
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_btn = container.view.get_item("SaveSuccess")
-                update_btn.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
-                await interaction.response.edit_message(view=container.view)
+            async def callback(self, select_obj: discord.ui.RoleSelect, interaction: discord.Interaction):
+                val = str(select_obj.values[0].id) if select_obj.values else None
+                save_dash(guild, 'verification.role', val)
+                refresh_footer(interaction.view, guild)
+                await interaction.response.edit_message(view=interaction.view)
         container.add_item(RoleSelect())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginVerification(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, b, i):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginVerification(guild)))
 
 class VerificationGeneralOptions(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['verification']
+        data = Guild.get(str(guild.id)).run().dashboard.verification
 
-        container = Container(
-            color=v.style(guild),
-        )
+        container = Container(color=v.style(guild))
         container.add_text("# General Verification Options")
         container.add_text("Configure general verification options.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
         container.add_text("## Verification Mode")
         container.add_text("What kind of verification method do you want to use?")
+
         class ModeSelect(ActionRow):
             @select(
                 placeholder="Select an option",
                 options=[
-                    discord.SelectOption(label="Instant Access", value="instant", default=data['mode'] == "instant"),
-                    discord.SelectOption(label="Captcha (DM)", value="captcha_dm", default=data['mode'] == "captcha_dm"),
-                    discord.SelectOption(label="Captcha (Channel)", value="captcha_channel", default=data['mode'] == "captcha_channel"),
+                    discord.SelectOption(label="Instant Access", value="instant", default=data.get('mode') == "instant"),
+                    discord.SelectOption(label="Captcha (DM)", value="captcha_dm", default=data.get('mode') == "captcha_dm"),
+                    discord.SelectOption(label="Captcha (Channel)", value="captcha_channel", default=data.get('mode') == "captcha_channel"),
                 ],
                 min_values=1,
             )
-            async def callback(self, select, interaction: discord.Interaction):
-                new_value = select.values[0]
-                
-                for option in select.options:
+            async def callback(self, select_obj, interaction: discord.Interaction):
+                new_value = select_obj.values[0]
+
+                for option in select_obj.options:
                     option.default = option.value == new_value
 
-                v.db.update_dash(guild, 'verification.mode', new_value.lower().replace(" & ", "_"))
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                save_dash(guild, 'verification.mode', new_value)
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(ModeSelect())
 
@@ -375,79 +399,39 @@ class VerificationGeneralOptions(DesignerView):
         class FailActionSelect(ActionRow):
             @select(
                 options=[
-                    discord.SelectOption(label="Keep Unverified", value="unverified", default=data['failAction'] == "unverified"),
-                    discord.SelectOption(label="Kick", value="kick", default=data['failAction'] == "kick"),
-                    discord.SelectOption(label="Ban", value="ban", default=data['failAction'] == "ban"),
+                    discord.SelectOption(label="Keep Unverified", value="unverified", default=data.get('failAction') == "unverified"),
+                    discord.SelectOption(label="Kick", value="kick", default=data.get('failAction') == "kick"),
+                    discord.SelectOption(label="Ban", value="ban", default=data.get('failAction') == "ban"),
                 ],
                 placeholder="Select an option",
                 min_values=1,
             )
-            async def callback(self, select, interaction: discord.Interaction):
-                new_value = select.values[0]
-                
-                for option in select.options:
+            async def callback(self, select_obj, interaction: discord.Interaction):
+                new_value = select_obj.values[0]
+
+                for option in select_obj.options:
                     option.default = option.value == new_value
 
-                v.db.update_dash(guild, 'verification.failAction', new_value)
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-
-                update_at = interaction.view.get_item("SaveSuccess")
-                update_at.label = f"Updated at: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                save_dash(guild, 'verification.failAction', new_value)
+                refresh_footer(interaction.view, guild)
                 await interaction.response.edit_message(view=interaction.view)
         container.add_item(FailActionSelect())
 
         self.add_item(container)
-
-        class ViewButtons(ActionRow):
-            @button(
-                label="Go Back",
-                style=discord.ButtonStyle.primary,
-            )
-            async def goBack(self, button, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=PluginVerification(guild))
-
-            @button(
-                label=f"Updated at: {datetime.fromisoformat(str(v.db.get_server_config(guild.id, True)['updated_at'])).strftime('%Y-%m-%d %H:%M')}",
-                style=discord.ButtonStyle.gray,
-                custom_id="SaveSuccess",
-                disabled=True,
-            )
-            async def updateStatus(self, b, i):
-                pass
-        self.add_item(ViewButtons())
+        self.add_item(FooterRow(guild, lambda: PluginVerification(guild)))
 
 class PluginVerification(DesignerView):
     def __init__(self, guild: discord.Guild):
         super().__init__(timeout=None)
-        data = v.db.get_dash(guild.id)['verification']
-        
+        data = Guild.get(str(guild.id)).run().dashboard.verification
+
         container = Container(
             color=v.style(guild),
         )
         container.add_text("# Verification")
         container.add_text("Verification gate that your new members need to pass in order to get access to your server.")
 
-        class StatusButton(ActionRow):
-            @button(
-                label="Disabled" if data['status'] == False else "Enabled",
-                style=discord.ButtonStyle.red if data['status'] == False else discord.ButtonStyle.green,
-                custom_id="status",
-            )
-            async def status(self, button: discord.ui.Button, interaction: discord.Interaction):
-                if button.label == "Disabled":
-                    v.db.update_dash(guild, 'verification.status', True)
-
-                    button.label = "Enabled"
-                    button.style = discord.ButtonStyle.green
-                else:
-                    v.db.update_dash(guild, 'verification.status', False)
-
-                    button.label = "Disabled"
-                    button.style = discord.ButtonStyle.red
-
-                v.db.update_server_config(guild, True, 'updated_at', discord.utils.utcnow())
-                await interaction.response.edit_message(view=interaction.view)
-        container.add_item(StatusButton())
+        container.add_item(StatusToggle(guild, 'verification.status', data.get('status', False)))
 
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
 
@@ -474,5 +458,4 @@ class PluginVerification(DesignerView):
                 await interaction.response.edit_message(view=VerificationGeneralOptions(guild))
 
         container.add_item(PluginButtons())
-        
         self.add_item(container)

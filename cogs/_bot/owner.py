@@ -1,11 +1,17 @@
-import discord
-import json
-import speedtest
 import os
-import random, time, asyncio, humanize, datetime
-import pytz
+import json
+import discord
+import speedtest
+import time, asyncio, humanize, datetime
 from discord.ext import commands, pages
 from modules import bot as v
+from modules.models import Guild
+
+TRIAL_DAYS = {
+    "1 Month": 31,
+    "2 Months": 62,
+    "3 Months": 93,
+}
 
 devs = json.load(open("modules/devs.json"))
 def is_dev():
@@ -41,18 +47,20 @@ class Owner(commands.Cog):
         await msg.edit(embed=emby)
 
     @dev_command.command(name="guild", description="Gets a guilds info")
-    async def guild(self, ctx, guild):
+    async def guild(self, ctx, guild: str):
         server = self.client.get_guild(int(guild))
-
         if not server:
             return await ctx.respond("Guild not found")
         
-        embed = discord.Embed(title="Guilds IDs", colour=0x5865f2)
-        embed.add_field(name="Server Name", value=f"```{server.name}```", inline=False)
+        members = server.members
+        human_members = [m for m in members if not m.bot]
+        bot_members = [m for m in members if m.bot]
+        
+        embed = discord.Embed(title=f"Guild Information: {server.name}", colour=0x5865f2)
         embed.add_field(name="Server ID", value=f"```{server.id}```", inline=False)
         embed.add_field(name="Server Owner", value=f"```{server.owner}```", inline=False)
-        embed.add_field(name="Server Members", value=f"```{len(list(filter(lambda m: not m.bot, ctx.guild.members)))}```", inline=False)
-        embed.add_field(name="Server Bot Count", value=f"```{len(list(filter(lambda m: m.bot, ctx.guild.members)))}```", inline=False)
+        embed.add_field(name="Server Members", value=f"```{len(human_members)}```", inline=False)
+        embed.add_field(name="Server Bot Count", value=f"```{len(bot_members)}```", inline=False)
         embed.set_footer(text=f"{len(self.client.guilds)} guilds joined")
         await ctx.respond(embed=embed)
     
@@ -79,7 +87,7 @@ class Owner(commands.Cog):
     @dev_command.command(name="reload", description="Reloads all the cogs") # TODO: Fix this
     async def _reboot(self, ctx):
         rl_ac = discord.Embed(title="Reloading all cogs", colour=0xed5757)
-        msg = await ctx.send(embed=rl_ac)
+        msg = await ctx.respond(embed=rl_ac)
 
         try:
             for foldername in os.listdir('./cogs'):
@@ -105,13 +113,7 @@ class Owner(commands.Cog):
             description=self.get_bot_uptime()
         )
         await ctx.respond(embed=embed)
-    
-    @dev_command.command(name="eval", description="Just repeats what you say")
-    async def message(self, ctx: discord.ApplicationContext, *, message: str):
-        await ctx.respond("Message sent!")
-
-        await ctx.send(f"{message}")
-    
+        
     @dev_command.command(name="speedtest", description="Runs a speedtest")
     async def speedtest(self, ctx: discord.ApplicationContext):
         await ctx.defer()
@@ -211,19 +213,19 @@ class Owner(commands.Cog):
     @premium.command(name="add", description="Adds a guild to premium")
     @discord.option("guild", discord.Guild, description="The guild to add", required=True)
     @discord.option("plan", description="The plan to give", required=False, choices=['lifetime', 'trial'])
-    @discord.option("trail_length", description="The length of the trial", required=False, choices=['1 Month', '2 Months', '3 Months'])
+    @discord.option("trail_length", description="The length of the trial", required=False, choices=list(TRIAL_DAYS.keys()))
     @is_dev()
     async def premium_add(self, ctx: discord.ApplicationContext, guild: discord.Guild, plan: str="trial", trail_length: str="1 Month"):
+        doc = Guild.get(str(guild.id)).run()
+        if doc is None:
+            return await ctx.respond("That guild has no config yet — has the bot fully initialized it?", ephemeral=True)
+
         code = v.uuid(length=16, strCase="upper/lower/nums")
 
-        code_expiry = None
+        now = datetime.datetime.now()
+        period_end = None
         if plan == "trial":
-            if trail_length.split(" ")[0] == "1":
-                code_expiry = datetime.datetime.now() + datetime.timedelta(days=31)
-            elif trail_length.split(" ")[0] == "2":
-                code_expiry = datetime.datetime.now() + datetime.timedelta(days=31)
-            elif trail_length.split(" ")[0] == "3":
-                code_expiry = datetime.datetime.now() + datetime.timedelta(days=31)
+            period_end = now + datetime.timedelta(days=TRIAL_DAYS[trail_length])
 
         premium = {
             "id": code,
@@ -231,10 +233,13 @@ class Owner(commands.Cog):
             "active": True,
             "plan": plan,
             "user_id": ctx.author.id,
-            "subscribed_at": datetime.datetime.now(),
-            "code_expiry": code_expiry
+            "subscribed_at": now,
+            "period_end": period_end,  # ✅ Use period_end instead of code_expiry
+            "code_expiry": period_end,  # Keep for backwards compatibility
         }
-        v.db.update_server_config(guild, True, key="premium", value=premium)
+
+        doc.premium = premium
+        doc.save()
 
         emb = discord.Embed(
             color=v.success,
@@ -245,6 +250,7 @@ class Owner(commands.Cog):
                 f"\n> **Plan:** {premium['plan']}"
                 if plan == "lifetime" else
                 f"\n> **Plan:** {premium['plan']} for {trail_length}"
+                f"\n> **Expires:** {period_end.strftime('%Y-%m-%d %H:%M:%S') if period_end else 'Never'}"
             )
         )
         await ctx.respond(embed=emb)
@@ -254,72 +260,21 @@ class Owner(commands.Cog):
     @premium.command(name="remove", description="Removes a guild from premium")
     @discord.option("guild", discord.Guild, description="The guild to remove", required=True)
     async def premium_remove(self, ctx: discord.ApplicationContext, guild):
+        doc = Guild.get(str(guild.id)).run()
+        if doc is None:
+            return await ctx.respond("That guild has no config yet.", ephemeral=True)
 
-        prem_data = {
-            "status": False,
-        }
-        v.db.update_server_config(guild, True, key="premium", value=prem_data)
+        doc.premium['status'] = False
+        doc.premium['active'] = False
+        doc.save()
 
         emb = discord.Embed(
             color=v.success,
             timestamp=datetime.datetime.utcnow(),
             title="Removed Premium",
-            description=(
-                f"> **Guild:** {guild.name}"
-            )
+            description=f"> **Guild:** {guild.name}"
         )
         await ctx.respond(embed=emb)
     
-    ## Blacklist Users ##
-    blacklist = dev_command.create_subgroup(name="blacklist", description="Blacklist commands")
-
-    @blacklist.command(name="add", description="Adds a user to the blacklist")
-    async def add_blacklist(self, ctx, member: discord.Member, *, reasons=None):
-        if not member:
-            return await ctx.send("No member selected")
-        
-        with open("databases/blacklistUser.json", "r") as f:
-            user = json.load(f)
-        user["blacklistUser"].append(member.id)
-        with open("databases/blacklistUser.json", "w") as f:
-            json.dump(user, f, indent=2)
-        
-        await ctx.send(f"{member.name} has been **blacklisted** for ```Reason:\n{ 'Unspecified' if not reasons else reasons }```")
-        
-        embed = discord.Embed(
-            color=0x5865f2,
-            title="Added Blacklist User",
-        )
-        embed.add_field(name="Server", value=f"{ctx.guild.name}")
-        embed.add_field(name="Member", value=f"{member.mention}")
-        embed.add_field(name="Reason", value=f"{ 'Unspecified' if not reasons else reasons }")
-        
-        channel = self.client.get_channel(985929610107691068)
-        await channel.send(embed=embed)
-    
-    @blacklist.command(name="remove", description="Removes a user from the blacklist")
-    async def remove_blacklist(self, ctx, member: discord.Member, *, reasons=None):
-        if not member:
-            return await ctx.send("No member selected")
-        
-        with open("databases/blacklistUser.json", "r") as f:
-            user = json.load(f)
-        user["blacklistUser"].remove(member.id)
-        with open("databases/blacklistUser.json", "w") as f:
-            json.dump(user, f, indent=2)
-        
-        await ctx.send(f"{member.name} has been **unblacklisted** for ```Reason:\n{ 'Unspecified' if not reasons else reasons }```")
-        
-        embed = discord.Embed(
-            color=0x5865f2,
-            title="Removed Blacklist User",
-        )
-        embed.add_field(name="Server", value=f"{ctx.guild.name}")
-        embed.add_field(name="Member", value=f"{member.mention}")
-        embed.add_field(name="Reason", value=f"{ 'Unspecified' if not reasons else reasons }")
-        
-        channel = self.client.get_channel(985929610107691068)
-        await channel.send(embed=embed)
-
 def setup(client):
     client.add_cog(Owner(client))

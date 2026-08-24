@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from modules import bot as v
+from modules.models import Guild
 from discord.ui import (
     DesignerView, Container, ActionRow, select
 )
@@ -15,39 +16,35 @@ BUTTON_STYLES = {
 # Bot Settings
 from dashboard.BotSettings import PluginBotSettings
 
-# Welcome & Goodbye
+# ── Server Management ──────────────────────────────────────────────────────
 from dashboard.WelcomeGoodbye import PluginWelcomeGoodbye
-
-# Moderation
 from dashboard.Moderation import PluginModeration
-
-# Verification
 from dashboard.Verification import PluginVerification
 
-# Forms
+# ── Utilities ──────────────────────────────────────────────────────────────
+# from dashboard.Starboard import PluginStarboard
 from dashboard.Forms import PluginForms
-
-# Temporary Channels
 from dashboard.TempChannels import PluginTempChannels
+# from dashboard.Ticketing import PluginTicketing
+from dashboard.Stats import PluginStats
 
-# Leveling
+# ── Games & Fun ────────────────────────────────────────────────────────────
 from dashboard.Leveling import PluginLeveling
-
-# Birthdays
 from dashboard.Birthdays import PluginBirthdays
-
-# Economy
+# Giveaways (bot side)
 from dashboard.Economy import PluginEconomy
+
 
 PLUGIN_OPTIONS = {
     "Bot Settings": { "plugin": PluginBotSettings,  "premium": False },
     "Welcome & Goodbye": { "plugin": PluginWelcomeGoodbye,  "premium": False },
     "Moderation": { "plugin": PluginModeration,  "premium": False },
     "Verification": { "plugin": PluginVerification,  "premium": False },
-    # "Starboard": {"plugin": PluginStarboard, "premium": True},
+    # "Starboard": {"plugin": PluginStarboard, "premium": False},
     # "Forms": { "plugin": PluginForms,  "premium": True },
     "Temporary Channels": { "plugin": PluginTempChannels,  "premium": True },
     # "Ticketing": {"plugin": PluginTicketing, "premium": True},
+    "Stats": { "plugin": PluginStats,  "premium": True },
     "Leveling": { "plugin": PluginLeveling,  "premium": False },
     "Birthdays": { "plugin": PluginBirthdays,  "premium": True },
     "Economy": { "plugin": PluginEconomy,  "premium": False },
@@ -63,6 +60,8 @@ class PluginView(DesignerView):
         container.add_text("# Pick a plugin")
         container.add_text("Pick a plugin to configure in the dashboard.")
         container.add_separator(divider=True, spacing=discord.SeparatorSpacingSize.large)
+
+        is_premium = Guild.get(str(guild.id)).run().premium.get('status', False)
         
         class PluginSelector(ActionRow):
             @select(
@@ -70,7 +69,7 @@ class PluginView(DesignerView):
                 options=[
                     discord.SelectOption(
                         label=name,
-                        emoji=v.premium if plugin['premium'] and not v.db.get_server_config(guild, True)['premium']['status'] else None,
+                        emoji=v.premium if plugin['premium'] and not is_premium else None,
                     )
                     for name, plugin in PLUGIN_OPTIONS.items()
                 ],
@@ -80,7 +79,7 @@ class PluginView(DesignerView):
                 plugin = PLUGIN_OPTIONS.get(select.values[0])
                 view_class = plugin['plugin']
 
-                if plugin['premium'] and not v.db.get_server_config(guild, True)['premium']['status']:
+                if plugin['premium'] and not is_premium:
                     return await interaction.response.send_message(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
                 await interaction.response.send_message(view=view_class(interaction.guild))
@@ -94,7 +93,7 @@ class DiscordDashboard(commands.Cog):
         self.client: commands.Bot = client
     
     def author_is_mod(self, guild: discord.Guild, user: discord.Member):
-        data = v.db.get_server_config(guild, True)['settings']
+        data = Guild.get(str(guild.id)).run().settings
 
         if any(
             str(role.id) in data['admin_roles'] or 
@@ -126,7 +125,7 @@ class DiscordDashboard(commands.Cog):
             plugin_data = PLUGIN_OPTIONS.get(plugin)
             view_class = plugin_data['plugin']
 
-            if plugin_data['premium'] and not v.db.get_server_config(ctx.guild, True)['premium']['status']:
+            if plugin_data['premium'] and not Guild.get(str(ctx.guild.id)).run().premium.get('status', False):
                 return await ctx.respond(f"{v.premium} This is a premium plugin. Please upgrade to premium to access this feature.", ephemeral=True)
 
             return await ctx.respond(view=view_class(ctx.guild))

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>500 — Internal Server Error</title>
+  <!-- A clean, friendly error page with a touch of personality -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(145deg, #f8f9fc 0%, #e9edf4 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      padding: 1.5rem;
+    }
+
+    .error-card {
+      max-width: 650px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: #ffffff;
+      border-radius: 48px 48px 48px 48px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 20px -8px rgba(0, 0, 0, 0.1);
+      padding: 3rem 2.8rem 3.2rem;
+      transition: transform 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      text-align: center;
+    }
+
+    .error-card:hover {
+      transform: scale(1.01);
+    }
+
+    .error-icon {
+      display: inline-block;
+      background: #fef2f2;
+      border-radius: 100px;
+      padding: 0.9rem 1.8rem;
+      margin-bottom: 1.8rem;
+      border: 1px solid #fee2e2;
+    }
+
+    .error-icon span {
+      font-size: 4rem;
+      line-height: 1;
+      font-weight: 500;
+      color: #b91c1c;
+      letter-spacing: 2px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: #0b1a2e;
+      margin-bottom: 0.6rem;
+      letter-spacing: -0.02em;
+    }
+
+    .error-subhead {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: #334155;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px dashed #d1d9e6;
+      padding-bottom: 1.2rem;
+      display: inline-block;
+    }
+
+    .error-message {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: #1e293b;
+      background: #f1f5f9;
+      padding: 1.2rem 1.8rem;
+      border-radius: 32px;
+      margin: 1.8rem 0 2rem;
+      border-left: 6px solid #b91c1c;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    .error-message strong {
+      color: #991b1b;
+      font-weight: 600;
+    }
+
+    .help-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.9rem 2.2rem;
+      border-radius: 60px;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: white;
+      color: #0b1a2e;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+
+    .btn-primary {
+      background: #0b1a2e;
+      color: white;
+      border: 1px solid #0b1a2e;
+      box-shadow: 0 8px 18px -6px rgba(11, 26, 46, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: #1e2f47;
+      border-color: #1e2f47;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -8px rgba(11, 26, 46, 0.4);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #b9c7da;
+      color: #1e293b;
+    }
+
+    .btn-secondary:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      transform: translateY(-2px);
+    }
+
+    .btn svg {
+      margin-right: 8px;
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .footnote {
+      margin-top: 2.8rem;
+      color: #64748b;
+      font-size: 0.9rem;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 1.8rem;
+      letter-spacing: 0.2px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem 1.2rem;
+      flex-wrap: wrap;
+    }
+
+    .footnote code {
+      background: #e9edf4;
+      padding: 0.2rem 0.8rem;
+      border-radius: 40px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.8rem;
+      color: #1e293b;
+      border: 1px solid #d1d9e6;
+    }
+
+    .dot-sep {
+      color: #b9c7da;
+      font-weight: 300;
+    }
+
+    @media (max-width: 520px) {
+      .error-card {
+        padding: 2.2rem 1.5rem 2.5rem;
+        border-radius: 32px;
+      }
+      h1 {
+        font-size: 2.2rem;
+      }
+      .error-icon span {
+        font-size: 3rem;
+      }
+      .error-message {
+        font-size: 1rem;
+        padding: 1rem 1.4rem;
+      }
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .help-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="error-card" role="alert" aria-labelledby="error-heading">
+    <div class="error-icon">
+      <span>⚠️ 500</span>
+    </div>
+
+    <h1 id="error-heading">Internal server error</h1>
+    <div class="error-subhead">Something went wrong on our end</div>
+
+    <div class="error-message">
+      <strong>⛔ Oops!</strong> The server encountered an unexpected condition that prevented it from fulfilling the request.
+      <br><br>
+      <span style="display: inline-block; margin-top: 0.3rem; background: #e6edf6; padding: 0.2rem 1rem; border-radius: 60px; font-size: 0.85rem; color: #1e293b;">
+        🧑‍💻 Error code: <span style="font-family: monospace;">500 — INTERNAL_SERVER_ERROR</span>
+      </span>
+    </div>
+
+    <div class="help-actions">
+      <a href="#" class="btn btn-primary" onclick="window.location.reload(); return false;">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        Try again
+      </a>
+      <a href="/" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Go home
+      </a>
+    </div>
+
+    <div class="footnote">
+      <span>🔄 Reload the page</span>
+      <span class="dot-sep">•</span>
+      <span>📞 Contact support if it persists</span>
+      <span class="dot-sep">•</span>
+      <code>500</code>
+    </div>
+  </div>
+</body>
+</html>

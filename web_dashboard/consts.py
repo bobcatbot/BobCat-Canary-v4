@@ -5,7 +5,7 @@ premium_faqs = [
   },
   {
     'title': "Can I get a refund if I don't like it?",
-    'desc': "We want everyone to have a great experience with MEE6 Premium. If you're not satisfied during your first week, please contact us and we will issue you a full refund."
+    'desc': "We want everyone to have a great experience with BobCat Premium. If you're not satisfied during your first week, please contact us and we will issue you a full refund."
   },
   {
     'title': "How many Discord servers is my subscription valid for?",
@@ -24,18 +24,33 @@ premium_faqs = [
 premium_types = {
   'monthly': {
     'price_id': 'price_1ODPSVDUmGmAJQ2o9OYR93OV',
-    'price': '$6.00',
+    'price': '6.00',
     'mode': 'subscription',
+    'features': [
+      "Access to our premium plugins & features",
+      "Early access",
+      "Priority support"
+    ]
   },
   'yearly': {
     'price_id': 'price_1ODPTfDUmGmAJQ2on8Ie2wUs',
-    'price': '$50.00',
+    'price': '50.00',
     'mode': 'subscription',
+    'features': [
+      "Access to our premium plugins & features",
+      "Early access",
+      "Priority support"
+    ]
   },
   'lifetime': {
     'price_id': 'price_1ODPUUDUmGmAJQ2oILOX7jwl',
-    'price': '$70.00',
+    'price': '70.00',
     'mode': 'payment',
+    'features': [
+      "Access to our premium plugins & features",
+      "Early access",
+      "Priority support"
+    ]
   }
 }
 

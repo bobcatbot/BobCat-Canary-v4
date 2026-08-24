@@ -28,7 +28,7 @@
       <div class="buttons">
         <button type="button" id="delete" class="btn btn-danger"><i class="bi bi-trash  mr-1"></i> Delete</button>
         <button type="button" id="discard-btn" class="btn btn-secondary">Discard</button>
-        <button type="button" id="save-btn" class="btn btn-blurple" disabled>Save</button>
+        <button type="button" id="save-btn" class="btn btn-blurple">Save</button>
       </div>
     </div>
 
@@ -76,7 +76,7 @@
         <div class="mt-2">
           <label for="gway-winners">Number of Winners <req style="color: red;">*</req></label><br>
           <p class="mb-1 fs-7 text-muted">How many members will win?</p>
-          <input type="text" id="gway-winners" class="text-input" value="{{data.winners}}" />
+          <input type="text" id="gway-winners" class="text-input" value="{{data.winner_count}}" />
         </div>
 
         <div class="mt-2">
@@ -99,21 +99,21 @@
         <div class="mt-3">
           <p class="mb-1 fs-6">Additional settings</p>
           <div class="form-switch ps-0 user-select-none ">
-            <input class="form-check-input ms-0 " type="checkbox" id="gway-givexp" {% if data.givexp.enabled %}checked{% endif %} />
+            <input class="form-check-input ms-0 " type="checkbox" id="gway-givexp" {% if data.give_xp.enabled %}checked{% endif %} />
             <label class="form-check-label" for="gway-givexp">Give xp to winners</label>
 
             <div class="gway-givexp-amount d-none">
               <label for="gway-givexp-amount">Amount of XP</label><br>
-              <input type="text" id="gway-givexp-amount" class="text-input" value="{{data.givexp.amount}}">
+              <input type="text" id="gway-givexp-amount" class="text-input" value="{{data.give_xp.amount}}">
             </div>
           </div>
-          <div class="form-switch ps-0 user-select-none ">
-            <input class="form-check-input ms-0 " type="checkbox" id="gway-givecoins" {% if data.givecoins.enabled %}checked{% endif %} />
+          <div class="form-switch ps-0 user-select-none mt-1">
+            <input class="form-check-input ms-0 " type="checkbox" id="gway-givecoins" {% if data.give_coins.enabled %}checked{% endif %} />
             <label class="form-check-label" for="gway-givecoins">Give coins to winners</label>
 
             <div class="gway-givecoins-amount d-none">
               <label for="gway-givecoins-amount">Amount of coins</label><br>
-              <input type="text" id="gway-givecoins-amount" class="text-input" value="{{data.givecoins.amount}}">
+              <input type="text" id="gway-givecoins-amount" class="text-input" value="{{data.give_coins.amount}}">
             </div>
           </div>
         </div>
@@ -165,7 +165,7 @@
       type: 'channel',
       multiple: false,
       maxItems: 1,
-      options: ['{{data["channel"]["id"]}}']
+      options: ['{{data["channel_id"]}}']
     })
 
     const DateTimePicker = new tempusDominus.TempusDominus(document.getElementById('datetimepicker1'), {
@@ -176,31 +176,10 @@
       }
     });
 
-    const initial_values = {
-      name: '{{data["name"]}}',
-      channel_id: '{{data["channel"]["id"]}}',
-      prize: '{{data["prize"]}}',
-      winners: '{{data["winners"]}}',
-      'time.epoch': '{{data["time"]["epoch"]}}',
-      'embed.desc': '{{data["embed_desc"]}}'
-    }
+    const initial_values = JSON.parse('{{data | tojson | safe}}');
     
-    var required_fields = ['name', 'channel_id', 'prize', 'winners', 'time.time', 'embed.desc'];
-    const save_data = new Proxy({ ...initial_values }, {
-      set(target, key, value) {
-        target[key] = value;
-        checkIfDataUpdated();
-        return true;
-      }
-    });
-
-    function checkIfDataUpdated() {
-      console.log(save_data);
-
-      const isDataChanged = required_fields.some(field => save_data[field] !== initial_values[field]);
-      document.querySelector('#save-btn').disabled = !isDataChanged;
-    }
-
+    var required_fields = [];
+    const save_data = {}
 
     document.querySelector('#discard-btn').addEventListener('click', (e) => {
       if (required_fields.some(field => save_data[field] !== initial_values[field])) {
@@ -260,7 +239,7 @@
       var datetime = new Intl.DateTimeFormat('en-US', { 
         day: '2-digit', month: '2-digit', year: '2-digit', 
         hour: '2-digit', minute: '2-digit', hour12: false 
-      }).format(new Date('{{data["time"]["epoch"]}}' * 1000))
+      }).format(new Date('{{data["epoch_end"]}}' * 1000))
 
       gwayDateInput.value = datetime
     })
@@ -278,8 +257,8 @@
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
-      save_data['time.epoch'] = toTimestamp(e.target.value)
-      save_data['time.timestamp'] = formatDateTime(e.target.value)
+      save_data['end_epoch'] = toTimestamp(e.target.value)
+      save_data['end_timestamp'] = formatDateTime(e.target.value)
     })
 
     // GiveEXP
@@ -288,12 +267,11 @@
     
     document.addEventListener('DOMContentLoaded', (e) => {
       giveExpAmount.classList.toggle('d-none', !giveExpInput.checked)
-      // save_data['giveexp.enabled'] = giveExpInput.checked
     })
 
     giveExpInput.addEventListener('change', (e) => {
       giveExpAmount.classList.toggle('d-none')
-      // save_data['giveexp.enabled'] = e.target.checked
+      save_data['giveexp.enabled'] = e.target.checked
     })
 
     giveExpAmount.addEventListener('input', (e) => {
@@ -306,7 +284,6 @@
     
     document.addEventListener('DOMContentLoaded', (e) => {
       giveCoinsAmount.classList.toggle('d-none', !giveCoinsInput.checked)
-      // save_data['givecoins.enabled'] = giveCoinsInput.checked
     })
 
     giveCoinsInput.addEventListener('input', (e) => {
@@ -319,9 +296,6 @@
 
     /* Embeds */
     const embedDesc = document.querySelector('#gway_embed_desc');
-    document.addEventListener('DOMContentLoaded', (e) => {
-      // save_data['embed.desc'] = embedDesc.value
-    })
     embedDesc.addEventListener('click', (e) => {
       save_data['embed.desc'] = e.target.value
     })
@@ -387,6 +361,5 @@
       background: var(--color-secondary-1);
     }
   </style>
-  
 </body>
 </html>
