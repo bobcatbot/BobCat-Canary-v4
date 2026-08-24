@@ -107,19 +107,17 @@ def format_stat_label_filter(target):
 register_context_processors(app)
 
 # ── Run ───────────────────────────────────────────────────────────────────
+import asyncio
 import uvicorn
 
-app_started = False
+async def serve_dashboard() -> None:
+    """Run the dashboard on the same event loop as the Discord client."""
+    config = uvicorn.Config(app, host="localhost", port=8000, log_level="warning")
+    server = uvicorn.Server(config)
 
-@v.client.event
-async def on_ready():
-    if app_started:
-        print("Dashboard is Online")
+    serve_task = asyncio.create_task(server.serve())
+    while not server.started:
+        await asyncio.sleep(0.1)
+    print("🌐 Dashboard is Online")
 
-def run_app():
-    global app_started
-    app_started = True
-    uvicorn.run(app, host="localhost", port=8000, log_level="warning")
-
-def run_dashboard():
-    Thread(target=run_app).start()
+    await serve_task

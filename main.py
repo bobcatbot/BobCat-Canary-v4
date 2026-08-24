@@ -1,3 +1,4 @@
+import asyncio
 import time
 import discord
 import traceback
@@ -7,14 +8,14 @@ from pymongo import MongoClient
 from datetime import datetime
 from modules import bot as v
 from modules.models import ALL_MODELS
-from web_dashboard.index import run_dashboard
+from web_dashboard.index import serve_dashboard
 
 client = v.client
 
 client.shard_uptime = {}
 client.bunnet_initialized = False
 
-def initialise_database() -> None:
+async def initialise_database() -> None:
     if client.bunnet_initialized:
         return
 
@@ -124,6 +125,7 @@ async def on_ready():
 
 @client.event
 async def on_shard_ready(shard_id: int):
+    print("─" * 50)
     client.shard_uptime[shard_id] = discord.utils.utcnow()
     print(f"✅ Shard {shard_id} ready")
 
@@ -137,18 +139,26 @@ async def on_shard_resumed(shard_id: int):
     client.shard_uptime[shard_id] = discord.utils.utcnow()
     print(f"🔄 Shard {shard_id} resumed")
 
-def start() -> None:
+async def start() -> None:
     print("Starting BobCat Bot")
     print("─" * 60)
 
-    initialise_database()
+    await initialise_database()
     load_extensions()
 
-    print("🌐 Starting dashboard")
-    run_dashboard()
-
+    print("🌐 Starting Web Dashboard")
     print("🤖 Starting Discord client")
-    client.run(v.token)
+
+    # Both run as tasks on this same event loop — no separate thread,
+    # no separate Motor/Beanie init, one shared set of model classes.
+    async with client:
+        await asyncio.gather(
+            client.start(v.token),
+            serve_dashboard(),
+        )
 
 if __name__ == "__main__":
-    start()
+    asyncio.run(start())
+
+
+# TODO: Read C:\Users\Tyler\BobCatBot\BobCat-Canary-v4 - Depricated\forms-limits-explanation.md

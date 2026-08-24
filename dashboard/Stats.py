@@ -35,13 +35,13 @@ class StatsCountersContainer(DesignerView):
                                 discord.ui.Select(
                                     options=[
                                         discord.SelectOption(label="Total Members", value="totalMembers"),
-                                        discord.SelectOption(label="Online Members", value="onlineCount"),
-                                        discord.SelectOption(label="Bots", value="botCount"),
-                                        discord.SelectOption(label="Humans", value="humanCount"),
+                                        discord.SelectOption(label="Online Members", value="onlineMembers"),   # ← FIXED
+                                        discord.SelectOption(label="Bots", value="bots"),                     # ← FIXED
+                                        discord.SelectOption(label="Humans", value="humans"),                 # ← FIXED
                                         discord.SelectOption(label="Total Channels", value="totalChannels"),
-                                        discord.SelectOption(label="Text Channels", value="textCount"),
-                                        discord.SelectOption(label="Voice Channels", value="voiceCount"),
-                                        discord.SelectOption(label="Roles", value="roleCount"),
+                                        discord.SelectOption(label="Text Channels", value="textChannels"),   # ← FIXED
+                                        discord.SelectOption(label="Voice Channels", value="voiceChannels"), # ← FIXED
+                                        discord.SelectOption(label="Roles", value="roles"),                  # ← FIXED
                                     ],
                                     placeholder="Select a statistic"
                                 )
