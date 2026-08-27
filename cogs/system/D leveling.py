@@ -58,8 +58,8 @@ class Leveling(commands.Cog):
             return mapping
         return existing
  
-    def get_ratelimit(self, message: discord.Message) -> float | None:
-        config = Guild.get(str(message.guild.id)).run().dashboard.leveling
+    async def get_ratelimit(self, message: discord.Message) -> float | None:
+        config = (await Guild.get(str(message.guild.id))).dashboard.leveling
         cd = config.get('cooldown', 60)
         mapping = self._get_cooldown(message.guild.id, cd)
         bucket = mapping.get_bucket(message)
@@ -118,7 +118,7 @@ class Leveling(commands.Cog):
             return
  
         # Fetch guild config
-        guild_doc = Guild.get(str(message.guild.id)).run()
+        guild_doc = await Guild.get(str(message.guild.id))
         if guild_doc is None:
             return
             
@@ -132,18 +132,18 @@ class Leveling(commands.Cog):
         if noXP and str(message.channel.id) in noXP:
             return
  
-        if self.get_ratelimit(message) is not None:
+        if await self.get_ratelimit(message) is not None:
             return
  
         # Fetch user data — initialize if missing
-        data = LevelingModel.get(f"{message.guild.id}_{message.author.id}").run()
+        data = await LevelingModel.get(f"{message.guild.id}_{message.author.id}")
         if data is None:
             data = LevelingModel(
                 id=f"{message.guild.id}_{message.author.id}",
                 guild_id=str(message.guild.id),
                 user_id=str(message.author.id),
             )
-            data.insert()
+            await data.insert()
 
         exp: int = int(data.exp)
         lvl: int = int(data.lvl)
@@ -172,7 +172,7 @@ class Leveling(commands.Cog):
         # Write new exp/level in one update
         data.exp = leftover_exp
         data.lvl = new_lvl
-        data.save()
+        await data.save()
  
         if not leveled_up:
             return
@@ -244,7 +244,7 @@ class Leveling(commands.Cog):
     @commands.slash_command(description="Gives yours or member's ranks")
     @discord.option("member", discord.Member, description="Select a member", required=False)
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
-        guild_doc = Guild.get(str(ctx.guild.id)).run()
+        guild_doc = await Guild.get(str(ctx.guild.id))
         if guild_doc is None:
             return await ctx.respond("❌ Guild not found!", ephemeral=True)
             
@@ -258,7 +258,7 @@ class Leveling(commands.Cog):
         if member.bot:
             return await ctx.respond(f"{member.mention} is a bot! So they have no rank")
         
-        data = LevelingModel.get(f"{ctx.guild.id}_{member.id}").run()
+        data = await LevelingModel.get(f"{ctx.guild.id}_{member.id}")
         if data is None or (data.lvl == 0 and data.exp == 0):
             return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
         
@@ -298,7 +298,7 @@ class Leveling(commands.Cog):
 
     @commands.slash_command(description="View the top 5 users in the server")
     async def leaderboard(self, ctx: discord.ApplicationContext):
-        guild_doc = Guild.get(str(ctx.guild.id)).run()
+        guild_doc = await Guild.get(str(ctx.guild.id))
         if guild_doc is None:
             return await ctx.respond("❌ Guild not found!", ephemeral=True)
             
@@ -309,7 +309,7 @@ class Leveling(commands.Cog):
                 ephemeral=True
             )
  
-        lvl_users = LevelingModel.find(LevelingModel.guild_id == str(ctx.guild.id)).run()
+        lvl_users = await LevelingModel.find(LevelingModel.guild_id == str(ctx.guild.id)).to_list()
         sorted_players = sorted(
             lvl_users,
             key=lambda user: (int(user.lvl), int(user.exp)),

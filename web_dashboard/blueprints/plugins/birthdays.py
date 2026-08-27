@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @birthdays_bp.route("/dashboard/<int:guild_id>/birthdays")
 @login_required
 async def birthdays(guild_id):
-    premium_module(guild_id, 'birthdays')
+    await premium_module(guild_id, 'birthdays')
     
     current_user = bearer_client().get_current_user()
     
@@ -20,8 +20,8 @@ async def birthdays(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.birthdays
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.birthdays
     
     return await render_template(
         "dashboard/plugins/birthdays.html",

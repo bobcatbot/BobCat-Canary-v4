@@ -20,12 +20,12 @@ class BackBtn(discord.ui.Button):
         )
         em.set_thumbnail(url=self.client.user.avatar.url)
         await interaction.response.edit_message(
-            content=None, embed=em, view=DropdownView(self.client, interaction.guild.id)
+            content=None, embed=em, view=DropdownView(self.client, interaction.guild.id, dash=await v.dashboard(interaction.guild.id))
         )
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, client: discord.Bot, g):
+    def __init__(self, client: discord.Bot, dash=None):
         self.client: discord.Bot = client
         self._commands = self.get_all_commands()
 
@@ -34,8 +34,7 @@ class Dropdown(discord.ui.Select):
             discord.SelectOption(label="Games", description="All of bobcats game commands"),
         ]
 
-        guild_doc = Guild.get(str(g)).run()
-        data = guild_doc.dashboard if guild_doc else None
+        data = dash
 
         if data:
             if data.moderation["status"]:
@@ -237,11 +236,11 @@ class Dropdown(discord.ui.Select):
         await interaction.response.edit_message(embed=em, view=view)
 
 class DropdownView(discord.ui.View):
-    def __init__(self, client, guild_id):
+    def __init__(self, client, guild_id, dash=None):
         super().__init__(timeout=None)
         self.client = client
         
-        self.add_item(Dropdown(self.client, guild_id))
+        self.add_item(Dropdown(self.client, dash))
         self.add_item(discord.ui.Button(label="Invite", url="https://discord.com/oauth2/authorize?client_id=957234668627951640&permissions=8&scope=bot", row=2))
         self.add_item(discord.ui.Button(label="Support", url="https://discord.gg/T7zE4x4xbT", row=2))
 
@@ -252,7 +251,8 @@ class MiscHelp(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.client.guilds:
-            self.client.add_view(DropdownView(self.client, guild.id))
+            dash = await v.dashboard(guild.id)
+            self.client.add_view(DropdownView(self.client, guild.id, dash=dash))
        
     @commands.slash_command(description="A list of commands and utilities")
     async def help(self, ctx):
@@ -266,7 +266,7 @@ class MiscHelp(commands.Cog):
             )
         )
         em.set_thumbnail(url=self.client.user.avatar.url)
-        await ctx.respond(embed=em, view=DropdownView(self.client, ctx.guild), ephemeral=False)
+        await ctx.respond(embed=em, view=DropdownView(self.client, ctx.guild, dash=await v.dashboard(ctx.guild)), ephemeral=False)
 
 def setup(client):
     client.add_cog(MiscHelp(client))

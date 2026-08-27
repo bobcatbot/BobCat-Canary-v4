@@ -52,7 +52,7 @@ class ModClear(commands.Cog):
             return await ctx.respond(embed=embed, ephemeral=True)
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat cannot manage messages",

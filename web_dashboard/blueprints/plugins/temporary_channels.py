@@ -14,15 +14,15 @@ logger = logging.getLogger(__name__)
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels")
 @login_required
 async def temporary_channels(guild_id):
-    premium_module(guild_id, 'temporary_channels')
+    await premium_module(guild_id, 'temporary_channels')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.temporary_channels
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.temporary_channels
     
     return await render_template(
         "dashboard/plugins/temporary_channels/tc_index.html",
@@ -35,7 +35,7 @@ async def temporary_channels(guild_id):
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/creation", methods=['GET', 'POST'])
 @login_required
 async def temporary_channels_create(guild_id):
-    premium_module(guild_id, 'temporary_channels')
+    await premium_module(guild_id, 'temporary_channels')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -57,7 +57,7 @@ async def temporary_channels_create(guild_id):
         async def create_hub():
             try:
                 # Get the guild document
-                config = Guild.get(str(guild.id)).run()
+                config = await Guild.get(str(guild.id))
                 if config is None:
                     logger.error(f"Guild config not found for {guild_id}")
                     return
@@ -115,7 +115,7 @@ async def temporary_channels_create(guild_id):
                 hubs.append(data)
                 config.dashboard.temporary_channels['hubs'] = hubs
                 config.updated_at = discord.utils.utcnow()
-                config.save()
+                await config.save()
                 logger.info(f"Saved hub {data['id']} for guild {guild_id}")
             
             except Exception as e:
@@ -137,7 +137,7 @@ async def temporary_channels_create(guild_id):
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/edition", methods=['GET', 'POST'])
 @login_required
 async def temporary_channels_edit(guild_id, hub_id):
-    premium_module(guild_id, 'temporary_channels')
+    await premium_module(guild_id, 'temporary_channels')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -145,7 +145,7 @@ async def temporary_channels_edit(guild_id, hub_id):
         return await render_template("error/404.html"), 404
 
     # Get the guild document
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         await flash('Guild config not found', 'error')
         return redirect(url_for('temporary_channels.temporary_channels', guild_id=guild_id))
@@ -167,7 +167,7 @@ async def temporary_channels_edit(guild_id, hub_id):
         async def edit_hub():
             try:
                 # Get fresh config
-                config = Guild.get(str(guild.id)).run()
+                config = await Guild.get(str(guild.id))
                 if config is None:
                     return
 
@@ -201,7 +201,7 @@ async def temporary_channels_edit(guild_id, hub_id):
 
                 config.dashboard.temporary_channels['hubs'] = hubs
                 config.updated_at = discord.utils.utcnow()
-                config.save()
+                await config.save()
                 logger.info(f"Updated hub {hub_id} for guild {guild_id}")
             
             except Exception as e:
@@ -228,7 +228,7 @@ async def temporary_channels_delete(guild_id, hub_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -241,7 +241,7 @@ async def temporary_channels_delete(guild_id, hub_id):
     async def delete_hub():
         try:
             # Get fresh config
-            config = Guild.get(str(guild.id)).run()
+            config = await Guild.get(str(guild.id))
             if config is None:
                 return
 
@@ -281,7 +281,7 @@ async def temporary_channels_delete(guild_id, hub_id):
             hubs.pop(hub_idx)
             config.dashboard.temporary_channels['hubs'] = hubs
             config.updated_at = discord.utils.utcnow()
-            config.save()
+            await config.save()
             logger.info(f"Deleted hub {hub_id} for guild {guild_id}")
         
         except Exception as e:

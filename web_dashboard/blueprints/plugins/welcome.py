@@ -8,7 +8,7 @@ welcome_bp = Blueprint('welcome', __name__)
 @welcome_bp.route("/dashboard/<int:guild_id>/welcome")
 @login_required
 async def welcome(guild_id):
-    premium_module(guild_id, 'welcome')
+    await premium_module(guild_id, 'welcome')
 
     current_user = bearer_client().get_current_user()
 
@@ -16,8 +16,8 @@ async def welcome(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.welcome
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.welcome
     
     return await render_template(
         "dashboard/plugins/welcome.html",

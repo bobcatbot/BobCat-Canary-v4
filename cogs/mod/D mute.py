@@ -23,8 +23,8 @@ TIMEOUT_CHOICES = {
     "1 WEEK": (datetime.timedelta(weeks=1), "1 week"),
 }
 
-def get_mute_settings(guild: discord.Guild) -> dict:
-    guild_config = Guild.get(str(guild.id)).run()
+async def get_mute_settings(guild: discord.Guild) -> dict:
+    guild_config = await Guild.get(str(guild.id))
     if guild_config is None:
         return {}
     moderation = guild_config.dashboard.moderation or {}
@@ -40,7 +40,7 @@ class Mute(commands.Cog):
     @discord.option("member", discord.Member, description="The member you want to mute", required=True)
     @discord.option("reason", str, description="The reason for the mute", required=False)
     async def mute(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None):
-        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
@@ -53,7 +53,7 @@ class Mute(commands.Cog):
 
         reason = reason or "Unspecified"
 
-        mute_settings = get_mute_settings(ctx.guild)
+        mute_settings = await get_mute_settings(ctx.guild)
         mute_type = mute_settings.get("type", "timeout")
         mute_duration = mute_settings.get("duration", "10-min")
         dm_fields = mute_settings.get("dm", [])
@@ -171,7 +171,7 @@ class Mute(commands.Cog):
             )
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat cannot mute members",
@@ -229,7 +229,7 @@ class UnMute(commands.Cog):
         ctx: discord.ApplicationContext,
         member: discord.Member,
     ):
-        allowed, error_message = can_moderate(
+        allowed, error_message = await can_moderate(
             ctx.guild,
             ctx.author,
             member,
@@ -245,7 +245,7 @@ class UnMute(commands.Cog):
                 ephemeral=True,
             )
 
-        mute_settings = Guild.get(ctx.guild.id).run().dashboard.moderation
+        mute_settings = (await Guild.get(ctx.guild.id)).dashboard.moderation
         mute_type = mute_settings.get("type", "timeout")
         dm_fields = mute_settings.get("dm", [])
 
@@ -342,7 +342,7 @@ class UnMute(commands.Cog):
             )
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat cannot unmute members",
@@ -403,7 +403,7 @@ class Timeout(commands.Cog):
         duration: str,
         reason: str = None,
     ):
-        allowed, error_message = can_moderate(
+        allowed, error_message = await can_moderate(
             ctx.guild,
             ctx.author,
             member,
@@ -427,7 +427,7 @@ class Timeout(commands.Cog):
                 ephemeral=True,
             )
 
-        mute_settings = get_mute_settings(ctx.guild.id)
+        mute_settings = await get_mute_settings(ctx.guild.id)
         dm_fields = mute_settings.get("dm", [])
 
         timeout_duration, duration_text = timeout_data
@@ -511,7 +511,7 @@ class Timeout(commands.Cog):
             )
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat cannot time out members",

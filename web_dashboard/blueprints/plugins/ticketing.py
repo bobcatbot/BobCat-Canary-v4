@@ -18,11 +18,11 @@ async def ticketing_transcript(guild_id, ticket_id):
     if guild is None:
         return redirect(url_for('web.index'))
 
-    # Use Bunnet to get the ticket
-    ticket = Ticket.find_one(
+    # Use Beanie to get the ticket
+    ticket = await Ticket.find_one(
         Ticket.guild_id == str(guild.id),
         Ticket.id == ticket_id
-    ).run()
+    )
 
     if ticket is None:
         await flash('Ticket not found', 'error')
@@ -44,7 +44,7 @@ async def ticketing_transcript(guild_id, ticket_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing")
 @login_required
 async def ticketing(guild_id):
-    premium_module(guild_id, 'ticketing')
+    await premium_module(guild_id, 'ticketing')
     
     current_user = bearer_client().get_current_user()
     
@@ -52,8 +52,8 @@ async def ticketing(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.ticketing
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.ticketing
     
     return await render_template(
         "dashboard/plugins/ticketing/ticketing_index.html",
@@ -66,7 +66,7 @@ async def ticketing(guild_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/creation", methods=['GET', 'POST'])
 @login_required
 async def ticketing_create(guild_id):
-    premium_module(guild_id, 'ticketing')
+    await premium_module(guild_id, 'ticketing')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -87,7 +87,7 @@ async def ticketing_create(guild_id):
         async def create_panel():
             try:
                 # Get the guild document
-                config = Guild.get(str(guild.id)).run()
+                config = await Guild.get(str(guild.id))
                 if config is None:
                     logger.error(f"Guild config not found for {guild_id}")
                     return
@@ -126,7 +126,7 @@ async def ticketing_create(guild_id):
                 panels.append(data)
                 config.dashboard.ticketing['panels'] = panels
                 config.updated_at = discord.utils.utcnow()
-                config.save()
+                await config.save()
                 logger.info(f"Saved ticket panel {data['id']} for guild {guild_id}")
             
             except Exception as e:
@@ -148,7 +148,7 @@ async def ticketing_create(guild_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/edition", methods=['GET', 'POST'])
 @login_required
 async def ticketing_edit(guild_id, ticket_id):
-    premium_module(guild_id, 'ticketing')
+    await premium_module(guild_id, 'ticketing')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -156,7 +156,7 @@ async def ticketing_edit(guild_id, ticket_id):
         return await render_template("error/404.html"), 404
 
     # Get the guild document
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         await flash('Guild config not found', 'error')
         return redirect(url_for('ticketing.ticketing', guild_id=guild_id))
@@ -178,7 +178,7 @@ async def ticketing_edit(guild_id, ticket_id):
         async def edit_panel():
             try:
                 # Get fresh config
-                config = Guild.get(str(guild.id)).run()
+                config = await Guild.get(str(guild.id))
                 if config is None:
                     return
 
@@ -221,7 +221,7 @@ async def ticketing_edit(guild_id, ticket_id):
 
                 config.dashboard.ticketing['panels'] = panels
                 config.updated_at = discord.utils.utcnow()
-                config.save()
+                await config.save()
                 logger.info(f"Updated ticket panel {ticket_id} for guild {guild_id}")
             
             except Exception as e:
@@ -248,7 +248,7 @@ async def ticketing_delete(guild_id, ticket_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -261,7 +261,7 @@ async def ticketing_delete(guild_id, ticket_id):
     async def delete_panel():
         try:
             # Get fresh config
-            config = Guild.get(str(guild.id)).run()
+            config = await Guild.get(str(guild.id))
             if config is None:
                 return
 
@@ -292,7 +292,7 @@ async def ticketing_delete(guild_id, ticket_id):
             panels.pop(ticket_idx)
             config.dashboard.ticketing['panels'] = panels
             config.updated_at = discord.utils.utcnow()
-            config.save()
+            await config.save()
             logger.info(f"Deleted ticket panel {ticket_id} for guild {guild_id}")
         
         except Exception as e:

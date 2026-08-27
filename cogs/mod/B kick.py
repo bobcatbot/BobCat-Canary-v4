@@ -14,7 +14,7 @@ class ModKick(commands.Cog):
     @discord.option("member", discord.Member, description="The member you want to kick", required=True)
     @discord.option("reason", str, description="The reason for the kick", required=False)
     async def kick(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None):
-        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
@@ -27,7 +27,7 @@ class ModKick(commands.Cog):
 
         reason = reason or "Unspecified"
 
-        mod_data = Guild.get(str(ctx.guild.id)).run().dashboard.moderation
+        mod_data = (await Guild.get(str(ctx.guild.id))).dashboard.moderation
         dm_fields = mod_data["settings"]["kick"]["dm"]
 
         await send_member_dm(
@@ -66,7 +66,7 @@ class ModKick(commands.Cog):
             return await ctx.respond(embed=embed, ephemeral=True)
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild, 
                 kind="error", 
                 title="BobCat cannot kick members",

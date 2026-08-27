@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @economy_bp.route("/dashboard/<int:guild_id>/economy")
 @login_required
 async def economy(guild_id):
-    premium_module(guild_id, 'economy')
+    await premium_module(guild_id, 'economy')
     
     current_user = bearer_client().get_current_user()
     
@@ -20,7 +20,7 @@ async def economy(guild_id):
         return await render_template("error/404.html"), 404
 
     # Get the guild document
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     
     # Get economy config from dashboard
     dash_data = config.dashboard.economy

@@ -216,7 +216,7 @@ class Owner(commands.Cog):
     @discord.option("trail_length", description="The length of the trial", required=False, choices=list(TRIAL_DAYS.keys()))
     @is_dev()
     async def premium_add(self, ctx: discord.ApplicationContext, guild: discord.Guild, plan: str="trial", trail_length: str="1 Month"):
-        doc = Guild.get(str(guild.id)).run()
+        doc = await Guild.get(str(guild.id))
         if doc is None:
             return await ctx.respond("That guild has no config yet — has the bot fully initialized it?", ephemeral=True)
 
@@ -239,7 +239,7 @@ class Owner(commands.Cog):
         }
 
         doc.premium = premium
-        doc.save()
+        await doc.save()
 
         emb = discord.Embed(
             color=v.success,
@@ -255,18 +255,18 @@ class Owner(commands.Cog):
         )
         await ctx.respond(embed=emb)
 
-        v.push_notification(guild, 'info', 'You have been given premium!', "🎁 Surprise! Someone just gifted you Premium! Unlock exclusive perks and level up your experience")
+        await v.push_notification(guild, 'info', 'You have been given premium!', "🎁 Surprise! Someone just gifted you Premium! Unlock exclusive perks and level up your experience")
 
     @premium.command(name="remove", description="Removes a guild from premium")
     @discord.option("guild", discord.Guild, description="The guild to remove", required=True)
     async def premium_remove(self, ctx: discord.ApplicationContext, guild):
-        doc = Guild.get(str(guild.id)).run()
+        doc = await Guild.get(str(guild.id))
         if doc is None:
             return await ctx.respond("That guild has no config yet.", ephemeral=True)
 
         doc.premium['status'] = False
         doc.premium['active'] = False
-        doc.save()
+        await doc.save()
 
         emb = discord.Embed(
             color=v.success,

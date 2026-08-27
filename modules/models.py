@@ -1,5 +1,5 @@
 from bson import ObjectId
-from bunnet import Document
+from beanie import Document
 from pydantic import Field, BaseModel
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any

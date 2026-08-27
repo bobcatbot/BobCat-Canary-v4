@@ -22,11 +22,11 @@ async def form(guild_id, form_id):
         await flash('Guild not found', 'error')
         return redirect(url_for('web.index'))
 
-    # Get the form using Bunnet
-    form_data = Form.find_one(
+    # Get the form using Beanie
+    form_data = await Form.find_one(
         Form.guild_id == str(guild.id),
         Form.id == form_id
-    ).run()
+    )
     
     if form_data is None:
         await flash('Form not found', 'error')
@@ -44,7 +44,7 @@ async def form(guild_id, form_id):
             user_id=str(current_user.id),
             answers=data.get('answers', [])
         )
-        response.insert()
+        await response.insert()
         logger.info(f"Form response submitted for form {form_id} by user {current_user.id}")
 
         # Send to channel if configured
@@ -133,10 +133,10 @@ async def form_submissions(guild_id, form_id):
         return redirect(url_for('web.index'))
 
     # Get the form
-    form_data = Form.find_one(
+    form_data = await Form.find_one(
         Form.guild_id == str(guild.id),
         Form.id == form_id
-    ).run()
+    )
     
     if form_data is None:
         await flash('Form not found', 'error')
@@ -178,12 +178,12 @@ async def form_submissions(guild_id, form_id):
         return redirect(url_for('web.index'))
 
     # Get all submissions for this form
-    submissions = FormResponse.find(
+    submissions = await FormResponse.find(
         FormResponse.guild_id == str(guild.id),
         FormResponse.form_id == form_id
     ).sort(
         [(FormResponse.submitted_at, -1)]  # Newest first
-    ).run()
+    ).to_list()
 
     logger.info(f"Loaded {len(submissions)} submissions for form {form_id} in guild {guild_id}")
 
@@ -204,10 +204,10 @@ async def form_submission_detail(guild_id, form_id, submission_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    form_data = Form.find_one(
+    form_data = await Form.find_one(
         Form.guild_id == str(guild.id),
         Form.id == form_id
-    ).run()
+    )
     
     if form_data is None:
         return jsonify({'status': 'error', 'message': 'Form not found'}), 404
@@ -238,21 +238,21 @@ async def form_submission_detail(guild_id, form_id, submission_id):
     # Try as ObjectId first
     try:
         obj_id = ObjectId(submission_id)
-        submission = FormResponse.find_one(
+        submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
             FormResponse.id == obj_id
-        ).run()
+        )
     except:
         pass
     
     # If not found, try as string
     if submission is None:
-        submission = FormResponse.find_one(
+        submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
             FormResponse.id == submission_id
-        ).run()
+        )
     
     if submission is None:
         return jsonify({'status': 'error', 'message': 'Submission not found'}), 404
@@ -285,10 +285,10 @@ async def form_submission_delete(guild_id, form_id, submission_id):
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
     # Get the form
-    form_data = Form.find_one(
+    form_data = await Form.find_one(
         Form.guild_id == str(guild.id),
         Form.id == form_id
-    ).run()
+    )
     
     if form_data is None:
         return jsonify({'status': 'error', 'message': 'Form not found'}), 404
@@ -320,26 +320,26 @@ async def form_submission_delete(guild_id, form_id, submission_id):
     # Try as ObjectId first
     try:
         obj_id = ObjectId(submission_id)
-        submission = FormResponse.find_one(
+        submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
             FormResponse._id == obj_id  # Use _id directly
-        ).run()
+        )
     except:
         pass
     
     # If not found, try as string
     if submission is None:
-        submission = FormResponse.find_one(
+        submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
             FormResponse._id == submission_id  # Use _id directly
-        ).run()
+        )
     
     if submission is None:
         return jsonify({'status': 'error', 'message': 'Submission not found'}), 404
 
-    submission.delete()
+    await submission.delete()
     logger.info(f"Deleted submission {submission_id} for form {form_id} by user {current_user.id}")
 
     return jsonify({'status': 'success', 'message': 'Submission deleted successfully'})
@@ -349,7 +349,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms")
 @login_required
 async def forms(guild_id):
-    premium_module(guild_id, 'forms')
+    await premium_module(guild_id, 'forms')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -357,10 +357,10 @@ async def forms(guild_id):
         return await render_template("error/404.html"), 404
 
     # Get guild document for plugin status
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     
-    # Get all forms for this guild using Bunnet
-    forms_list = Form.find(Form.guild_id == str(guild.id)).run()
+    # Get all forms for this guild using Beanie
+    forms_list = await Form.find(Form.guild_id == str(guild.id)).to_list()
 
     logger.info(f"Loaded {len(forms_list)} forms for guild {guild_id}")
     
@@ -374,7 +374,7 @@ async def forms(guild_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms/creation", methods=['GET', 'POST'])
 @login_required
 async def forms_create(guild_id):
-    premium_module(guild_id, 'forms')
+    await premium_module(guild_id, 'forms')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -390,7 +390,7 @@ async def forms_create(guild_id):
         if not data.get('name'):
             return jsonify({'status': 'error', 'message': 'Form name is required'}), 400
 
-        # Create form using Bunnet
+        # Create form using Beanie
         form = Form(
             id=v.uuid(length=12, strCase='upper/lower/nums'),
             guild_id=str(guild.id),
@@ -400,7 +400,7 @@ async def forms_create(guild_id):
             settings=data.get('settings', {}),
             status=True
         )
-        form.insert()
+        await form.insert()
         logger.info(f"Created form {form.id} for guild {guild_id}")
 
         await flash(f"Successfully created form {form.id}", 'success')
@@ -415,18 +415,18 @@ async def forms_create(guild_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
 @login_required
 async def forms_edit(guild_id, form_id):
-    premium_module(guild_id, 'forms')
+    await premium_module(guild_id, 'forms')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the form using Bunnet
-    form_data = Form.find_one(
+    # Get the form using Beanie
+    form_data = await Form.find_one(
         Form.guild_id == str(guild.id),
         Form.id == form_id
-    ).run()
+    )
     
     if form_data is None:
         await flash('Form not found', 'error')
@@ -471,12 +471,12 @@ async def forms_edit(guild_id, form_id):
                     if 'emojis' in settings['options']['reactions']:
                         form_data.settings['options']['reactions']['emojis'] = settings['options']['reactions']['emojis']
         
-        form_data.save()
+        await form_data.save()
         logger.info(f"Updated form {form_id} for guild {guild_id}")
         return jsonify({'status': 'success', 'message': 'Successfully updated form'})
 
     if request.method == 'DELETE':
-        form_data.delete()
+        await form_data.delete()
         logger.info(f"Deleted form {form_id} for guild {guild_id}")
         return jsonify({'status': 'success', 'message': 'Successfully deleted form'})
 

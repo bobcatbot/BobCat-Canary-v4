@@ -15,17 +15,17 @@ class Premium(commands.Cog):
     @tasks.loop(hours=24)
     async def stop_premium(self):
         # Find all guilds with active trial premium and expired code_expiry
-        expired = Guild.find({
+        expired = await Guild.find({
             "premium.status": True,
             "premium.active": True,
             "premium.plan": "trial",
             "premium.code_expiry": {"$lte": datetime.now()}
-        }).run()
+        }).to_list()
 
         for doc in expired:
             doc.premium['status'] = False
             doc.premium['active'] = False
-            doc.save()
+            await doc.save()
             guild = self.client.get_guild(int(doc.id))
             if guild:
                 print(f"Premium expired for {guild.name} ({guild.id})")

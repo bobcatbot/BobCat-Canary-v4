@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 @verification_bp.route("/dashboard/<int:guild_id>/verification", methods=['GET'])
 @login_required
 async def verify(guild_id):
-    premium_module(guild_id, 'verification')
+    await premium_module(guild_id, 'verification')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    config = Guild.get(str(guild.id)).run().dashboard.verification
+    config = (await Guild.get(str(guild.id))).dashboard.verification
 
     return await render_template(
         "dashboard/plugins/verification.html",
@@ -46,7 +46,7 @@ async def verify_publish(guild_id):
         return jsonify({'status': 'error', 'message': 'Embed data is required'}), 400
 
     # Get the guild document
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -104,7 +104,7 @@ async def verify_publish(guild_id):
                         reason='Enabled verification system'
                     )
                     config.dashboard.verification['role'] = str(role.id)
-                    config.save()
+                    await config.save()
                     logger.info(f"Created Verified role for guild {guild_id}")
                 except discord.Forbidden:
                     logger.error(f"No permissions to create role in guild {guild_id}")
@@ -135,7 +135,7 @@ async def verify_publish(guild_id):
                         }
                     )
                     config.dashboard.verification['channel'] = str(channel.id)
-                    config.save()
+                    await config.save()
                     logger.info(f"Created verification channel for guild {guild_id}")
                 except discord.Forbidden:
                     logger.error(f"No permissions to create channel in guild {guild_id}")
@@ -194,7 +194,7 @@ async def verify_publish(guild_id):
                 config.dashboard.verification['message_id'] = str(msg.id)
                 config.dashboard.verification['message_published'] = True
                 config.updated_at = discord.utils.utcnow()
-                config.save()
+                await config.save()
                 logger.info(f"Published verification message for guild {guild_id}")
             except discord.Forbidden:
                 logger.error(f"No permissions to send message in guild {guild_id}")
@@ -215,7 +215,7 @@ async def verify_unpublish(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -244,7 +244,7 @@ async def verify_unpublish(guild_id):
             config.dashboard.verification['message_published'] = False
             config.dashboard.verification['message_id'] = None
             config.updated_at = discord.utils.utcnow()
-            config.save()
+            await config.save()
             logger.info(f"Unpublished verification for guild {guild_id}")
         
         except Exception as e:
@@ -265,7 +265,7 @@ async def verify_update(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -294,7 +294,7 @@ async def verify_update(guild_id):
         setattr(current, final, value)
     
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
 
     logger.info(f"Updated verification setting {key} for guild {guild_id}")
     return jsonify({'status': 'success', 'message': 'Successfully updated verification settings'})

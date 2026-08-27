@@ -38,7 +38,7 @@ class welcomeSystem(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        guild_doc = Guild.get(str(member.guild.id)).run()
+        guild_doc = await Guild.get(str(member.guild.id))
         if guild_doc is None:
             return
 
@@ -112,7 +112,7 @@ class welcomeSystem(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
-        guild_doc = Guild.get(str(member.guild.id)).run()
+        guild_doc = await Guild.get(str(member.guild.id))
         if guild_doc is None:
             return
 

@@ -9,12 +9,12 @@ class events(commands.Cog):
         self.client = client
 
     # ── Helper ────────────────────────────────────────────────────────────────
-    def _get_logging(self, guild_id: int) -> dict:
-        return Guild.get(str(guild_id)).run().dashboard.moderation["logging"]
+    async def _get_logging(self, guild_id: int) -> dict:
+        return (await Guild.get(str(guild_id))).dashboard.moderation["logging"]
 
-    def _get_log_channel(self, guild_id: int, event: str) -> discord.TextChannel | None:
+    async def _get_log_channel(self, guild_id: int, event: str) -> discord.TextChannel | None:
         """Returns the log channel if the event is enabled, otherwise None."""
-        logging = self._get_logging(guild_id)
+        logging = await self._get_logging(guild_id)
 
         if not logging["events"].get(event, False):
             return None
@@ -35,7 +35,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        channel = self._get_log_channel(member.guild.id, "MemberJoin")
+        channel = await self._get_log_channel(member.guild.id, "MemberJoin")
         if not channel:
             return
 
@@ -61,7 +61,7 @@ class events(commands.Cog):
         except (discord.Forbidden, discord.NotFound):
             return
 
-        channel = self._get_log_channel(member.guild.id, "MemberLeave")
+        channel = await self._get_log_channel(member.guild.id, "MemberLeave")
         if not channel:
             return
 
@@ -79,7 +79,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        channel = self._get_log_channel(after.guild.id, "MemberUpdate")
+        channel = await self._get_log_channel(after.guild.id, "MemberUpdate")
         if not channel:
             return
 
@@ -118,7 +118,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, member: discord.User):
-        channel = self._get_log_channel(guild.id, "MemberBan")
+        channel = await self._get_log_channel(guild.id, "MemberBan")
         if not channel:
             return
 
@@ -134,7 +134,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_unban(self, guild: discord.Guild, member: discord.User):
-        channel = self._get_log_channel(guild.id, "MemberUnban")
+        channel = await self._get_log_channel(guild.id, "MemberUnban")
         if not channel:
             return
 
@@ -155,12 +155,12 @@ class events(commands.Cog):
         if message.guild is None:
             return
 
-        channel = self._get_log_channel(message.guild.id, "MessageDelete")
+        channel = await self._get_log_channel(message.guild.id, "MessageDelete")
         if not channel:
             return
 
         # Skip bot messages if the setting says to
-        if self._get_logging(message.guild.id).get("bots", False) and message.author.bot:
+        if (await self._get_logging(message.guild.id)).get("bots", False) and message.author.bot:
             return
 
         content = message.content or "*[No text content]*"
@@ -204,11 +204,11 @@ class events(commands.Cog):
         if after.guild is None:
             return
 
-        channel = self._get_log_channel(after.guild.id, "MessageEdit")
+        channel = await self._get_log_channel(after.guild.id, "MessageEdit")
         if not channel:
             return
 
-        if self._get_logging(after.guild.id).get("bots", False) and after.author.bot:
+        if (await self._get_logging(after.guild.id)).get("bots", False) and after.author.bot:
             return
 
         embed = discord.Embed(
@@ -232,7 +232,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
-        channel = self._get_log_channel(after.id, "ServerUpdate")
+        channel = await self._get_log_channel(after.id, "ServerUpdate")
         if not channel:
             return
         if before == after:
@@ -274,7 +274,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_invite_create(self, invite: discord.Invite):
-        channel = self._get_log_channel(invite.guild.id, "ServerInviteCreate")
+        channel = await self._get_log_channel(invite.guild.id, "ServerInviteCreate")
         if not channel:
             return
 
@@ -291,7 +291,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_invite_delete(self, invite: discord.Invite):
-        channel = self._get_log_channel(invite.guild.id, "ServerInviteDelete")
+        channel = await self._get_log_channel(invite.guild.id, "ServerInviteDelete")
         if not channel:
             return
         if not invite.inviter:
@@ -312,7 +312,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
-        log = self._get_log_channel(channel.guild.id, "ChannelCreate")
+        log = await self._get_log_channel(channel.guild.id, "ChannelCreate")
         if not log:
             return
 
@@ -328,7 +328,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
-        log = self._get_log_channel(channel.guild.id, "ChannelDelete")
+        log = await self._get_log_channel(channel.guild.id, "ChannelDelete")
         if not log:
             return
 
@@ -344,7 +344,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
-        log = self._get_log_channel(after.guild.id, "ChannelUpdate")
+        log = await self._get_log_channel(after.guild.id, "ChannelUpdate")
         if not log:
             return
 
@@ -397,7 +397,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_role_create(self, role: discord.Role):
-        channel = self._get_log_channel(role.guild.id, "RoleCreate")
+        channel = await self._get_log_channel(role.guild.id, "RoleCreate")
         if not channel:
             return
 
@@ -417,7 +417,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role: discord.Role):
-        channel = self._get_log_channel(role.guild.id, "RoleDelete")
+        channel = await self._get_log_channel(role.guild.id, "RoleDelete")
         if not channel:
             return
 
@@ -437,7 +437,7 @@ class events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
-        channel = self._get_log_channel(after.guild.id, "RoleUpdate")
+        channel = await self._get_log_channel(after.guild.id, "RoleUpdate")
         if not channel:
             return
 

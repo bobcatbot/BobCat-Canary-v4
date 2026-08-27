@@ -128,7 +128,7 @@ class Stats(commands.Cog):
     
     async def update_guild_stats(self, guild: discord.Guild, force: bool = False) -> bool:
         """Update all stats channels for a guild."""
-        guild_doc = Guild.get(str(guild.id)).run()
+        guild_doc = await Guild.get(str(guild.id))
         if guild_doc is None:
             return False
         
@@ -221,7 +221,7 @@ class Stats(commands.Cog):
             current_stats["counters"] = statsCounters
             guild_doc.dashboard.stats = current_stats
             guild_doc.updated_at = discord.utils.utcnow()
-            guild_doc.save()
+            await guild_doc.save()
         
         return updated
 

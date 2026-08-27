@@ -167,7 +167,7 @@ class Verification(commands.Cog):
         self.active_verifications[interaction.user.id] = datetime.now()
 
         # Fetch config
-        guild_doc = Guild.get(str(interaction.guild.id)).run()
+        guild_doc = await Guild.get(str(interaction.guild.id))
         if guild_doc is None:
             return await interaction.followup.send(
                 "❌ Guild configuration not found. Please contact an admin.",

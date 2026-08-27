@@ -15,7 +15,7 @@ class Ban(commands.Cog):
     @discord.option("reason", str, description="The reason for the ban", required=False)
     @discord.option("delete_messages", int, description="The number of previous message days to delete", required=False, min_value=0, max_value=7)
     async def ban(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None, delete_messages: int = None):
-        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
@@ -28,7 +28,7 @@ class Ban(commands.Cog):
 
         reason = reason or "Unspecified"
 
-        mod_data = Guild.get(str(ctx.guild.id)).run().dashboard.moderation
+        mod_data = (await Guild.get(str(ctx.guild.id))).dashboard.moderation
         dm_fields = mod_data["settings"]["ban"]["dm"]
         default_delete_days = mod_data["settings"]["ban"]["deleteMessageDays"]
 
@@ -96,7 +96,7 @@ class Ban(commands.Cog):
             )
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild, kind="error", title="BobCat cannot ban members",
                 description="The ban command failed because BobCat is missing the Ban Members permission.",
             )
@@ -258,7 +258,7 @@ class UnBan(commands.Cog):
             )
 
         if isinstance(original, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat cannot unban members",

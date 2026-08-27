@@ -126,14 +126,14 @@ def _default_dashboard() -> dict:
         "stats": {"status": False, "counters": []},
     }
 
-def init_database(guild: discord.Guild) -> bool:
+async def init_database(guild: discord.Guild) -> bool:
     """Creates the Guild document for a new server. No-op if one already exists."""
-    if Guild.get(str(guild.id)).run() is not None:
+    if await Guild.get(str(guild.id)) is not None:
         return False
 
     admin_roles = [str(role.id) for role in guild.roles if role.permissions.administrator]
 
-    Guild(
+    await Guild(
         id=str(guild.id),
         premium={"status": False},
         settings={
@@ -149,17 +149,17 @@ def init_database(guild: discord.Guild) -> bool:
 
     return True
 
-def sync_admin_roles(guild: discord.Guild) -> None:
+async def sync_admin_roles(guild: discord.Guild) -> None:
     """Keeps settings.admin_roles in line with which roles actually
     have the Administrator permission right now."""
-    doc = Guild.get(str(guild.id)).run()
+    doc = await Guild.get(str(guild.id))
     if doc is None:
         return
 
     doc.settings["admin_roles"] = [
         str(role.id) for role in guild.roles if role.permissions.administrator
     ]
-    doc.save()
+    await doc.save()
 
 class GuildEvents(commands.Cog):
     def __init__(self, client):
@@ -168,11 +168,11 @@ class GuildEvents(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.client.guilds:
-            init_database(guild)  # no-op if the guild already has a doc
+            await init_database(guild)  # no-op if the guild already has a doc
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        init_database(guild)
+        await init_database(guild)
 
         channel = self.client.get_guild(v.btz_gid).get_channel(962696085787254814)
         await channel.send(f"<:enter:1110325436501737536> Joined {guild.name} ({guild.id})")
@@ -184,17 +184,17 @@ class GuildEvents(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
-        sync_admin_roles(after)
+        await sync_admin_roles(after)
 
     @commands.Cog.listener()
     async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
         if before.permissions.administrator == after.permissions.administrator:
             return
-        sync_admin_roles(after.guild)
+        await sync_admin_roles(after.guild)
 
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role: discord.Role):
-        sync_admin_roles(role.guild)
+        await sync_admin_roles(role.guild)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -203,15 +203,15 @@ class GuildEvents(commands.Cog):
 
         # Per-user data (leveling/economy/warnings) is created lazily on
         # first use by their own cogs — nothing to pre-populate here.
-        if Guild.get(str(member.guild.id)).run() is None:
-            init_database(member.guild)
+        if await Guild.get(str(member.guild.id)) is None:
+            await init_database(member.guild)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         if member.bot:
             return
 
-        doc = Guild.get(str(member.guild.id)).run()
+        doc = await Guild.get(str(member.guild.id))
         if doc is None:
             return
 
@@ -220,9 +220,9 @@ class GuildEvents(commands.Cog):
         if not leveling_config.get("auto_reset", False):
             return
 
-        lvl = LevelingModel.get(f"{member.guild.id}_{member.id}").run()
+        lvl = await LevelingModel.get(f"{member.guild.id}_{member.id}")
         if lvl is not None:
-            lvl.delete()
+            await lvl.delete()
 
 def setup(client):
     client.add_cog(GuildEvents(client))

@@ -66,7 +66,7 @@ class mod_lockdown(commands.Cog):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to lockdown channels", description='Please give BobCat the "Manage Channels" permission')
+            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to lockdown channels", description='Please give BobCat the "Manage Channels" permission')
             return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels"), ephemeral=True)
 
     @lock.command(name="server", description="Lockdown the server")
@@ -122,7 +122,7 @@ class mod_lockdown(commands.Cog):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to lockdown the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
+            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to lockdown the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
             return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels / Manage Roles"), ephemeral=True)
 
     # ── Unlock ────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ class mod_lockdown(commands.Cog):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unlock channels", description='Please give BobCat the "Manage Channels" permission')
+            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unlock channels", description='Please give BobCat the "Manage Channels" permission')
             return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels"), ephemeral=True)
 
     @unlock.command(name="server", description="Unlock the server")
@@ -193,7 +193,7 @@ class mod_lockdown(commands.Cog):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unlock the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
+            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to unlock the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
             return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels / Manage Roles"), ephemeral=True)
 
 def setup(client):
