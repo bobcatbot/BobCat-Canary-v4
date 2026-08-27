@@ -8,8 +8,16 @@ function show_toast(key, oldVal, val) {
   if (oldVal === "True" || oldVal === "False") {
     oldVal = oldVal.toLowerCase() == "true" ? true : false
   }
-  
-  if (oldVal != val) {
+
+  // Arrays/objects (e.g. embed fields) are never === / == equal by value in
+  // JS even when their contents match, so a plain != always looks "changed".
+  // Fall back to a deep compare for those; primitives keep the old behavior.
+  const changed = (oldVal !== null && typeof oldVal === "object") ||
+                  (val !== null && typeof val === "object")
+    ? JSON.stringify(oldVal) !== JSON.stringify(val)
+    : oldVal != val;
+
+  if (changed) {
     update_data[key] = val
     toast.show()
   } else {
@@ -45,7 +53,6 @@ function btn_save(guild_id) {
         console.error(data?.message)
       }
 
-      delete save_data
-      delete update_data
+      update_data = {}
     })
 }

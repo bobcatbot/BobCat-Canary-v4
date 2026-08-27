@@ -1,0 +1,138 @@
+<!-- {#
+  Shared Discord-embed macros. Used by:
+    - dashboard/plugins/welcome.html   (join / dm / leave — 3 instances)
+    - dashboard/plugins/verification.html (1 instance)
+    - dashboard/plugins/ticketing/ticketing_transcript.html (read-only, embed_preview only)
+
+  embed_color_picker(id, color, name='', css_class='coloris-embed-color')
+    Swatch + text input that Coloris binds to.
+
+  embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', show_fields=True)
+    The author/title/description/footer block with dynamic fields support.
+      - prefix: builds unique element ids, e.g. 'join-embed' -> #join-embed-title.
+      - embed: dict with title / desc / author.name / footer.text / color / fields.
+      - desc_element: 'input' or 'textarea'.
+      - show_icons: shows placeholder avatar/footer icon divs.
+      - name_prefix: optional `name=` attribute prefix.
+      - show_fields: enable/disable the fields section.
+#} -->
+
+{% macro embed_color_picker(id, color, name='', css_class='coloris-embed-color') %}
+<div class="con color-picker full">
+  <div class="clr-field" style="color: {{ color or '#ffffff' }};">
+    <button aria-labelledby="clr-open-label"></button>
+    <input type="text" {% if name %}name="{{ name }}" {% endif %}class="{{ css_class }}" id="{{ id }}" value="{{ color or '#ffffff' }}">
+  </div>
+</div>
+{% endmacro %}
+
+{% macro embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', show_fields=True) %}
+<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color', '#ffffff') }};">
+  <div class="e-bdFBtt">
+    <div class="author">
+      {% if show_icons %}<div class="icon"></div>{% endif %}
+      <input type="text" {% if name_prefix %}name="{{ name_prefix }}an" {% endif %}id="{{ prefix }}-author" placeholder="Author"
+             value="{{ embed.get('author', {}).get('name', '') }}">
+    </div>
+
+    <div class="title embedMargin-2PsaQ4">
+      <input type="text" {% if name_prefix %}name="{{ name_prefix }}t" {% endif %}id="{{ prefix }}-title" placeholder="Title"
+             value="{{ embed.get('title', '') }}">
+    </div>
+
+    <div class="desc embedMargin-2PsaQ4">
+      {% if desc_element == 'textarea' %}
+      <textarea {% if name_prefix %}name="{{ name_prefix }}d" {% endif %} id="{{ prefix }}-desc" placeholder="Description"
+                oninput="autoGrowEmbedDesc(this)">{{ embed.get('description', '') }}</textarea>
+      {% else %}
+      <input type="text" {% if name_prefix %}name="{{ name_prefix }}d" {% endif %} id="{{ prefix }}-desc" placeholder="Description"
+             value="{{ embed.get('description', '') }}">
+      {% endif %}
+    </div>
+
+    {# Fields Section - Clean Discord style #}
+    {% if show_fields %}
+    <div class="fields-container" id="{{ prefix }}-fields-container">
+      <div class="fields" id="{{ prefix }}-fields">
+        {% for field in embed.get('fields', []) %}
+        <div class="field-wrapper" data-index="{{ loop.index0 }}">
+          <div class="field {% if field.inline %}inline{% endif %}">
+            <div class="field-name">
+              <input type="text" 
+                     class="field-name-input" 
+                     placeholder="Field name"
+                     value="{{ field.name }}"
+                     data-prefix="{{ prefix }}"
+                     data-index="{{ loop.index0 }}">
+            </div>
+            <div class="field-value">
+              <input type="text" 
+                     class="field-value-input" 
+                     placeholder="Field value"
+                     value="{{ field.value }}"
+                     data-prefix="{{ prefix }}"
+                     data-index="{{ loop.index0 }}">
+            </div>
+            <div class="field-controls">
+              <label class="inline-label">
+                <input type="checkbox" 
+                       class="field-inline-checkbox" 
+                       {% if field.inline %}checked{% endif %}
+                       data-prefix="{{ prefix }}"
+                       data-index="{{ loop.index0 }}">
+                Inline
+              </label>
+              <button type="button" class="remove-field-btn" data-prefix="{{ prefix }}" data-index="{{ loop.index0 }}">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="add-field-btn" data-prefix="{{ prefix }}">
+        <i class="bi bi-plus-circle"></i> Add Field
+      </button>
+    </div>
+    {% endif %}
+
+    <div class="foter">
+      {% if show_icons %}<div class="icon"></div>{% endif %}
+      <input type="text" {% if name_prefix %}name="{{ name_prefix }}ft" {% endif %}id="{{ prefix }}-footer" placeholder="Footer"
+             value="{{ embed.get('footer', {}).get('text', '') }}">
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro embed_preview(embed) %}
+<div class="embed">
+  <div class="e-bdFBtt">
+    {% if embed.get('author', {}).get('name') %}
+    <div class="author">
+      <div class="icon"></div>
+      <span>{{ embed.author.name }}</span>
+    </div>
+    {% endif %}
+    
+    {% if embed.get('title') %}
+    <div class="title embedMargin-2PsaQ4"><p>{{ embed.title }}</p></div>
+    {% endif %}
+    
+    {% if embed.get('description') %}
+    <div class="desc embedMargin-2PsaQ4"><p>{{ embed.description }}</p></div>
+    {% endif %}
+    
+    {% if embed.get('fields') %}
+    <div class="fields">
+      {% for field in embed.fields %}
+      <div class="field {% if field.inline %}inline{% endif %}">
+        <div class="field-name">{{ field.name }}</div>
+        <div class="field-value">{{ field.value }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

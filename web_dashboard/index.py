@@ -45,6 +45,12 @@ logging.getLogger('quart.serving').setLevel(logging.ERROR)
 
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
+    
+    # Quart defaults SEND_FILE_MAX_AGE_DEFAULT to 12 hours, so browsers cache
+    # static JS/CSS across normal refreshes — edits wouldn't show up without
+    # a hard refresh. Disable that in dev so a plain reload always picks up
+    # the latest static files.
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # ── Blueprints ────────────────────────────────────────────────────────────
 app.register_blueprint(web_bp)
@@ -112,7 +118,7 @@ import uvicorn
 
 async def serve_dashboard() -> None:
     """Run the dashboard on the same event loop as the Discord client."""
-    config = uvicorn.Config(app, host="localhost", port=8000, log_level="warning")
+    config = uvicorn.Config(app, host="localhost", port=8000)
     server = uvicorn.Server(config)
 
     serve_task = asyncio.create_task(server.serve())

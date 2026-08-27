@@ -561,16 +561,31 @@ async def data_post(guild_id):
         
         # Navigate through all parts except the last one
         for part in parts[:-1]:
-            # Try to handle both dict and object access
-            if isinstance(current, dict):
+            if isinstance(current, list):
+                try:
+                    index = int(part)
+                except ValueError:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Cannot navigate list with non-integer index: "{part}"'
+                    }), 400
+
+                if index < 0 or index >= len(current):
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'List index out of range: {index}'
+                    }), 400
+
+                current = current[index]
+
+            elif isinstance(current, dict):
                 if part not in current:
                     current[part] = {}
                 current = current[part]
+
             elif hasattr(current, part):
-                # Pydantic model or object with attribute
                 current = getattr(current, part)
-            elif isinstance(current, dict) and part in current:
-                current = current[part]
+
             else:
                 return jsonify({
                     'status': 'error',

@@ -8,55 +8,33 @@ class welcomeSystem(commands.Cog):
         self.client = client
 
     async def create_embed(self, embed_data, member):
-        color = embed_data.get("color", "")
-        embed_title = embed_data.get("title", "")
-        embed_desc = embed_data.get("desc", "")
-        embed_author = embed_data.get("author", {}).get("name", "")
-        embed_footer = embed_data.get("footer", {}).get("text", "")
+        color = embed_data.get("color")
+        if not color:
+            embed_data["color"] = v.style(member.guild.id)
+        else:
+            try:
+                embed_data["color"] = int(str(color).removeprefix("#"), 16)
+            except ValueError:
+                embed_data["color"] = v.style(member.guild.id)
 
-        embed_color = (
-            int(str(color).removeprefix("#"), 16)
-            if color
-            else v.style(member.guild.id)
-        )
-
-        em = discord.Embed(
-            color=embed_color,
-            title=v.render_placeholders(
-                embed_title,
-                user=member,
-                server=member.guild.name,
-                membercount=member.guild.member_count
-            ),
-            description=v.render_placeholders(
-                embed_desc,
-                user=member,
-                server=member.guild.name,
-                membercount=member.guild.member_count
-            )
-        )
-
-        if embed_author:
-            em.set_author(
-                name=v.render_placeholders(
-                    embed_author,
+        def render(value):
+            if isinstance(value, str):
+                return v.render_placeholders(
+                    value,
                     user=member,
                     server=member.guild.name,
                     membercount=member.guild.member_count
                 )
-            )
 
-        if embed_footer:
-            em.set_footer(
-                text=v.render_placeholders(
-                    embed_footer,
-                    user=member,
-                    server=member.guild.name,
-                    membercount=member.guild.member_count
-                )
-            )
+            if isinstance(value, dict):
+                return {key: render(val) for key, val in value.items()}
 
-        return em
+            if isinstance(value, list):
+                return [render(item) for item in value]
+
+            return value
+
+        return discord.Embed.from_dict(render(embed_data))
 
     @commands.Cog.listener()
     async def on_member_join(self, member):

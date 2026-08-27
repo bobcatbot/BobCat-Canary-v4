@@ -8,6 +8,8 @@
   
   <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
+  {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -41,44 +43,11 @@
 
         <hr>
         <div class="d-flex gap-2">
-          <div class="con color-picker full">
-            <div class="clr-field" style="color: {{data.message.embed.color}};">
-              <button aria-labelledby="clr-open-label"></button>
-              <input type="text" class="coloris" name="color" value="{{data.message.embed.color}}">
-            </div>
-          </div>
-          
+          {{ embed_color_picker('verify-embed-color', data.get('message', {}).get('embed', {}).get('color', '#ffffff'), name='verify_embed_color') }}
+
           <div class="w-100">
-            <div class="embed" style="border-color: {{data.message.embed.color}};">
-              <div class="e-bdFBtt">
-                <div class="author">
-                  <div class="icon"></div>
-                  <input type="text" id="author-name" placeholder="Author" value="{{data.message.embed.author.name if data.message.embed.author else ''}}">
-                </div>
+            {{ embed_editor('verify-embed', data.get('message', {}).get('embed', {}), desc_element='textarea', show_icons=True, name_prefix='verify_embed', show_fields=True) }}
 
-                <div class="title embedMargin-2PsaQ4">
-                  <input type="text" id="title" placeholder="Title" value="{{data.message.embed.title}}">
-                </div>
-                <div class="desc embedMargin-2PsaQ4">
-                  <textarea type="text" id="desc" placeholder="Description" oninput="auto_grow(this)"></textarea>
-                  <script>
-                    document.querySelector('#desc').value = `{{data.message.embed.desc}}`;
-                    auto_grow(document.querySelector('#desc'));
-
-                    function auto_grow(element) {
-                      element.style.height = "5px";
-                      element.style.height = (element.scrollHeight + 2) + "px";
-                    }
-                  </script>
-                </div>
-
-                <div class="foter">
-                  <div class="icon"></div>
-                  <input type="text" id="footer-name" placeholder="Footer" value="{{data.message.embed.footer.text if data.message.embed.footer else ''}}">
-                </div>
-              </div>
-            </div>
-            
             <div class="mt-1">
               <button id="btn-preview" class="position-relative btn btn-secondary" style="max-width: 250px;overflow: hidden;text-overflow: ellipsis;">
                 <span id="emoji">{{data.message.btn.emoji}}</span>
@@ -289,16 +258,38 @@
       options: ["{{data['failAction']}}"]
     });
 
-    Coloris({
-      el: '.coloris',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    // Verification embed — color/author/title/desc/footer/fields listeners
+    // wired below; Coloris itself is initialized inside initEmbedEditor().
+    initEmbedEditor([
+      {
+        prefix: 'verify-embed',
+        colorId: 'verify-embed-color',
+        dataKeyPrefix: 'verification.message.embed',
+        fieldDataKeyPrefix: 'verification.message.embed',
+        initial: {
+          color: `{{ data.get('message', {}).get('embed', {}).get('color', '') }}`,
+          author: `{{ data.get('message', {}).get('embed', {}).get('author', {}).get('name', '') }}`,
+          title: `{{ data.get('message', {}).get('embed', {}).get('title', '') }}`,
+          desc: `{{ data.get('message', {}).get('embed', {}).get('description', '') }}`,
+          footer: `{{ data.get('message', {}).get('embed', {}).get('footer', {}).get('text', '') }}`,
+          fields: `{{ data.get('message', {}).get('embed', {}).get('fields', []) | tojson }}`,
+        }
+      },
+    ]);
+
+    // Editing any part of the embed invalidates the currently-published
+    // message, same as the old per-field listeners did.
+    document.querySelector('.embed[data-prefix="verify-embed"]').addEventListener('input', togglePublish);
+    document.querySelector('.embed[data-prefix="verify-embed"]').addEventListener('change', togglePublish);
+    document.querySelector('.embed[data-prefix="verify-embed"]').addEventListener('click', (e) => {
+      if (e.target.closest('.add-field-btn, .remove-field-btn')) togglePublish();
     });
+    document.addEventListener('coloris:pick', (event) => {
+      if (event.target?.id === 'verify-embed-color') togglePublish();
+    });
+    // Size the description textarea for any pre-filled content on load —
+    // it otherwise only grows on the next keystroke.
+    autoGrowEmbedDesc(document.getElementById('verify-embed-desc'));
 
     new EmojiPicker({
       trigger: '#embed-emoji',
@@ -405,22 +396,23 @@
         return color;
       }
 
-      var embed = document.querySelector('.embed');
+      const fieldsContainer = document.getElementById('verify-embed-fields');
 
       fetch("verification/publish", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           "embed": {
-            "color": parseInt(String(document.querySelector('.color-picker .coloris').value).replace('#', ''), 16),
-            "title": embed.querySelector('#title').value,
-            "description": embed.querySelector('#desc').value,
+            "color": parseInt(String(document.getElementById('verify-embed-color').value).replace('#', ''), 16),
+            "title": document.getElementById('verify-embed-title').value,
+            "description": document.getElementById('verify-embed-desc').value,
             "author": {
-              "name": embed.querySelector('#author-name').value,
+              "name": document.getElementById('verify-embed-author').value,
             },
             "footer": {
-              "text": embed.querySelector('#footer-name').value,
-            }
+              "text": document.getElementById('verify-embed-footer').value,
+            },
+            "fields": fieldsContainer ? getFieldsData(fieldsContainer) : [],
           },
           "btn": {
             "emoji": document.querySelector('#emoji').innerHTML,
@@ -438,56 +430,19 @@
           }
         })
 
+      // Persist every tracked change (embed fields go through the shared
+      // update_data from toasts.js; button config still goes through
+      // verify_data) alongside the live publish above.
       fetch("/dashboard/{{guild.id}}/data/post", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(verify_data),
-      });
-    })
-
-    /* Verification Message */
-    const embed = document.querySelector('.embed');
-    const embedColor = document.querySelector('.color-picker .coloris');
-    const embedTitle = embed.querySelector('#title');
-    const embedDesc = embed.querySelector('#desc');
-    const embedAuthorName = embed.querySelector('.author #author-name');
-    const embedFooterTitle = embed.querySelector('.foter #footer-name');
-
-    embedColor.addEventListener('change', (e) => {
-      var value = e.target.value;
-
-      embed.style.borderColor = value;
-
-      togglePublish()
-      verify_data["verification.message.embed.color"] = parseInt(value.replace("#", ""), 16);
-    })
-
-    embedTitle.addEventListener('input', (e) => {
-      var value = e.target.value;
-      
-      togglePublish()
-      verify_data["verification.message.embed.title"] = value;
-    })
-
-    embedDesc.addEventListener('input', (e) => {
-      var value = e.target.value;
-      
-      togglePublish()
-      verify_data["verification.message.embed.desc"] = value;
-    })
-
-    embedAuthorName.addEventListener('input', (e) => {
-      var value = e.target.value;
-      
-      togglePublish()
-      verify_data["verification.message.embed.author.name"] = value;
-    })
-
-    embedFooterTitle.addEventListener('input', (e) => {
-      var value = e.target.value;
-      
-      togglePublish()
-      verify_data["verification.message.embed.footer.text"] = value;
+        body: JSON.stringify({ ...update_data, ...verify_data }),
+      })
+        .then(() => {
+          update_data = {};
+          verify_data = {};
+          if (toastWrapper) toastWrapper.classList.remove('show');
+        });
     })
 
     // button

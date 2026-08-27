@@ -5,6 +5,8 @@
   <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" />
   <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
+  {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -56,8 +58,7 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for channel in guild_models(guild).channels.text %}
-                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}">
-                    {{channel.name}}</div>
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}">{{channel.name}}</div>
                   {% endfor %}
                 </div>
               </div>
@@ -77,41 +78,14 @@
             <div class="tab-content pt-2">
               <div id="join-text-pane" class="tab-pane {{'active show' if data['join']['message']['type'] == 'text' else ''}}" role="tabpanel">
                 <div>
-                  <textarea id="join-message" class="text-input" name="" placeholder="Write your message here"></textarea>
-                  <script>document.querySelector('#join-message').value = "{{data['join']['message']['content']}}"</script>
+                  <textarea id="join-message" class="text-input" placeholder="Write your message here">{% if data['join']['message']['content'] %}{{ data['join']['message']['content'] }}{% endif %}</textarea>
                 </div>
               </div>
 
               <div id="join-embed-pane" class="tab-pane {{'active show' if data['join']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  <div class="con color-picker full">
-                    <div class="clr-field" style="color: {{data['join']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                      <button aria-labelledby="clr-open-label"></button>
-                      <input type="text" name="jec" class="coloris-join-embed-color" id="join-embed-color" value="{{data['join']['message'].get('embed', {}).get('color', '#ffffff')}}">
-                    </div>
-                  </div>
-
-                  <div class="embed" style="border-left-color: {{data['join']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                    <div class="e-bdFBtt">
-                      <div class="author">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="jean" id="join-embed-author" placeholder="Author"
-                          value="{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
-                      </div>
-
-                      <div class="title embedMargin-2PsaQ4">
-                        <input type="text" name="jet" id="join-embed-title" placeholder="Title" value="{{ data['join']['message'].get('embed', {}).get('title', '') }}">
-                      </div>
-                      <div class="desc embedMargin-2PsaQ4">
-                        <input type="text" name="jed" id="join-embed-desc" placeholder="Description" value="{{ data['join']['message'].get('embed', {}).get('desc', '') }}">
-                      </div>
-
-                      <div class="foter">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="jeft" id="join-embed-footer" placeholder="Footer" value="{{  data['join']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
-                      </div>
-                    </div>
-                  </div>
+                  {{ embed_color_picker('join-embed-color', data['join']['message'].get('embed', {}).get('color', '#ffffff'), name='join_embed_color') }}
+                  {{ embed_editor('join-embed', data['join']['message'].get('embed', {}), name_prefix='join_embed', show_fields=True) }}
                 </div>
               </div>
             </div>
@@ -155,42 +129,13 @@
             </ul>
             <div class="tab-content pt-2">
               <div id="dm-text-pane" class="tab-pane {{'active show' if data['dm']['message']['type'] == 'text' else ''}}" role="tabpanel">
-                <div>
-                  <textarea id="dm-message" class="text-input" placeholder="Write your message here"></textarea>
-                  <script>document.querySelector('#dm-message').value = "{{data['dm']['message']['content']}}"</script>
-                </div>
+                <textarea id="dm-message" class="text-input" placeholder="Write your message here">{% if data['dm']['message']['content'] %}{{ data['dm']['message']['content'] }}{% endif %}</textarea>
               </div>
 
               <div id="dm-embed-pane" class="tab-pane {{'active show' if data['dm']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  <div class="con color-picker full">
-                    <div class="clr-field" style="color: {{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                      <button aria-labelledby="clr-open-label"></button>
-                      <input type="text" class="coloris-dm-embed-color" id="dm-embed-color" value="{{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}}">
-                    </div>
-                  </div>
-
-                  <div class="embed" style="border-left-color: {{data['dm']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                    <div class="e-bdFBtt">
-                      <div class="author">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="dmean" id="dm-embed-author" placeholder="Author"
-                          value="{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
-                      </div>
-
-                      <div class="title embedMargin-2PsaQ4">
-                        <input type="text" name="det" id="dm-embed-title" placeholder="Title" value="{{ data['dm']['message'].get('embed', {}).get('title', '') }}">
-                      </div>
-                      <div class="desc embedMargin-2PsaQ4">
-                        <input type="text" name="ded" id="dm-embed-desc" placeholder="Description" value="{{ data['dm']['message'].get('embed', {}).get('desc', '') }}">
-                      </div>
-
-                      <div class="foter">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="deft" id="dm-embed-footer" placeholder="Footer" value="{{  data['dm']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
-                      </div>
-                    </div>
-                  </div>
+                  {{ embed_color_picker('dm-embed-color', data['dm']['message'].get('embed', {}).get('color', '#ffffff'), name='dm_embed_color') }}
+                  {{ embed_editor('dm-embed', data['dm']['message'].get('embed', {}), name_prefix='dm_embed', show_fields=True) }}
                 </div>
               </div>
             </div>
@@ -226,8 +171,7 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for channel in guild_models(guild).channels.text %}
-                  <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">
-                    {{channel.name}}</div>
+                  <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
                   {% endfor %}
                 </div>
               </div>
@@ -246,42 +190,13 @@
             </ul>
             <div class="tab-content pt-2">
               <div id="leave-text-pane" class="tab-pane {{'active show' if data['leave']['message']['type'] == 'text' else ''}}" role="tabpanel">
-                <div>
-                  <textarea id="leave-message" class="text-input" name="" placeholder="Write your message here"></textarea>
-                  <script>document.querySelector('#leave-message').value = "{{data['leave']['message']['content']}}"</script>
-                </div>
+                <textarea id="leave-message" class="text-input" name="" placeholder="Write your message here">{% if data['leave']['message']['content'] %}{{ data['leave']['message']['content'] }}{% endif %}</textarea>
               </div>
 
               <div id="leave-embed-pane" class="tab-pane {{'active show' if data['leave']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  <div class="con color-picker full">
-                    <div class="clr-field" style="color: {{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                      <button aria-labelledby="clr-open-label"></button>
-                      <input type="text" name="jec" class="coloris-leave-embed-color" id="leave-embed-color" value="{{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}}">
-                    </div>
-                  </div>
-
-                  <div class="embed" style="border-left-color: {{data['leave']['message'].get('embed', {}).get('color', '#ffffff')}};">
-                    <div class="e-bdFBtt">
-                      <div class="author">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="jean" id="leave-embed-author" placeholder="Author"
-                          value="{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}">
-                      </div>
-
-                      <div class="title embedMargin-2PsaQ4">
-                        <input type="text" name="jet" id="leave-embed-title" placeholder="Title" value="{{ data['leave']['message'].get('embed', {}).get('title', '') }}">
-                      </div>
-                      <div class="desc embedMargin-2PsaQ4">
-                        <input type="text" name="jed" id="leave-embed-desc" placeholder="Description" value="{{ data['leave']['message'].get('embed', {}).get('desc', '') }}">
-                      </div>
-
-                      <div class="foter">
-                        <!-- <div class="icon"></div> -->
-                        <input type="text" name="jeft" id="leave-embed-footer" placeholder="Footer" value="{{  data['leave']['message'].get('embed', {}).get('footer', {}).get('text', '') }}">
-                      </div>
-                    </div>
-                  </div>
+                  {{ embed_color_picker('leave-embed-color', data['leave']['message'].get('embed', {}).get('color', '#ffffff'), name='leave_embed_color') }}
+                  {{ embed_editor('leave-embed', data['leave']['message'].get('embed', {}), name_prefix='leave_embed', show_fields=True) }}
                 </div>
               </div>
             </div>
@@ -315,8 +230,7 @@
                 <div class="select-selected">Select an option</div>
                 <div class="select-options">
                   {% for role in guild_models(guild).roles %}
-                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}"
-                    data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
                   {% endfor %}
                 </div>
               </div>
@@ -354,38 +268,51 @@
       options: JSON.parse(`{{data['autoRoles']['roles'] | tojson}}`)
     });
 
-    Coloris({
-      el: '.coloris-join-embed-color',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
-    });
-
-    Coloris({
-      el: '.coloris-dm-embed-color',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
-    });
-
-    Coloris({
-      el: '.coloris-leave-embed-color',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
-    });
+    // Initialize embed editors with field support
+    initEmbedEditor([
+      {
+        prefix: 'join-embed',
+        colorId: 'join-embed-color',
+        dataKeyPrefix: 'welcome.join.message.embed',
+        fieldDataKeyPrefix: 'welcome.join.message.embed', // same as above, but you could use a different one if needed
+        initial: {
+          color: `{{ data['join']['message'].get('embed', {}).get('color', '') }}`,
+          author: `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+          title: `{{ data['join']['message'].get('embed', {}).get('title', '') }}`,
+          desc: `{{ data['join']['message'].get('embed', {}).get('description', '') }}`,
+          footer: `{{ data['join']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          fields: `{{ data['join']['message'].get('embed', {}).get('fields', []) | tojson }}`,
+        }
+      },
+      {
+        prefix: 'dm-embed',
+        colorId: 'dm-embed-color',
+        dataKeyPrefix: 'welcome.dm.message.embed',
+        fieldDataKeyPrefix: 'welcome.dm.message.embed',
+        initial: {
+          color: `{{ data['dm']['message'].get('embed', {}).get('color', '') }}`,
+          author: `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+          title: `{{ data['dm']['message'].get('embed', {}).get('title', '') }}`,
+          desc: `{{ data['dm']['message'].get('embed', {}).get('description', '') }}`,
+          footer: `{{ data['dm']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          fields: `{{ data['dm']['message'].get('embed', {}).get('fields', []) | tojson }}`,
+        }
+      },
+      {
+        prefix: 'leave-embed',
+        colorId: 'leave-embed-color',
+        dataKeyPrefix: 'welcome.leave.message.embed',
+        fieldDataKeyPrefix: 'welcome.leave.message.embed',
+        initial: {
+          color: `{{ data['leave']['message'].get('embed', {}).get('color', '') }}`,
+          author: `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
+          title: `{{ data['leave']['message'].get('embed', {}).get('title', '') }}`,
+          desc: `{{ data['leave']['message'].get('embed', {}).get('description', '') }}`,
+          footer: `{{ data['leave']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          fields: `{{ data['leave']['message'].get('embed', {}).get('fields', []) | tojson }}`,
+        }
+      },
+    ]);
 
     var save_data = {}
 
@@ -442,43 +369,8 @@
       show_toast("welcome.join.message.content", `{{data['join']['message']['content']}}`, val)
     })
 
-    // Welcome Message Embed 
-    document.querySelector('#join-embed-color').addEventListener('change', (e) => {
-      var val = e.target.value;
-      show_toast("welcome.join.message.embed.color", `{{ data['join']['message'].get('embed', {}).get('color', '') }}`, val)
-    })
-    document.querySelector('#join-embed-author').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.join.message.embed.author.name",
-        `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#join-embed-title').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.join.message.embed.title",
-        `{{ data['join']['message'].get('embed', {}).get('title', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#join-embed-desc').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.join.message.embed.desc",
-        `{{ data['join']['message'].get('embed', {}).get('desc', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#join-embed-footer').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.join.message.embed.footer.text",
-        `{{ data['join']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
-        val
-      )
-    })
+    // Welcome Message Embed — color/author/title/desc/footer listeners are
+    // wired by initEmbedEditor() above.
 
     // =============================================================================
 
@@ -517,43 +409,7 @@
       show_toast("welcome.dm.message.content", `{{data['dm']['message']['content']}}`, val)
     })
 
-    // == DM Welcome Message Embed ==
-    document.querySelector('#dm-embed-color').addEventListener('change', (e) => {
-      var val = e.target.value;
-      show_toast("welcome.dm.message.embed.color", `{{ data['dm']['message'].get('embed', {}).get('color', '') }}`, val)
-    })
-    document.querySelector('#dm-embed-author').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.dm.message.embed.author.name",
-        `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#dm-embed-title').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.dm.message.embed.title",
-        `{{ data['dm']['message'].get('embed', {}).get('title', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#dm-embed-desc').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.dm.message.embed.desc",
-        `{{ data['dm']['message'].get('embed', {}).get('desc', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#dm-embed-footer').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.dm.message.embed.footer.text",
-        `{{ data['dm']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
-        val
-      )
-    })
+    // DM Welcome Message Embed — wired by initEmbedEditor() above.
 
     // =============================================================================
 
@@ -601,43 +457,7 @@
       show_toast("welcome.leave.message.content", `{{data['leave']['message']['content']}}`, val)
     })
 
-    // == Leave Message Embed ==
-    document.querySelector('#leave-embed-color').addEventListener('change', (e) => {
-      var val = e.target.value;
-      show_toast("welcome.leave.message.embed.color", `{{ data['leave']['message'].get('embed', {}).get('color', '') }}`, val)
-    })
-    document.querySelector('#leave-embed-author').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.leave.message.embed.author.name",
-        `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#leave-embed-title').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.leave.message.embed.title",
-        `{{ data['leave']['message'].get('embed', {}).get('title', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#leave-embed-desc').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.leave.message.embed.desc",
-        `{{ data['leave']['message'].get('embed', {}).get('desc', '') }}`,
-        val
-      )
-    })
-    document.querySelector('#leave-embed-footer').addEventListener('input', (e) => {
-      var val = e.target.value;
-      show_toast(
-        "welcome.leave.message.embed.footer.text",
-        `{{ data['leave']['message'].get('embed', {}).get('footer', {}).get('text') }}`,
-        val
-      )
-    })
+    // Leave Message Embed — wired by initEmbedEditor() above.
 
     // =============================================================================
 
@@ -670,24 +490,9 @@
   </script>
 
   <style>
-    .embed input,
-    .embed textarea {
-      color: #fff;
-      width: 100%;
-      background: none;
-      border: none;
-    }
-
-    .embed input:focus-visible,
-    .embed textarea:focus-visible {
-      outline: none;
-      border: none;
-    }
-
     .nav-tabs-bordered {
       margin: 0;
     }
   </style>
-
 </body>
 </html>
