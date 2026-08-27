@@ -22,7 +22,7 @@ class starboard(commands.Cog):
         if payload.member.bot:
             return
 
-        starbaord_data = Guild.get(str(payload.guild_id)).run().dashboard.starboard
+        starbaord_data = (await Guild.get(str(payload.guild_id))).dashboard.starboard
 
         starCount = 0
         starReaction = "⭐"
@@ -71,10 +71,10 @@ class starboard(commands.Cog):
         if message.attachments:
             embed.set_image(url=message.attachments[0].url)
 
-        result = Starboard.find_one(
+        result = await Starboard.find_one(
             Starboard.guild_id == str(guild.id),
             Starboard.root_message_id == str(message.id),
-        ).run()
+        )
 
         chan = await v.client.fetch_channel(int(starChannel))
 
@@ -85,7 +85,7 @@ class starboard(commands.Cog):
                 view=JumpToMsg(message) if starJumpLink else None
             )
 
-            Starboard(
+            await Starboard(
                 guild_id=str(guild.id),
                 root_message_id=str(message.id),
                 star_message_id=str(star_message.id),
@@ -98,12 +98,12 @@ class starboard(commands.Cog):
             await star_message.edit(content=f"⭐ **{starCount}** **|** {channel.mention}")
 
             result.stars = starCount
-            result.save()
+            await result.save()
             return
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
-        starboard_data = Guild.get(str(payload.guild_id)).run().dashboard.starboard
+        starboard_data = (await Guild.get(str(payload.guild_id))).dashboard.starboard
 
         starCount = 0
         starReaction = "⭐"
@@ -126,10 +126,10 @@ class starboard(commands.Cog):
             if r.emoji == starReaction:
                 starCount += r.count
 
-        result = Starboard.find_one(
+        result = await Starboard.find_one(
             Starboard.guild_id == str(guild.id),
             Starboard.root_message_id == str(message.id),
-        ).run()
+        )
 
         if result is None:
             return
@@ -138,7 +138,7 @@ class starboard(commands.Cog):
 
         if starCount < int(starLimit):
             star_message = await chan.fetch_message(int(result.star_message_id))
-            result.delete()
+            await result.delete()
 
             await star_message.delete()
             return
@@ -148,7 +148,7 @@ class starboard(commands.Cog):
             await star_message.edit(content=f"⭐ **{starCount}** **|** {channel.mention}")
 
             result.stars = starCount
-            result.save()
+            await result.save()
             return
 
     @commands.Cog.listener()
@@ -156,20 +156,20 @@ class starboard(commands.Cog):
         message = await v.client.get_channel(payload.channel_id).fetch_message(payload.message_id)
         guild = v.client.get_guild(payload.guild_id)
 
-        starbaord_data = Guild.get(str(payload.guild_id)).run().dashboard.starboard
+        starbaord_data = (await Guild.get(str(payload.guild_id))).dashboard.starboard
         starChannel = starbaord_data['channel']
         chan = v.client.get_channel(int(starChannel))
 
-        result = Starboard.find_one(
+        result = await Starboard.find_one(
             Starboard.guild_id == str(guild.id),
             Starboard.root_message_id == str(message.id),
-        ).run()
+        )
         
         if result is None:
             return
 
         star_message = await chan.fetch_message(int(result.star_message_id))
-        result.delete()
+        await result.delete()
 
         await star_message.delete()
 

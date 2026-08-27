@@ -39,7 +39,7 @@ class Slowmode(commands.Cog):
             return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to set slowmode", description='Please give BobCat the "Manage Channels" permission')
+            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to set slowmode", description='Please give BobCat the "Manage Channels" permission')
             embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Manage Channels` permission.  \n\nNeed help?\n{v.docs}/moderation/slowmode", color=v.error)
             return await ctx.respond(embed=embed)
 

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways")
 @login_required
 async def giveaways(guild_id):
-    premium_module(guild_id, 'giveaway')
+    await premium_module(guild_id, 'giveaway')
     
     current_user = bearer_client().get_current_user()
     
@@ -23,10 +23,10 @@ async def giveaways(guild_id):
         return await render_template("error/404.html"), 404
 
     # Get the giveaway config from dashboard
-    config = Guild.get(str(guild.id)).run().dashboard.giveaways
+    config = (await Guild.get(str(guild.id))).dashboard.giveaways
     
     # Get all giveaways for this guild
-    giveaways_list = Giveaway.find(Giveaway.guild_id == str(guild.id)).run()
+    giveaways_list = await Giveaway.find(Giveaway.guild_id == str(guild.id)).to_list()
 
     logger.info(f"Loaded {len(giveaways_list)} giveaways for guild {guild_id}")
     
@@ -42,7 +42,7 @@ async def giveaways(guild_id):
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/creation", methods=['GET', 'POST'])
 @login_required
 async def giveaways_creation(guild_id):
-    premium_module(guild_id, 'giveaway')
+    await premium_module(guild_id, 'giveaway')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -97,7 +97,7 @@ async def giveaways_creation(guild_id):
         if data.get('button') == 'save':
             # Save as draft
             giveaway = Giveaway(**giveaway_data)
-            giveaway.insert()
+            await giveaway.insert()
             await flash('Giveaway saved successfully!', 'success')
             logger.info(f"Saved giveaway draft {uuid} for guild {guild_id}")
             return jsonify({'status': 'success', 'message': 'Giveaway saved successfully!'})
@@ -144,7 +144,7 @@ async def giveaways_creation(guild_id):
                     
                     # Save the giveaway with message_id
                     giveaway = Giveaway(**giveaway_data)
-                    giveaway.insert()
+                    await giveaway.insert()
                     logger.info(f"Published giveaway {uuid} for guild {guild_id}")
                 except discord.Forbidden:
                     logger.error(f"No permissions to send message in channel for guild {guild_id}")
@@ -167,18 +167,18 @@ async def giveaways_creation(guild_id):
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/edition", methods=['GET', 'POST'])
 @login_required
 async def giveaways_edition(guild_id, gway_id):
-    premium_module(guild_id, 'giveaway')
+    await premium_module(guild_id, 'giveaway')
     
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the giveaway using Bunnet
-    giveaway = Giveaway.find_one(
+    # Get the giveaway using Beanie
+    giveaway = await Giveaway.find_one(
         Giveaway.guild_id == str(guild.id),
         Giveaway.id == gway_id
-    ).run()
+    )
     
     if giveaway is None:
         await flash('Giveaway not found', 'error')
@@ -231,7 +231,7 @@ async def giveaways_edition(guild_id, gway_id):
                         except Exception as e:
                             logger.error(f"Error updating giveaway message: {e}")
 
-                giveaway.save()
+                await giveaway.save()
                 logger.info(f"Updated giveaway {gway_id} for guild {guild_id}")
             
             except Exception as e:

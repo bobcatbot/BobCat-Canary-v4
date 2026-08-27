@@ -11,7 +11,7 @@ from ..utils import bearer_client, check_guild_permission as _check_guild_permis
 dashboard_bp = Blueprint('dashboard', __name__)
 
 # ── Guild picker ──────────────────────────────────────────────────────────────
-def get_user_eligible_guilds(current_user, exclude_guild_id=None):
+async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
     """Get all guilds the user owns, is bot master of, or has admin in."""
     guild_ids = [g.id for g in v.client.guilds]
     eligible_guilds = []
@@ -22,7 +22,7 @@ def get_user_eligible_guilds(current_user, exclude_guild_id=None):
             continue
             
         bot_master = False
-        config = Guild.get(str(guild.id)).run()
+        config = await Guild.get(str(guild.id))
         if config:
             bot_guild = v.client.get_guild(guild.id)
             member = bot_guild.get_member(current_user.id) if bot_guild else None
@@ -69,7 +69,7 @@ async def guilds():
 
     for guild in bearer_client().get_my_guilds():
         bot_master = False
-        config = Guild.get(str(guild.id)).run()
+        config = await Guild.get(str(guild.id))
         if config:
             bot_guild = v.client.get_guild(guild.id)
             member = bot_guild.get_member(current_user.id) if bot_guild else None
@@ -132,7 +132,7 @@ async def dashboard_home(guild_id):
 async def settings(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     data = config.settings if config else {}
     return await render_template(
         "dashboard/settings.html",
@@ -146,7 +146,7 @@ async def settings(guild_id):
 async def premium(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     prem_data = config.premium if config else {}
 
     # ✅ Build dynamic plans list with all needed data
@@ -189,7 +189,7 @@ async def premium(guild_id):
             pass
 
     # ✅ Get all guilds the user owns or has admin in
-    user_guilds = get_user_eligible_guilds(current_user=current_user, exclude_guild_id=guild_id)
+    user_guilds = await get_user_eligible_guilds(current_user=current_user, exclude_guild_id=guild_id)
 
     # ✅ Get the expiry date - try period_end first, then code_expiry
     expiry_date = None
@@ -248,7 +248,7 @@ async def premium(guild_id):
                 if prem_data.get('active', True):
                     prem_data['active'] = False
                     prem_data['status'] = False
-                    config.save()
+                    await config.save()
             elif days_remaining == 0:
                 days_countdown = "0"
                 next_bill_formatted = "Today"
@@ -301,7 +301,7 @@ async def transfer_premium_page(guild_id):
         await flash("Only the guild owner can transfer premium", "danger")
         return redirect(url_for('dashboard.premium', guild_id=guild_id))
     
-    doc = Guild.get(str(guild_id)).run()
+    doc = await Guild.get(str(guild_id))
     if not doc or not doc.premium.get('status', False):
         await flash("This guild doesn't have premium", "warning")
         return redirect(url_for('dashboard.premium', guild_id=guild_id))
@@ -332,7 +332,7 @@ async def transfer_premium_execute(guild_id):
     if guild.owner_id != current_user.id:
         return jsonify({'error': 'Only the guild owner can transfer premium'}), 403
     
-    doc = Guild.get(str(guild_id)).run()
+    doc = await Guild.get(str(guild_id))
     if not doc or not doc.premium.get('status', False):
         return jsonify({'error': 'This guild does not have premium'}), 404
     
@@ -352,7 +352,7 @@ async def transfer_premium_execute(guild_id):
         if not target_member or not target_member.guild_permissions.administrator:
             return jsonify({'error': 'You need Administrator permissions in the target guild'}), 403
     
-    target_doc = Guild.get(str(target_guild_id)).run()
+    target_doc = await Guild.get(str(target_guild_id))
     if not target_doc:
         return jsonify({'error': 'Target guild config not found'}), 404
     
@@ -367,15 +367,15 @@ async def transfer_premium_execute(guild_id):
     
     # Apply to target
     target_doc.premium = premium_data
-    target_doc.save()
+    await target_doc.save()
     
     # Remove from source
     doc.premium = {}
-    doc.save()
+    await doc.save()
     
     # Send notifications
     try:
-        v.push_notification(
+        await v.push_notification(
             guild,
             'info',
             'Premium Transferred',
@@ -385,7 +385,7 @@ async def transfer_premium_execute(guild_id):
         pass
     
     try:
-        v.push_notification(
+        await v.push_notification(
             target_guild,
             'info',
             'Premium Received! 🎉',
@@ -403,7 +403,7 @@ async def notifications(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     
-    all_notifs = Notification.find(Notification.guild_id == str(guild.id)).run()
+    all_notifs = await Notification.find(Notification.guild_id == str(guild.id)).to_list()
 
     if request.method == 'POST':
         res = await request.get_json()
@@ -412,7 +412,7 @@ async def notifications(guild_id):
             res.pop('id')
             for key, val in res.items():
                 setattr(notif, key, val)
-            notif.save()
+            await notif.save()
         return jsonify({'status': 'success', 'message': 'Successfully updated notifications'})
 
     notifications_by_date = {}
@@ -456,7 +456,7 @@ async def data_post(guild_id):
     current_user = bearer_client().get_current_user()
     
     # ── PERMISSION CHECK ──────────────────────────────────────────────────
-    has_permission, permission_level = _check_guild_permission(guild, current_user.id)
+    has_permission, permission_level = await _check_guild_permission(guild, current_user.id)
     if not has_permission:
         return jsonify({
             'status': 'error', 
@@ -485,7 +485,7 @@ async def data_post(guild_id):
     ]
 
     # Get the guild document once
-    doc = Guild.get(str(guild.id)).run()
+    doc = await Guild.get(str(guild.id))
     if doc is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -506,7 +506,7 @@ async def data_post(guild_id):
                     'message': 'Invalid value for EconomyUsers reset'
                 }), 400
             
-            deleted_count = Economy.find(Economy.guild_id == str(guild.id)).delete()
+            deleted_count = (await Economy.find(Economy.guild_id == str(guild.id)).delete()).deleted_count
             audit_entries.append(f"Reset economy: deleted {deleted_count} records")
             continue
 
@@ -632,7 +632,7 @@ async def data_post(guild_id):
 
     # ── SAVE AND AUDIT ──────────────────────────────────────────────────
     doc.updated_at = discord.utils.utcnow()
-    doc.save()
+    await doc.save()
 
     if audit_entries:
         print(f"[AUDIT] Guild {guild_id} modified by {current_user.id}: {', '.join(audit_entries)}")

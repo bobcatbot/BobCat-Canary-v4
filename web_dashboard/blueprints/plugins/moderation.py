@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @moderation_bp.route("/dashboard/<int:guild_id>/moderator")
 @login_required
 async def moderation(guild_id):
-    premium_module(guild_id, 'moderation')
+    await premium_module(guild_id, 'moderation')
     
     current_user = bearer_client().get_current_user()
     
@@ -19,8 +19,8 @@ async def moderation(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.moderation
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.moderation
 
     # Get logging config from moderation
     logging_config = config.get('logging', {})

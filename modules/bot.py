@@ -2,6 +2,7 @@ import os
 import re
 import pytz
 import random
+import pymongo
 import discord
 from dotenv import load_dotenv
 from typing import Literal, Optional, Union
@@ -16,6 +17,12 @@ prefix = os.getenv('PREFIX')
 token = os.getenv('BOT_TOKEN')
 mongoURI_db = os.getenv('mongoURI_db')
 mongo_cdn = os.getenv('mongoURI_cdn')
+
+# Dedicated *synchronous* pymongo handle for the hot, sync-only config reads
+# (`style`, `datetimes`). Beanie/motor is async and loop-bound, so it can't be
+# used from the many synchronous call sites (e.g. `discord.Embed(color=v.style(...))`).
+# This is a read-only path; all writes still go through Beanie.
+_sync_guilds = pymongo.MongoClient(mongoURI_db)["Data"]["guilds"]
 
 client = commands.AutoShardedBot(
   command_prefix = prefix,
@@ -42,16 +49,16 @@ error = red
 success = green
 
 
-def dashboard(guild) -> DashConfig | None:
+async def dashboard(guild) -> DashConfig | None:
     guild_id = str(getattr(guild, "id", guild))
-    data = Guild.get(guild_id).run()
+    data = await Guild.get(guild_id)
     return data.dashboard if data else None
 
 def style(guild) -> int:
     guild_id = str(getattr(guild, "id", guild))
-    guild_data = Guild.get(guild_id).run()
+    guild_data = _sync_guilds.find_one({"_id": guild_id}, {"settings.color": 1})
     color = (
-        guild_data.settings.get("color", "#5865F2")
+        (guild_data.get("settings") or {}).get("color", "#5865F2")
         if guild_data
         else "#5865F2"
     )
@@ -62,9 +69,9 @@ def style(guild) -> int:
 
 def datetimes(guild):
     guild_id = str(getattr(guild, "id", guild))
-    guild_data = Guild.get(guild_id).run()
+    guild_data = _sync_guilds.find_one({"_id": guild_id}, {"settings.timezone": 1})
     timezone_name = (
-        guild_data.settings.get("timezone", "Europe/London")
+        (guild_data.get("settings") or {}).get("timezone", "Europe/London")
         if guild_data
         else "Europe/London"
     )
@@ -112,7 +119,7 @@ def uuid(length: int = 8, strCase: Literal[ "upper/lower/nums/special"] = "upper
     combination = "".join(_CHARSET[p] for p in parts)
     return "".join(random.choices(combination, k=length))
 
-def push_notification(
+async def push_notification(
     guild: Union[int, discord.Guild],
     kind: Literal["info", "error"],
     title: str,
@@ -136,7 +143,7 @@ def push_notification(
             f"{link}"
         ).strip()
 
-    Notification(
+    await Notification(
         guild_id=guild_id,
         notification_id=uuid(16, strCase="upper/lower/nums"),
         type=kind,
@@ -147,3 +154,4 @@ def push_notification(
         user=str(client.user) if client.user else None,
         read=False,
     ).insert()
+

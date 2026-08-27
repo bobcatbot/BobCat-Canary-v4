@@ -3,8 +3,8 @@ from discord.ext import commands
 from modules import bot as v
 from modules.models import Guild
 
-def can_moderate(guild, moderator, member, action="moderate") -> tuple[bool, str | None]:
-    settings = Guild.get(str(guild.id)).run().settings
+async def can_moderate(guild, moderator, member, action="moderate") -> tuple[bool, str | None]:
+    settings = (await Guild.get(str(guild.id))).settings
 
     if member == guild.owner:
         return False, f"You cannot {action} the server owner."
@@ -75,7 +75,7 @@ async def audit_log(
     if guild is None:
         return False
 
-    dashboard = v.dashboard(guild)
+    dashboard = await v.dashboard(guild)
 
     if dashboard is None:
         return False

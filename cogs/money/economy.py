@@ -59,8 +59,7 @@ class Money(commands.Cog):
         ]
         
         try:
-            # Use Bunnet's aggregation (synchronous)
-            result = Economy.aggregate(pipeline).run()
+            result = await Economy.aggregate(pipeline).to_list()
             
             if not result:
                 embed = discord.Embed(

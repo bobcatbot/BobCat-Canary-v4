@@ -4,12 +4,12 @@ import time as pyTime
 import humanfriendly
 from datetime import datetime
 from discord.ext import commands, tasks
-from bunnet.operators import Or
+from beanie.operators import Or
 from modules import bot as v
 from modules.models import Giveaway, Guild
 
-def giveaways_fetchall() -> list[Giveaway]:
-    return Giveaway.find_all().run()
+async def giveaways_fetchall() -> list[Giveaway]:
+    return await Giveaway.find_all().to_list()
 
 class GiveawayCog(commands.Cog):
     def __init__(self, client):
@@ -57,7 +57,7 @@ class GiveawayCog(commands.Cog):
     @tasks.loop(minutes=1)
     async def giveawayCheck(self):
         """Check for expired giveaways every minute."""
-        giveaways = giveaways_fetchall()
+        giveaways = await giveaways_fetchall()
 
         for data in giveaways:
             if data.status != "Ongoing" or pyTime.time() < data.end_epoch:
@@ -70,7 +70,7 @@ class GiveawayCog(commands.Cog):
             except (discord.NotFound, discord.Forbidden):
                 # Channel or message deleted - mark as ended
                 data.status = "Ended"
-                data.save()
+                await data.save()
                 continue
 
             # Determine winners
@@ -100,10 +100,10 @@ class GiveawayCog(commands.Cog):
                             # Award XP
                             if data.give_xp.get('enabled'):
                                 from modules.models import Leveling
-                                level_data = Leveling.get(f"{guild.id}_{member.id}").run()
+                                level_data = await Leveling.get(f"{guild.id}_{member.id}")
                                 if level_data:
                                     level_data.exp += data.give_xp['amount']
-                                    level_data.save()
+                                    await level_data.save()
                         except Exception:
                             pass  # Skip if member left
 
@@ -125,12 +125,12 @@ class GiveawayCog(commands.Cog):
             await msg.edit(embed=embed, view=view)
 
             data.status = "Ended"
-            data.save()
+            await data.save()
 
     async def _log_giveaway_result(self, guild, data, winners):
         """Log giveaway results to audit channel."""
         try:
-            guild_data = Guild.get(str(guild.id)).run()
+            guild_data = await Guild.get(str(guild.id))
             if guild_data and guild_data.dashboard.giveaways.get('logChannel'):
                 log_channel_id = guild_data.dashboard.giveaways['logChannel']
                 log_channel = guild.get_channel(int(log_channel_id))
@@ -174,10 +174,10 @@ class GiveawayCog(commands.Cog):
         if custom_id == "JoinGiveaway":
             await interaction.response.defer(ephemeral=True)
 
-            data = Giveaway.find_one(
+            data = await Giveaway.find_one(
                 Giveaway.guild_id == str(interaction.guild.id),
                 Giveaway.message_id == str(interaction.message.id),
-            ).run()
+            )
 
             if data is None or data.status != "Ongoing":
                 return await interaction.followup.send(
@@ -194,7 +194,7 @@ class GiveawayCog(commands.Cog):
                 data.participants.remove(user_id)
                 response = "❌ You're not participating in this giveaway anymore!"
 
-            data.save()
+            await data.save()
 
             # Update embed with new participant count
             if interaction.message.embeds:
@@ -216,10 +216,10 @@ class GiveawayCog(commands.Cog):
             else:
                 message_id = str(interaction.message.id)
 
-            data = Giveaway.find_one(
+            data = await Giveaway.find_one(
                 Giveaway.guild_id == str(interaction.guild.id),
                 Giveaway.message_id == message_id,
-            ).run()
+            )
 
             if data is None:
                 return await interaction.followup.send(
@@ -274,7 +274,7 @@ class GiveawayCog(commands.Cog):
         if not chan.permissions_for(ctx.me).add_reactions:
             return await ctx.respond("❌ I need the `Add Reactions` permission to run giveaways!", ephemeral=True)
 
-        dashboard = Guild.get(str(ctx.guild.id)).run().dashboard
+        dashboard = (await Guild.get(str(ctx.guild.id))).dashboard
 
         if coins and not dashboard.economy.get("status", False):
             return await ctx.respond("❌ Economy is currently disabled!", ephemeral=True)
@@ -327,7 +327,7 @@ class GiveawayCog(commands.Cog):
             msg = await chan.send(content=ping, embed=embed, view=view)
 
             data.message_id = str(msg.id)
-            data.insert()
+            await data.insert()
 
             await ctx.respond("✅ Giveaway created successfully!", ephemeral=True)
         except discord.Forbidden:
@@ -337,10 +337,10 @@ class GiveawayCog(commands.Cog):
 
     @giveaway.command(description="Shows active giveaways")
     async def list(self, ctx):
-        data = Giveaway.find(
+        data = await Giveaway.find(
             Giveaway.guild_id == str(ctx.guild.id),
             Giveaway.status == "Ongoing",
-        ).run()
+        ).to_list()
 
         if not data:
             return await ctx.respond("📭 There are **no active giveaways** running.", ephemeral=True)
@@ -372,13 +372,13 @@ class GiveawayCog(commands.Cog):
     @giveaway.command(description="Rerolls a new winner from a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to reroll", required=True)
     async def reroll(self, ctx, giveaway_id):
-        data = Giveaway.find_one(
+        data = await Giveaway.find_one(
             Giveaway.guild_id == str(ctx.guild.id),
             Or(
                 Giveaway.id == str(giveaway_id),
                 Giveaway.message_id == str(giveaway_id),
             ),
-        ).run()
+        )
 
         if data is None:
             return await ctx.respond(f"❌ I could not find a giveaway with the ID `{giveaway_id}`", ephemeral=True)
@@ -398,7 +398,7 @@ class GiveawayCog(commands.Cog):
             mention = f"<@{user_id}>"
 
         data.winners.append(user_id)
-        data.save()
+        await data.save()
 
         embed = discord.Embed(
             title="🎉 Giveaway Rerolled!",
@@ -410,13 +410,13 @@ class GiveawayCog(commands.Cog):
     @giveaway.command(description="End a giveaway")
     @discord.option("giveaway_id", str, description="ID of giveaway to end", required=True)
     async def end(self, ctx, giveaway_id):
-        data = Giveaway.find_one(
+        data = await Giveaway.find_one(
             Giveaway.guild_id == str(ctx.guild.id),
             Or(
                 Giveaway.id == str(giveaway_id),
                 Giveaway.message_id == str(giveaway_id),
             ),
-        ).run()
+        )
 
         if data is None:
             return await ctx.respond(f"❌ I could not find a giveaway with the ID `{giveaway_id}`", ephemeral=True)
@@ -445,7 +445,7 @@ class GiveawayCog(commands.Cog):
             await message.reply(content="❌ No valid entrants, so a winner could not be determined!")
 
         data.status = "Ended"
-        data.save()
+        await data.save()
 
         embed = self._build_giveaway_embed(data, ended=True)
         view = discord.ui.View(timeout=None)
@@ -461,10 +461,10 @@ class GiveawayCog(commands.Cog):
     @giveaway.command(description="Delete a giveaway")
     @discord.option("giveaway_id", description="ID of giveaway to delete", required=True)
     async def delete(self, ctx, giveaway_id):
-        data = Giveaway.find_one(
+        data = await Giveaway.find_one(
             Giveaway.guild_id == str(ctx.guild.id),
             Giveaway.id == giveaway_id
-        ).run()
+        )
         
         if data is None:
             return await ctx.respond(f"❌ Giveaway not found", ephemeral=True)
@@ -477,7 +477,7 @@ class GiveawayCog(commands.Cog):
         except:
             pass  # Message may already be deleted
         
-        data.delete()
+        await data.delete()
         await ctx.respond(f"✅ Deleted giveaway `{giveaway_id}`", ephemeral=True)
 
 def setup(client):

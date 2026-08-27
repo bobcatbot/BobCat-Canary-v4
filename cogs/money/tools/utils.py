@@ -17,7 +17,7 @@ def _get_economy_id(guild_id: Union[int, str], user_id: Union[int, str]) -> str:
 async def get_shop(guild) -> List[dict]:
     """Return the shop items from the guild's dashboard, or default shop if not set."""
     try:
-        doc = Guild.get(str(guild.id)).run()
+        doc = await Guild.get(str(guild.id))
         
         if doc is None:
             return mainshop
@@ -25,7 +25,7 @@ async def get_shop(guild) -> List[dict]:
         shop = doc.dashboard.economy.get("shop", [])
         if not shop:
             doc.dashboard.economy["shop"] = mainshop
-            doc.save()
+            await doc.save()
             return mainshop
         
         return shop
@@ -37,7 +37,7 @@ async def get_user_items(guild, member) -> List[Dict[str, Any]]:
     """Return the user's inventory (bag)."""
     try:
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         return user.bag if user else []
     except Exception as e:
         print(f"Error getting user items for {member.id} in guild {guild.id}: {e}")
@@ -47,7 +47,7 @@ async def open_account(guild, member) -> Optional[Dict[str, Any]]:
     """Create an economy account if one doesn't exist, and return the user data."""
     try:
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         
         if user is None:
             user = Economy(
@@ -58,8 +58,8 @@ async def open_account(guild, member) -> Optional[Dict[str, Any]]:
                 bank=0,
                 bag=[],
             )
-            user.insert()
-            user = Economy.get(economy_id).run()
+            await user.insert()
+            user = await Economy.get(economy_id)
         
         if user is None:
             return None
@@ -73,13 +73,13 @@ async def update_bank(guild, member, mode: str = "wallet", change: int = 0) -> O
     """Update a user's wallet or bank balance. Returns the updated balances."""
     try:
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         
         if user is None:
             user_data = await open_account(guild, member)
             if user_data is None:
                 raise RuntimeError("Failed to create economy account")
-            user = Economy.get(economy_id).run()
+            user = await Economy.get(economy_id)
             if user is None:
                 raise RuntimeError("Failed to retrieve economy account")
         
@@ -93,7 +93,7 @@ async def update_bank(guild, member, mode: str = "wallet", change: int = 0) -> O
             new_balance = 0
             
         setattr(user, mode, new_balance)
-        user.save()
+        await user.save()
         
         return {"wallet": user.wallet, "bank": user.bank, "bag": user.bag}
     except Exception as e:
@@ -128,13 +128,13 @@ async def buy_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int,
         
         cost = price * amt
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         
         if user is None:
             user_data = await open_account(guild, member)
             if user_data is None:
                 return (False, "Failed to create account")
-            user = Economy.get(economy_id).run()
+            user = await Economy.get(economy_id)
         
         if user is None:
             return (False, "Failed to retrieve account")
@@ -156,7 +156,7 @@ async def buy_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int,
             user.bag.append({"item": item, "amount": amt})
         
         user.wallet -= cost
-        user.save()
+        await user.save()
         return (True, "Worked")
     
     except Exception as e:
@@ -181,7 +181,7 @@ async def sell_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int
         
         price = int(0.9 * shop_item["price"])
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         
         if user is None:
             return (False, 2)
@@ -199,7 +199,7 @@ async def sell_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int
                     user.bag[idx]["amount"] = new_amt
                 
                 user.wallet += price * amt
-                user.save()
+                await user.save()
                 return (True, "Worked")
         
         return (False, 3)
@@ -212,7 +212,7 @@ async def get_user_balance(guild, member) -> Optional[Dict[str, Any]]:
     """Get user's current balance without modifying anything."""
     try:
         economy_id = _get_economy_id(guild.id, member.id)
-        user = Economy.get(economy_id).run()
+        user = await Economy.get(economy_id)
         if user is None:
             return None
         

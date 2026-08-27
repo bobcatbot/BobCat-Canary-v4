@@ -23,7 +23,7 @@ async def run_on_bot_loop(coro):
 @stats_bp.route("/dashboard/<int:guild_id>/stats")
 @login_required
 async def stats(guild_id):
-    premium_module(guild_id, 'stats')
+    await premium_module(guild_id, 'stats')
 
     current_user = bearer_client().get_current_user()
 
@@ -31,7 +31,7 @@ async def stats(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     stats_config = config.dashboard.stats if config else {}
 
     return await render_template(
@@ -50,7 +50,7 @@ async def stats_setup(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -85,7 +85,7 @@ async def stats_setup(guild_id):
     # Save config
     config.dashboard.stats["counters"] = default_counters
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
     logger.info(f"Setup stats channels for guild {guild_id}")
 
     return jsonify({
@@ -132,7 +132,7 @@ async def stats_create_counter(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -159,7 +159,7 @@ async def stats_create_counter(guild_id):
     # Save config
     config.dashboard.stats["counters"] = counters
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
     logger.info(f"Saved counter {target} for guild {guild_id}")
 
     # Force an immediate update
@@ -187,7 +187,7 @@ async def stats_delete_counter(guild_id, counter_idx):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -215,7 +215,7 @@ async def stats_delete_counter(guild_id, counter_idx):
     counters.pop(counter_idx)
     config.dashboard.stats["counters"] = counters
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
     logger.info(f"Deleted counter {counter_idx} for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Successfully deleted counter'})
@@ -229,7 +229,7 @@ async def stats_reset(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
@@ -253,7 +253,7 @@ async def stats_reset(guild_id):
     # Clear config
     config.dashboard.stats["counters"] = []
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
     logger.info(f"Reset all stats for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Successfully deleted all stats channels'})
@@ -271,7 +271,7 @@ async def stats_reorder(guild_id):
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    config = Guild.get(str(guild.id)).run()
+    config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Config not found'}), 404
 
@@ -293,7 +293,7 @@ async def stats_reorder(guild_id):
     # Save to database
     config.dashboard.stats["counters"] = ordered_counters
     config.updated_at = discord.utils.utcnow()
-    config.save()
+    await config.save()
 
     # Reorder Discord channels
     stats_channels = []

@@ -29,8 +29,8 @@ def next_birthday(date: datetime.datetime, now: datetime.datetime = None) -> tup
     
     return next_bd, age
 
-def get_bdays(guild_id) -> list[Birthday]:
-    return Birthday.find(Birthday.guild_id == str(guild_id)).run()
+async def get_bdays(guild_id) -> list[Birthday]:
+    return await Birthday.find(Birthday.guild_id == str(guild_id)).to_list()
 
 class BirthdayTimers(commands.Cog):
     def __init__(self, client: commands.Bot):
@@ -48,7 +48,7 @@ class BirthdayTimers(commands.Cog):
     async def birthday_check(self):
         """Check for birthdays every minute (respecting timezones via v.datetimes)."""
         for guild in self.client.guilds:
-            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+            config = (await Guild.get(str(guild.id))).dashboard.birthdays
 
             if not config.get("status"):
                 continue
@@ -65,7 +65,7 @@ class BirthdayTimers(commands.Cog):
             if not channel:
                 continue
 
-            birthdays = get_bdays(guild.id)
+            birthdays = await get_bdays(guild.id)
 
             for birthday in birthdays:
                 if birthday.wished or not birthday.date:
@@ -122,13 +122,13 @@ class BirthdayTimers(commands.Cog):
                 birthday.wished = True
                 birthday.wished_at = now.isoformat()
                 birthday.age = age
-                birthday.save()
+                await birthday.save()
 
     @tasks.loop(hours=1)
     async def role_reset(self):
         """Removes birthday role at end of birthday (midnight in guild timezone)."""
         for guild in self.client.guilds:
-            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+            config = (await Guild.get(str(guild.id))).dashboard.birthdays
             birthday_role_id = config.get("birthday_role")
             
             if not birthday_role_id:
@@ -142,7 +142,7 @@ class BirthdayTimers(commands.Cog):
             if now.hour != 0 or now.minute > 5:
                 continue
 
-            birthdays = get_bdays(guild.id)
+            birthdays = await get_bdays(guild.id)
             role = guild.get_role(int(birthday_role_id))
             
             if not role:
@@ -165,13 +165,13 @@ class BirthdayTimers(commands.Cog):
 
                     birthday.wished = False
                     birthday.wished_at = None
-                    birthday.save()
+                    await birthday.save()
 
     @tasks.loop(hours=12)
     async def birthday_reminder(self):
         """Send reminder 1 day before someone's birthday."""
         for guild in self.client.guilds:
-            config = Guild.get(str(guild.id)).run().dashboard.birthdays
+            config = (await Guild.get(str(guild.id))).dashboard.birthdays
 
             if not config.get("status") or not config.get("reminder", False):
                 continue
@@ -187,7 +187,7 @@ class BirthdayTimers(commands.Cog):
             tz = v.datetimes(guild.id)
             now = datetime.datetime.now(tz)
 
-            birthdays = get_bdays(guild.id)
+            birthdays = await get_bdays(guild.id)
 
             for birthday in birthdays:
                 if not birthday.date:
@@ -213,7 +213,7 @@ class BirthdayTimers(commands.Cog):
                 await channel.send(f"🎈 Reminder: {member.mention} has their birthday **tomorrow**! ({next_bd.strftime('%d %B')})")
                 
                 birthday.reminded = True  # ✅ Now works because field exists
-                birthday.save()
+                await birthday.save()
 
     @birthday_check.before_loop
     async def before_birthday_check(self):
@@ -233,7 +233,7 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="birthdays", description="Show all birthdays for the current month")
     async def birthdays(self, ctx: discord.ApplicationContext):
-        birthdays = get_bdays(ctx.guild.id)
+        birthdays = await get_bdays(ctx.guild.id)
         tz = v.datetimes(ctx.guild.id)
         now = datetime.datetime.now(tz)
         entries = []
@@ -263,7 +263,7 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="next-birthdays", description="Shows the next 10 upcoming birthdays")
     async def next_birthdays(self, ctx: discord.ApplicationContext):
-        birthdays = get_bdays(ctx.guild.id)
+        birthdays = await get_bdays(ctx.guild.id)
 
         if not birthdays:
             return await ctx.respond("I don't know **any** birthdays **yet**.", ephemeral=True)
@@ -296,7 +296,7 @@ class BirthdayCommands(commands.Cog):
     @discord.option("member", description="The member to view", required=False)
     async def view_birthday(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         member = member or ctx.author
-        birthday = Birthday.get(f"{ctx.guild.id}_{member.id}").run()
+        birthday = await Birthday.get(f"{ctx.guild.id}_{member.id}")
 
         if birthday is None or not birthday.date:
             embed = discord.Embed(
@@ -323,7 +323,7 @@ class BirthdayCommands(commands.Cog):
     async def set_birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member = None):
         member = member or ctx.author
         
-        existing = Birthday.get(f"{ctx.guild.id}_{member.id}").run()
+        existing = await Birthday.get(f"{ctx.guild.id}_{member.id}")
         if existing is not None:
             embed = discord.Embed(
                 color=v.style(ctx.guild.id),
@@ -349,7 +349,7 @@ class BirthdayCommands(commands.Cog):
         next_bd, age = next_birthday(parsed, now)
         days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
 
-        Birthday(
+        await Birthday(
             id=f"{ctx.guild.id}_{member.id}",
             guild_id=str(ctx.guild.id),
             user_id=str(member.id),
@@ -368,7 +368,7 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="remove-birthday", description="Remove your birthday")
     async def remove_birthday(self, ctx: discord.ApplicationContext):
-        birthday = Birthday.get(f"{ctx.guild.id}_{ctx.author.id}").run()
+        birthday = await Birthday.get(f"{ctx.guild.id}_{ctx.author.id}")
 
         if birthday is None:
             embed = discord.Embed(
@@ -377,7 +377,7 @@ class BirthdayCommands(commands.Cog):
             )
             return await ctx.respond(embed=embed, ephemeral=True)
 
-        birthday.delete()
+        await birthday.delete()
         await ctx.respond("✅ I will no longer wish **your** birthday.", ephemeral=True)
 
 def setup(client):

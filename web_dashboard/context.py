@@ -2,19 +2,19 @@ from modules import bot as v
 from modules.models import Guild, Notification
 from .db import get_guild, get_dash_config
 from .plugins import fetch_plugins
-from .utils import bearer_client, GuildModels
+from .utils import bearer_client, guild_models
 
 def register_context_processors(app):
     @app.context_processor
     async def utility_processor():
 
-        def plugs(guild):
-            guild_dash = get_dash_config(guild)
+        async def plugs(guild):
+            guild_dash = await get_dash_config(guild)
             return fetch_plugins(guild_dash)
 
-        def get_plugin(guild, plugin):
+        async def get_plugin(guild, plugin):
             return next(
-                (_plugin for _item, _plugin in plugs(guild) if _item == plugin),
+                (_plugin for _item, _plugin in await plugs(guild) if _item == plugin),
                 None
             )
 
@@ -40,10 +40,10 @@ def register_context_processors(app):
             session["cached_guilds"] = guilds
             return guilds
 
-        def notifications(guild):
-            """Returns notifications using the Bunnet Notification model."""
+        async def notifications(guild):
+            """Returns notifications using the Beanie Notification model."""
             guild_id = str(getattr(guild, "id", guild))
-            all_notifs = Notification.find(Notification.guild_id == guild_id).run()
+            all_notifs = await Notification.find(Notification.guild_id == guild_id).to_list()
 
             shaped = []
             for n in all_notifs:
@@ -78,6 +78,6 @@ def register_context_processors(app):
             'plugins': plugs,
             'get_plugin': get_plugin,
             'guilds': get_user_guilds,
-            'guild_models': GuildModels,
+            'guild_models': guild_models,
             'notifications': notifications,
         }

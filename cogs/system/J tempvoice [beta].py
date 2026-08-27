@@ -32,8 +32,8 @@ class TempVoice(commands.Cog):
     # ------------------------------------------------------
     async def handle_join(self, member: discord.Member, hub_channel: discord.VoiceChannel):
 
-        hubs = Guild.get(str(hub_channel.guild.id)).run().dashboard.temporary_channels["hubs"]
-        tempvoice_db = TempChannel.find(TempChannel.guild_id == str(hub_channel.guild.id)).run()
+        hubs = (await Guild.get(str(hub_channel.guild.id))).dashboard.temporary_channels["hubs"]
+        tempvoice_db = await TempChannel.find(TempChannel.guild_id == str(hub_channel.guild.id)).to_list()
 
         hub = next((h for h in hubs if h['channel_id'] == str(hub_channel.id)), None)
         if hub is None:
@@ -72,7 +72,7 @@ class TempVoice(commands.Cog):
 
             await member.move_to(new_chan)
 
-            TempChannel(
+            await TempChannel(
                 guild_id=str(hub_channel.guild.id),
                 channel_id=str(new_chan.id),
                 creator_id=str(member.id),
@@ -87,10 +87,10 @@ class TempVoice(commands.Cog):
     #   LEAVES CHANNEL → DELETE IF EMPTY
     # ------------------------------------------------------
     async def handle_leave(self, channel: discord.VoiceChannel):
-        tempvoice = TempChannel.find_one(
+        tempvoice = await TempChannel.find_one(
             TempChannel.guild_id == str(channel.guild.id),
             TempChannel.channel_id == str(channel.id),
-        ).run()
+        )
 
         if tempvoice is None:
             return
@@ -102,7 +102,7 @@ class TempVoice(commands.Cog):
 
         try:
             await channel.delete()
-            tempvoice.delete()
+            await tempvoice.delete()
         except discord.HTTPException:
             pass
 
@@ -112,11 +112,11 @@ class TempVoice(commands.Cog):
         if not ctx.interaction.user.voice:
             return await ctx.respond("You must be connected to a voice channel to use this command.")
 
-        tempvoice = TempChannel.find_one(
+        tempvoice = await TempChannel.find_one(
             TempChannel.guild_id == str(ctx.guild.id),
             TempChannel.channel_id == str(ctx.interaction.user.voice.channel.id),
             TempChannel.creator_id == str(ctx.interaction.user.id),
-        ).run()
+        )
 
         if tempvoice is None:
             return await ctx.respond("Access denied. You must be in your own voice channel to use this command.", ephemeral=True)

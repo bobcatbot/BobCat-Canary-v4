@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @starboard_bp.route("/dashboard/<int:guild_id>/starboard")
 @login_required
 async def starboard(guild_id):
-    premium_module(guild_id, 'starboard')
+    await premium_module(guild_id, 'starboard')
 
     current_user = bearer_client().get_current_user()
 
@@ -19,8 +19,8 @@ async def starboard(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.starboard
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.starboard
     
     return await render_template(
         "dashboard/plugins/starboard.html",

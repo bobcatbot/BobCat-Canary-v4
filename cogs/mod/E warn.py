@@ -6,16 +6,16 @@ from modules import bot as v
 from modules.models import Guild, Warning
 from .mod_utils.utils import can_moderate, send_member_dm, audit_log
 
-def get_member_warnings(
+async def get_member_warnings(
     guild: discord.Guild,
     member: discord.Member,
 ) -> list[Warning]:
-    return Warning.find(
+    return await Warning.find(
         Warning.guild_id == str(guild.id),
         Warning.user_id == str(member.id),
-    ).run()
+    ).to_list()
 
-def add_member_warning(
+async def add_member_warning(
     guild: discord.Guild,
     member: discord.Member,
     moderator: discord.Member,
@@ -30,37 +30,37 @@ def add_member_warning(
         created_at=datetime.now(timezone.utc),
     )
 
-    warning.insert()
+    await warning.insert()
     return warning
 
-def delete_member_warning(
+async def delete_member_warning(
     guild: discord.Guild,
     member: discord.Member,
     case: str,
 ) -> Warning | None:
-    warning = Warning.find_one(
+    warning = await Warning.find_one(
         Warning.guild_id == str(guild.id),
         Warning.user_id == str(member.id),
         Warning.case == case,
-    ).run()
+    )
 
     if warning is None:
         return None
 
-    warning.delete()
+    await warning.delete()
     return warning
 
-def clear_member_warnings(
+async def clear_member_warnings(
     guild: discord.Guild,
     member: discord.Member,
 ) -> bool:
-    warnings = get_member_warnings(guild, member)
+    warnings = await get_member_warnings(guild, member)
 
     if not warnings:
         return False
 
     for warning in warnings:
-        warning.delete()
+        await warning.delete()
 
     return True
 
@@ -75,7 +75,7 @@ class Warn(commands.Cog):
     @discord.option("member", discord.Member, description="The member you want to warn", required=True)
     @discord.option("reason", description="The reason for the warn", required=False)
     async def warn(self, ctx, member: discord.Member, *, reason=None):
-        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
@@ -87,7 +87,7 @@ class Warn(commands.Cog):
 
         reason = reason or "Unspecified"
 
-        warning = add_member_warning(
+        warning = await add_member_warning(
             guild=ctx.guild,
             member=member,
             moderator=ctx.author,
@@ -104,7 +104,7 @@ class Warn(commands.Cog):
         embed.set_author(icon_url=member.avatar.url, name=f"{member} has been warned")
         await ctx.respond(embed=embed)
 
-        dm_fields = Guild.get(str(ctx.guild.id)).run().dashboard.moderation["settings"]["warn"]["dm"]
+        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation["settings"]["warn"]["dm"]
 
         await send_member_dm(
             member=member,
@@ -133,7 +133,7 @@ class Warn(commands.Cog):
             return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
+            await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
             embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.  \n\nNeed help?\n{v.docs}/moderation/warn", color=v.error)
             return await ctx.respond(embed=embed)
 
@@ -156,7 +156,7 @@ class UnWarn(commands.Cog):
     @discord.option("member", discord.Member, description="The member you want to unwarn", required=True)
     @discord.option("case", description="The warn you want to remove", required=True)
     async def unwarn(self, ctx, member: discord.Member, case):
-        allowed, error_message = can_moderate(ctx.guild, ctx.author, member)
+        allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
@@ -166,13 +166,13 @@ class UnWarn(commands.Cog):
                 ephemeral=True,
             )
         
-        warnings = get_member_warnings(guild=ctx.guild, member=member)
+        warnings = await get_member_warnings(guild=ctx.guild, member=member)
         
         if not warnings or warnings is None:
             embed = discord.Embed(title="❌ This user has no warnings", color=v.error)
             return await ctx.respond(embed=embed)
         
-        warning = delete_member_warning(guild=ctx.guild, member=member, case=case)
+        warning = await delete_member_warning(guild=ctx.guild, member=member, case=case)
         # if warn is None:
         #     embed = discord.Embed(title="❌ Failed to get user warnings", color=v.error)
         #     return await ctx.respond(embed=embed)
@@ -185,7 +185,7 @@ class UnWarn(commands.Cog):
         embed.add_field(name="Infraction", value=f"{warning.reason} • `{warning.case}`", inline=False)
         await ctx.respond(embed=embed)
 
-        dm_fields = Guild.get(str(ctx.guild.id)).run().dashboard.moderation["settings"]["warn"]["dm"]
+        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation["settings"]["warn"]["dm"]
 
         await send_member_dm(
             member=member,
@@ -213,7 +213,7 @@ class UnWarn(commands.Cog):
             return await ctx.respond(embed=embed)
 
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(
+            await v.push_notification(
                 ctx.guild,
                 kind="error",
                 title="BobCat is missing permission to unwarn members",
@@ -243,7 +243,7 @@ class Warnings(commands.Cog):
     async def warnings(self, ctx, member: discord.Member = None):
         member = member or ctx.author
 
-        warnings = get_member_warnings(guild=ctx.guild, member=member)
+        warnings = await get_member_warnings(guild=ctx.guild, member=member)
 
         if not warnings:
             embed = discord.Embed(color=v.style(ctx.guild.id))
@@ -283,7 +283,7 @@ class Warnings(commands.Cog):
                 for child in self.children:
                     child.disabled = True
 
-                clear_member_warnings(guild=ctx.guild, member=member)
+                await clear_member_warnings(guild=ctx.guild, member=member)
 
                 cleared_embed = discord.Embed(color=v.style(ctx.guild.id))
                 cleared_embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has no warnings")
@@ -324,7 +324,7 @@ class Warnings(commands.Cog):
             return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
+            await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to warn members", description='Please give BobCat the "Time out Members" permission')
             embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Time out Members` permission.\n\nNeed help?\n{v.docs}/moderation/warn", color=v.error)
             return await ctx.respond(embed=embed)
 

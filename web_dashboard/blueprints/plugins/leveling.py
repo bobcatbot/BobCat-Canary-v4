@@ -46,7 +46,7 @@ async def leaderboard_home(guild_id):
             return redirect(url_for('web.index'))
 
         # Get leveling config from dashboard
-        config = Guild.get(str(guild.id)).run()
+        config = await Guild.get(str(guild.id))
         if config is None:
             await flash('Guild config not found', 'error')
             return redirect(url_for('web.index'))
@@ -74,7 +74,7 @@ async def leaderboard_home(guild_id):
                 return redirect(url_for('web.index'))
 
         # Get leveling data from Leveling collection
-        leveling_users = Leveling.find(Leveling.guild_id == str(guild.id)).run()
+        leveling_users = await Leveling.find(Leveling.guild_id == str(guild.id)).to_list()
         sorted_players = sorted(leveling_users, key=lambda x: x.lvl, reverse=True)
 
         users = []
@@ -121,7 +121,7 @@ async def leaderboard_home(guild_id):
 @leveling_bp.route("/dashboard/<int:guild_id>/leveling")
 @login_required
 async def levelling(guild_id):
-    premium_module(guild_id, 'leveling')
+    await premium_module(guild_id, 'leveling')
     
     current_user = bearer_client().get_current_user()
     
@@ -129,8 +129,8 @@ async def levelling(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    # Get the guild document using Bunnet
-    config = Guild.get(str(guild.id)).run().dashboard.leveling
+    # Get the guild document using Beanie
+    config = (await Guild.get(str(guild.id))).dashboard.leveling
         
     return await render_template(
         "dashboard/plugins/leveling.html",

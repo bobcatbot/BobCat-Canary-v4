@@ -29,7 +29,7 @@ def login_required(f):
     return decorated_function
 
 
-def check_guild_permission(guild, user_id) -> tuple[bool, str]:
+async def check_guild_permission(guild, user_id) -> tuple[bool, str]:
     """Check if user has permission to modify guild settings."""
     try:
         member = guild.get_member(user_id)
@@ -41,7 +41,7 @@ def check_guild_permission(guild, user_id) -> tuple[bool, str]:
             return True, "Owner"
 
         # Get guild config for custom roles
-        config = Guild.get(str(guild.id)).run()
+        config = await Guild.get(str(guild.id))
         if config is None:
             return False, "Guild config not found"
 
@@ -71,28 +71,35 @@ def check_guild_permission(guild, user_id) -> tuple[bool, str]:
 class PremiumModuleError(Exception):
     pass
 
-def is_premium(guild) -> bool:
-    """Single source of truth for premium checks using Bunnet directly."""
+async def is_premium(guild) -> bool:
+    """Single source of truth for premium checks using Beanie directly."""
     guild_id = str(getattr(guild, "id", guild))
-    doc = Guild.get(guild_id).run()
-    
+    doc = await Guild.get(guild_id)
+
     if not doc:
         return False
-    
+
     premium = doc.premium
     return premium.get('status') and premium.get('active')
 
-def premium_module(guild, module):
+async def premium_module(guild, module):
     """Check if a guild has access to a premium module."""
     plug = PLUGIN_LIST.get(module, {})
-    if plug.get('premium') and not is_premium(guild):
+    if plug.get('premium') and not await is_premium(guild):
         raise PremiumModuleError(f"Guild {guild} does not have access to {module}.")
 
 
 # ── GuildModels ───────────────────────────────────────────────────────────────
+async def guild_models(guild: discord.Guild = None) -> "GuildModels":
+    """Async factory so templates (Quart async Jinja) can await premium state."""
+    gm = GuildModels(guild)
+    gm._is_premium = await is_premium(guild) if guild is not None else False
+    return gm
+
 class GuildModels:
     def __init__(self, guild: discord.Guild = None):
         self.guild = guild
+        self._is_premium = False
 
     @property
     def roles(self):
@@ -142,4 +149,4 @@ class GuildModels:
 
     @property
     def isPremium(self):
-        return is_premium(self.guild)
+        return self._is_premium

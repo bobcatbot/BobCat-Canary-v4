@@ -1,10 +1,9 @@
 import asyncio
-import time
 import discord
 import traceback
 import pathlib
-from bunnet import init_bunnet
-from pymongo import MongoClient
+from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 from modules import bot as v
 from modules.models import ALL_MODELS
@@ -13,10 +12,10 @@ from web_dashboard.index import serve_dashboard
 client = v.client
 
 client.shard_uptime = {}
-client.bunnet_initialized = False
+client.beanie_initialized = False
 
 async def initialise_database() -> None:
-    if client.bunnet_initialized:
+    if client.beanie_initialized:
         return
 
     max_attempts = 5
@@ -26,7 +25,7 @@ async def initialise_database() -> None:
         try:
             print(f"🔄 Database connection attempt {attempt}/{max_attempts}...")
 
-            mongo_client = MongoClient(
+            mongo_client = AsyncIOMotorClient(
                 v.mongoURI_db,
                 serverSelectionTimeoutMS=15_000,
                 connectTimeoutMS=15_000,
@@ -34,19 +33,19 @@ async def initialise_database() -> None:
 
             database = mongo_client["Data"]
 
-            init_bunnet(
+            await init_beanie(
                 database=database,
                 document_models=ALL_MODELS,
             )
 
             # Force a real connection test.
-            mongo_client.admin.command("ping")
+            await mongo_client.admin.command("ping")
 
             client.mongo_client = mongo_client
-            client.bunnet_initialized = True
+            client.beanie_initialized = True
 
             print(f"✅ Database connected: {database.name}")
-            print(f"✅ Bunnet initialised with {len(ALL_MODELS)} models")
+            print(f"✅ Beanie initialised with {len(ALL_MODELS)} models")
             return
 
         except Exception as e:
@@ -59,7 +58,7 @@ async def initialise_database() -> None:
 
             delay = base_delay * (2 ** (attempt - 1))
             print(f"⏳ Waiting {delay} seconds before retry...")
-            time.sleep(delay)
+            await asyncio.sleep(delay)
 
 def discover_extensions() -> list[str]:
     cogs_path = pathlib.Path(__file__).parent / "cogs"

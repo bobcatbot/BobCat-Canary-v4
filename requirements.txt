@@ -11,7 +11,8 @@ clipboard
 pychalk
 speedtest-cli
 pymongo
-bunnet
+motor
+beanie
 
 zenora
 requests
