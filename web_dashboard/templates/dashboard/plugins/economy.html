@@ -68,16 +68,27 @@
           </div>
 
           {% for item in data.shop %}
-          <div id="shop-item" class="position-relative shop-item">
+          <div 
+            class="position-relative shop-item shop-item-editable"
+            data-idx="{{ loop.index0 }}"
+            data-name="{{ item.name }}"
+            data-price="{{ item.price }}"
+            data-icon="{{ item.icon }}"
+            data-description="{{ item.description }}"
+            data-type="{{ item.get('type', 'string') }}"
+            data-max-limit="{{ item.max_limit }}"
+          >
+            <button type="button" class="btn-close btn-close-white position-absolute delete-shop-item"
+                    style="top: 4px; right: 4px; z-index: 3;" aria-label="Delete item"></button>
             <div class="info d-flex justify-content-between position-absolute top-0">
-              <p class="m-0" style="width: 59%;overflow: hidden;text-overflow: ellipsis;">{{item.name}}</p>
-              <p class="m-0">Max {{item.max_limit}}</p>
+              <p class="item-name m-0" style="width: 59%;overflow: hidden;text-overflow: ellipsis;">{{ item.name }}</p>
+              <p class="item-max m-0">Max {{ item.max_limit }}</p>
             </div>
-            <div class="d-flex justify-content-center align-items-center h-100">
-              {{item.icon}}
+            <div class="item-icon d-flex justify-content-center align-items-center h-100">
+              {{ item.icon }}
             </div>
             <div class="info d-flex justify-content-center position-absolute bottom-0">
-              <p class="m-0">{{item.price}} {{data.icon}}</p>
+              <p class="item-price m-0">{{ item.price }} {{ data.icon }}</p>
             </div>
           </div>
           {% endfor %}
@@ -124,7 +135,7 @@
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="SubmitShopItem" class="btn btn-blurple" data-bs-dismiss="modal">Save changes</button>
+                <button type="button" id="SubmitShopItem" class="btn btn-blurple">Save changes</button>
               </div>
             </div>
           </div>
@@ -200,14 +211,18 @@
     </section>
 
     <template id="shopItemTemplate">
-      <div class="position-relative shop-item">
+      <div class="position-relative shop-item shop-item-editable"
+           data-idx="" data-name="" data-price="" data-icon=""
+           data-description="" data-type="string" data-max-limit="">
+        <button type="button" class="btn-close btn-close-white position-absolute delete-shop-item"
+                style="top: 4px; right: 4px; z-index: 3;" aria-label="Delete item"></button>
         <div class="info d-flex justify-content-between position-absolute top-0">
-          <p id="ItemName" class="m-0" style="width: 65%;overflow: hidden;text-overflow: ellipsis;"></p>
-          <p id="MaxLimit" class="m-0"></p>
+          <p class="item-name m-0" style="width: 65%;overflow: hidden;text-overflow: ellipsis;"></p>
+          <p class="item-max m-0"></p>
         </div>
-        <div id="ItemIcon" class="d-flex justify-content-center align-items-center h-100"></div>
-        <div id="ItemInfo" class="info d-flex justify-content-center position-absolute bottom-0">
-          <p class="m-0"></p>
+        <div class="item-icon d-flex justify-content-center align-items-center h-100"></div>
+        <div class="info d-flex justify-content-center position-absolute bottom-0">
+          <p class="item-price m-0"></p>
         </div>
       </div>
     </template>
@@ -279,74 +294,188 @@
       show_tost("{{data['name']}}", val)
     })
 
+    // ── Shop item create / edit / delete ─────────────────────────
+    let shopCount = parseInt("{{ data['num_items'] }}") || 0
+    let editingIdx = null   // null = create mode; otherwise the index being edited
+
+    const itemModal = new bootstrap.Modal(document.getElementById('CreateItem'))
+
+    function infoToast(text) {
+      const t = document.getElementById('info-toast')
+      t.querySelector('.toast-body').innerText = text
+      new bootstrap.Toast(t).show()
+    }
+
+    // POST a settings payload and normalise the outcome to { ok, message, data }.
+    async function postSetting(payload) {
+      let res
+      try {
+        res = await fetch("/dashboard/{{guild.id}}/data/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      } catch (err) {
+        return { ok: false, message: 'Network error — check your connection and try again' }
+      }
+      let data = null
+      try { data = await res.json() } catch (e) { /* server returned a non-JSON error page */ }
+      if (!res.ok || (data && data.status === 'error')) {
+        return { ok: false, message: (data && data.message) || ('Request failed (HTTP ' + res.status + ')') }
+      }
+      return { ok: true, data }
+    }
+
+    function setItemModalFields({ name = '', price = 100, icon = '😊', description = '', type = 'string', max_limit = 5 }) {
+      document.querySelector('#name').value = name
+      document.querySelector('#price').value = price
+      document.querySelector('#ShopItemIcon').innerText = icon || '😊'
+      document.querySelector('#desc').value = description
+      document.querySelector('#type').value = type || 'string'
+      document.querySelector('#max-limit').value = max_limit
+    }
+
+    function applyItemToCard(card, itm) {
+      card.dataset.name = itm.name
+      card.dataset.price = itm.price
+      card.dataset.icon = itm.icon
+      card.dataset.description = itm.description
+      card.dataset.type = itm.type
+      card.dataset.maxLimit = itm.max_limit
+      card.querySelector('.item-name').innerText = itm.name
+      card.querySelector('.item-max').innerText = 'Max ' + itm.max_limit
+      card.querySelector('.item-icon').innerText = itm.icon
+      card.querySelector('.item-price').innerText = itm.price + ' ' + '{{ data.icon }}'
+    }
+
+    function renumberShopItems() {
+      document.querySelectorAll('#ShopItems .shop-item-editable').forEach((card, i) => {
+        card.dataset.idx = i
+      })
+      document.querySelector('#CurrentShopLimit').innerText = shopCount + ' / ' + max_shop_limit
+    }
+
     document.querySelector('#CreateShopItem').addEventListener('click', (e) => {
       e.preventDefault()
-      
-      if (parseInt("{{data['num_items']}}") == max_shop_limit) {
-        var t = document.getElementById('info-toast')
-        var body = t.querySelector('.toast-body')
-        body.innerText = 'This is limited to 5 shop items'
-        
-        const toast = new bootstrap.Toast(t)
-        toast.show()
+      if (shopCount >= max_shop_limit) {
+        infoToast('This is limited to ' + max_shop_limit + ' shop items')
         return
       }
-      
-      const modal = new bootstrap.Modal(document.getElementById('CreateItem'))
-      modal.show()
+      editingIdx = null
+      document.querySelector('#CreateItemLabel').innerText = 'Create a shop item'
+      document.querySelector('#SubmitShopItem').innerText = 'Create item'
+      setItemModalFields({})
+      itemModal.show()
     })
-    document.querySelector('#SubmitShopItem').addEventListener('click', (e) => {
+
+    document.querySelector('#ShopItems').addEventListener('click', (e) => {
+      const card = e.target.closest('.shop-item-editable')
+      if (!card) return
+
+      // ── Delete ──────────────────────────────────────────────
+      if (e.target.closest('.delete-shop-item')) {
+        e.stopPropagation()
+        if (!confirm('Delete "' + (card.dataset.name || 'this item') + '" from the shop?')) return
+
+        const idx = parseInt(card.dataset.idx)
+        const remaining = [...document.querySelectorAll('#ShopItems .shop-item-editable')]
+          .filter((c) => parseInt(c.dataset.idx) !== idx)
+          .map((c) => ({
+            name: c.dataset.name,
+            price: parseInt(c.dataset.price),
+            icon: c.dataset.icon,
+            description: c.dataset.description,
+            type: c.dataset.type,
+            max_limit: parseInt(c.dataset.maxLimit),
+          }))
+
+        infoToast('Deleting store item')
+        postSetting({ "economy.shop": remaining }).then((res) => {
+          if (!res.ok) {
+            infoToast('Could not delete item: ' + res.message)
+            return
+          }
+          card.remove()
+          shopCount = Math.max(0, shopCount - 1)
+          renumberShopItems()
+          infoToast('Deleted store item')
+        })
+        return
+      }
+
+      // ── Edit ────────────────────────────────────────────────
+      editingIdx = parseInt(card.dataset.idx)
+      document.querySelector('#CreateItemLabel').innerText = 'Edit shop item'
+      document.querySelector('#SubmitShopItem').innerText = 'Save changes'
+      setItemModalFields({
+        name: card.dataset.name,
+        price: card.dataset.price,
+        icon: card.dataset.icon,
+        description: card.dataset.description,
+        type: card.dataset.type,
+        max_limit: card.dataset.maxLimit,
+      })
+      itemModal.show()
+    })
+
+    document.querySelector('#SubmitShopItem').addEventListener('click', async (e) => {
       e.preventDefault()
 
-      var t = document.getElementById('info-toast')
-      var body = t.querySelector('.toast-body')
-      body.innerText = 'Creating store item'
-      const toast1 = new bootstrap.Toast(t)
-      toast1.show()
+      const name = document.querySelector('#name').value.trim()
+      const price = parseInt(document.querySelector('#price').value, 10)
+      const maxLimit = parseInt(document.querySelector('#max-limit').value, 10)
 
-      var idx = parseInt("{{data['num_items']}}")
-      var itm = {
-        name: document.querySelector('#name').value,
-        price: parseInt(document.querySelector('#price').value),
+      if (!name) {
+        infoToast('Item name is required')
+        return
+      }
+      if (!Number.isInteger(price) || price <= 0) {
+        infoToast('Price must be a whole number greater than 0')
+        return
+      }
+      if (!Number.isInteger(maxLimit) || maxLimit <= 0) {
+        infoToast('Max per player must be a whole number greater than 0')
+        return
+      }
+
+      const itm = {
+        name: name,
+        price: price,
         icon: document.querySelector('#ShopItemIcon').innerText,
         description: document.querySelector('#desc').value,
         type: document.querySelector('#type').value,
-        max_limit: parseInt(document.querySelector('#max-limit').value),
+        max_limit: maxLimit,
       }
 
-      const eco = {}
-      eco[`economy.shop.${idx}`] = itm
-      
-      fetch("/dashboard/{{guild.id}}/data/post", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(eco),
-      })
-        .then(response => response.json())
-        .then(data => {
-          toast1.hide()
-          var t = document.getElementById('info-toast')
-          var body = t.querySelector('.toast-body')
-          body.innerText = 'Created store item'
-          const toast2 = new bootstrap.Toast(t)
-          toast2.show()
-          
-          delete eco[`economy.shop.${idx}`]
+      const isEdit = editingIdx !== null
+      const idx = isEdit ? editingIdx : shopCount
+      const btn = document.querySelector('#SubmitShopItem')
 
-          var clone = document.querySelector('#shopItemTemplate').content.cloneNode(true);
-          // content
-          clone.querySelector('#ItemName').innerText = itm.name
-          clone.querySelector('#MaxLimit').innerText = 'Max ' + itm.max_limit
-          clone.querySelector('#ItemIcon').innerText = itm.icon
-          clone.querySelector('#ItemInfo > p:last-child').innerText = itm.price + ' ' + '{{data.icon}}'
+      infoToast(isEdit ? 'Saving store item' : 'Creating store item')
+      btn.disabled = true
+      const res = await postSetting({ ['economy.shop.' + idx]: itm })
+      btn.disabled = false
 
-          document.querySelector('#ShopItems').appendChild(clone);
+      if (!res.ok) {
+        infoToast((isEdit ? 'Could not save item: ' : 'Could not create item: ') + res.message)
+        return
+      }
 
-          var CurrentShopLimit = document.querySelector('#CurrentShopLimit')
-          const newCurrentShopLimit = parseInt("{{data['num_items']}}") + 1
+      itemModal.hide()
 
-          CurrentShopLimit.innerText = newCurrentShopLimit + ' / ' + max_shop_limit
-        })
+      if (isEdit) {
+        const card = document.querySelector('#ShopItems .shop-item-editable[data-idx="' + idx + '"]')
+        if (card) applyItemToCard(card, itm)
+        infoToast('Saved store item')
+      } else {
+        const clone = document.querySelector('#shopItemTemplate').content.cloneNode(true)
+        applyItemToCard(clone.querySelector('.shop-item-editable'), itm)
+        document.querySelector('#ShopItems').appendChild(clone)
+        shopCount += 1
+        renumberShopItems()
+        infoToast('Created store item')
+      }
+      editingIdx = null
     })
 
     document.querySelector('#MaxGambling').addEventListener('input', (e) => {
@@ -403,9 +532,9 @@
         .then(data => {
 
           if (target == 'shop') {
-            document.querySelectorAll('#shop-item').forEach((item) => {
-              item.remove()
-            })
+            document.querySelectorAll('#ShopItems .shop-item-editable').forEach((item) => item.remove())
+            shopCount = 0
+            renumberShopItems()
           }
         })
     }
@@ -438,6 +567,16 @@
       width: 100%;
       height: 1.5rem;
       background-color: var(--color-card-2);
+    }
+    .shop-item-editable {
+      cursor: pointer;
+    }
+    .shop-item-editable .delete-shop-item {
+      opacity: 0;
+      transition: opacity .15s ease;
+    }
+    .shop-item-editable:hover .delete-shop-item {
+      opacity: 1;
     }
   </style>
 </body>

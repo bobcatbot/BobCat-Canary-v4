@@ -22,7 +22,9 @@ mongo_cdn = os.getenv('mongoURI_cdn')
 # (`style`, `datetimes`). Beanie/motor is async and loop-bound, so it can't be
 # used from the many synchronous call sites (e.g. `discord.Embed(color=v.style(...))`).
 # This is a read-only path; all writes still go through Beanie.
-_sync_guilds = pymongo.MongoClient(mongoURI_db)["Data"]["guilds"]
+_sync_data = pymongo.MongoClient(mongoURI_db)["Data"]
+_sync_guilds = _sync_data["guilds"]
+_sync_notifs = _sync_data["notifications"]
 
 client = commands.AutoShardedBot(
   command_prefix = prefix,
@@ -79,6 +81,14 @@ def datetimes(guild):
         return pytz.timezone(str(timezone_name))
     except pytz.UnknownTimeZoneError:
         return pytz.timezone("Europe/London")
+
+def is_premium_sync(guild) -> bool:
+    """Synchronous premium check for sync-only call sites (GuildModels /
+    async-Jinja templates). Mirrors web_dashboard.utils.is_premium; read-only."""
+    guild_id = str(getattr(guild, "id", guild))
+    doc = _sync_guilds.find_one({"_id": guild_id}, {"premium": 1})
+    premium = (doc or {}).get("premium") or {}
+    return bool(premium.get("status") and premium.get("active"))
 
 _MISSING = object()
 def render_placeholders(text: str, **context) -> str:

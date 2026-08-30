@@ -102,7 +102,6 @@ class TempVoice(commands.Cog):
 
         try:
             await channel.delete()
-            await tempvoice.delete()
         except discord.HTTPException:
             pass
 

@@ -46,7 +46,7 @@
           {{ embed_color_picker('verify-embed-color', data.get('message', {}).get('embed', {}).get('color', '#ffffff'), name='verify_embed_color') }}
 
           <div class="w-100">
-            {{ embed_editor('verify-embed', data.get('message', {}).get('embed', {}), desc_element='textarea', show_icons=True, name_prefix='verify_embed', show_fields=True) }}
+            {{ embed_editor('verify-embed', data.get('message', {}).get('embed', {}), desc_element='textarea', show_icons=True, name_prefix='verify_embed', show_fields=False) }}
 
             <div class="mt-1">
               <button id="btn-preview" class="position-relative btn btn-secondary" style="max-width: 250px;overflow: hidden;text-overflow: ellipsis;">

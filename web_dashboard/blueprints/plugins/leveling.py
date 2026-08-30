@@ -1,13 +1,14 @@
+import discord
 import pymongo
 import logging
 from pathlib import Path
-from quart import Blueprint, flash, jsonify, redirect, render_template, session, url_for, send_from_directory
+from quart import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for, send_from_directory
 
 from modules import bot as v
 from modules.models import Guild, Leveling
 from ...config import mongo_cdn
 from ...db import get_guild
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, check_guild_permission, login_required, premium_module
 
 leveling_bp = Blueprint('leveling', __name__)
 logger = logging.getLogger(__name__)
@@ -37,84 +38,130 @@ async def lvl_card_image(filename):
     return await send_from_directory(RANK_CARD_DIR, filename)
 
 # ── Public leaderboard ────────────────────────────────────────────────────────
-@leveling_bp.route("/leaderboard/<guild_id>")
-async def leaderboard_home(guild_id):
+async def _leaderboard_action(guild, config):
+    """Handle admin POST actions (RemoveBanner / rest_all / reset) from the
+    public leaderboard page. Returns a JSON response tuple."""
+    if "token" not in session:
+        return jsonify({"status": 403, "message": "Not authenticated"}), 403
     try:
-        guild = v.client.get_guild(int(guild_id))
-        if guild is None:
-            await flash('Guild not found', 'error')
-            return redirect(url_for('web.index'))
+        current_user = bearer_client().get_current_user()
+    except Exception:
+        return jsonify({"status": 403, "message": "Not authenticated"}), 403
 
-        # Get leveling config from dashboard
-        config = await Guild.get(str(guild.id))
-        if config is None:
-            await flash('Guild config not found', 'error')
-            return redirect(url_for('web.index'))
+    has_perm, _level = await check_guild_permission(guild, current_user.id)
+    if not has_perm:
+        return jsonify({"status": 403, "message": "Insufficient permissions"}), 403
 
-        lvl_config = config.dashboard.get('leveling', {})
-        leaderboard_config = lvl_config.get('leaderboard', {})
+    body = await request.get_json(silent=True) or {}
+    key = body.get("key")
 
-        # Check if leaderboard is public
-        if not leaderboard_config.get('public', False):
-            if "token" not in session:
-                await flash('You are not allowed to view the leaderboard', 'error')
-                return redirect(url_for('web.index'))
+    if key == "RemoveBanner":
+        config.dashboard.leveling.setdefault("leaderboard", {})["banner"] = ""
+        config.updated_at = discord.utils.utcnow()
+        await config.save()
+        return jsonify({"status": 200, "message": "Banner removed"})
 
-        current_user = None
-        if "token" in session:
-            try:
-                current_user = bearer_client().get_current_user()
-            except Exception:
-                current_user = None
-
-        # Check access for private leaderboards
-        if not leaderboard_config.get('public', False):
-            if not current_user or not guild.get_member(current_user.id):
-                await flash('You are not allowed to view the leaderboard', 'error')
-                return redirect(url_for('web.index'))
-
-        # Get leveling data from Leveling collection
-        leveling_users = await Leveling.find(Leveling.guild_id == str(guild.id)).to_list()
-        sorted_players = sorted(leveling_users, key=lambda x: x.lvl, reverse=True)
-
-        users = []
-        for idx, data in enumerate(sorted_players, start=1):
-            player = v.client.get_user(int(data.user_id))
-            if player:
-                users.append((idx, (player, {
-                    'lvl': data.lvl,
-                    'exp': data.exp,
-                    'msg_count': data.msg_count or 0
-                })))
-
-        # Check guild permissions for the current user
-        gp = False
-        if current_user:
-            member = guild.get_member(current_user.id)
-            if member:
-                if member.guild_permissions.administrator:
-                    gp = {'administrator': True, 'bot_master': False}
-                else:
-                    settings = config.settings
-                    if any(
-                        str(role.id) in settings.get('admin_roles', []) or 
-                        str(role.id) in settings.get('bot_masters', [])
-                        for role in member.roles
-                    ):
-                        gp = {'administrator': False, 'bot_master': True}
-
-        return await render_template(
-            "dashboard/leaderboard.html",
-            user=current_user,
-            guild_permissions=gp,
-            guild=guild,
-            data=lvl_config,
-            users=users
+    if key == "rest_all":
+        result = await Leveling.find(Leveling.guild_id == str(guild.id)).update(
+            {"$set": {"exp": 0, "lvl": 0, "msg_count": 0}}
         )
-    except Exception as e:
-        logger.error(f"Error loading leaderboard for guild {guild_id}: {e}", exc_info=True)
-        await flash('An error occurred loading the leaderboard', 'error')
+        modified = getattr(result, "modified_count", 0)
+        logger.info(f"Leaderboard: {current_user.id} reset all XP for guild {guild.id} ({modified} members)")
+        return jsonify({"status": 200, "message": f"Reset {modified} members"})
+
+    if key == "reset":
+        user_id = str(body.get("user_id") or "")
+        if not user_id:
+            return jsonify({"status": 400, "message": "user_id is required"}), 400
+        doc = await Leveling.get(f"{guild.id}_{user_id}")
+        if doc is not None:
+            doc.exp = 0
+            doc.lvl = 0
+            doc.msg_count = 0
+            await doc.save()
+        logger.info(f"Leaderboard: {current_user.id} reset XP for {user_id} in guild {guild.id}")
+        return jsonify({"status": 200, "message": "Member XP reset"})
+
+    return jsonify({"status": 400, "message": "Unknown action"}), 400
+
+
+@leveling_bp.route("/leaderboard/<guild_id>", methods=["GET", "POST"])
+async def leaderboard_home(guild_id):
+    guild = v.client.get_guild(int(guild_id))
+    if guild is None:
+        if request.method == "POST":
+            return jsonify({"status": 404, "message": "Guild not found"}), 404
+        await flash('Guild not found', 'error')
         return redirect(url_for('web.index'))
+
+    # Get leveling config from dashboard
+    config = await Guild.get(str(guild.id))
+    if config is None:
+        if request.method == "POST":
+            return jsonify({"status": 404, "message": "Guild config not found"}), 404
+        await flash('Guild config not found', 'error')
+        return redirect(url_for('web.index'))
+
+    if request.method == "POST":
+        return await _leaderboard_action(guild, config)
+
+    lvl_config = config.dashboard.leveling
+    leaderboard_config = lvl_config.get('leaderboard', {})
+
+    current_user = None
+    if "token" in session:
+        try:
+            current_user = bearer_client().get_current_user()
+        except Exception:
+            current_user = None
+
+    # Private leaderboards are visible only to logged-in members of the guild
+    if not leaderboard_config.get('public', False):
+        if not current_user or not guild.get_member(current_user.id):
+            await flash('You are not allowed to view the leaderboard', 'error')
+            return redirect(url_for('web.index'))
+
+    # Get leveling data from Leveling collection
+    leveling_users = await Leveling.find(Leveling.guild_id == str(guild.id)).to_list()
+    sorted_players = sorted(leveling_users, key=lambda x: x.lvl, reverse=True)
+
+    users = []
+    rank = 0
+    for data in sorted_players:
+        player = v.client.get_user(int(data.user_id))
+        if not player:
+            continue
+        rank += 1
+        users.append((rank, (player, {
+            'lvl': data.lvl,
+            'exp': data.exp,
+            'msg_count': data.msg_count or 0
+        })))
+
+    # Check guild permissions for the current user
+    gp = False
+    if current_user:
+        member = guild.get_member(current_user.id)
+        if member:
+            if member.guild_permissions.administrator:
+                gp = {'administrator': True, 'bot_master': False}
+            else:
+                settings = config.settings
+                if any(
+                    str(role.id) in settings.get('admin_roles', []) or 
+                    str(role.id) in settings.get('bot_masters', [])
+                    for role in member.roles
+                ):
+                    gp = {'administrator': False, 'bot_master': True}
+
+    return await render_template(
+        "dashboard/leaderboard.html",
+        user=current_user,
+        guild_permissions=gp,
+        guild=guild,
+        data=lvl_config,
+        users=users
+    )
 
 
 # ── Dashboard plugin page ─────────────────────────────────────────────────────

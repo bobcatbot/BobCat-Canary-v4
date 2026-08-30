@@ -55,35 +55,37 @@ class ModKick(commands.Cog):
 
     @kick.error
     async def kick_error(self, ctx, error):
-        original = getattr(error, "original", error)
-
-        if isinstance(original, commands.MissingPermissions):
-            embed = discord.Embed(
-                color=v.error,
-                title="❌ Missing permission", 
-                description="You need the `Kick Members` permission.",
+        if isinstance(error, commands.MissingPermissions):
+            return await ctx.respond(
+                embed=discord.Embed(title="❌ Missing permission", description="You need the `Kick Members` permission.", color=v.error),
+                ephemeral=True
             )
-            return await ctx.respond(embed=embed, ephemeral=True)
 
-        if isinstance(original, commands.BotMissingPermissions):
+        if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
-                ctx.guild, 
-                kind="error", 
+                ctx.guild, kind="error",
                 title="BobCat cannot kick members",
                 description="The kick command failed because BobCat is missing the Kick Members permission.",
+                fix=f"{v.docs}/moderation/kick",
             )
-            embed = discord.Embed(
-                description=(
-                    "❌ I am missing the `Kick Members` permission."
-                    f"\nNeed help?\n{v.docs}/moderation/kick"
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ I am missing the `Kick Members` permission",
+                    description=f"[Permissions Help]({v.docs}/moderation/kick)",
+                    color=v.error,
                 ),
-                color=v.error,
+                ephemeral=True
             )
-            return await ctx.respond(embed=embed, ephemeral=True)
 
-        embed = discord.Embed(title="❌ Kick command failed", description="An unexpected error occurred.", color=v.error)
-        await ctx.respond(embed=embed, ephemeral=True)
-        raise original
+        await ctx.respond(
+            embed=discord.Embed(
+                title="❌ Command failed",
+                description="An unexpected error occurred. Please try again.",
+                color=v.error,
+            ),
+            ephemeral=True,
+        )
+        raise error
 
 def setup(client):
     client.add_cog(ModKick(client))

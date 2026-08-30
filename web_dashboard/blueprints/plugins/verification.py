@@ -31,6 +31,7 @@ async def verify(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/publish", methods=['POST'])
+@login_required
 async def verify_publish(guild_id):
     """Publish or update the verification message."""
     guild = v.client.get_guild(guild_id)
@@ -209,6 +210,7 @@ async def verify_publish(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/unpublish", methods=['POST'])
+@login_required
 async def verify_unpublish(guild_id):
     """Delete the verification message."""
     guild = v.client.get_guild(guild_id)
@@ -255,6 +257,7 @@ async def verify_unpublish(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/update", methods=['POST'])
+@login_required
 async def verify_update(guild_id):
     """Update a specific verification setting."""
     data = await request.get_json()

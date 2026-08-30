@@ -172,7 +172,7 @@
       }
     });
     
-    var required_fields = ['name', 'channel_id', 'prize', 'winner_count', 'end_epoch', 'embed.desc'];
+    var required_fields = ['name', 'channel_id', 'prize', 'winners', 'time.epoch'];
     const save_data = new Proxy({}, {
       set(target, key, value) {
         target[key] = value;
@@ -254,7 +254,7 @@
 
     const gwayWinnersInput = document.querySelector('#gway-winners');
     gwayWinnersInput.addEventListener('input', (e) => {
-      save_data['winner_count'] = e.target.value
+      save_data['winners'] = e.target.value
     })
 
     const gwayDateInput = document.querySelector('#datetimepicker1').querySelector('input');
@@ -272,31 +272,32 @@
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
-      save_data['end_epoch'] = toTimestamp(e.target.value)
-      save_data['end_timestamp'] = formatDateTime(e.target.value)
+      save_data['time.epoch'] = toTimestamp(e.target.value)
+      save_data['time.timestamp'] = formatDateTime(e.target.value)
     })
 
-    // givexp
+    // give_xp
     const giveExpInput = document.querySelector('#gway-givexp');
     const giveExpAmount = document.querySelector('.gway-givexp-amount');
     giveExpInput.addEventListener('change', (e) => {
       giveExpAmount.classList.toggle('d-none')
-      save_data['giveexp.enabled'] = e.target.checked
+      save_data['give_xp.enabled'] = e.target.checked
     })
 
-    giveExpAmount.addEventListener('input', (e) => {
-      save_data['giveexp.amount'] = e.target.value
+    document.querySelector('#gway-givexp-amount').addEventListener('input', (e) => {
+      save_data['give_xp.amount'] = e.target.value
     })
 
-    // givecoins
+    // give_coins
     const giveCoinsInput = document.querySelector('#gway-givecoins');
     const giveCoinsAmount = document.querySelector('.gway-givecoins-amount');
-    giveCoinsInput.addEventListener('input', (e) => {
-      save_data['givecoins.enabled'] = e.target.value
+    giveCoinsInput.addEventListener('change', (e) => {
+      giveCoinsAmount.classList.toggle('d-none')
+      save_data['give_coins.enabled'] = e.target.checked
     })
 
-    giveCoinsAmount.addEventListener('input', (e) => {
-      save_data['givecoins.amount'] = e.target.value
+    document.querySelector('#gway-givecoins-amount').addEventListener('input', (e) => {
+      save_data['give_coins.amount'] = e.target.value
     })
 
     /* Embed message */

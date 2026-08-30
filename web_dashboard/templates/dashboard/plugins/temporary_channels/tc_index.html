@@ -55,11 +55,46 @@
         <hr>
         
         {% if data['hubs'] == [] %}
-        <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
-          <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 300px;">
-          <p class="m-0 mt-2">You dont have hubs created yet.</p>
+        <div class="d-flex flex-column justify-content-center align-items-center user-select-none py-4">
+          <svg class="tc-empty-art" width="420" height="220" viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No temporary voice channels yet">
+            <!-- backdrop -->
+            <circle cx="210" cy="170" r="140" fill="#5865f2" opacity="0.06"/>
+            <circle cx="210" cy="170" r="140" stroke="#3f3d56" stroke-opacity="0.12" stroke-width="2"/>
+            <ellipse cx="210" cy="272" rx="126" ry="13" fill="#3f3d56" opacity="0.08"/>
+            <!-- floating accents -->
+            <rect x="52" y="70" width="12" height="12" rx="3" fill="#5865f2" transform="rotate(20 58 76)"/>
+            <circle cx="364" cy="170" r="6" fill="none" stroke="#5865f2" stroke-width="3"/>
+            <path d="M64 236h14M71 229v14" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="350" cy="250" r="4" fill="#3f3d56" opacity="0.35"/>
+            <!-- panel behind -->
+            <rect x="112" y="78" width="210" height="140" rx="14" fill="#4b52c9" opacity="0.45" transform="rotate(5 217 148)"/>
+            <!-- channel list panel -->
+            <g transform="rotate(-3 210 167)">
+              <rect x="96" y="92" width="228" height="150" rx="16" fill="#5865f2"/>
+              <!-- row 1 -->
+              <path d="M120 112h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.9"/>
+              <path d="M143 108a12 12 0 0 1 0 16" stroke="#ffffff" stroke-opacity="0.9" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <rect x="160" y="110" width="128" height="10" rx="5" fill="#ffffff" opacity="0.9"/>
+              <!-- row 2 -->
+              <path d="M120 148h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.55"/>
+              <rect x="160" y="146" width="96" height="10" rx="5" fill="#ffffff" opacity="0.55"/>
+              <!-- row 3 -->
+              <path d="M120 184h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.4"/>
+              <rect x="160" y="182" width="112" height="10" rx="5" fill="#ffffff" opacity="0.4"/>
+            </g>
+            <!-- hero speaker badge -->
+            <circle cx="300" cy="104" r="34" fill="#ffffff"/>
+            <path d="M286 104h9l14-11v22l-14-11h-9z" fill="#5865f2"/>
+            <path d="M316 92a17 17 0 0 1 0 24" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M324 84a30 30 0 0 1 0 40" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+            <!-- temporary clock badge -->
+            <circle cx="298" cy="230" r="19" fill="#ffffff"/>
+            <path d="M298 230v-11M298 230h9" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <p class="m-0 mt-3 fs-4">You dont have hubs created yet.</p>
         </div>
         {% endif %}
+        
         {% if data['hubs'] != [] %}
         <div class="search-container">
           <i class="bi bi-search"></i>
@@ -147,7 +182,89 @@
     {% endif %}
     {% endwith %}
   </main>
+  
+  <script>
+    var toastFlash = document.getElementById('toastFlash')
+    if (toastFlash) {
+      setTimeout(function() {
+        toastFlash.classList.remove('show')
+      }, parseInt(toastFlash.dataset.autohide));
+    }
 
+    document.addEventListener('DOMContentLoaded', (e) => {
+      var formCount = document.querySelector('#form-count');
+      var formMaxCount = document.querySelector('#form-max-count');
+      var createButton = document.querySelector('#create-hub-btn');
+
+      if (formCount.innerText >= formMaxCount.innerText) {
+        formCount.classList.add('text-danger');
+
+        // find the create ticket button and remove href
+        createButton.href = null;
+        createButton.setAttribute('data-bs-toggle', 'modal');
+        createButton.setAttribute('data-bs-target', '#MaxHubLimit');
+      } else {
+        formCount.classList.remove('text-danger');
+
+        // find the create ticket button and add href
+        createButton.href = 'ticketing/creation';
+        createButton.removeAttribute('data-bs-toggle');
+        createButton.removeAttribute('data-bs-target');
+      }
+    })
+
+
+    document.querySelector('#tc-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "temporary_channels.status": e.target.checked }),
+      });
+    })
+
+    // search
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const search = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card) => {
+          const title = card.querySelector('.title h5').textContent.toLowerCase();
+          card.style.display = title.includes(search) ? 'block' : 'none';
+        });
+      });
+    }
+
+    document.querySelectorAll('#delete-hub-modal').forEach(button => {
+      button.addEventListener('click', function(event) {
+        // Prevent the default action (navigation)
+        event.stopPropagation();
+        event.preventDefault();
+      });
+    });
+
+
+    document.querySelectorAll('#delete-hub').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        const hubId = e.target.closest('button').dataset.id;
+
+        fetch(`/dashboard/{{guild.id}}/temporary-channels/${hubId}/delete`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "id": hubId })
+        })
+        .then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            console.error("Failed to delete");
+          }
+        })
+        .catch(error => console.error("Error:", error));
+      });
+    });
+  </script>
+  
   <style>
     .search-container {
       display: flex;
@@ -205,85 +322,5 @@
       flex-wrap: wrap;
     }
   </style>
-
-  <script>
-    var toastFlash = document.getElementById('toastFlash')
-    if (toastFlash) {
-      setTimeout(function() {
-        toastFlash.classList.remove('show')
-      }, parseInt(toastFlash.dataset.autohide));
-    }
-
-    document.addEventListener('DOMContentLoaded', (e) => {
-      var formCount = document.querySelector('#form-count');
-      var formMaxCount = document.querySelector('#form-max-count');
-      var createButton = document.querySelector('#create-hub-btn');
-
-      if (formCount.innerText >= formMaxCount.innerText) {
-        formCount.classList.add('text-danger');
-
-        // find the create ticket button and remove href
-        createButton.href = null;
-        createButton.setAttribute('data-bs-toggle', 'modal');
-        createButton.setAttribute('data-bs-target', '#MaxHubLimit');
-      } else {
-        formCount.classList.remove('text-danger');
-
-        // find the create ticket button and add href
-        createButton.href = 'ticketing/creation';
-        createButton.removeAttribute('data-bs-toggle');
-        createButton.removeAttribute('data-bs-target');
-      }
-    })
-
-
-    document.querySelector('#tc-status').addEventListener('change', (e) => {
-      fetch("/dashboard/{{guild.id}}/data/post", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ "temporary_channels.status": e.target.checked }),
-      });
-    })
-
-    // search
-    document.querySelector('#search').addEventListener('input', (e) => {
-      const search = e.target.value.toLowerCase();
-      const cards = document.querySelectorAll('.card');
-      cards.forEach((card) => {
-        const title = card.querySelector('.title h5').textContent.toLowerCase();
-        card.style.display = title.includes(search) ? 'block' : 'none';
-      });
-    });
-
-    document.querySelectorAll('#delete-hub-modal').forEach(button => {
-      button.addEventListener('click', function(event) {
-        // Prevent the default action (navigation)
-        event.stopPropagation();
-        event.preventDefault();
-      });
-    });
-
-
-    document.querySelectorAll('#delete-hub').forEach((button) => {
-      button.addEventListener('click', (e) => {
-        const hubId = e.target.closest('button').dataset.id;
-
-        fetch(`/dashboard/{{guild.id}}/temporary-channels/${hubId}/delete`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "id": hubId })
-        })
-        .then(response => {
-          if (response.ok) {
-            window.location.reload();
-          } else {
-            console.error("Failed to delete");
-          }
-        })
-        .catch(error => console.error("Error:", error));
-      });
-    });
-  </script>
-  
 </body>
 </html>

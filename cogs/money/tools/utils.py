@@ -2,12 +2,17 @@ import asyncio
 from typing import Optional, Dict, Any, List, Tuple, Union
 from modules.models import Guild, Economy
 
+# Fallback currency icon when the guild hasn't set one on the dashboard
+DEFAULT_CURRENCY_ICON = "🪙"
+# Fallback icon for shop items without one
+DEFAULT_ITEM_ICON = "📦"
+
 # Default shop items
 mainshop = [
-    {"name": "Teddy", "price": 50, "description": "Very soft cuddly teddy bear", "max_limit": 5},
-    {"name": "Watch", "price": 100, "description": "A thing to tell the time", "max_limit": 5},
-    {"name": "Phone", "price": 500, "description": "A phone", "max_limit": 5},
-    {"name": "Laptop", "price": 1000, "description": "A nice laptop for work and play", "max_limit": 5},
+    {"name": "Teddy", "price": 50, "description": "Very soft cuddly teddy bear", "max_limit": 5, "icon": "🧸"},
+    {"name": "Watch", "price": 100, "description": "A thing to tell the time", "max_limit": 5, "icon": "⌚"},
+    {"name": "Phone", "price": 500, "description": "A phone", "max_limit": 5, "icon": "📱"},
+    {"name": "Laptop", "price": 1000, "description": "A nice laptop for work and play", "max_limit": 5, "icon": "💻"},
 ]
 
 def _get_economy_id(guild_id: Union[int, str], user_id: Union[int, str]) -> str:
@@ -32,6 +37,17 @@ async def get_shop(guild) -> List[dict]:
     except Exception as e:
         print(f"Error getting shop for guild {guild.id}: {e}")
         return mainshop
+
+async def get_currency_icon(guild) -> str:
+    """Return the guild's configured currency icon, or a coin emoji fallback."""
+    try:
+        doc = await Guild.get(str(guild.id))
+        if doc is None:
+            return DEFAULT_CURRENCY_ICON
+        return doc.dashboard.economy.get("icon") or DEFAULT_CURRENCY_ICON
+    except Exception as e:
+        print(f"Error getting currency icon for guild {guild.id}: {e}")
+        return DEFAULT_CURRENCY_ICON
 
 async def get_user_items(guild, member) -> List[Dict[str, Any]]:
     """Return the user's inventory (bag)."""
@@ -139,7 +155,7 @@ async def buy_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int,
         if user is None:
             return (False, "Failed to retrieve account")
         
-        if user.wallet < cost:
+        if user.wallet + user.bank < cost:
             return (False, 4, cost)
         
         item_found = False
@@ -155,7 +171,10 @@ async def buy_this(guild, member, item: str, amt: int) -> Tuple[bool, Union[int,
         if not item_found:
             user.bag.append({"item": item, "amount": amt})
         
-        user.wallet -= cost
+        # Spend from the wallet first, then cover any shortfall from the bank.
+        from_wallet = min(user.wallet, cost)
+        user.wallet -= from_wallet
+        user.bank -= (cost - from_wallet)
         await user.save()
         return (True, "Worked")
     

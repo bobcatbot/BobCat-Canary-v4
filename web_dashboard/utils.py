@@ -90,16 +90,9 @@ async def premium_module(guild, module):
 
 
 # ── GuildModels ───────────────────────────────────────────────────────────────
-async def guild_models(guild: discord.Guild = None) -> "GuildModels":
-    """Async factory so templates (Quart async Jinja) can await premium state."""
-    gm = GuildModels(guild)
-    gm._is_premium = await is_premium(guild) if guild is not None else False
-    return gm
-
 class GuildModels:
     def __init__(self, guild: discord.Guild = None):
         self.guild = guild
-        self._is_premium = False
 
     @property
     def roles(self):
@@ -149,4 +142,4 @@ class GuildModels:
 
     @property
     def isPremium(self):
-        return self._is_premium
+        return v.is_premium_sync(self.guild)

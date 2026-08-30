@@ -8,7 +8,10 @@ class Ban(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.slash_command(name="ban", description="Bans a member from the server")
+    @commands.slash_command(
+        name="ban", 
+        description="Bans a member from the server"
+    )
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_guild_permissions(ban_members=True)
     @discord.option("member", discord.Member, description="The member you want to ban", required=True)
@@ -19,7 +22,7 @@ class Ban(commands.Cog):
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ Mute failed",
+                    title="❌ Ban failed",
                     description=error_message,
                     color=v.error,
                 ),
@@ -81,50 +84,37 @@ class Ban(commands.Cog):
 
     @ban.error
     async def ban_error(self, ctx, error):
-        original = getattr(error, "original", error)
-
-        if isinstance(original, commands.MissingPermissions):
+        if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(
-                    title="❌ Missing permission",
-                    description=(
-                        "You need the `Ban Members` permission."
-                    ),
-                    color=v.error,
-                ),
-                ephemeral=True,
+                embed=discord.Embed(title="❌ Missing permission", description="You need the `Ban Members` permission.", color=v.error),
+                ephemeral=True
             )
 
-        if isinstance(original, commands.BotMissingPermissions):
+        if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
-                ctx.guild, kind="error", title="BobCat cannot ban members",
+                ctx.guild, kind="error",
+                title="BobCat cannot ban members",
                 description="The ban command failed because BobCat is missing the Ban Members permission.",
+                fix=f"{v.docs}/moderation/ban",
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    description=(
-                        "❌ I am missing the `Ban Members` permission."
-                        f"\n\nNeed help?\n{v.docs}/moderation/ban"
-                    ),
+                    title="❌ I am missing the `Ban Members` permission",
+                    description=f"[Permissions Help]({v.docs}/moderation/ban)",
                     color=v.error,
                 ),
-                ephemeral=True,
+                ephemeral=True
             )
 
-        if isinstance(original, discord.Forbidden):
-            return await ctx.respond(
-                embed=discord.Embed(
-                    title="❌ Ban failed",
-                    description=(
-                        "I could not ban that user. Check my role "
-                        "position and permissions."
-                    ),
-                    color=v.error,
-                ),
-                ephemeral=True,
-            )
-
-        raise original
+        await ctx.respond(
+            embed=discord.Embed(
+                title="❌ Command failed",
+                description="An unexpected error occurred. Please try again.",
+                color=v.error,
+            ),
+            ephemeral=True,
+        )
+        raise error
 
 class UnBan(commands.Cog):
     def __init__(self, client):
@@ -136,24 +126,9 @@ class UnBan(commands.Cog):
     )
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_guild_permissions(ban_members=True)
-    @discord.option(
-        "user_id",
-        str,
-        description="The ID of the user you want to unban",
-        required=True,
-    )
-    @discord.option(
-        "reason",
-        str,
-        description="The reason for the unban",
-        required=False,
-    )
-    async def unban(
-        self,
-        ctx: discord.ApplicationContext,
-        user_id: str,
-        reason: str = None,
-    ):
+    @discord.option("user_id", str, description="The ID of the user you want to unban", required=True)
+    @discord.option("reason", str, description="The reason for the unban", required=False)
+    async def unban(self, ctx: discord.ApplicationContext, user_id: str, reason: str = None):
         try:
             parsed_user_id = int(user_id.strip())
         except (TypeError, ValueError):
@@ -163,7 +138,7 @@ class UnBan(commands.Cog):
                     description="Please provide a valid Discord user ID.",
                     color=v.error,
                 ),
-                ephemeral=True,
+                ephemeral=True
             )
 
         banned_user = None
@@ -182,7 +157,7 @@ class UnBan(commands.Cog):
                     ),
                     color=v.error,
                 ),
-                ephemeral=True,
+                ephemeral=True
             )
 
         if banned_user is None:
@@ -192,7 +167,7 @@ class UnBan(commands.Cog):
                     description="That user is not currently banned.",
                     color=v.error,
                 ),
-                ephemeral=True,
+                ephemeral=True
             )
 
         reason = reason or "Unspecified"
@@ -207,83 +182,49 @@ class UnBan(commands.Cog):
             description=f"**Reason:** {reason}",
             color=v.style(ctx.guild),
         )
-        embed.set_author(
-            icon_url=banned_user.display_avatar.url,
-            name=f"{banned_user} has been unbanned",
-        )
+        embed.set_author(icon_url=banned_user.display_avatar.url, name=f"{banned_user} has been unbanned")
         await ctx.respond(embed=embed)
 
-        logs = discord.Embed(
-            color=v.style(ctx.guild),
-        )
-        logs.set_author(
-            icon_url=banned_user.display_avatar.url,
-            name=f"[UNBAN] {banned_user}",
-        )
-        logs.add_field(
-            name="User",
-            value=f"{banned_user} (`{banned_user.id}`)",
-            inline=True,
-        )
-        logs.add_field(
-            name="Moderator",
-            value=ctx.author.mention,
-            inline=True,
-        )
-        logs.add_field(
-            name="Reason",
-            value=reason,
-            inline=False,
-        )
-        await audit_log(
-            ctx,
-            "ModerationUnban",
-            logs,
-        )
+        logs = discord.Embed(color=v.style(ctx.guild))
+        logs.set_author(icon_url=banned_user.display_avatar.url, name=f"[UNBAN] {banned_user}")
+        logs.add_field(name="User", value=f"{banned_user}", inline=True)
+        logs.add_field(name="Moderator", value=ctx.author.mention, inline=True)
+        logs.add_field(name="Reason", value=reason, inline=False)
+        await audit_log(ctx, "ModerationUnban", logs)
 
     @unban.error
     async def unban_error(self, ctx, error):
-        original = getattr(error, "original", error)
-
-        if isinstance(original, commands.MissingPermissions):
+        if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(
-                    title="❌ Missing permission",
-                    description=(
-                        "You need the `Ban Members` permission."
-                    ),
-                    color=v.error,
-                ),
-                ephemeral=True,
+                embed=discord.Embed(title="❌ Missing permission", description="You need the `Ban Members` permission.", color=v.error),
+                ephemeral=True
             )
 
-        if isinstance(original, commands.BotMissingPermissions):
+        if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
-                ctx.guild,
-                kind="error",
+                ctx.guild, kind="error",
                 title="BobCat cannot unban members",
-                description=(
-                    "The unban command failed because BobCat is "
-                    "missing the Ban Members permission."
-                ),
-                fix=(
-                    "Give BobCat the Ban Members permission."
-                ),
+                description="The unban command failed because BobCat is missing the Ban Members permission.",
+                fix=f"{v.docs}/moderation/unban",
             )
-
             return await ctx.respond(
                 embed=discord.Embed(
-                    description=(
-                        "❌ I am missing the `Ban Members` "
-                        "permission.\n\n"
-                        f"Need help?\n{v.docs}/moderation/unban"
-                    ),
+                    title="❌ I am missing the `Ban Members` permission",
+                    description=f"[Permissions Help]({v.docs}/moderation/unban)",
                     color=v.error,
                 ),
-                ephemeral=True,
+                ephemeral=True
             )
 
-        raise original
+        await ctx.respond(
+            embed=discord.Embed(
+                title="❌ Command failed",
+                description="An unexpected error occurred. Please try again.",
+                color=v.error,
+            ),
+            ephemeral=True,
+        )
+        raise error
 
 def setup(client):
     client.add_cog(Ban(client))

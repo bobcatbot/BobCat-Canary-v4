@@ -17,7 +17,7 @@
         <img 
           id="hero-image"
           class="img-fluid hero-img"
-          src="{{guild.icon.url}}"
+          src="{{ guild.icon.url if guild.icon else '' }}"
           alt="Server Icon"
           style="position: absolute;z-index: 5;bottom: -74px;left: 50%;transform: translateX(-50%);"
         >
@@ -25,7 +25,7 @@
         <img 
           id="hero-image"
           class="img-fluid hero-img no-banner"
-          src="{{guild.icon.url}}"
+          src="{{ guild.icon.url if guild.icon else '' }}"
           alt="Server Icon"
         >
         {% endif %}
@@ -87,7 +87,7 @@
                           </div>
                           <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" id="user-rest-xp" class="btn btn-danger" data-index="{{loop.index}}" data-player="{{player.id}}">Yes</button>
+                            <button type="button" class="user-rest-xp btn btn-danger" data-index="{{loop.index}}" data-player="{{player.id}}">Yes</button>
                           </div>
                         </div>
                       </div>
@@ -211,7 +211,7 @@
       })
     })
 
-    document.querySelectorAll('#user-rest-xp').forEach(btn => {
+    document.querySelectorAll('.user-rest-xp').forEach(btn => {
       btn.addEventListener('click', () => {
         var user = btn.dataset.player;
         console.log(user);

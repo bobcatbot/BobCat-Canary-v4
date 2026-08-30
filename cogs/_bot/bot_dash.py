@@ -215,14 +215,12 @@ class GuildEvents(commands.Cog):
         if doc is None:
             return
 
-        # Safely get the leveling config
-        leveling_config = getattr(doc.dashboard, "leveling", {})
-        if not leveling_config.get("auto_reset", False):
+        if not doc.dashboard.leveling.get("auto_reset", False):
             return
 
-        lvl = await LevelingModel.get(f"{member.guild.id}_{member.id}")
-        if lvl is not None:
-            await lvl.delete()
+        await LevelingModel.find(
+            {"_id": f"{member.guild.id}_{member.id}"}
+        ).delete()
 
 def setup(client):
     client.add_cog(GuildEvents(client))

@@ -38,7 +38,7 @@
     "db_key": "starboard",
     "icon": "star",
     "url": "starboard",
-    "badge": "",
+    "badge": "new",
     "category": "utilities",
     "premium": false,
     "status": false
@@ -75,7 +75,7 @@
     "db_key": "ticketing",
     "icon": "forum",
     "url": "ticketing",
-    "badge": "new",
+    "badge": "prem",
     "category": "utilities",
     "premium": true,
     "status": false,
@@ -88,7 +88,7 @@
     "db_key": "stats",
     "icon": "insights",
     "url": "stats",
-    "badge": "prem-beta",
+    "badge": "prem",
     "category": "utilities",
     "premium": true,
     "status": false,
@@ -121,15 +121,15 @@
   "giveaway": { 
     "title": "Giveaways",
     "description": "Launch giveaways and lotteries in your server in one click",
-    "db_key": "giveaway",
+    "db_key": "giveaways",
     "icon": "casino",
     "url": "giveaways",
     "badge": "beta",
     "category": "fun",
     "premium": false,
     "status": false,
-    "max": 100,
-    "max_premium": 200
+    "max": 50,
+    "max_premium": 100
   },
   "economy": {
     "title": "Economy",

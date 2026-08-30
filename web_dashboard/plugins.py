@@ -13,10 +13,10 @@ def fetch_plugins(dash):
   result = PLUGIN_LIST
   
   if dash is not None:
-    for item, plugin in result.items():
-      # Use getattr for Pydantic model attribute access
-      plug_config = getattr(dash, item, None)
-      if plug_config is not None and isinstance(plug_config, dict):
+    for plugin in result.values():
+      # DashConfig fields are named by db_key, not the plugin list key
+      plug_config = getattr(dash, plugin['db_key'], None)
+      if isinstance(plug_config, dict):
         plugin['status'] = plug_config.get('status', False)
       else:
         plugin['status'] = False

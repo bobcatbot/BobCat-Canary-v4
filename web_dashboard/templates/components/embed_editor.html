@@ -106,7 +106,7 @@
 {% endmacro %}
 
 {% macro embed_preview(embed) %}
-<div class="embed">
+<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color', '#ffffff') }};">
   <div class="e-bdFBtt">
     {% if embed.get('author', {}).get('name') %}
     <div class="author">

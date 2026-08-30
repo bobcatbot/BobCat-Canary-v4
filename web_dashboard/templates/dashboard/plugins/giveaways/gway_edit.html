@@ -22,13 +22,16 @@
   <main id="main" class="main">
     <div class="pagetitle plugin">
       <div>
-        <h1 class="em-title">Create new giveaway</h1>
+        <h1 class="em-title">Edit giveaway{% if data.status == 'Draft' %} <span class="badge bg-secondary align-middle">Draft</span>{% endif %}</h1>
       </div>
 
       <div class="buttons">
         <button type="button" id="delete" class="btn btn-danger"><i class="bi bi-trash  mr-1"></i> Delete</button>
         <button type="button" id="discard-btn" class="btn btn-secondary">Discard</button>
-        <button type="button" id="save-btn" class="btn btn-blurple">Save</button>
+        <button type="button" id="save-btn" class="btn {% if data.status == 'Draft' %}btn-secondary{% else %}btn-blurple{% endif %}">Save</button>
+        {% if data.status == 'Draft' %}
+        <button type="button" id="publish-btn" class="btn btn-blurple">Publish</button>
+        {% endif %}
       </div>
     </div>
 
@@ -206,6 +209,44 @@
         })
     })
 
+    document.querySelector('#delete').addEventListener('click', (e) => {
+      if (!confirm("Delete this giveaway? This cannot be undone.")) return;
+      fetch("delete", {
+        method: "DELETE",
+        headers: {"Content-Type": "application/json"},
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status == 'success') {
+            window.location.href = '/dashboard/{{guild.id}}/giveaways'
+          } else {
+            alert(data.message || 'Failed to delete')
+          }
+        })
+    })
+
+    const publishBtn = document.querySelector('#publish-btn');
+    if (publishBtn) {
+      publishBtn.addEventListener('click', (e) => {
+        publishBtn.disabled = true;
+        // pending edits ride along with the publish request
+        fetch("publish", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ ...save_data }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status == 'success') {
+              window.location.href = '/dashboard/{{guild.id}}/giveaways'
+            } else {
+              publishBtn.disabled = false;
+              alert(data.message || 'Failed to publish')
+            }
+          })
+      })
+    }
+
     // Name
     const gwayNameInput = document.querySelector('#gwayname-name');
     gwayNameInput.addEventListener('input', (e) => {
@@ -239,7 +280,7 @@
       var datetime = new Intl.DateTimeFormat('en-US', { 
         day: '2-digit', month: '2-digit', year: '2-digit', 
         hour: '2-digit', minute: '2-digit', hour12: false 
-      }).format(new Date('{{data["epoch_end"]}}' * 1000))
+      }).format(new Date('{{data["end_epoch"]}}' * 1000))
 
       gwayDateInput.value = datetime
     })
@@ -257,8 +298,8 @@
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
-      save_data['end_epoch'] = toTimestamp(e.target.value)
-      save_data['end_timestamp'] = formatDateTime(e.target.value)
+      save_data['time.epoch'] = toTimestamp(e.target.value)
+      save_data['time.timestamp'] = formatDateTime(e.target.value)
     })
 
     // GiveEXP
@@ -271,11 +312,11 @@
 
     giveExpInput.addEventListener('change', (e) => {
       giveExpAmount.classList.toggle('d-none')
-      save_data['giveexp.enabled'] = e.target.checked
+      save_data['give_xp.enabled'] = e.target.checked
     })
 
-    giveExpAmount.addEventListener('input', (e) => {
-      save_data['giveexp.amount'] = e.target.value
+    document.querySelector('#gway-givexp-amount').addEventListener('input', (e) => {
+      save_data['give_xp.amount'] = e.target.value
     })
 
     // GiveCoins
@@ -286,17 +327,18 @@
       giveCoinsAmount.classList.toggle('d-none', !giveCoinsInput.checked)
     })
 
-    giveCoinsInput.addEventListener('input', (e) => {
-      save_data['givecoins.enabled'] = e.target.value
+    giveCoinsInput.addEventListener('change', (e) => {
+      giveCoinsAmount.classList.toggle('d-none')
+      save_data['give_coins.enabled'] = e.target.checked
     })
 
-    giveCoinsAmount.addEventListener('input', (e) => {
-      save_data['givecoins.amount'] = e.target.value
+    document.querySelector('#gway-givecoins-amount').addEventListener('input', (e) => {
+      save_data['give_coins.amount'] = e.target.value
     })
 
     /* Embeds */
     const embedDesc = document.querySelector('#gway_embed_desc');
-    embedDesc.addEventListener('click', (e) => {
+    embedDesc.addEventListener('input', (e) => {
       save_data['embed.desc'] = e.target.value
     })
   </script>

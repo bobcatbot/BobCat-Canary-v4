@@ -10,8 +10,8 @@ class ModClear(commands.Cog):
         name="clear",
         description="Clears a certain number of messages",
     )
-    @commands.bot_has_guild_permissions(manage_messages=True)
     @commands.has_permissions(manage_messages=True)
+    @commands.bot_has_guild_permissions(manage_messages=True)
     @discord.option(
         "amount",
         int,
@@ -20,11 +20,7 @@ class ModClear(commands.Cog):
         min_value=1,
         max_value=150,
     )
-    async def clear(
-        self,
-        ctx: discord.ApplicationContext,
-        amount: int,
-    ):
+    async def clear(self, ctx: discord.ApplicationContext, amount: int):
         await ctx.defer(ephemeral=True)
 
         deleted = await ctx.channel.purge(
@@ -41,44 +37,35 @@ class ModClear(commands.Cog):
 
     @clear.error
     async def clear_error(self, ctx, error):
-        original = getattr(error, "original", error)
-
-        if isinstance(original, commands.MissingPermissions):
-            embed = discord.Embed(
-                title="❌ Missing permission",
-                description="You need the `Manage Messages` permission.",
-                color=v.error,
-            )
+        if isinstance(error, commands.MissingPermissions):
+            embed = discord.Embed(title="❌ Missing permission", description="You need the `Manage Messages` permission.", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
 
-        if isinstance(original, commands.BotMissingPermissions):
+        if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
-                ctx.guild,
-                kind="error",
+                ctx.guild, kind="error",
                 title="BobCat cannot manage messages",
-                description=(
-                    "The clear command failed because BobCat is missing "
-                    "the Manage Messages permission."
+                description="The clear command failed because BobCat is missing the Manage Messages permission.",
+                fix=f"{v.docs}/moderation/clear",
+            )
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ I am missing the `Manage Messages` permission",
+                    description=f"[Permissions Help]({v.docs}/moderation/clear)",
+                    color=v.error,
                 ),
+                ephemeral=True
             )
 
-            embed = discord.Embed(
-                description=(
-                    "❌ I am missing the `Manage Messages` permission."
-                    f"\nNeed help?\n{v.docs}/moderation/clear"
-                ),
+        await ctx.respond(
+            embed=discord.Embed(
+                title="❌ Command failed",
+                description="An unexpected error occurred. Please try again.",
                 color=v.error,
-            )
-            return await ctx.respond(embed=embed, ephemeral=True)
-
-        embed = discord.Embed(
-            title="❌ Clear command failed",
-            description="An unexpected error occurred while deleting messages.",
-            color=v.error,
+            ),
+            ephemeral=True,
         )
-
-        await ctx.respond(embed=embed, ephemeral=True)
-        raise original
+        raise error
 
 def setup(client):
     client.add_cog(ModClear(client))

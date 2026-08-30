@@ -37,12 +37,10 @@ class BirthdayTimers(commands.Cog):
         self.client = client
         self.birthday_check.start()
         self.role_reset.start()
-        self.birthday_reminder.start()
 
     def cog_unload(self):
         self.birthday_check.cancel()
         self.role_reset.cancel()
-        self.birthday_reminder.cancel()
 
     @tasks.loop(minutes=1)
     async def birthday_check(self):
@@ -167,64 +165,12 @@ class BirthdayTimers(commands.Cog):
                     birthday.wished_at = None
                     await birthday.save()
 
-    @tasks.loop(hours=12)
-    async def birthday_reminder(self):
-        """Send reminder 1 day before someone's birthday."""
-        for guild in self.client.guilds:
-            config = (await Guild.get(str(guild.id))).dashboard.birthdays
-
-            if not config.get("status") or not config.get("reminder", False):
-                continue
-
-            channel_id = config.get("channel_id")
-            if not channel_id:
-                continue
-
-            channel = guild.get_channel(int(channel_id))
-            if not channel:
-                continue
-
-            tz = v.datetimes(guild.id)
-            now = datetime.datetime.now(tz)
-
-            birthdays = await get_bdays(guild.id)
-
-            for birthday in birthdays:
-                if not birthday.date:
-                    continue
-
-                date = datetime.datetime.strptime(birthday.date, "%Y-%m-%d")
-                
-                # Check if birthday is tomorrow
-                next_bd, age = next_birthday(date, now)
-                days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
-                
-                if days_away != 1:
-                    continue
-
-                member = guild.get_member(int(birthday.user_id))
-                if not member:
-                    continue
-
-                # Check if we already sent reminder
-                if birthday.reminded:  # ✅ Now works because field exists
-                    continue
-
-                await channel.send(f"🎈 Reminder: {member.mention} has their birthday **tomorrow**! ({next_bd.strftime('%d %B')})")
-                
-                birthday.reminded = True  # ✅ Now works because field exists
-                await birthday.save()
-
     @birthday_check.before_loop
     async def before_birthday_check(self):
         await self.client.wait_until_ready()
 
     @role_reset.before_loop
     async def before_role_reset(self):
-        await self.client.wait_until_ready()
-
-    @birthday_reminder.before_loop
-    async def before_birthday_reminder(self):
         await self.client.wait_until_ready()
 
 class BirthdayCommands(commands.Cog):
@@ -357,7 +303,6 @@ class BirthdayCommands(commands.Cog):
             age=age,
             wished=False,
             wished_at=None,
-            reminded=False
         ).insert()
 
         embed = discord.Embed(

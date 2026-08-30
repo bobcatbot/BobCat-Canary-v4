@@ -61,8 +61,8 @@ async def stats_setup(guild_id):
 
     # Default counters
     default_counters = [
-        {"target": "humanCount", "text": "Humans: {count}", "channel_id": "", "count": 0, "position": 0,},
-        {"target": "botsCount", "text": "Bots: {count}", "channel_id": "", "count": 0, "position": 1,},
+        {"target": "humans", "text": "Humans: {count}", "channel_id": "", "count": 0, "position": 0,},
+        {"target": "bots", "text": "Bots: {count}", "channel_id": "", "count": 0, "position": 1,},
     ]
 
     created_count = 0

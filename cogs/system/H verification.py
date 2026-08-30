@@ -92,7 +92,7 @@ class Verification(commands.Cog):
                 pass
         elif fail_action == "timeout":
             try:
-                await interaction.user.timeout(
+                await interaction.user.timeout_for(
                     timedelta(minutes=5),
                     reason="Failed to verify"
                 )

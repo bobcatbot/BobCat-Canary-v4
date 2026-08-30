@@ -10,19 +10,29 @@ from ..utils import bearer_client, check_guild_permission as _check_guild_permis
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
-# ── Guild picker ──────────────────────────────────────────────────────────────
+# ── Guild picker ───────────────────────────────────────────────────────────
 async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
-    """Get all guilds the user owns, is bot master of, or has admin in."""
-    guild_ids = [g.id for g in v.client.guilds]
-    eligible_guilds = []
+    """Guilds the user owns, is bot master of, or has admin in.
 
-    for guild in bearer_client().get_my_guilds():
-        # Skip the guild we're transferring from
-        if exclude_guild_id and guild.id == exclude_guild_id:
-            continue
-            
+    Returns dicts with: id, name, icon_url, perm, is_bot_in_guild.
+    Sorted Owner -> Bot Master -> Admin, then by name.
+    """
+    bot_guild_ids = {g.id for g in v.client.guilds}
+    my_guilds = [
+        g for g in bearer_client().get_my_guilds()
+        if not (exclude_guild_id and g.id == exclude_guild_id)
+    ]
+
+    # One query instead of one Guild.get() per guild
+    configs = {
+        c.id: c for c in
+        await Guild.find({"_id": {"$in": [str(g.id) for g in my_guilds]}}).to_list()
+    }
+
+    eligible = []
+    for guild in my_guilds:
         bot_master = False
-        config = await Guild.get(str(guild.id))
+        config = configs.get(str(guild.id))
         if config:
             bot_guild = v.client.get_guild(guild.id)
             member = bot_guild.get_member(current_user.id) if bot_guild else None
@@ -34,73 +44,42 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
                     for role in member.roles
                 )
 
-        # Check if user has permission (Owner, Bot Master, or Admin)
-        if guild.is_owner or bot_master or int(guild.permissions) & 0x8 == 0x8:
-            perm = (
-                "Owner" if guild.is_owner else
-                "Bot Master" if bot_master else
-                "Admin" if int(guild.permissions) & 0x8 == 0x8 else
-                "Member"
-            )
-            
-            # Check if bot is in the guild
-            is_bot_in_guild = guild.id in guild_ids
-            
-            eligible_guilds.append({
-                'id': guild.id,
-                'name': guild.name,
-                'icon_url': guild.icon_url,
-                'perm': perm,
-                'is_bot_in_guild': is_bot_in_guild,
-            })
+        is_admin = int(guild.permissions) & 0x8 == 0x8
+        if not (guild.is_owner or bot_master or is_admin):
+            continue
 
-    # Sort: Owner first, then Bot Master, then Admin
+        eligible.append({
+            'id': guild.id,
+            'name': guild.name,
+            'icon_url': guild.icon_url,
+            'perm': "Owner" if guild.is_owner else "Bot Master" if bot_master else "Admin",
+            'is_bot_in_guild': guild.id in bot_guild_ids,
+        })
+
     perm_order = {'Owner': 0, 'Bot Master': 1, 'Admin': 2}
-    eligible_guilds.sort(key=lambda x: (perm_order.get(x['perm'], 99), x['name']))
-    
-    return eligible_guilds
+    eligible.sort(key=lambda x: (perm_order.get(x['perm'], 99), x['name']))
+    return eligible
 
 @dashboard_bp.route("/dashboard")
 @login_required
 async def guilds():
     current_user = bearer_client().get_current_user()
-    guild_ids = [g.id for g in v.client.guilds]
-    guilds = []
 
-    for guild in bearer_client().get_my_guilds():
-        bot_master = False
-        config = await Guild.get(str(guild.id))
-        if config:
-            bot_guild = v.client.get_guild(guild.id)
-            member = bot_guild.get_member(current_user.id) if bot_guild else None
-            if member:
-                settings = config.settings
-                bot_master = any(
-                    str(role.id) in settings.get('admin_roles', []) or
-                    str(role.id) in settings.get('bot_masters', [])
-                    for role in member.roles
-                )
+    user_eligible_guilds = await get_user_eligible_guilds(current_user)
 
-        if guild.is_owner or bot_master or int(guild.permissions) & 0x8 == 0x8:
-            perm = (
-                "Owner"      if guild.is_owner                      else
-                "Bot Master" if bot_master                          else
-                "Admin"      if int(guild.permissions) & 0x8 == 0x8 else
-                "Member"
-            )
-            guilds.append({
-                'id':       guild.id,
-                'name':     guild.name,
-                'icon_url': guild.icon_url,
-                'perm':     perm,
-                'btn_name': "Go"      if guild.id in guild_ids else "Setup",
-                'color':    "#5865F2" if guild.id in guild_ids else "#36393f",
-            })
-
-    guilds.sort(key=lambda x: ( x['btn_name'] != "Go" and x['color'] != "#5865F2" ))
+    guilds = [
+        {
+            **g,
+            'btn_name': "Go"      if g['is_bot_in_guild'] else "Setup",
+            'color':    "#5865F2" if g['is_bot_in_guild'] else "#36393f",
+        }
+        for g in user_eligible_guilds
+    ]
+    # bot-present servers first (stable sort keeps perm/name order within each group)
+    guilds.sort(key=lambda x: not x['is_bot_in_guild'])
 
     return await render_template(
-        "dashboard/guilds.html", 
+        "dashboard/guilds.html",
         user=current_user, guilds=guilds
     )
 
@@ -474,6 +453,7 @@ async def data_post(guild_id):
         'settings.color': str,
         'settings.admin_roles': list,
         'settings.bot_masters': list,
+        'settings.moderator_roles': list,
     }
     
     ALLOWED_DASH_PREFIX = "Dash."

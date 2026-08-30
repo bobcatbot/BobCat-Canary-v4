@@ -1,6 +1,5 @@
 import logging
 import stripe
-from threading import Thread
 from quart import Quart, render_template, flash, session, redirect, request, url_for
 from zenora import BadTokenError
 
@@ -118,7 +117,7 @@ import uvicorn
 
 async def serve_dashboard() -> None:
     """Run the dashboard on the same event loop as the Discord client."""
-    config = uvicorn.Config(app, host="localhost", port=8000)
+    config = uvicorn.Config(app, host="localhost", port=8000, log_level="warning")
     server = uvicorn.Server(config)
 
     serve_task = asyncio.create_task(server.serve())

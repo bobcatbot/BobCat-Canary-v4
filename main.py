@@ -3,7 +3,7 @@ import discord
 import traceback
 import pathlib
 from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from datetime import datetime
 from modules import bot as v
 from modules.models import ALL_MODELS
@@ -25,7 +25,7 @@ async def initialise_database() -> None:
         try:
             print(f"🔄 Database connection attempt {attempt}/{max_attempts}...")
 
-            mongo_client = AsyncIOMotorClient(
+            mongo_client = AsyncMongoClient(
                 v.mongoURI_db,
                 serverSelectionTimeoutMS=15_000,
                 connectTimeoutMS=15_000,

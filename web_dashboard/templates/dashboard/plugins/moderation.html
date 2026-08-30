@@ -31,6 +31,9 @@
         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mod">Moderation</button>
       </li>
       <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin">Admin</button>
+      </li>
+      <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#logging">Audit Logging</button>
       </li>
     </ul>
@@ -183,6 +186,33 @@
                     <div class="option" data-value="action">Action</div>
                     <div class="option" data-value="reason">Reason</div>
                     <div class="option" data-value="moderator">Moderator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tab-content">
+      <div id="admin" class="tab-pane pt-2" role="tabpanel">
+        <section class="section">
+          <div class="feature_card">
+            <div class="title">
+              <h2>Immunity roles</h2>
+              <p>Users with one of these roles are not affected by moderation commands. The server owner, bot masters, and roles with the Administrator permission are always immune.</p>
+            </div>
+            <hr>
+            <div class="immunity-roles">
+              <p class="mb-0">Roles</p>
+              <div class="immunityroles-select-wrapper multiple">
+                <div class="select">
+                  <div class="select-selected">Select an option</div>
+                  <div class="select-options">
+                    {% for role in guild_models(guild).roles %}
+                    <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                    {% endfor %}
                   </div>
                 </div>
               </div>
@@ -499,6 +529,22 @@
       
       show_toast("moderation.settings.warn.dm", "{{data['settings']['warn']['dm']}}", selectedOptions)
     });
+
+    // Admin
+    new Select('.immunityroles-select-wrapper.multiple', {
+      placeholder: "Select a role",
+      type: 'role',
+      multiple: true,
+      maxItems: 100,
+      removeBtn: true,
+      options: JSON.parse('{{ data.get("moderator_roles", []) | tojson }}')
+    });
+    const immunityRolesWrapper = document.querySelector('.immunityroles-select-wrapper.multiple');
+    immunityRolesWrapper.addEventListener('select:update', function (event) {
+      const selectedOptions = event.detail.selectedOptions;
+      show_toast("settings.moderator_roles", "{{ data.get('moderator_roles', []) }}", selectedOptions)
+    });
+    
 
     // logging
     new Select('.log-chan-wrapper.single', {

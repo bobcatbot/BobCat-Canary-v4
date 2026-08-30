@@ -32,24 +32,36 @@ class Slowmode(commands.Cog):
     @slowmode.error
     async def slowmode_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(
-                color=v.error,
-                title="❌ You are missing `Manage Channels` permission"
+            return await ctx.respond(
+                embed=discord.Embed(title="❌ Missing permission", description="You need the `Manage Channels` permission.", color=v.error),
+                ephemeral=True
             )
-            return await ctx.respond(embed=embed)
         
         if isinstance(error, commands.BotMissingPermissions):
-            await v.push_notification(ctx.guild, types="error", title="BobCat is missing permission to set slowmode", description='Please give BobCat the "Manage Channels" permission')
-            embed = discord.Embed(description=f"❌ I can't do that because I'm missing the `Manage Channels` permission.  \n\nNeed help?\n{v.docs}/moderation/slowmode", color=v.error)
-            return await ctx.respond(embed=embed)
-
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(
-                color=v.error,
-                title="Invalid Usage", url=f"{v.docs}/moderation/slowmode",
-                description="/slowmode [seconds]  \n\n**Arguments**\n`seconds`: time in SECONDS"
+            await v.push_notification(
+                ctx.guild, kind="error",
+                title="BobCat cannot set channel slowmode",
+                description="The slowmode command failed because BobCat is missing the Manage Channels permission.",
+                fix=f"{v.docs}/moderation/slowmode",
             )
-            return await ctx.respond(embed=embed)
+            return await ctx.respond(
+                embed=discord.Embed(
+                    title="❌ I am missing the `Manage Channels` permission",
+                    description=f"[Permissions Help]({v.docs}/moderation/slowmode)",
+                    color=v.error,
+                ),
+                ephemeral=True
+            )
+
+        await ctx.respond(
+            embed=discord.Embed(
+                title="❌ Command failed",
+                description="An unexpected error occurred. Please try again.",
+                color=v.error,
+            ),
+            ephemeral=True,
+        )
+        raise error
 
 def setup(client):
     client.add_cog(Slowmode(client))

@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
   
-  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" />
   <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
+  {% from 'components/embed_editor.html' import embed_color_picker, embed_preview %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -122,23 +123,12 @@
         
         <hr>
         <div class="d-flex gap-2">
-          <div class="con color-picker full">
-            <div class="clr-field" style="color: {{data.color}};">
-              <button aria-labelledby="clr-open-label"></button>
-              <input type="text" class="coloris" value="{{data.color}}">
-            </div>
-          </div>
-          
-          <div class="embed" style="border-left-color: {{data.color}};">
-            <div class="e-bdFBtt">
-              <div class="title embedMargin-2PsaQ4">
-                Discord embed title
-              </div>
-              <div class="desc embedMargin-2PsaQ4">
-                Discord embed description
-              </div>
-            </div>
-          </div>
+          {{ embed_color_picker('settings-embed-color', data.get('color', '#ffffff'), name='embed_color') }}
+          {{ embed_preview({
+            'title': 'BobCat Embed Title',
+            'description': 'BobCat Embed Description',
+            'color': data.get('color', '#ffffff')
+          }) }}
         </div>
                 
       </div>
@@ -182,16 +172,19 @@
       options: ["{{data['timezone']}}"]
     });
 
-    Coloris({
-      el: '.coloris',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: [ '#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000' ]
-    });
+    initEmbedEditor([
+      {
+        prefix: 'settings-embed',
+        colorId: 'settings-embed-color',
+        dataKeyPrefix: 'settings',
+        fieldDataKeyPrefix: 'settings', // resolves to the flat `settings.color` key data_post expects
+        initial: {
+          color: `{{ data.get('color', '') }}`,
+          title: `BobCat Embed Title`,
+          desc: `BobCat Embed Description`,
+        }
+      }
+    ])
 
     try {
       const selectedItem = document.querySelector('.language-wrapper .select-selected')
@@ -245,14 +238,12 @@
     });
 
     // Colors
-    document.addEventListener('coloris:pick', event => {
-      // wait for the color to be picked
-      const color = event.detail.color;
-
-      document.querySelector('.embed').style.borderLeftColor = color
-      
-      show_toast("settings.color", "{{data['color']}}", color)
-    });
+    // document.addEventListener('coloris:pick', event => {
+    //   // wait for the color to be picked
+    //   const color = event.detail.color;
+    //   document.querySelector('.embed').style.borderLeftColor = color
+    //   show_toast("settings.color", "{{data['color']}}", color)
+    // });
   </script>
   <style>
     .full .clr-field button {

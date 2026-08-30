@@ -11,6 +11,79 @@ giveaways_bp = Blueprint('giveaways', __name__)
 logger = logging.getLogger(__name__)
 
 
+def _build_giveaway_embed(giveaway):
+    """Build the live giveaway embed for a Giveaway document."""
+    embed = discord.Embed(
+        title=giveaway.embed_title or f"🎉 {giveaway.prize} 🎉",
+        description=giveaway.embed_desc,
+        color=discord.Color.blurple()
+    )
+    embed.add_field(
+        name="Ends",
+        value=f"<t:{int(giveaway.end_epoch)}:R> (<t:{int(giveaway.end_epoch)}:f>)",
+        inline=False
+    )
+    embed.add_field(name="Hosted by", value=f"<@{giveaway.author_id}>", inline=False)
+    embed.add_field(name="Winners", value=f"**{giveaway.winner_count}**", inline=False)
+    embed.add_field(name="Participants", value=f"**{len(giveaway.participants)}**", inline=False)
+    embed.set_footer(text=f"Giveaway ID: {giveaway.id}")
+    return embed
+
+
+def _apply_giveaway_fields(giveaway, data):
+    """Apply a dashboard edit payload (flat dotted keys) onto a Giveaway document."""
+    for key, value in data.items():
+        if key == 'time.epoch':
+            giveaway.end_epoch = float(value or 0)
+        elif key == 'time.timestamp':
+            giveaway.end_timestamp = value
+        elif key == 'name':
+            giveaway.name = value
+        elif key == 'channel_id' and value:
+            giveaway.channel_id = str(value)
+        elif key == 'prize':
+            giveaway.prize = value
+        elif key == 'winners':
+            giveaway.winner_count = int(value or 1)
+        elif key == 'embed.desc':
+            giveaway.embed_desc = value
+        elif key == 'give_xp.enabled':
+            giveaway.give_xp['enabled'] = bool(value)
+        elif key == 'give_xp.amount':
+            giveaway.give_xp['amount'] = int(value or 0)
+        elif key == 'give_coins.enabled':
+            giveaway.give_coins['enabled'] = bool(value)
+        elif key == 'give_coins.amount':
+            giveaway.give_coins['amount'] = int(value or 0)
+
+
+async def _send_giveaway_message(guild, giveaway):
+    """Post the live giveaway message and stamp message_id + Ongoing status onto
+    the document (caller is responsible for persisting). Returns (ok, error)."""
+    channel = guild.get_channel(int(giveaway.channel_id))
+    if channel is None:
+        return False, 'Channel not found'
+
+    view = discord.ui.View(timeout=None)
+    view.add_item(discord.ui.Button(
+        label="🎯 Join Giveaway",
+        style=discord.ButtonStyle.blurple,
+        custom_id="JoinGiveaway"
+    ))
+
+    try:
+        msg = await channel.send(embed=_build_giveaway_embed(giveaway), view=view)
+    except discord.Forbidden:
+        return False, "I don't have permission to send messages in that channel"
+    except Exception as e:
+        logger.error(f"Error sending giveaway message for {giveaway.id}: {e}", exc_info=True)
+        return False, 'Failed to send giveaway message'
+
+    giveaway.message_id = str(msg.id)
+    giveaway.status = 'Ongoing'
+    return True, None
+
+
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways")
 @login_required
 async def giveaways(guild_id):
@@ -72,90 +145,48 @@ async def giveaways_creation(guild_id):
             'guild_id': str(guild.id),
             'name': data.get('name', 'giveaway'),
             'prize': data.get('prize', ''),
-            'status': 'Ongoing' if data.get('button') == 'publish' else 'Draft',
+            'status': 'Draft',
             'channel_id': str(channel.id),
             'channel_name': channel.name,
             'message_id': '',
             'author_id': str(current_user.id),
-            'embed_title': data.get('embed_title', ''),
-            'embed_desc': data.get('embed_desc', ''),
-            'end_epoch': float(data.get('time.epoch', 0)),
+            'embed_title': data.get('embed.title', ''),
+            'embed_desc': data.get('embed.desc', ''),
+            'end_epoch': float(data.get('time.epoch') or 0),
             'end_timestamp': data.get('time.timestamp', ''),
-            'winner_count': int(data.get('winners', 1)),
+            'winner_count': int(data.get('winners') or 1),
             'participants': [],
             'winners': [],
             'give_xp': {
-                'enabled': data.get('givexp.enabled', False),
-                'amount': int(data.get('givexp.amount', 0))
+                'enabled': bool(data.get('give_xp.enabled', False)),
+                'amount': int(data.get('give_xp.amount') or 0)
             },
             'give_coins': {
-                'enabled': data.get('givecoins.enabled', False),
-                'amount': int(data.get('givecoins.amount', 0))
+                'enabled': bool(data.get('give_coins.enabled', False)),
+                'amount': int(data.get('give_coins.amount') or 0)
             }
         }
 
-        if data.get('button') == 'save':
-            # Save as draft
-            giveaway = Giveaway(**giveaway_data)
-            await giveaway.insert()
-            await flash('Giveaway saved successfully!', 'success')
-            logger.info(f"Saved giveaway draft {uuid} for guild {guild_id}")
-            return jsonify({'status': 'success', 'message': 'Giveaway saved successfully!'})
+        giveaway = Giveaway(**giveaway_data)
 
         if data.get('button') == 'publish':
-            async def create_giveaway():
-                try:
-                    view = discord.ui.View(timeout=None)
-                    view.add_item(discord.ui.Button(
-                        emoji="🎉",
-                        style=discord.ButtonStyle.blurple,
-                        custom_id="JoinGiveaway"
-                    ))
-                    
-                    embed = discord.Embed(
-                        title=giveaway_data['embed_title'] or f"🎉 {giveaway_data['prize']} 🎉",
-                        description=giveaway_data['embed_desc'],
-                        color=discord.Color.embed_background()
-                    )
-                    embed.add_field(
-                        name="Ends",
-                        value=f"<t:{int(giveaway_data['end_epoch'])}:R> (<t:{int(giveaway_data['end_epoch'])}:f>)",
-                        inline=False
-                    )
-                    embed.add_field(
-                        name="Hosted by",
-                        value=f"<@{current_user.id}>",
-                        inline=False
-                    )
-                    embed.add_field(
-                        name="Winners",
-                        value=f"**{giveaway_data['winner_count']}**",
-                        inline=False
-                    )
-                    embed.add_field(
-                        name="Participants",
-                        value="**0**",
-                        inline=False
-                    )
-                    embed.set_footer(text="Click the button below to participate!")
-                    
-                    msg = await channel.send(embed=embed, view=view)
-                    giveaway_data['message_id'] = str(msg.id)
-                    
-                    # Save the giveaway with message_id
-                    giveaway = Giveaway(**giveaway_data)
-                    await giveaway.insert()
-                    logger.info(f"Published giveaway {uuid} for guild {guild_id}")
-                except discord.Forbidden:
-                    logger.error(f"No permissions to send message in channel for guild {guild_id}")
-                except Exception as e:
-                    logger.error(f"Error creating giveaway for guild {guild_id}: {e}", exc_info=True)
+            if not giveaway.end_epoch or giveaway.end_epoch <= 0:
+                return jsonify({'status': 'error', 'message': 'Set an end time before publishing'}), 400
 
-            # Fire and forget
-            asyncio.create_task(create_giveaway())
-            
+            ok, error = await _send_giveaway_message(guild, giveaway)
+            if not ok:
+                return jsonify({'status': 'error', 'message': error}), 400
+
+            await giveaway.insert()
             await flash('Giveaway published successfully!', 'success')
+            logger.info(f"Published giveaway {uuid} for guild {guild_id}")
             return jsonify({'status': 'success', 'message': 'Giveaway published successfully!'})
+
+        # Default: save as draft
+        await giveaway.insert()
+        await flash('Giveaway saved successfully!', 'success')
+        logger.info(f"Saved giveaway draft {uuid} for guild {guild_id}")
+        return jsonify({'status': 'success', 'message': 'Giveaway saved successfully!'})
 
     return await render_template(
         "dashboard/plugins/giveaways/gway_create.html",
@@ -191,26 +222,7 @@ async def giveaways_edition(guild_id, gway_id):
 
         async def update_giveaway():
             try:
-                # Update the giveaway
-                for key, value in data.items():
-                    if key == 'time.epoch':
-                        giveaway.end_epoch = float(value)
-                    elif key == 'time.timestamp':
-                        giveaway.end_timestamp = value
-                    elif key == 'prize':
-                        giveaway.prize = value
-                    elif key == 'winners':
-                        giveaway.winner_count = int(value)
-                    elif key == 'embed.desc':
-                        giveaway.embed_desc = value
-                    elif key == 'give_xp.enabled':
-                        giveaway.give_xp['enabled'] = bool(value)
-                    elif key == 'give_xp.amount':
-                        giveaway.give_xp['amount'] = int(value)
-                    elif key == 'give_coins.enabled':
-                        giveaway.give_coins['enabled'] = bool(value)
-                    elif key == 'give_coins.amount':
-                        giveaway.give_coins['amount'] = int(value)
+                _apply_giveaway_fields(giveaway, data)
 
                 # Update the Discord message if it exists
                 if giveaway.message_id and giveaway.channel_id:
@@ -249,3 +261,70 @@ async def giveaways_edition(guild_id, gway_id):
         guild=guild,
         data=dict(giveaway)
     )
+
+
+@giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/publish", methods=['POST'])
+@login_required
+async def giveaways_publish(guild_id, gway_id):
+    await premium_module(guild_id, 'giveaway')
+
+    guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+
+    giveaway = await Giveaway.find_one(
+        Giveaway.guild_id == str(guild.id),
+        Giveaway.id == gway_id
+    )
+    if giveaway is None:
+        return jsonify({'status': 'error', 'message': 'Giveaway not found'}), 404
+
+    if giveaway.status != 'Draft':
+        return jsonify({'status': 'error', 'message': 'Only drafts can be published'}), 400
+
+    # apply any pending edits sent alongside the publish request
+    pending = await request.get_json(silent=True) or {}
+    if pending:
+        _apply_giveaway_fields(giveaway, pending)
+
+    if not giveaway.end_epoch or giveaway.end_epoch <= 0:
+        return jsonify({'status': 'error', 'message': 'Set an end time before publishing'}), 400
+
+    ok, error = await _send_giveaway_message(guild, giveaway)
+    if not ok:
+        return jsonify({'status': 'error', 'message': error}), 400
+
+    await giveaway.save()
+    await flash('Giveaway published successfully!', 'success')
+    logger.info(f"Published draft giveaway {gway_id} for guild {guild_id}")
+    return jsonify({'status': 'success', 'message': 'Giveaway published successfully!'})
+
+
+@giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/delete", methods=['DELETE'])
+@login_required
+async def giveaways_delete(guild_id, gway_id):
+    await premium_module(guild_id, 'giveaway')
+
+    guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+
+    giveaway = await Giveaway.find_one(
+        Giveaway.guild_id == str(guild.id),
+        Giveaway.id == gway_id
+    )
+    if giveaway is None:
+        return jsonify({'status': 'error', 'message': 'Giveaway not found'}), 404
+
+    if giveaway.message_id and giveaway.channel_id:
+        channel = guild.get_channel(int(giveaway.channel_id))
+        if channel:
+            try:
+                msg = await channel.fetch_message(int(giveaway.message_id))
+                await msg.delete()
+            except Exception:
+                pass  # message may already be gone
+
+    await giveaway.delete()
+    logger.info(f"Deleted giveaway {gway_id} for guild {guild_id}")
+    return jsonify({'status': 'success', 'message': 'Giveaway deleted'})

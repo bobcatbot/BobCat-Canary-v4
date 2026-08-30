@@ -117,7 +117,7 @@ class Starboard(Document):
 
 class Giveaway(Document):
     class Settings:
-        name = "giveaway"
+        name = "giveaways"
         indexes = ["guild_id", "message_id", "status"]
 
     id: str = Field(alias="_id")

@@ -5,7 +5,23 @@ from modules import bot as v
 from modules.models import Economy
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
-from .tools.utils import get_shop, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance
+from .tools.utils import get_shop, get_currency_icon, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance, DEFAULT_ITEM_ICON
+
+# ── rob-coins success odds ───────────────────────────────────
+ROB_BASE_CHANCE = 0.5     # odds when robber and victim wallets are equal
+ROB_WEALTH_SWING = 0.4    # how far the wallet gap shifts the odds
+ROB_MIN_CHANCE = 0.15     # never a guaranteed failure
+ROB_MAX_CHANCE = 0.85     # never a guaranteed success
+
+def _rob_success_chance(robber_wallet: int, victim_wallet: int) -> float:
+    """Success odds for a robbery, based on the wallet gap.
+    Equal wallets → ROB_BASE_CHANCE; richer victim → lower; poorer victim → higher."""
+    total = robber_wallet + victim_wallet
+    if total <= 0:
+        return ROB_BASE_CHANCE
+    victim_share = victim_wallet / total
+    chance = ROB_BASE_CHANCE - (victim_share - 0.5) * ROB_WEALTH_SWING
+    return max(ROB_MIN_CHANCE, min(ROB_MAX_CHANCE, chance))
 
 class Money(commands.Cog):
     def __init__(self, client):
@@ -24,8 +40,10 @@ class Money(commands.Cog):
     @eco.command(description="List items from the shop")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def shop(self, ctx):
+        await ctx.defer()
         shop = await get_shop(ctx.guild)
-        
+        currency = await get_currency_icon(ctx.guild)
+
         if not shop:
             embed = discord.Embed(
                 title="Shop",
@@ -40,9 +58,10 @@ class Money(commands.Cog):
             price = item.get("price", 0)
             description = item.get("description", "No description")
             limit = item.get("max_limit", "No limit")
+            icon = item.get("icon") or DEFAULT_ITEM_ICON
             embed.add_field(
-                name=f"**{name}**",
-                value=f"💰 Price: `{price}` coins\n📝 {description}\n📦 Max per purchase: `{limit}`",
+                name=f"{icon} **{name}**",
+                value=f"{currency} `{price}`\n{description}\nMax: `{limit}`",
                 inline=False
             )
         await ctx.respond(embed=embed)
@@ -50,6 +69,7 @@ class Money(commands.Cog):
     @eco.command(description="Economy leaderboard")
     @commands.cooldown(rate=1, per=30, type=commands.BucketType.guild)
     async def leaderboard(self, ctx: discord.ApplicationContext):
+        await ctx.defer()
         pipeline = [
             {"$match": {"guild_id": str(ctx.guild.id)}},
             {"$addFields": {"total": {"$add": ["$wallet", "$bank"]}}},
@@ -104,6 +124,7 @@ class Money(commands.Cog):
     @eco.command(description="Get the balance of a member")
     @commands.cooldown(rate=2, per=20, type=commands.BucketType.user)
     async def balance(self, ctx, member: Optional[discord.Member] = None):
+        await ctx.defer()
         member = ctx.author if not member else member
         
         # Try to get existing balance first
@@ -132,6 +153,7 @@ class Money(commands.Cog):
     @eco.command(description="Work for one hour and come back to claim your paycheck")
     @commands.cooldown(rate=1, per=3600, type=commands.BucketType.user)
     async def work(self, ctx):
+        await ctx.defer()
         user_data = await open_account(ctx.guild, ctx.author)
         if user_data is None:
             return await ctx.respond("Failed to create or retrieve your account!")
@@ -162,6 +184,7 @@ class Money(commands.Cog):
     @eco.command(description="Withdraw money from your bank")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def withdraw(self, ctx, amount: str):
+        await ctx.defer()
         # Validate and parse amount
         try:
             if amount.lower() == 'max':
@@ -209,6 +232,7 @@ class Money(commands.Cog):
     @eco.command(description="Deposit money into your bank")
     @commands.cooldown(rate=1, per=100, type=commands.BucketType.user)
     async def deposit(self, ctx, amount: str):
+        await ctx.defer()
         # Validate and parse amount
         try:
             if amount.lower() == 'max':
@@ -258,11 +282,12 @@ class Money(commands.Cog):
     @discord.option('item', description="The item you want to buy", required=True, autocomplete=get_guild_shop)
     @discord.option('amount', int, description="The amount of the item you want to buy", required=False, choices=[i for i in range(1, 11)])
     async def buy(self, ctx, item: str, amount: int = 1):
+        await ctx.defer()
         shop = await get_shop(ctx.guild)
         if not shop:
             return await ctx.respond("The shop is currently empty!", ephemeral=True)
-        
-        await open_account(ctx.guild, ctx.author)
+
+        pre = await open_account(ctx.guild, ctx.author)
         res = await buy_this(ctx.guild, ctx.author, item, amount)
         
         # Handle errors
@@ -275,7 +300,7 @@ class Money(commands.Cog):
             elif error_code == 3:
                 return await ctx.respond(f"❌ {item} has a max limit of {res[2]} per purchase!", ephemeral=True)
             elif error_code == 4:
-                return await ctx.respond(f"❌ You don't have enough money in your wallet! You need `{res[2]}` coins.", ephemeral=True)
+                return await ctx.respond(f"❌ You don't have enough coins! You need `{res[2]}` total across your wallet and bank.", ephemeral=True)
             elif error_code == 5:
                 return await ctx.respond(f"❌ You already have the maximum amount of {item} ({res[2]} items) in your inventory!", ephemeral=True)
             else:
@@ -287,6 +312,10 @@ class Money(commands.Cog):
             return await ctx.respond("❌ An error occurred with the shop item!", ephemeral=True)
         
         total_cost = amount * shop_item['price']
+        wallet_before = pre.get('wallet', 0) if pre else 0
+        from_bank = max(0, total_cost - wallet_before)
+        updated = await get_user_balance(ctx.guild, ctx.author)
+
         embed = discord.Embed(
             color=v.style(ctx.guild),
             title="✅ Purchase Successful!",
@@ -294,6 +323,18 @@ class Money(commands.Cog):
         embed.add_field(name="🛍️ Item", value=f"**{shop_item['name']}**", inline=False)
         embed.add_field(name="📦 Quantity", value=f"`{amount}`", inline=True)
         embed.add_field(name="💰 Total Cost", value=f"`{total_cost}` coins", inline=True)
+        if from_bank > 0:
+            embed.add_field(
+                name="🏦 Covered by bank",
+                value=f"`{from_bank}` coins (your wallet didn't cover it)",
+                inline=False,
+            )
+        if updated:
+            embed.add_field(
+                name="💼 Remaining",
+                value=f"💰 `{updated['wallet']}` wallet · 🏦 `{updated['bank']}` bank",
+                inline=False,
+            )
         embed.add_field(name="📝 Description", value=shop_item.get('description', 'No description'), inline=False)
         embed.set_footer(text=f"Thank you for your purchase, {ctx.author.display_name}!")
         await ctx.respond(embed=embed)
@@ -302,6 +343,7 @@ class Money(commands.Cog):
     @discord.option('item', description="The item you want to sell", required=True, autocomplete=get_user_items)
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def sell(self, ctx, item: str):
+        await ctx.defer()
         amount = 1
         await open_account(ctx.guild, ctx.author)
         
@@ -334,6 +376,7 @@ class Money(commands.Cog):
     @eco.command(description="View your inventory")
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def inventory(self, ctx):
+        await ctx.defer()
         await open_account(ctx.guild, ctx.author)
         items = await get_user_items(ctx.guild, ctx.author)
 
@@ -362,11 +405,91 @@ class Money(commands.Cog):
         embed.set_footer(text=f"Total items: {len(items)}")
         await ctx.respond(embed=embed)
 
-    # Moderation Commands
+    @eco.command(name="rob-coins", description="Try to rob coins from another member")
+    @commands.cooldown(rate=1, per=300, type=commands.BucketType.user)
+    async def rob_coins(self, ctx, member: discord.Member):
+        await ctx.defer()
+
+        if member.id == ctx.author.id:
+            return await ctx.respond("❌ You cannot rob yourself!", ephemeral=True)
+
+        if member.bot:
+            return await ctx.respond("❌ You cannot rob a bot!", ephemeral=True)
+
+        await open_account(ctx.guild, ctx.author)
+        await open_account(ctx.guild, member)
+
+        robber_balance = await get_user_balance(ctx.guild, ctx.author)
+        victim_balance = await get_user_balance(ctx.guild, member)
+
+        if robber_balance is None or victim_balance is None:
+            return await ctx.respond("❌ Failed to retrieve the required balance information.")
+
+        robber_wallet = robber_balance.get("wallet", 0)
+        victim_wallet = victim_balance.get("wallet", 0)
+
+        if victim_wallet < 100:
+            return await ctx.respond(
+                f"💀 {member.display_name} is too poor to rob! "
+                f"They only have `{victim_wallet}` coins."
+            )
+
+        # Success odds scale with the wallet gap — robbing up is hard, robbing down is easy.
+        chance = _rob_success_chance(robber_wallet, victim_wallet)
+        odds_pct = round(chance * 100)
+
+        if random.random() < chance:
+            robbery_percent = random.uniform(0.1, 0.5)
+            earning = int(victim_wallet * robbery_percent)
+            earning = max(10, min(earning, victim_wallet // 2))
+
+            await update_bank(ctx.guild, member, "wallet", -earning)
+            await update_bank(ctx.guild, ctx.author, "wallet", earning)
+
+            embed = discord.Embed(
+                color=v.style(ctx.guild),
+                description=(
+                    f"🔫 {ctx.author.mention} robbed {member.mention} "
+                    f"and got **`{earning}`** coins!"
+                ),
+            )
+            embed.set_footer(text=f"Your odds were {odds_pct}% • Crime doesn't pay... or does it?")
+
+            return await ctx.respond(embed=embed)
+
+        # You got caught! Fine is 10–30% of the robber's wallet.
+        if robber_wallet <= 0:
+            fine = 0
+        else:
+            fine_percent = random.uniform(0.1, 0.3)
+            fine = int(robber_wallet * fine_percent)
+            fine = min(fine, robber_wallet)
+
+        if fine > 0:
+            await update_bank(ctx.guild, ctx.author, "wallet", -fine)
+            await update_bank(ctx.guild, member, "wallet", fine)
+
+        embed = discord.Embed(
+            color=v.error,
+            title="🚨 Caught!",
+            description=(
+                f"🚔 {ctx.author.mention} tried to rob {member.mention}, "
+                f"but got caught!\n\n"
+                f"💸 You paid **`{fine}`** coins to {member.mention} as a fine."
+            ),
+        )
+        embed.set_footer(text=f"Your odds were {odds_pct}% • Crime doesn't pay...")
+
+        return await ctx.respond(embed=embed)
+
+
+    # ── Moderation Commands ──────────────────────────────────
+    
     @eco.command(name="give-coins", description="Give coins to another member")
     @discord.default_permissions(moderate_members=True)
     @commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
     async def give_coins(self, ctx, member: discord.Member, amount: str):
+        await ctx.defer()
         if member.id == ctx.author.id:
             return await ctx.respond("❌ You cannot give coins to yourself!", ephemeral=True)
         
@@ -411,43 +534,11 @@ class Money(commands.Cog):
         embed.set_footer(text="Generosity is a virtue!")
         await ctx.respond(embed=embed)
     
-    @eco.command(name="rob-coins", description="Rob coins from another member")
-    @commands.cooldown(rate=1, per=300, type=commands.BucketType.user)
-    async def rob_coins(self, ctx, member: discord.Member):
-        if member.id == ctx.author.id:
-            return await ctx.respond("❌ You cannot rob yourself!", ephemeral=True)
-        
-        await open_account(ctx.guild, ctx.author)
-        await open_account(ctx.guild, member)
-        
-        # Check victim's balance
-        victim_balance = await get_user_balance(ctx.guild, member)
-        if victim_balance is None:
-            return await ctx.respond(f"Failed to get {member.display_name}'s balance!")
-        
-        if victim_balance.get('wallet', 0) < 100:
-            return await ctx.respond(f"💀 {member.display_name} is too poor to rob! They only have `{victim_balance['wallet']}` coins.")
-        
-        # Calculate robbery amount (random between 10% and 50% of victim's wallet)
-        robbery_percent = random.uniform(0.1, 0.5)
-        earning = int(victim_balance['wallet'] * robbery_percent)
-        earning = max(10, min(earning, victim_balance['wallet'] // 2))  # Min 10, max 50% of wallet
-        
-        # Perform robbery
-        await update_bank(ctx.guild, member, "wallet", -earning)
-        await update_bank(ctx.guild, ctx.author, "wallet", earning)
-        
-        embed = discord.Embed(
-            color=v.style(ctx.guild),
-            description=f"🔫 {ctx.author.mention} robbed {member.mention} and got **`{earning}`** coins!",
-        )
-        embed.set_footer(text="Crime doesn't pay... or does it?")
-        await ctx.respond(embed=embed)
-    
     @eco.command(name="remove-coins", description="Remove coins from a member (admin only)")
     @discord.default_permissions(administrator=True)
     @commands.cooldown(rate=1, per=60, type=commands.BucketType.guild)
     async def remove_coins(self, ctx, member: discord.Member, amount: str):
+        await ctx.defer()
         if member.id == ctx.author.id:
             return await ctx.respond("❌ You cannot remove coins from yourself!", ephemeral=True)
         

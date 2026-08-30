@@ -6,6 +6,12 @@ from modules.models import Guild
 async def can_moderate(guild, moderator, member, action="moderate") -> tuple[bool, str | None]:
     settings = (await Guild.get(str(guild.id))).settings
 
+    immune_role_ids = set(
+        settings.get("admin_roles", []) + 
+        settings.get("bot_masters", []) + 
+        settings.get("moderator_roles", [])
+    )
+
     if member == guild.owner:
         return False, f"You cannot {action} the server owner."
     if member == moderator:
@@ -13,7 +19,7 @@ async def can_moderate(guild, moderator, member, action="moderate") -> tuple[boo
     if member == guild.me:
         return False, f"You cannot make me {action} myself."
 
-    immune_role_ids = set(settings.get("admin_roles", []) + settings.get("bot_masters", [])) # + settings.get("moderator_roles", []))
+
     if any(str(role.id) in immune_role_ids for role in member.roles) and moderator != guild.owner:
         return False, "That member has an immunity role and cannot be moderated."
 
