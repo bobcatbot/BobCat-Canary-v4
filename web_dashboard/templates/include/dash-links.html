@@ -27,6 +27,16 @@
 <link href="{{ url_for('static', filename='dash/css/dash-main.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='dash/css/dropdown.css') }}" rel="stylesheet">
 
+<!-- Seasonal theme (auto by date, see context._current_season) -->
+{% set _season = seasonal_theme() %}
+{% if _season %}
+<script>
+  document.documentElement.classList.add('theme-{{ _season }}');
+  try { if (localStorage.getItem('seasonal-fx-{{ _season }}') === 'off') document.documentElement.classList.add('fx-off'); } catch (e) {}
+</script>
+<link href="{{ url_for('static', filename='dash/css/seasonal/' ~ _season ~ '.css') }}" rel="stylesheet">
+{% endif %}
+
 <!-- Vendor JS Files -->
 <!-- <script defer src="{{ url_for('static', filename='vendor/purecounter/purecounter_vanilla.js') }}"></script> -->
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>

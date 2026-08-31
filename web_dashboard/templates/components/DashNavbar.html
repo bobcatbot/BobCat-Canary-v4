@@ -1,15 +1,26 @@
+{% set _season = seasonal_theme() %}
+{% set _season_logo = {'christmas': 'img/bobcat_hohoho.png', 'halloween': 'img/bobcat_boo.png'} %}
+{% set _season_fx = {'christmas': ['bi-snow2', 'Toggle snow'], 'halloween': ['bi-cloud-fog2', 'Toggle fog']} %}
 <header id="header" class="header fixed-top d-flex align-items-center">
   <div class="d-flex align-items-center justify-content-between">
     <i class="bi bi-list toggle-sidebar-btn"></i>
-    
+
     <a href="/" class="logo d-flex justify-content-center align-items-center">
-      <img src="{{ url_for('static', filename='img/bobcat.png') }}" alt="">
+      <img src="{{ url_for('static', filename=_season_logo.get(_season, 'img/bobcat.png')) }}" alt="">
       <span class="d-none d-md-block">BobCat</span>
     </a>
   </div>
 
   <nav class="header-nav ms-auto">
     <ul class="d-flex align-items-center">
+      {% if _season in _season_fx %}
+      <li class="nav-item me-1">
+        <a class="nav-link nav-icon" href="#" id="fx-toggle" role="button" title="{{ _season_fx[_season][1] }}" aria-label="{{ _season_fx[_season][1] }}">
+          <i class="bi {{ _season_fx[_season][0] }}" style="display: flex;font-size: 22px;"></i>
+        </a>
+      </li>
+      {% endif %}
+
       {% if guild and guild_models(guild).isPremium == False %}
       <li class="premium-upgrade nav-item me-2 btn" variant="premium">
         <a href="premium" class="d-flex" style="font-size: 14px;align-items: center;gap: 4px;color: rgb(var(--premium-gold));">
@@ -80,3 +91,24 @@
     </ul>
   </nav>
 </header>
+
+{% if _season in _season_fx %}
+<script>
+  (function () {
+    var btn = document.getElementById('fx-toggle');
+    if (!btn) return;
+    var root = document.documentElement;
+    var key = 'seasonal-fx-{{ _season }}';
+    function sync() {
+      btn.classList.toggle('fx-on', !root.classList.contains('fx-off'));
+    }
+    sync();
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var off = root.classList.toggle('fx-off');
+      try { localStorage.setItem(key, off ? 'off' : 'on'); } catch (err) {}
+      sync();
+    });
+  })();
+</script>
+{% endif %}

@@ -1,0 +1,194 @@
+/*--------------------------------------------------------------
+# Seasonal theme — Christmas
+#
+# Overrides only. Loaded by include/dash-links.html when
+# context._current_season() returns "christmas" (auto Dec 1 - Jan 1,
+# or forced with ?theme=christmas). Everything is scoped under
+# html.theme-christmas so removing the <link> fully reverts the look.
+#
+# Snow is two fixed pseudo-layers on <html> running at different
+# speeds for a parallax effect. Pure CSS, no external requests.
+# html.fx-off hides it (shared #fx-toggle in DashNavbar.html, persisted
+# to localStorage as seasonal-fx-christmas).
+--------------------------------------------------------------*/
+
+/*--------------------------------------------------------------
+# Snowfall
+--------------------------------------------------------------*/
+html.theme-christmas::before,
+html.theme-christmas::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background-repeat: repeat;
+  will-change: background-position;
+}
+
+/* Near layer — larger flakes, faster */
+html.theme-christmas::before {
+  background-image:
+    radial-gradient(2.5px 2.5px at 20px 30px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(3px 3px at 120px 80px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(2px 2px at 200px 140px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2.5px 2.5px at 90px 200px, rgba(255, 255, 255, 0.9), transparent);
+  background-size: 260px 260px;
+  animation: xmas-snow-near 9s linear infinite;
+}
+
+/* Far layer — smaller flakes, slower, softer */
+html.theme-christmas::after {
+  background-image:
+    radial-gradient(1.5px 1.5px at 40px 60px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.5px 1.5px at 150px 20px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 250px 120px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 190px 190px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 60px 160px, rgba(255, 255, 255, 0.45), transparent);
+  background-size: 320px 320px;
+  animation: xmas-snow-far 18s linear infinite;
+}
+
+@keyframes xmas-snow-near {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 260px; }
+}
+
+@keyframes xmas-snow-far {
+  from { background-position: 0 0; }
+  to   { background-position: -30px 320px; }
+}
+
+/* Toggle off */
+html.theme-christmas.fx-off::before,
+html.theme-christmas.fx-off::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-christmas::before,
+  html.theme-christmas::after {
+    animation: none;
+  }
+}
+
+/*--------------------------------------------------------------
+# FX toggle button (shared DashNavbar.html #fx-toggle)
+--------------------------------------------------------------*/
+html.theme-christmas #fx-toggle {
+  opacity: 0.45;
+  transition: opacity 0.2s ease, color 0.2s ease, text-shadow 0.2s ease;
+}
+
+html.theme-christmas #fx-toggle.fx-on {
+  opacity: 1;
+  color: #a8d8ff;
+  text-shadow: 0 0 8px rgba(168, 216, 255, 0.6);
+}
+
+/*--------------------------------------------------------------
+# Festive accents
+--------------------------------------------------------------*/
+/* Evergreen tint on the top bar */
+html.theme-christmas .header {
+  background-image: linear-gradient(90deg, rgba(47, 143, 78, 0.18), rgba(192, 57, 43, 0.18));
+}
+
+/* Candy-cane strip along the bottom edge (.header is position: fixed) */
+html.theme-christmas .header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    #c0392b 0 10px,
+    #ffffff 10px 20px,
+    #2f8f4e 20px 30px,
+    #ffffff 30px 40px
+  );
+}
+
+/* Frosted page titles */
+html.theme-christmas .pagetitle h1 {
+  background: linear-gradient(180deg, #ffffff 0%, #cfe4ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* A quiet tree on the wordmark */
+html.theme-christmas .logo span::after {
+  content: " \01F384";
+  font-size: 0.9em;
+}
+
+/* The festive logo (bobcat_hohoho.png) is a busier composite — give it room */
+html.theme-christmas .logo img {
+  max-height: 46px;
+}
+
+/*--------------------------------------------------------------
+# Evacuate blurple
+#
+# The dashboard leans on Discord blurple (#5865f2) for buttons,
+# focus rings, active nav and accents. Repoint all of it to
+# evergreen for the season. Covers: the --blurple / --btn-* custom
+# props (12+ call sites), the hard-coded .btn-blurple bootstrap
+# vars, select focus states (dropdown.css) and the embed editor
+# accents (Embed.css).
+--------------------------------------------------------------*/
+html.theme-christmas {
+  --blurple: #2f8f4e;
+  --btn-bg: #2f8f4e;
+  --btn-hover-bg: #267a41;
+  --btn-active-bg: #1f6435;
+}
+
+/* Primary buttons: red -> green gradient fill.
+   Bootstrap paints --bs-btn-bg as background-color; the gradient rides
+   on background-image above it, with the solid vars kept as fallback. */
+html.theme-christmas .btn-blurple,
+html.theme-christmas .btn[variant="default"] {
+  --bs-btn-bg: #b02a34;
+  --bs-btn-border-color: #8f2f34;
+  --bs-btn-hover-bg: #922530;
+  --bs-btn-hover-border-color: #2f8f4e;
+  --bs-btn-active-bg: #7c1f2a;
+  --bs-btn-active-border-color: #1f6435;
+  --bs-btn-disabled-bg: #b02a34;
+  --bs-btn-disabled-border-color: #8f2f34;
+  --bs-btn-focus-shadow-rgb: 47, 143, 78;
+  background-image: linear-gradient(135deg, #c0392b 0%, #2f8f4e 100%);
+}
+
+html.theme-christmas .btn-blurple:hover,
+html.theme-christmas .btn[variant="default"]:hover {
+  background-image: linear-gradient(135deg, #d1402f 0%, #35a259 100%);
+}
+
+html.theme-christmas .btn-blurple:active,
+html.theme-christmas .btn-blurple.active,
+html.theme-christmas .btn[variant="default"]:active,
+html.theme-christmas .btn[variant="default"].active {
+  background-image: linear-gradient(135deg, #8f2f34 0%, #1f6435 100%);
+}
+
+html.theme-christmas select.select:hover,
+html.theme-christmas select.select:focus-visible {
+  border-color: #2f8f4e;
+}
+
+html.theme-christmas select.select:focus-visible {
+  box-shadow: 0 0 0 5px rgb(47 143 78 / 0.3);
+}
+
+html.theme-christmas .inline-label input[type="checkbox"] {
+  accent-color: #2f8f4e;
+}
+
+html.theme-christmas .add-field-btn {
+  color: #2f8f4e;
+}

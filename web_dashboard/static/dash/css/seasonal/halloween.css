@@ -1,0 +1,192 @@
+/*--------------------------------------------------------------
+# Seasonal theme — Halloween
+#
+# Overrides only. Loaded by include/dash-links.html when
+# context._current_season() returns "halloween" (auto Oct 1 - Nov 1,
+# or forced with ?theme=halloween). Everything is scoped under
+# html.theme-halloween so removing the <link> fully reverts the look.
+#
+# The effect is drifting fog: two fixed pseudo-layers on <html> at
+# different speeds. Pure CSS, no external requests. html.fx-off hides
+# it (shared #fx-toggle in DashNavbar.html, persisted to localStorage
+# as seasonal-fx-halloween).
+--------------------------------------------------------------*/
+
+/*--------------------------------------------------------------
+# Drifting fog
+--------------------------------------------------------------*/
+html.theme-halloween::before,
+html.theme-halloween::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: 9998;
+  pointer-events: none;
+  background-repeat: repeat;
+  will-change: background-position;
+}
+
+/* Near band — denser, faster, warmer */
+html.theme-halloween::before {
+  background-image:
+    radial-gradient(60% 40% at 20% 30%, rgba(255, 145, 60, 0.05), transparent 70%),
+    radial-gradient(50% 45% at 70% 60%, rgba(160, 120, 200, 0.05), transparent 70%),
+    radial-gradient(45% 35% at 45% 85%, rgba(255, 255, 255, 0.035), transparent 70%);
+  background-size: 1400px 900px;
+  filter: blur(3px);
+  animation: hw-fog-near 40s linear infinite;
+}
+
+/* Far band — sparser, slower, cooler */
+html.theme-halloween::after {
+  background-image:
+    radial-gradient(55% 40% at 80% 20%, rgba(120, 90, 170, 0.045), transparent 70%),
+    radial-gradient(50% 40% at 30% 70%, rgba(255, 255, 255, 0.025), transparent 70%);
+  background-size: 1900px 1100px;
+  filter: blur(4px);
+  animation: hw-fog-far 70s linear infinite;
+}
+
+@keyframes hw-fog-near {
+  from { background-position: 0 0; }
+  to   { background-position: 1400px -60px; }
+}
+
+@keyframes hw-fog-far {
+  from { background-position: 0 0; }
+  to   { background-position: -1900px 40px; }
+}
+
+/* Toggle off */
+html.theme-halloween.fx-off::before,
+html.theme-halloween.fx-off::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-halloween::before,
+  html.theme-halloween::after {
+    animation: none;
+  }
+}
+
+/*--------------------------------------------------------------
+# FX toggle button (shared DashNavbar.html #fx-toggle)
+--------------------------------------------------------------*/
+html.theme-halloween #fx-toggle {
+  opacity: 0.45;
+  transition: opacity 0.2s ease, color 0.2s ease, text-shadow 0.2s ease;
+}
+
+html.theme-halloween #fx-toggle.fx-on {
+  opacity: 1;
+  color: #ff7518;
+  text-shadow: 0 0 8px rgba(255, 117, 24, 0.6);
+}
+
+/*--------------------------------------------------------------
+# Spooky accents
+--------------------------------------------------------------*/
+/* Ember tint on the top bar */
+html.theme-halloween .header {
+  background-image: linear-gradient(90deg, rgba(255, 117, 24, 0.16), rgba(123, 47, 247, 0.16));
+}
+
+/* Hazard strip along the bottom edge (.header is position: fixed) */
+html.theme-halloween .header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    #ff7518 0 10px,
+    #14121a 10px 20px,
+    #7b2ff7 20px 30px,
+    #14121a 30px 40px
+  );
+}
+
+/* Glowing page titles */
+html.theme-halloween .pagetitle h1 {
+  background: linear-gradient(135deg, #ff7518 0%, #b06bff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 14px rgba(255, 117, 24, 0.25);
+}
+
+/* A quiet jack-o'-lantern on the wordmark */
+html.theme-halloween .logo span::after {
+  content: " \01F383";
+  font-size: 0.9em;
+}
+
+/* The festive logo (bobcat_boo.png) is a busier composite — give it room */
+html.theme-halloween .logo img {
+  max-height: 46px;
+}
+
+/*--------------------------------------------------------------
+# Evacuate blurple
+#
+# Repoint every Discord blurple (#5865f2) surface to a pumpkin ->
+# witch-purple gradient for the season. Covers: the --blurple /
+# --btn-* custom props, the hard-coded .btn-blurple bootstrap vars,
+# select focus states (dropdown.css) and the embed editor accents
+# (Embed.css).
+--------------------------------------------------------------*/
+html.theme-halloween {
+  --blurple: #ff7518;
+  --btn-bg: #ff7518;
+  --btn-hover-bg: #e5670f;
+  --btn-active-bg: #c4560b;
+}
+
+/* Primary buttons: pumpkin -> purple gradient fill.
+   Bootstrap paints --bs-btn-bg as background-color; the gradient rides
+   on background-image above it, with the solid vars kept as fallback. */
+html.theme-halloween .btn-blurple,
+html.theme-halloween .btn[variant="default"] {
+  --bs-btn-bg: #d1610f;
+  --bs-btn-border-color: #b0530c;
+  --bs-btn-hover-bg: #b0530c;
+  --bs-btn-hover-border-color: #7b2ff7;
+  --bs-btn-active-bg: #97470a;
+  --bs-btn-active-border-color: #5a1e9e;
+  --bs-btn-disabled-bg: #d1610f;
+  --bs-btn-disabled-border-color: #b0530c;
+  --bs-btn-focus-shadow-rgb: 255, 117, 24;
+  background-image: linear-gradient(135deg, #ff7518 0%, #7b2ff7 100%);
+}
+
+html.theme-halloween .btn-blurple:hover,
+html.theme-halloween .btn[variant="default"]:hover {
+  background-image: linear-gradient(135deg, #ff8a33 0%, #8f45ff 100%);
+}
+
+html.theme-halloween .btn-blurple:active,
+html.theme-halloween .btn-blurple.active,
+html.theme-halloween .btn[variant="default"]:active,
+html.theme-halloween .btn[variant="default"].active {
+  background-image: linear-gradient(135deg, #c4560b 0%, #5a1e9e 100%);
+}
+
+html.theme-halloween select.select:hover,
+html.theme-halloween select.select:focus-visible {
+  border-color: #ff7518;
+}
+
+html.theme-halloween select.select:focus-visible {
+  box-shadow: 0 0 0 5px rgb(255 117 24 / 0.3);
+}
+
+html.theme-halloween .inline-label input[type="checkbox"] {
+  accent-color: #ff7518;
+}
+
+html.theme-halloween .add-field-btn {
+  color: #ff7518;
+}
