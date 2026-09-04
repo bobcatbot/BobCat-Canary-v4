@@ -1,6 +1,6 @@
 import discord
 from functools import wraps
-from quart import session, request, render_template, url_for, redirect
+from quart import session, request, render_template, url_for, redirect, jsonify, flash, g
 from zenora import APIClient
 
 from modules import bot as v
@@ -17,6 +17,23 @@ def bearer_client():
     """Returns a Zenora users client scoped to the current session token."""
     c = APIClient(session.get("token"), bearer=True)
     return c.users
+
+
+async def _cached_guild(guild_id):
+    """Fetch a Guild document, memoized per-request.
+
+    check_guild_permission / is_premium / plugin_enabled are all called for
+    the same guild within a single request (e.g. from plugin_guard); this
+    avoids re-fetching the identical document from Mongo each time.
+    """
+    guild_id = str(guild_id)
+    cache = getattr(g, "_guild_doc_cache", None)
+    if cache is None:
+        cache = {}
+        g._guild_doc_cache = cache
+    if guild_id not in cache:
+        cache[guild_id] = await Guild.get(guild_id)
+    return cache[guild_id]
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
@@ -41,7 +58,7 @@ async def check_guild_permission(guild, user_id) -> tuple[bool, str]:
             return True, "Owner"
 
         # Get guild config for custom roles
-        config = await Guild.get(str(guild.id))
+        config = await _cached_guild(guild.id)
         if config is None:
             return False, "Guild config not found"
 
@@ -74,7 +91,7 @@ class PremiumModuleError(Exception):
 async def is_premium(guild) -> bool:
     """Single source of truth for premium checks using Beanie directly."""
     guild_id = str(getattr(guild, "id", guild))
-    doc = await Guild.get(guild_id)
+    doc = await _cached_guild(guild_id)
 
     if not doc:
         return False
@@ -87,6 +104,132 @@ async def premium_module(guild, module):
     plug = PLUGIN_LIST.get(module, {})
     if plug.get('premium') and not await is_premium(guild):
         raise PremiumModuleError(f"Guild {guild} does not have access to {module}.")
+
+
+async def plugin_enabled(guild_id, plugin_key) -> bool:
+    """True if the plugin's main status toggle is on for this guild."""
+    db_key = PLUGIN_LIST.get(plugin_key, {}).get('db_key', plugin_key)
+    doc = await _cached_guild(guild_id)
+    cfg = getattr(doc.dashboard, db_key, None) if doc else None
+    if isinstance(cfg, dict):
+        return bool(cfg.get('status'))
+    return bool(getattr(cfg, 'status', False))
+
+
+def plugin_item_cap(plugin_key, guild_is_premium) -> int:
+    """Max first-class items (panels / hubs / forms / shop items / stat
+    channels) a guild may create for a plugin: `max_premium` with premium,
+    `max` without. Falls back to 15 / 5."""
+    meta = PLUGIN_LIST.get(plugin_key, {})
+    return meta.get('max_premium', 15) if guild_is_premium else meta.get('max', 5)
+
+
+# ── Payload shaping helpers ─────────────────────────────────────────────────────
+def unflatten_keys(data: dict) -> dict:
+    """Expand a flat dict with dotted keys into a nested dict.
+
+    ``{"a.b.c": 1, "a.b.d": 2, "x": 3}`` -> ``{"a": {"b": {"c": 1, "d": 2}}, "x": 3}``
+
+    The dashboard forms post settings as dotted paths (``intro_message.embed.title``);
+    the bot and the edit templates expect the nested shape.
+    """
+    result: dict = {}
+    for key, value in data.items():
+        parts = str(key).split('.')
+        node = result
+        for part in parts[:-1]:
+            child = node.get(part)
+            if not isinstance(child, dict):
+                child = {}
+                node[part] = child
+            node = child
+        node[parts[-1]] = value
+    return result
+
+
+def deep_merge(base: dict, incoming: dict) -> dict:
+    """Recursively merge ``incoming`` into ``base`` (mutates and returns ``base``).
+
+    Nested dicts merge key-by-key so a partial update (e.g. only
+    ``intro_message.embed.title``) doesn't wipe its siblings; every other value
+    type overwrites.
+    """
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+# ── Plugin-route authorization guard ─────────────────────────────────────────
+def plugin_guard(plugin_key, *, require_enabled=True):
+    """Guard for every dashboard guild route - page, action, or combined.
+
+    Same chain for all requests: authenticated -> guild is known -> caller has
+    guild permission -> guild has premium for the module. For *write* requests
+    (method not in GET/HEAD/OPTIONS) it also enforces the plugin's main status
+    toggle when `require_enabled` is True.
+
+    Failure response format is inferred from the method: JSON + HTTP status for
+    writes, an HTML login page / 404 / redirect-with-flash for reads. So the
+    same decorator serves page routes, JSON action routes, and combined
+    GET/POST routes with no inline checks.
+
+    `plugin_key` is the PLUGIN_LIST key ('giveaway', 'stats', ...), not the
+    db_key used on DashConfig.
+    """
+    def decorator(f):
+        @wraps(f)
+        async def wrapper(*args, **kwargs):
+            guild_id = kwargs.get('guild_id') or (args[0] if args else None)
+            is_write = request.method not in ('GET', 'HEAD', 'OPTIONS')
+
+            async def login_page():
+                session['redirect'] = request.url
+                return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+
+            if 'token' not in session:
+                if is_write:
+                    return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+                return await login_page()
+
+            guild = v.client.get_guild(guild_id)
+            if guild is None:
+                if is_write:
+                    return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+                return await render_template("error/404.html"), 404
+
+            try:
+                user = bearer_client().get_current_user()
+            except Exception:
+                if is_write:
+                    return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+                return await login_page()
+
+            allowed, level = await check_guild_permission(guild, user.id)
+            if not allowed:
+                if is_write:
+                    return jsonify({'status': 'error', 'message': f'Permission denied: {level}'}), 403
+                await flash(f"You don't have permission to manage this server ({level})", "danger")
+                return redirect(url_for('dashboard.guilds'))
+
+            try:
+                await premium_module(guild, plugin_key)
+            except PremiumModuleError:
+                if is_write:
+                    return jsonify({'status': 'error', 'message': 'This module requires premium'}), 403
+                raise  # -> app-level errorhandler: flash + redirect
+
+            if is_write and require_enabled and not await plugin_enabled(guild_id, plugin_key):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'This plugin is disabled. Enable it before making changes.',
+                    'code': 'plugin_disabled',
+                }), 409
+
+            return await f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 # ── GuildModels ───────────────────────────────────────────────────────────────

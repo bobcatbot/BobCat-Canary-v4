@@ -5,7 +5,7 @@ from quart import Blueprint, request, flash, jsonify, render_template, redirect,
 
 from modules import bot as v
 from modules.models import Guild, Giveaway
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard
 
 giveaways_bp = Blueprint('giveaways', __name__)
 logger = logging.getLogger(__name__)
@@ -85,10 +85,8 @@ async def _send_giveaway_message(guild, giveaway):
 
 
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways")
-@login_required
+@plugin_guard('giveaway')
 async def giveaways(guild_id):
-    await premium_module(guild_id, 'giveaway')
-    
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)
@@ -113,10 +111,8 @@ async def giveaways(guild_id):
 
 
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/creation", methods=['GET', 'POST'])
-@login_required
+@plugin_guard('giveaway')
 async def giveaways_creation(guild_id):
-    await premium_module(guild_id, 'giveaway')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -196,10 +192,8 @@ async def giveaways_creation(guild_id):
 
 
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/edition", methods=['GET', 'POST'])
-@login_required
+@plugin_guard('giveaway')
 async def giveaways_edition(guild_id, gway_id):
-    await premium_module(guild_id, 'giveaway')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -264,10 +258,8 @@ async def giveaways_edition(guild_id, gway_id):
 
 
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/publish", methods=['POST'])
-@login_required
+@plugin_guard('giveaway')
 async def giveaways_publish(guild_id, gway_id):
-    await premium_module(guild_id, 'giveaway')
-
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
@@ -301,10 +293,8 @@ async def giveaways_publish(guild_id, gway_id):
 
 
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/delete", methods=['DELETE'])
-@login_required
+@plugin_guard('giveaway')
 async def giveaways_delete(guild_id, gway_id):
-    await premium_module(guild_id, 'giveaway')
-
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404

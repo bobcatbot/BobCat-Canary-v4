@@ -10,10 +10,11 @@ def fetch_plugins(dash):
   guild's DashConfig. `dash` is a pydantic DashConfig object.
   Uses getattr() instead of .get() because DashConfig is not a dict.
   """
-  result = PLUGIN_LIST
-  
+  with open('web_dashboard/plugin_list.json', 'r', encoding='utf-8') as f:
+    PluginList = json.load(f)
+
   if dash is not None:
-    for plugin in result.values():
+    for plugin in PluginList.values():
       # DashConfig fields are named by db_key, not the plugin list key
       plug_config = getattr(dash, plugin['db_key'], None)
       if isinstance(plug_config, dict):
@@ -21,4 +22,4 @@ def fetch_plugins(dash):
       else:
         plugin['status'] = False
   
-  return result.items()
+  return PluginList.items()

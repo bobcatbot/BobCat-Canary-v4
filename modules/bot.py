@@ -36,8 +36,8 @@ client = commands.AutoShardedBot(
 btz_gid = 903243004544962600
 guild_ids = [ btz_gid, ]
 
-web_url = "http://localhost:8000"
-docs = "http://localhost:8000/docs"
+web_url = os.getenv('URL_BASE') or "http://localhost:8000"
+docs = f"{web_url}/docs"
 
 premium = "<:premium:1442138047348084806>"
 

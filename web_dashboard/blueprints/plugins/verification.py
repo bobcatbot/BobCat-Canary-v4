@@ -5,16 +5,14 @@ from quart import Blueprint, jsonify, render_template, request
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard
 
 verification_bp = Blueprint('verification', __name__)
 logger = logging.getLogger(__name__)
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification", methods=['GET'])
-@login_required
+@plugin_guard('verification')
 async def verify(guild_id):
-    await premium_module(guild_id, 'verification')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -31,7 +29,7 @@ async def verify(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/publish", methods=['POST'])
-@login_required
+@plugin_guard('verification')
 async def verify_publish(guild_id):
     """Publish or update the verification message."""
     guild = v.client.get_guild(guild_id)
@@ -210,7 +208,7 @@ async def verify_publish(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/unpublish", methods=['POST'])
-@login_required
+@plugin_guard('verification')
 async def verify_unpublish(guild_id):
     """Delete the verification message."""
     guild = v.client.get_guild(guild_id)
@@ -257,7 +255,7 @@ async def verify_unpublish(guild_id):
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/update", methods=['POST'])
-@login_required
+@plugin_guard('verification')
 async def verify_update(guild_id):
     """Update a specific verification setting."""
     data = await request.get_json()

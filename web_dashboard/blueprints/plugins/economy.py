@@ -3,16 +3,15 @@ from quart import Blueprint, render_template
 
 from modules import bot as v
 from modules.models import Guild, Economy
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...plugins import PLUGIN_LIST
 
 economy_bp = Blueprint('economy', __name__)
 logger = logging.getLogger(__name__)
 
 @economy_bp.route("/dashboard/<int:guild_id>/economy")
-@login_required
+@plugin_guard('economy')
 async def economy(guild_id):
-    await premium_module(guild_id, 'economy')
-    
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)
@@ -32,10 +31,15 @@ async def economy(guild_id):
     # Add num_items to the data for the template
     data = dash_data.copy() if isinstance(dash_data, dict) else {}
     data['num_items'] = num_items
-    
+
+    guild_premium = await is_premium(guild)
+
     return await render_template(
         "dashboard/plugins/economy.html",
         user=current_user,
         guild=guild,
-        data=data
+        data=data,
+        is_premium=guild_premium,
+        shop_cap=plugin_item_cap('economy', guild_premium),
+        shop_cap_premium=_ECONOMY_META.get('max_premium', 15),
     )

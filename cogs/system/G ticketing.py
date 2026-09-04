@@ -3,6 +3,7 @@ import asyncio
 import io
 from datetime import datetime, timedelta
 from discord.ext import commands, tasks
+from modules import bot as v
 from modules.models import Guild, Ticket
 
 async def get_ticketing(guild: discord.Guild) -> dict:
@@ -20,6 +21,8 @@ async def get_channel_ticket(guild: discord.Guild, channel_id: int) -> Ticket | 
 # ── MOVED TO CLASS SCOPE ──────────────────────────────────────────────────
 async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator: discord.Member, panel: dict) -> dict:
     """Generate transcript data (CPU-bound work)."""
+    ticket_id = str(ticket.id)
+    short_id = ticket_id[:8]
     user_message_count = {}
     for msg in ticket.transcript:
         user_id = msg['user']['id']
@@ -38,7 +41,7 @@ async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator
 
     transcript_em = discord.Embed(
         color=0x5865f2,
-        title=f"Ticket #{ticket.id[:8]} in {guild.name}",
+        title=f"Ticket #{short_id} in {guild.name}",
         timestamp=datetime.now()
     )
     transcript_em.set_author(name=creator.name, icon_url=creator.avatar.url if creator.avatar else None)
@@ -71,9 +74,11 @@ async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator
         )
     
     transcript_em.add_field(name="Participants", value="\n".join(participants) or "No participants", inline=False)
+
+    transcript_url = f"{v.web_url}/t/{guild.id}/{ticket_id}"
     
     # Build text transcript
-    transcript_text = f"Ticket #{ticket.id[:8]} - {guild.name}\n"
+    transcript_text = f"Ticket #{short_id} - {guild.name}\n"
     transcript_text += "=" * 50 + "\n\n"
     for msg in ticket.transcript:
         timestamp = msg.get('timestamp', {}).get('formatted', 'Unknown')
@@ -84,7 +89,7 @@ async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator
             for att in msg['attachments']:
                 transcript_text += f"  📎 {att}\n"
     
-    return {"embed": transcript_em, "text": transcript_text}
+    return {"embed": transcript_em, "text": transcript_text, "url": transcript_url}
 
 def create_transcript_file(text: str, ticket_id: str) -> discord.File:
     """Create transcript file (runs in thread pool)."""
@@ -92,6 +97,27 @@ def create_transcript_file(text: str, ticket_id: str) -> discord.File:
     text_file.write(text.encode('utf-8'))
     text_file.seek(0)
     return discord.File(text_file, filename=f"ticket_{ticket_id}.txt")
+
+async def _set_ticket_channel_state(channel, *, category=None, archived=None, locked=None) -> bool:
+    """Apply a ticket-state transition to its channel.
+
+    Thread-mode tickets are archived/locked (per `archived`/`locked`); regular
+    tickets are moved to `category` instead. Both HTTPException from the
+    thread edit are swallowed, matching prior per-call-site behavior.
+    Returns True if a category move happened (for building "moved to X" text).
+    """
+    if isinstance(channel, discord.Thread):
+        kwargs = {k: v for k, v in {"archived": archived, "locked": locked}.items() if v is not None}
+        if kwargs:
+            try:
+                await channel.edit(**kwargs)
+            except discord.HTTPException:
+                pass
+        return False
+    elif category is not None:
+        await channel.edit(category=category)
+        return True
+    return False
 
 class TicketControls(discord.ui.View):
     def __init__(self, client):
@@ -112,11 +138,9 @@ class TicketControls(discord.ui.View):
 
         panelCategoryClaimed = panel.get('category_claimed', '')
         move_to = '.'
-        if panelCategoryClaimed:
-            claimed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClaimed))
-            if claimed_category:
-                await interaction.channel.edit(category=claimed_category)
-                move_to = f' and it has been moved to **{claimed_category.name}** category'
+        claimed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClaimed)) if panelCategoryClaimed else None
+        if await _set_ticket_channel_state(interaction.channel, category=claimed_category):
+            move_to = f' and it has been moved to **{claimed_category.name}** category'
 
         ticket.claimed = {
             "status": True,
@@ -150,12 +174,11 @@ class TicketControls(discord.ui.View):
                 self.add_item(discord.ui.InputText(label="Reason", style=discord.InputTextStyle.long))
 
             async def callback(self, interaction: discord.Interaction):
+                is_thread = isinstance(interaction.channel, discord.Thread)
                 move_to = '.'
-                if panelCategoryClose:
-                    closed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClose))
-                    if closed_category:
-                        await interaction.channel.edit(category=closed_category)
-                        move_to = f' and it has been moved to **{closed_category.name}** category'
+                closed_category = discord.utils.get(interaction.guild.categories, id=int(panelCategoryClose)) if panelCategoryClose else None
+                if await _set_ticket_channel_state(interaction.channel, category=closed_category):
+                    move_to = f' and it has been moved to **{closed_category.name}** category'
 
                 close_em = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, this ticket has been closed{move_to}")
                 await interaction.response.send_message(embed=close_em, ephemeral=True)
@@ -181,6 +204,9 @@ class TicketControls(discord.ui.View):
 
                 msg = await interaction.channel.fetch_message(int(ticket.message_id))
                 await msg.edit(view=ctbtns)
+
+                if is_thread:
+                    await _set_ticket_channel_state(interaction.channel, archived=True, locked=True)
         await interaction.response.send_modal(MyModal(title="Close Ticket Reason"))
 
     @discord.ui.button(emoji="🔓", label="Reopen", style=discord.ButtonStyle.green, custom_id="reopen_ticket", disabled=True)
@@ -194,11 +220,9 @@ class TicketControls(discord.ui.View):
             return await interaction.response.send_message(embed=discord.Embed(description="This ticket is not closed yet.", color=0x5865f2), ephemeral=True)
 
         move_to = '.'
-        if panelCategoryOpen:
-            categoryopen = discord.utils.get(interaction.guild.categories, id=int(panelCategoryOpen))
-            if categoryopen:
-                await interaction.channel.edit(category=categoryopen)
-                move_to = f' and it has been moved to **{categoryopen.name}** category'
+        categoryopen = discord.utils.get(interaction.guild.categories, id=int(panelCategoryOpen)) if panelCategoryOpen else None
+        if await _set_ticket_channel_state(interaction.channel, category=categoryopen, archived=False, locked=False):
+            move_to = f' and it has been moved to **{categoryopen.name}** category'
 
         ticket.closed["status"] = False
         ticket.closed["user"] = ""
@@ -279,6 +303,9 @@ class TicketControls(discord.ui.View):
                     creator, 
                     self.panel
                 )
+
+                transcript_button_view = discord.ui.View()
+                transcript_button_view.add_item(discord.ui.Button(label="Transcript", url=transcript_data['url'], style=discord.ButtonStyle.url))
                 
                 # Send transcript to log channel
                 if self.panel.get('transcript_channel'):
@@ -286,24 +313,24 @@ class TicketControls(discord.ui.View):
                     if log_channel:
                         # ✅ Correct asyncio.to_thread usage with proper function
                         file = await asyncio.to_thread(
-                            create_transcript_file, 
-                            transcript_data['text'], 
-                            self.ticket.id[:8]
+                            create_transcript_file,
+                            transcript_data['text'],
+                            str(self.ticket.id)[:8]
                         )
-                        await log_channel.send(file=file, embed=transcript_data['embed'])
+                        await log_channel.send(file=file, embed=transcript_data['embed'], view=transcript_button_view)
                 
                 if self.panel.get('transcript_dm'):
                     try:
                         file = await asyncio.to_thread(
-                            create_transcript_file, 
-                            transcript_data['text'], 
-                            self.ticket.id[:8]
+                            create_transcript_file,
+                            transcript_data['text'],
+                            str(self.ticket.id)[:8]
                         )
-                        await creator.send(file=file, embed=transcript_data['embed'])
+                        await creator.send(file=file, embed=transcript_data['embed'], view=transcript_button_view)
                     except:
                         pass
 
-                await interaction.channel.delete(reason="Ticket deleted by user.")
+                await interaction.channel.delete()
 
         await interaction.response.send_message(embed=delete_confirm_em, view=DeleteTicketConfirm(self, ticket, panel, interaction.guild), ephemeral=True)
 
@@ -344,6 +371,7 @@ class Ticketing(commands.Cog):
                                 if child.custom_id == "reopen_ticket":
                                     child.disabled = False
                             await msg.edit(view=view)
+                            await _set_ticket_channel_state(channel, archived=True, locked=True)
                         except:
                             pass
                         
@@ -364,54 +392,102 @@ class Ticketing(commands.Cog):
         if interaction.data.get("custom_id") == "create_ticket":
             panels = (await get_ticketing(interaction.guild))['panels']
             tickets = await get_guild_tickets(interaction.guild)
-            
-            panel = next((p for p in panels if p['channel_id'] == str(interaction.channel.id)), None)
-            
-            category = discord.utils.get(interaction.guild.categories, id=int(panel['category_open']))
 
-            for channel in category.channels:
-                if channel.name == f"{len([t for t in tickets if not t.closed['status']])+1}-{interaction.user.name}".lower():
-                    return await interaction.response.send_message("> **Warning:** You already have an open ticket", ephemeral=True)
-                
-            overwrites = {
-                interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
-                interaction.guild.me: discord.PermissionOverwrite(read_messages=True),
-                interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, read_message_history=True),
-                **{
-                    interaction.guild.get_role(int(role_str)): discord.PermissionOverwrite(read_messages=True, send_messages=True, read_message_history=True)
-                    for role_str in panel['manager_roles']
+            panel = next((p for p in panels if p['channel_id'] == str(interaction.channel.id)), None)
+            if panel is None:
+                return
+
+            threading_mode = bool(panel.get('threading_mode'))
+
+            # Enforce "max open tickets per user" for this panel. An explicit 0
+            # means unlimited; an unset value keeps the legacy default of 1.
+            # An open ticket is one that isn't closed and isn't deleted.
+            max_open = int(panel.get('max_open_tickets', 1) or 0)
+            user_open = [
+                t for t in tickets
+                if t.creator_id == str(interaction.user.id)
+                and t.panel_id == str(panel['id'])
+                and not t.closed.get('status')
+                and not t.deleted.get('status')
+            ]
+            if max_open > 0 and len(user_open) >= max_open:
+                noun = "an open ticket" if max_open == 1 else f"**{len(user_open)}** open tickets (limit is **{max_open}**)"
+                return await interaction.response.send_message(
+                    f"> **Warning:** You already have {noun} on this panel.", ephemeral=True
+                )
+
+            ticket_number = len(tickets) + 1
+            ticket_name = f"{ticket_number}-{interaction.user.name}".lower()
+            manager_roles = [
+                r for r in (interaction.guild.get_role(int(rs)) for rs in panel['manager_roles'])
+                if r is not None
+            ]
+
+            if threading_mode:
+                # Private threads are available to every guild and, unlike public
+                # threads, don't post a "started a thread" notice in the parent
+                # channel. Fall back to a public thread only if creation fails.
+                try:
+                    channel = await interaction.channel.create_thread(
+                        name=ticket_name,
+                        type=discord.ChannelType.private_thread,
+                        invitable=False,
+                    )
+                except discord.HTTPException:
+                    channel = await interaction.channel.create_thread(
+                        name=ticket_name,
+                        type=discord.ChannelType.public_thread,
+                    )
+                await channel.add_user(interaction.user)
+                location_note = f' as a thread in {interaction.channel.mention}.'
+            else:
+                category = discord.utils.get(interaction.guild.categories, id=int(panel['category_open'])) if panel.get('category_open') else None
+                overwrites = {
+                    interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
+                    interaction.guild.me: discord.PermissionOverwrite(read_messages=True),
+                    interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, read_message_history=True),
+                    **{
+                        role: discord.PermissionOverwrite(read_messages=True, send_messages=True, read_message_history=True)
+                        for role in manager_roles
+                    }
                 }
-            }
-            
-            channel = await interaction.guild.create_text_channel(
-                f"{len(tickets)+1}-{interaction.user.name}".lower(), 
-                category=category, 
-                overwrites=overwrites,
-                topic=(
-                    f"- Type: {panel['panel_button']['emoji']} {panel['panel_button']['label']}"
-                    f"\n- Created by: {interaction.user.mention}"
-                ),
-            )
+                channel = await interaction.guild.create_text_channel(
+                    ticket_name,
+                    category=category,
+                    overwrites=overwrites,
+                    topic=(
+                        f"- Type: {panel['panel_button']['emoji']} {panel['panel_button']['label']}"
+                        f"\n- Created by: {interaction.user.mention}"
+                    ),
+                )
+                location_note = (
+                    f' and it has been moved to **<#{panel["category_open"]}>** category'
+                    if panel.get('category_open') else '.'
+                )
 
             self.ticket_timeouts[channel.id] = datetime.now() + timedelta(seconds=self.auto_close_timeout)
-
-            move_to = '.'
-            if panel['category_open']:
-                move_to = f' and it has been moved to **<#{panel["category_open"]}>** category'
 
             create_em = discord.Embed(
                 color=0x5865f2,
                 title="Ticket created",
-                description=f"{interaction.user.mention}, your ticket has been created{move_to}"
+                description=f"{interaction.user.mention}, your ticket has been created{location_note}"
             )
-            create_em.add_field(name=f"Ticket #{len(tickets)+1}", value=f"{channel.mention}", inline=False)
+            create_em.add_field(name=f"Ticket #{ticket_number}", value=f"{channel.mention}", inline=False)
             await interaction.response.send_message(embed=create_em, ephemeral=True)
 
             embed = discord.Embed.from_dict(panel['intro_message']['embed'])
-            msg: discord.Message = await channel.send(embed=embed, view=TicketControls(self.client))
-            await msg.pin()
+            # Ping the creator (and, in a thread, the manager roles so they get pulled in).
+            content = interaction.user.mention
+            if threading_mode and manager_roles:
+                content += " " + " ".join(r.mention for r in manager_roles)
+            msg: discord.Message = await channel.send(content=content, embed=embed, view=TicketControls(self.client))
+            # No point pinning in a thread - the intro is already the first
+            # message, and pinning just adds a "Message pinned" system notice.
+            if panel.get('pin_intro', True) and not threading_mode:
+                await msg.pin()
 
             await Ticket(
+                id=v.uuid(12, strCase="upper/lower/nums"),
                 guild_id=str(interaction.guild.id),
                 channel_id=str(channel.id),
                 message_id=str(msg.id),

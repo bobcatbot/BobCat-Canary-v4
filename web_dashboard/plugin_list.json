@@ -53,8 +53,8 @@
     "category": "utilities",
     "premium": true,
     "status": false,
-    "max": 5,
-    "max_premium": 15
+    "max": 1,
+    "max_premium": 5
   },
   "temporary_channels": {
     "title": "Temporary Channels",
@@ -66,8 +66,8 @@
     "category": "utilities",
     "premium": true,
     "status": false,
-    "max": 5,
-    "max_premium": 15
+    "max": 1,
+    "max_premium": 5
   },
   "ticketing": {
     "title": "Ticketing",
@@ -88,12 +88,12 @@
     "db_key": "stats",
     "icon": "insights",
     "url": "stats",
-    "badge": "prem",
+    "badge": "beta",
     "category": "utilities",
-    "premium": true,
+    "premium": false,
     "status": false,
     "max": 5,
-    "max_premium": 15
+    "max_premium": 10
   },
   "leveling": {
     "title": "Leveling",
@@ -104,8 +104,7 @@
     "badge": "",
     "category": "fun",
     "premium": false,
-    "status": false,
-    "max_premium": 15
+    "status": false
   },
   "birthdays": { 
     "title": "Birthdays",
@@ -140,6 +139,8 @@
     "badge": "",
     "category": "fun",
     "premium": false,
-    "status": false
+    "status": false,
+    "max": 5,
+    "max_premium": 8
   }
 }

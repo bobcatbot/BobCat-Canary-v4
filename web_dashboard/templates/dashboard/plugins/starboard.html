@@ -2,6 +2,20 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
+  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
+  <style>
+    #sb-emoji-preview {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 64px;
+      height: 64px;
+      font-size: 28px;
+      background: var(--color-primary);
+      border-radius: 12px;
+    }
+  </style>
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -53,6 +67,21 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
+          <h2>Starboard Emoji</h2>
+          <p>The emoji members react with to send a message to the starboard</p>
+        </div>
+
+        <hr>
+        <div class="d-flex" style="gap: 10px; align-items: center;">
+          <div class="img-icon" id="sb-emoji-preview">{{ data.get('emoji', '⭐') }}</div>
+          <button id="edit-sb-emoji" type="button" class="btn btn-blurple" style="position: relative;" trigger>Change emoji</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
           <h2>Star limit</h2>
           <p>Sets the number of stars required for a message to be posted to the starboard. Between 1 and 25 inclusive.</p>
         </div>
@@ -95,6 +124,76 @@
     <section class="section">
       <div class="feature_card">
         <div class="title">
+          <h2>Automatically Star New Entries</h2>
+          <p>The bot will add the starboard emoji to every new message posted in these channels</p>
+        </div>
+
+        <hr>
+        <div class="sb-autostar-wrapper multiple">
+          <div class="select">
+            <div class="select-selected">Select channels</div>
+            <div class="select-options">
+              {% for channel in guild_models(guild).channels.text %}
+                <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Ignore stars in these channels</h2>
+          <p>Stars added to messages in these channels will not count towards the starboard</p>
+        </div>
+
+        <hr>
+        <div class="sb-ignore-wrapper multiple">
+          <div class="select">
+            <div class="select-selected">Select channels</div>
+            <div class="select-options">
+              {% for channel in guild_models(guild).channels.text %}
+                <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Allow NSFW Content</h2>
+          <p>Count stars on messages sent in age-restricted (NSFW) channels</p>
+        </div>
+
+        <hr>
+        <div class="form-switch ps-0">
+          <input type="checkbox" id="allow-nsfw" class="form-check-input ms-0" role="switch" name="check" data-val="{{data.get('allowNsfw')}}">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Embed images from NSFW channels</h2>
+          <p>Show attached images in the starboard embed when the message came from an NSFW channel</p>
+        </div>
+
+        <hr>
+        <div class="form-switch ps-0">
+          <input type="checkbox" id="embed-nsfw-images" class="form-check-input ms-0" role="switch" name="check" data-val="{{data.get('embedNsfwImages')}}">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
           <h2>Lock Starboard</h2>
           <p>Temporarily disable the starboard</p>
         </div>
@@ -118,8 +217,29 @@
       maxItems: 1,
       options: ["{{data['channel']}}"]
     });
-    
-    
+
+    const sbAutoStarSaved = JSON.parse(`{{ data.get('autoStar', []) | tojson }}`) || [];
+    const sbIgnoreSaved = JSON.parse(`{{ data.get('ignore', []) | tojson }}`) || [];
+
+    new Select('.sb-autostar-wrapper.multiple', {
+      placeholder: "Select channels",
+      type: 'channel',
+      multiple: true,
+      maxItems: 0,
+      removeBtn: true,
+      options: sbAutoStarSaved
+    });
+
+    new Select('.sb-ignore-wrapper.multiple', {
+      placeholder: "Select channels",
+      type: 'channel',
+      multiple: true,
+      maxItems: 0,
+      removeBtn: true,
+      options: sbIgnoreSaved
+    });
+
+
     var save_data = {}
 
     var switches = document.querySelectorAll("input[type='checkbox'][name='check']")
@@ -142,37 +262,82 @@
     })
 
     // verify channel
+    const sbChannelSaved = "{{data['channel']}}";
     const starboardChanWrapper = document.querySelector('.sb-chan-wrapper.single');
     starboardChanWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
-      
-      show_toast("starboard.channel", "{{data['channel']}}", option)
+
+      show_toast("starboard.channel", sbChannelSaved, option,
+        () => window._selects['.sb-chan-wrapper.single'].setSelectedOptions(sbChannelSaved ? [sbChannelSaved] : []))
     });
 
     document.querySelector('#star-limit').addEventListener('change', (e) => {
       var val = e.target.value
-      
-      show_toast("starboard.limit", "{{data['limit']}}", val)
+
+      show_toast("starboard.limit", "{{data['limit']}}", val, () => { e.target.value = e.target.defaultValue; })
     })
 
     document.querySelector('#jump-link').addEventListener('change', (e) => {
       var val = e.target.checked
-      
-      show_toast("starboard.jumpLink", "{{data['jumpLink']}}", val)
+
+      show_toast("starboard.jumpLink", "{{data['jumpLink']}}", val,
+        () => { e.target.checked = "{{data['jumpLink']}}" === "True"; })
     })
 
     document.querySelector('#self-star').addEventListener('change', (e) => {
       var val = e.target.checked
-      
-      show_toast("starboard.selfStar", "{{data['selfStar']}}", val)
+
+      show_toast("starboard.selfStar", "{{data['selfStar']}}", val,
+        () => { e.target.checked = "{{data['selfStar']}}" === "True"; })
     })
 
     document.querySelector('#lock-sb').addEventListener('change', (e) => {
       var val = e.target.checked
-      
-      show_toast("starboard.locked", "{{data['locked']}}", val)
+
+      show_toast("starboard.locked", "{{data['locked']}}", val,
+        () => { e.target.checked = "{{data['locked']}}" === "True"; })
     })
+
+    document.querySelector('#allow-nsfw').addEventListener('change', (e) => {
+      show_toast("starboard.allowNsfw", "{{data.get('allowNsfw')}}", e.target.checked,
+        () => { e.target.checked = "{{data.get('allowNsfw')}}" === "True"; })
+    })
+
+    document.querySelector('#embed-nsfw-images').addEventListener('change', (e) => {
+      show_toast("starboard.embedNsfwImages", "{{data.get('embedNsfwImages')}}", e.target.checked,
+        () => { e.target.checked = "{{data.get('embedNsfwImages')}}" === "True"; })
+    })
+
+    // Starboard emoji picker
+    const sbEmojiSaved = "{{ data.get('emoji', '⭐') }}";
+    new EmojiPicker({
+      trigger: '#edit-sb-emoji',
+      position: ['bottom', 'right'],
+      dir: "{{url_for('static', filename='Emojis.json')}}",
+      plug: 'sb',
+      emit(emoji) {
+        document.querySelector('#sb-emoji-preview').innerText = emoji.icon;
+        show_toast("starboard.emoji", sbEmojiSaved, emoji.icon,
+          () => { document.querySelector('#sb-emoji-preview').innerText = sbEmojiSaved; });
+      }
+    });
+
+    // Auto-star channels
+    const sbAutoStarWrapper = document.querySelector('.sb-autostar-wrapper.multiple');
+    sbAutoStarWrapper.addEventListener('select:update', (event) => {
+      const channelIds = (event.detail.selectedOptions || []).map(opt => opt.id || opt);
+      show_toast("starboard.autoStar", sbAutoStarSaved, channelIds,
+        () => window._selects['.sb-autostar-wrapper.multiple'].setSelectedOptions(sbAutoStarSaved));
+    });
+
+    // Ignored channels
+    const sbIgnoreWrapper = document.querySelector('.sb-ignore-wrapper.multiple');
+    sbIgnoreWrapper.addEventListener('select:update', (event) => {
+      const channelIds = (event.detail.selectedOptions || []).map(opt => opt.id || opt);
+      show_toast("starboard.ignore", sbIgnoreSaved, channelIds,
+        () => window._selects['.sb-ignore-wrapper.multiple'].setSelectedOptions(sbIgnoreSaved));
+    });
   </script>
   
 </body>

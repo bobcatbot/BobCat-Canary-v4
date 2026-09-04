@@ -76,32 +76,33 @@
         <hr>
         
         <div class="">
-          <label for="lbStatus" class="title">
+          <label for="mot-value" class="title">
             <h5 class="m-0 " style="font-size: 1.125rem;font-weight: 700;">Max open tickets per user</h5>
             <p class="m-0">The maximum number of open tickets that a user can have at the same time. <br>Set to 0 for unlimited open tickets.</p>
           </label>
           <div class="text-input d-flex align-items-center justify-content-between" style="padding: 8px 8px;">
             <button id="mot-minus" class="btn btn-blurple">-</button>
-            <span id="mot-value">0</span>
+            <span id="mot-value">{{ data.get('max_open_tickets', 1) }}</span>
             <button id="mot-plus" class="btn btn-blurple">+</button>
           </div>
         </div>
 
         <div class="mt-3 d-flex gap-1 justify-content-between align-items-center">
-          <label for="lbStatus" class="title">
+          <label for="pin-intro" class="title">
             <h5 class="m-0 " style="font-size: 1.125rem;font-weight: 700;">Pin Welcome Message</h5>
           </label>
           <div class="form-switch ps-0">
-            <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status" disabled>
+            <input type="checkbox" id="pin-intro" class="form-check-input ms-0 mt-0" role="switch" name="pin-intro" {{ 'checked' if data.get('pin_intro', True) else '' }}>
           </div>
         </div>
 
         <div class="mt-3 d-flex gap-1 justify-content-between align-items-center">
-          <label for="lbStatus" class="title">
+          <label for="threading-mode" class="title">
             <h5 class="m-0 " style="font-size: 1.125rem;font-weight: 700;">Threading Mode</h5>
+            <p class="m-0">Open each ticket as a private thread in the publish channel instead of a new channel. Category options are ignored in this mode.</p>
           </label>
           <div class="form-switch ps-0">
-            <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status" disabled>
+            <input type="checkbox" id="threading-mode" class="form-check-input ms-0 mt-0" role="switch" name="threading-mode" {{ 'checked' if data.get('threading_mode') else '' }}>
           </div>
         </div>
       </div>
@@ -510,23 +511,21 @@
     const motPlus = document.querySelector('#mot-plus');
 
     motMinus.addEventListener('click', (e) => {
-      var value = parseInt(motValue.innerText);
-
-      if (value >= 0) {
-        motValue.innerText = value - 1;
-      }
-
-      // when motValue changes, update ticket_data
-      // ticket_data['max_open_tickets'] = value;
+      var value = Math.max(0, parseInt(motValue.innerText || '0') - 1);
+      motValue.innerText = value;
+      ticket_data['max_open_tickets'] = value;
     })
 
     motPlus.addEventListener('click', (e) => {
-      var value = parseInt(motValue.innerText);
+      var value = Math.max(0, parseInt(motValue.innerText || '0')) + 1;
+      motValue.innerText = value;
+      ticket_data['max_open_tickets'] = value;
+    })
 
-      motValue.innerText = value + 1;
-
-      // when motValue changes, update ticket_data
-      // ticket_data['max_open_tickets'] = value + 1;
+    /* Threading mode */
+    const threadingMode = document.querySelector('#threading-mode');
+    threadingMode.addEventListener('change', (e) => {
+      ticket_data['threading_mode'] = e.target.checked;
     })
 
     /* Panel Message */
@@ -722,8 +721,14 @@
     const transcriptDm = document.querySelector('#transcript-dm');
     transcriptDm.addEventListener('change', (e) => {
       var val = e.target.checked
-      
+
       ticket_data['transcript_dm'] = val;
+    })
+
+    // Pin welcome message
+    const pinIntro = document.querySelector('#pin-intro');
+    pinIntro.addEventListener('change', (e) => {
+      ticket_data['pin_intro'] = e.target.checked;
     })
   </script>
 

@@ -5,7 +5,8 @@ from quart import Blueprint, request, render_template, jsonify
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...plugins import PLUGIN_LIST
 
 stats_bp = Blueprint('stats', __name__)
 logger = logging.getLogger(__name__)
@@ -21,10 +22,8 @@ async def run_on_bot_loop(coro):
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats")
-@login_required
+@plugin_guard('stats')
 async def stats(guild_id):
-    await premium_module(guild_id, 'stats')
-
     current_user = bearer_client().get_current_user()
 
     guild = v.client.get_guild(guild_id)
@@ -34,16 +33,20 @@ async def stats(guild_id):
     config = await Guild.get(str(guild.id))
     stats_config = config.dashboard.stats if config else {}
 
+    guild_premium = await is_premium(guild)
+
     return await render_template(
         "dashboard/plugins/stats.html",
         user=current_user,
         guild=guild,
-        data=stats_config
+        data=stats_config,
+        is_premium=guild_premium,
+        channel_cap=plugin_item_cap('stats', guild_premium),
     )
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/setup", methods=['POST'])
-@login_required
+@plugin_guard('stats')
 async def stats_setup(guild_id):
     """Auto-create default stats channels."""
     guild = v.client.get_guild(guild_id)
@@ -64,6 +67,14 @@ async def stats_setup(guild_id):
         {"target": "humans", "text": "Humans: {count}", "channel_id": "", "count": 0, "position": 0,},
         {"target": "bots", "text": "Bots: {count}", "channel_id": "", "count": 0, "position": 1,},
     ]
+
+    cap = plugin_item_cap('stats', await is_premium(guild))
+    if len(counters) + len(default_counters) > cap:
+        return jsonify({
+            'status': 'error',
+            'message': f"Auto setup adds {len(default_counters)} channels, which would exceed your limit of {cap}.",
+            'code': 'stats_cap',
+        }), 409
 
     created_count = 0
     for counter in default_counters:
@@ -96,7 +107,7 @@ async def stats_setup(guild_id):
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/refresh", methods=['POST'])
-@login_required
+@plugin_guard('stats')
 async def stats_refresh(guild_id):
     """Force refresh stats channels."""
     guild = v.client.get_guild(guild_id)
@@ -114,7 +125,7 @@ async def stats_refresh(guild_id):
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/create-counter", methods=['POST'])
-@login_required
+@plugin_guard('stats')
 async def stats_create_counter(guild_id):
     """Create a new voice channel and add it as a counter."""
     data = await request.get_json()
@@ -135,6 +146,15 @@ async def stats_create_counter(guild_id):
     config = await Guild.get(str(guild.id))
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
+
+    # Enforce the free / premium channel cap before touching Discord
+    guild_premium = await is_premium(guild)
+    cap = plugin_item_cap('stats', guild_premium)
+    if len(config.dashboard.stats.get('counters', [])) >= cap:
+        msg = f"You've reached your limit of {cap} stat channels."
+        if not guild_premium:
+            msg += f" Upgrade to premium for up to {plugin_item_cap('stats', True)}."
+        return jsonify({'status': 'error', 'message': msg, 'code': 'stats_cap'}), 409
 
     # Create the voice channel on the bot's loop
     channel = await run_on_bot_loop(guild.create_voice_channel(
@@ -180,7 +200,7 @@ async def stats_create_counter(guild_id):
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/counter/<int:counter_idx>/delete", methods=['DELETE'])
-@login_required
+@plugin_guard('stats')
 async def stats_delete_counter(guild_id, counter_idx):
     """Delete a specific counter and its associated channel."""
     guild = v.client.get_guild(guild_id)
@@ -222,7 +242,7 @@ async def stats_delete_counter(guild_id, counter_idx):
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/reset", methods=['POST'])
-@login_required
+@plugin_guard('stats')
 async def stats_reset(guild_id):
     """Delete all stats channels and clear config."""
     guild = v.client.get_guild(guild_id)
@@ -259,7 +279,7 @@ async def stats_reset(guild_id):
     return jsonify({'status': 'success', 'message': 'Successfully deleted all stats channels'})
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats/reorder", methods=['POST'])
-@login_required
+@plugin_guard('stats')
 async def stats_reorder(guild_id):
     """Apply new order to stats channels."""
     data = await request.get_json()

@@ -44,11 +44,6 @@ logging.getLogger('quart.serving').setLevel(logging.ERROR)
 
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
-    
-    # Quart defaults SEND_FILE_MAX_AGE_DEFAULT to 12 hours, so browsers cache
-    # static JS/CSS across normal refreshes — edits wouldn't show up without
-    # a hard refresh. Disable that in dev so a plain reload always picks up
-    # the latest static files.
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # ── Blueprints ────────────────────────────────────────────────────────────

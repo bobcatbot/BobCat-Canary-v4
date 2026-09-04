@@ -8,7 +8,7 @@ from modules import bot as v
 from modules.models import Guild, Leveling
 from ...config import mongo_cdn
 from ...db import get_guild
-from ...utils import bearer_client, check_guild_permission, login_required, premium_module
+from ...utils import bearer_client, check_guild_permission, plugin_guard, is_premium
 
 leveling_bp = Blueprint('leveling', __name__)
 logger = logging.getLogger(__name__)
@@ -84,10 +84,28 @@ async def _leaderboard_action(guild, config):
 
     return jsonify({"status": 400, "message": "Unknown action"}), 400
 
+async def _resolve_leaderboard_guild(identifier: str):
+    """Resolve a ``/leaderboard/<identifier>`` segment to a guild.
 
-@leveling_bp.route("/leaderboard/<guild_id>", methods=["GET", "POST"])
-async def leaderboard_home(guild_id):
-    guild = v.client.get_guild(int(guild_id))
+    ``identifier`` is either a numeric guild id or a guild's custom leaderboard
+    slug (premium feature, stored at ``leveling.leaderboard.url``).
+    """
+    if identifier.isdigit():
+        guild = v.client.get_guild(int(identifier))
+        if guild is not None:
+            return guild
+
+    slug_doc = await Guild.find_one({"Dash.leveling.leaderboard.url": identifier.strip().lower()})
+    if slug_doc is not None:
+        return v.client.get_guild(int(slug_doc.id))
+
+    return None
+
+
+@leveling_bp.route("/leaderboard/<identifier>", methods=["GET", "POST"])
+async def leaderboard_home(identifier):
+    guild = await _resolve_leaderboard_guild(identifier)
+
     if guild is None:
         if request.method == "POST":
             return jsonify({"status": 404, "message": "Guild not found"}), 404
@@ -166,10 +184,8 @@ async def leaderboard_home(guild_id):
 
 # ── Dashboard plugin page ─────────────────────────────────────────────────────
 @leveling_bp.route("/dashboard/<int:guild_id>/leveling")
-@login_required
+@plugin_guard('leveling')
 async def levelling(guild_id):
-    await premium_module(guild_id, 'leveling')
-    
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)
@@ -178,11 +194,12 @@ async def levelling(guild_id):
 
     # Get the guild document using Beanie
     config = (await Guild.get(str(guild.id))).dashboard.leveling
-        
+
     return await render_template(
         "dashboard/plugins/leveling.html",
         user=current_user,
         guild=guild,
         data=config,
-        server_cards=_get_rank_cards()
+        server_cards=_get_rank_cards(),
+        is_premium=await is_premium(guild),
     )

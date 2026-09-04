@@ -6,7 +6,8 @@ from quart import Blueprint, flash, jsonify, redirect, render_template, request,
 
 from modules import bot as v
 from modules.models import Guild, Form, FormResponse
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap
+from ...plugins import PLUGIN_LIST
 
 forms_bp = Blueprint('forms', __name__)
 logger = logging.getLogger(__name__)
@@ -347,10 +348,8 @@ async def form_submission_delete(guild_id, form_id, submission_id):
 
 # ── Dashboard pages ──────────────────────────────────────────────
 @forms_bp.route("/dashboard/<int:guild_id>/forms")
-@login_required
+@plugin_guard('forms')
 async def forms(guild_id):
-    await premium_module(guild_id, 'forms')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -363,19 +362,22 @@ async def forms(guild_id):
     forms_list = await Form.find(Form.guild_id == str(guild.id)).to_list()
 
     logger.info(f"Loaded {len(forms_list)} forms for guild {guild_id}")
-    
+
+    guild_premium = await is_premium(guild)
+
     return await render_template(
         "dashboard/plugins/forms/form_index.html",
         user=current_user,
         guild=guild,
         data=forms_list,
+        is_premium=guild_premium,
+        item_cap=plugin_item_cap('forms', guild_premium),
+        item_cap_premium=PLUGIN_LIST.get('forms', {}).get('max_premium', 15),
     )
 
 @forms_bp.route("/dashboard/<int:guild_id>/forms/creation", methods=['GET', 'POST'])
-@login_required
+@plugin_guard('forms')
 async def forms_create(guild_id):
-    await premium_module(guild_id, 'forms')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -389,6 +391,16 @@ async def forms_create(guild_id):
         # Validate required fields
         if not data.get('name'):
             return jsonify({'status': 'error', 'message': 'Form name is required'}), 400
+
+        # Enforce the free / premium form cap
+        guild_premium = await is_premium(guild)
+        cap = plugin_item_cap('forms', guild_premium)
+        existing = await Form.find(Form.guild_id == str(guild.id)).count()
+        if existing >= cap:
+            msg = f"You've reached your limit of {cap} forms."
+            if not guild_premium:
+                msg += f" Upgrade to premium for up to {PLUGIN_LIST.get('forms', {}).get('max_premium', 15)}."
+            return jsonify({'status': 'error', 'message': msg, 'code': 'item_cap'}), 409
 
         # Create form using Beanie
         form = Form(
@@ -413,10 +425,8 @@ async def forms_create(guild_id):
     )
 
 @forms_bp.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
-@login_required
+@plugin_guard('forms')
 async def forms_edit(guild_id, form_id):
-    await premium_module(guild_id, 'forms')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -427,7 +437,7 @@ async def forms_edit(guild_id, form_id):
         Form.guild_id == str(guild.id),
         Form.id == form_id
     )
-    
+
     if form_data is None:
         await flash('Form not found', 'error')
         return redirect(url_for('forms.forms', guild_id=guild_id))

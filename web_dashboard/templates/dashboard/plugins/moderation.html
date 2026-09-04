@@ -481,68 +481,85 @@
       options: JSON.parse('{{data["settings"]["warn"]["dm"] | tojson}}')
     });
 
+    // Restore a widget to its saved state. btn_cancel passes the live baseline;
+    // fall back to the page-load `saved` when called without one.
+    const modRevert = (sel, saved) => (live) => {
+      const v = live === undefined ? saved : live;
+      window._selects[sel].setSelectedOptions(Array.isArray(v) ? v : (v ? [v] : []));
+    };
+
+    const kickDmSaved = JSON.parse('{{ data["settings"]["kick"]["dm"] | tojson }}') || [];
     const kickDmWrapper = document.querySelector('.kick-dm-wrapper.multi');
     kickDmWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      
-      show_toast("moderation.settings.kick.dm", "{{data['settings']['kick']['dm']}}", selectedOptions)
+      show_toast("moderation.settings.kick.dm", kickDmSaved, event.detail.selectedOptions,
+        modRevert('.kick-dm-wrapper.multi', kickDmSaved))
     });
-    
+
+    const banDmSaved = JSON.parse('{{ data["settings"]["ban"]["dm"] | tojson }}') || [];
     const banDmWrapper = document.querySelector('.ban-dm-wrapper.multi');
     banDmWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      
-      show_toast("moderation.settings.ban.dm", "{{data['settings']['ban']['dm']}}", selectedOptions)
+      show_toast("moderation.settings.ban.dm", banDmSaved, event.detail.selectedOptions,
+        modRevert('.ban-dm-wrapper.multi', banDmSaved))
     });
+
+    const banDeleteSaved = "{{data['settings']['ban']['deleteMessageDays']}}";
     const banDeleteWrapper = document.querySelector('.ban-delete-wrapper.single');
     banDeleteWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : '0'
-      
-      show_toast("moderation.settings.ban.deleteMessageDays", "{{data['settings']['ban']['deleteMessageDays']}}", option)
+
+      show_toast("moderation.settings.ban.deleteMessageDays", banDeleteSaved, option,
+        modRevert('.ban-delete-wrapper.single', banDeleteSaved))
     });
-    
+
+    const muteDmSaved = JSON.parse('{{ data["settings"]["mute"]["dm"] | tojson }}') || [];
     const muteDmWrapper = document.querySelector('.mute-dm-wrapper.multi');
     muteDmWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      
-      show_toast("moderation.settings.mute.dm", "{{data['settings']['mute']['dm']}}", selectedOptions)
+      show_toast("moderation.settings.mute.dm", muteDmSaved, event.detail.selectedOptions,
+        modRevert('.mute-dm-wrapper.multi', muteDmSaved))
     });
+
+    const muteTypeSaved = "{{data['settings']['mute']['type']}}";
     const muteTypeWrapper = document.querySelector('.mute-type-wrapper.single');
     muteTypeWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : 'timeout'
-      
-      show_toast("moderation.settings.mute.type", "{{data['settings']['mute']['type']}}", option)
+
+      show_toast("moderation.settings.mute.type", muteTypeSaved, option,
+        modRevert('.mute-type-wrapper.single', muteTypeSaved))
     });
+
+    const muteDurationSaved = "{{data['settings']['mute']['duration']}}";
     const muteDurationWrapper = document.querySelector('.mute-duration-wrapper.single');
     muteDurationWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : '60-sec'
-      
-      show_toast("moderation.settings.mute.duration", "{{data['settings']['mute']['duration']}}", option)
+
+      show_toast("moderation.settings.mute.duration", muteDurationSaved, option,
+        modRevert('.mute-duration-wrapper.single', muteDurationSaved))
     });
-    
+
+    const warnDmSaved = JSON.parse('{{ data["settings"]["warn"]["dm"] | tojson }}') || [];
     const warnDmWrapper = document.querySelector('.warn-dm-wrapper.multi');
     warnDmWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      
-      show_toast("moderation.settings.warn.dm", "{{data['settings']['warn']['dm']}}", selectedOptions)
+      show_toast("moderation.settings.warn.dm", warnDmSaved, event.detail.selectedOptions,
+        modRevert('.warn-dm-wrapper.multi', warnDmSaved))
     });
 
     // Admin
+    const modRolesSaved = JSON.parse('{{ data.get("moderator_roles", []) | tojson }}') || [];
     new Select('.immunityroles-select-wrapper.multiple', {
       placeholder: "Select a role",
       type: 'role',
       multiple: true,
       maxItems: 100,
       removeBtn: true,
-      options: JSON.parse('{{ data.get("moderator_roles", []) | tojson }}')
+      options: modRolesSaved
     });
     const immunityRolesWrapper = document.querySelector('.immunityroles-select-wrapper.multiple');
     immunityRolesWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      show_toast("settings.moderator_roles", "{{ data.get('moderator_roles', []) }}", selectedOptions)
+      show_toast("settings.moderator_roles", modRolesSaved, event.detail.selectedOptions,
+        modRevert('.immunityroles-select-wrapper.multiple', modRolesSaved))
     });
     
 
@@ -555,12 +572,14 @@
       options: ['{{data["logging"]["channel"]}}']
     });
 
+    const logChanSaved = "{{data['logging']['channel']}}";
     const logChanWrapper = document.querySelector('.log-chan-wrapper.single');
     logChanWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
 
-      show_toast("moderation.logging.channel", "{{data['logging']['channel']}}", option)
+      show_toast("moderation.logging.channel", logChanSaved, option,
+        modRevert('.log-chan-wrapper.single', logChanSaved))
     });
     
     const switches = document.querySelectorAll("input[type='checkbox'][name='log-event-switch']")
@@ -582,15 +601,17 @@
     switches.forEach((checkbox) => {
       checkbox.addEventListener('change', (e) => {
         var key = 'moderation.logging.events.' + e.target.id
-        
-        show_toast(key, e.target.dataset.val, e.target.checked)
+
+        show_toast(key, e.target.dataset.val, e.target.checked,
+          () => { e.target.checked = e.target.dataset.val === "True"; })
       })
     })
 
     document.querySelector('#Bots').addEventListener('change', (e) => {
       var val = e.target.checked;
-      
-      show_toast("moderation.logging.bots", "{{data['logging']['bots']}}", val)
+
+      show_toast("moderation.logging.bots", "{{data['logging']['bots']}}", val,
+        () => { e.target.checked = "{{data['logging']['bots']}}" === "True"; })
     })
   </script>
     

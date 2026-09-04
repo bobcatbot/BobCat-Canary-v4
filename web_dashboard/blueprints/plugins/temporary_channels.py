@@ -5,17 +5,16 @@ from quart import Blueprint, request, render_template, redirect, url_for, jsonif
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...plugins import PLUGIN_LIST
 
 temporary_channels_bp = Blueprint('temporary_channels', __name__)
 logger = logging.getLogger(__name__)
 
 
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels")
-@login_required
+@plugin_guard('temporary_channels')
 async def temporary_channels(guild_id):
-    await premium_module(guild_id, 'temporary_channels')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -23,20 +22,23 @@ async def temporary_channels(guild_id):
 
     # Get the guild document using Beanie
     config = (await Guild.get(str(guild.id))).dashboard.temporary_channels
-    
+
+    guild_premium = await is_premium(guild)
+
     return await render_template(
         "dashboard/plugins/temporary_channels/tc_index.html",
         user=current_user,
         guild=guild,
-        data=config
+        data=config,
+        is_premium=guild_premium,
+        item_cap=plugin_item_cap('temporary_channels', guild_premium),
+        item_cap_premium=PLUGIN_LIST.get('temporary_channels', {}).get('max_premium', 15),
     )
 
 
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/creation", methods=['GET', 'POST'])
-@login_required
+@plugin_guard('temporary_channels')
 async def temporary_channels_create(guild_id):
-    await premium_module(guild_id, 'temporary_channels')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -50,6 +52,16 @@ async def temporary_channels_create(guild_id):
         # Validate required fields
         if not data.get('hub_name'):
             return jsonify({'status': 'error', 'message': 'Hub name is required'}), 400
+
+        # Enforce the free / premium hub cap
+        existing = (await Guild.get(str(guild.id))).dashboard.temporary_channels.get('hubs', [])
+        guild_premium = await is_premium(guild)
+        cap = plugin_item_cap('temporary_channels', guild_premium)
+        if len(existing) >= cap:
+            msg = f"You've reached your limit of {cap} hubs."
+            if not guild_premium:
+                msg += f" Upgrade to premium for up to {PLUGIN_LIST.get('temporary_channels', {}).get('max_premium', 15)}."
+            return jsonify({'status': 'error', 'message': msg, 'code': 'item_cap'}), 409
 
         # Generate a unique ID for the hub
         data['id'] = v.uuid(length=12, strCase='upper/lower/nums')
@@ -94,11 +106,12 @@ async def temporary_channels_create(guild_id):
                 else:
                     category = guild
 
-                # Create the voice channel
+                # Create the hub ("Join to create") channel. user_limit is
+                # deliberately not set here - it applies to the spawned temp
+                # channels (see handle_join), not the hub itself.
                 try:
                     vc = await category.create_voice_channel(
                         data.get('hub_name', 'Hub - Join to create'),
-                        user_limit=int(data.get('user_limit', 4)),
                         bitrate=int(data.get('bitrate', 64000)),
                         reason=f"Temp voice channel for hub {data['id']}"
                     )
@@ -135,10 +148,8 @@ async def temporary_channels_create(guild_id):
 
 
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/edition", methods=['GET', 'POST'])
-@login_required
+@plugin_guard('temporary_channels')
 async def temporary_channels_edit(guild_id, hub_id):
-    await premium_module(guild_id, 'temporary_channels')
-    
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -152,7 +163,7 @@ async def temporary_channels_edit(guild_id, hub_id):
 
     hubs = config.dashboard.temporary_channels.get('hubs', [])
     hub = next((h for h in hubs if h.get('id') == hub_id), None)
-    
+
     if hub is None:
         await flash('Hub not found', 'error')
         return redirect(url_for('temporary_channels.temporary_channels', guild_id=guild_id))
@@ -183,16 +194,23 @@ async def temporary_channels_edit(guild_id, hub_id):
                     channel = guild.get_channel(int(channel_id))
                     if channel:
                         try:
-                            category = None
+                            # Only fields the form actually sent, plus a reset of
+                            # user_limit to 0 - that limit belongs to the spawned
+                            # temp channels (handle_join), never the hub itself.
+                            edit_kwargs = {}
+                            if channel.user_limit:
+                                edit_kwargs['user_limit'] = 0
+                            if data.get('hub_name'):
+                                edit_kwargs['name'] = data['hub_name']
+                            if 'bitrate' in data:
+                                edit_kwargs['bitrate'] = int(data.get('bitrate') or channel.bitrate or 64000)
                             if data.get('sync_hub_category') and data.get('category_id'):
-                                category = guild.get_channel(int(data['category_id']))
-                            
-                            await channel.edit(
-                                name=data.get('hub_name', channel.name),
-                                category=category,
-                                user_limit=int(data.get('user_limit', channel.user_limit or 0)),
-                                bitrate=int(data.get('bitrate', channel.bitrate or 64000))
-                            )
+                                cat = guild.get_channel(int(data['category_id']))
+                                if cat:
+                                    edit_kwargs['category'] = cat
+
+                            if edit_kwargs:
+                                await channel.edit(**edit_kwargs)
                             logger.info(f"Updated Discord channel for hub {hub_id} in guild {guild_id}")
                         except discord.Forbidden:
                             logger.error(f"No permissions to edit channel in guild {guild_id}")
@@ -222,7 +240,7 @@ async def temporary_channels_edit(guild_id, hub_id):
 
 
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/delete", methods=['DELETE'])
-@login_required
+@plugin_guard('temporary_channels')
 async def temporary_channels_delete(guild_id, hub_id):
     guild = v.client.get_guild(guild_id)
     if guild is None:

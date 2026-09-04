@@ -3,16 +3,14 @@ from quart import Blueprint, render_template
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, login_required, premium_module
+from ...utils import bearer_client, plugin_guard
 
 moderation_bp = Blueprint('moderation', __name__)
 logger = logging.getLogger(__name__)
 
 @moderation_bp.route("/dashboard/<int:guild_id>/moderator")
-@login_required
+@plugin_guard('moderation')
 async def moderation(guild_id):
-    await premium_module(guild_id, 'moderation')
-    
     current_user = bearer_client().get_current_user()
     
     guild = v.client.get_guild(guild_id)

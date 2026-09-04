@@ -197,44 +197,52 @@
     
     var save_data = {}
 
+    const setRevert = (sel, saved) => (live) => {
+      const v = live === undefined ? saved : live;
+      window._selects[sel].setSelectedOptions(Array.isArray(v) ? v : (v ? [v] : []));
+    };
+
     // Admin Roles
+    const adminRolesSaved = JSON.parse(`{{ data['admin_roles'] | tojson }}`) || [];
     const botMasterAdminSelectWrapper = document.querySelector('.botmastersadmin-select-wrapper.multiple');
     botMasterAdminSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      console.log(selectedOptions)
-      
-      show_toast("settings.admin_roles", "{{data['admin_roles']}}", selectedOptions)
+      show_toast("settings.admin_roles", adminRolesSaved, event.detail.selectedOptions,
+        setRevert('.botmastersadmin-select-wrapper.multiple', adminRolesSaved))
     });
 
     // Bot Masters
+    const botMastersSaved = JSON.parse(`{{ data['bot_masters'] | tojson }}`) || [];
     const botMasterModSelectWrapper = document.querySelector('.botmastersmod-select-wrapper.multiple');
     botMasterModSelectWrapper.addEventListener('select:update', function (event) {
-      const selectedOptions = event.detail.selectedOptions;
-      
-      show_toast("settings.bot_masters", "{{data['bot_masters']}}", selectedOptions)
+      show_toast("settings.bot_masters", botMastersSaved, event.detail.selectedOptions,
+        setRevert('.botmastersmod-select-wrapper.multiple', botMastersSaved))
     });
-    
+
     // Language
+    const languageSaved = "{{data['language']}}";
     const channelMessageWrapper = document.querySelector('.language-wrapper.single');
     channelMessageWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : 'en-US'
-      
+
       const img = document.createElement('img')
       img.src = document.querySelector('.language-wrapper .select-options .option.selected').querySelector('img').src
       img.style.width = '32px'
       document.querySelector('.language-wrapper .select-selected').insertAdjacentElement('afterBegin', img)
-      
-      show_toast("settings.language", "{{data['language']}}", option)
+
+      show_toast("settings.language", languageSaved, option,
+        setRevert('.language-wrapper.single', languageSaved))
     });
 
     // Timezone
+    const timezoneSaved = "{{data['timezone']}}";
     const channelRoleWrapper = document.querySelector('.timezone-wrapper.single');
     channelRoleWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : 'UTC'
-      
-      show_toast("settings.timezone", "{{data['timezone']}}", option)
+
+      show_toast("settings.timezone", timezoneSaved, option,
+        setRevert('.timezone-wrapper.single', timezoneSaved))
     });
 
     // Colors

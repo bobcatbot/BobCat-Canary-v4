@@ -31,7 +31,7 @@ function initEmbedEditor(instances) {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('input', (e) => {
-        show_toast(key, initialVal, e.target.value);
+        show_toast(key, initialVal, e.target.value, () => { el.value = initialVal == null ? '' : initialVal; });
       });
     };
 
@@ -87,7 +87,10 @@ function initEmbedEditor(instances) {
     const embedEl = document.querySelector(`.embed[data-prefix="${prefix}"]`);
     if (embedEl) embedEl.style.borderLeftColor = event.detail.color;
 
-    show_toast(key, initial, event.detail.color);
+    show_toast(key, initial, event.detail.color, () => {
+      input.value = initial == null ? '' : initial;
+      if (embedEl) embedEl.style.borderLeftColor = initial;
+    });
   });
 }
 
@@ -192,11 +195,13 @@ function saveFieldsArray(container, dataKeyPrefix) {
   const oldFields = container.dataset.initialFields || '[]';
 
   const oldFieldsJson = JSON.parse(oldFields).map(normalizeField);
+  const prefix = container.id.replace(/-fields$/, '');
 
   show_toast(
     `${dataKeyPrefix}.fields`,
     oldFieldsJson,
-    newFields
+    newFields,
+    () => renderFields(prefix, dataKeyPrefix, oldFieldsJson)
   );
 }
 
@@ -231,18 +236,8 @@ function handleFieldRemove(e) {
 }
 
 
-function addField(prefix, dataKeyPrefix) {
-  const container = document.getElementById(`${prefix}-fields`);
-  if (!container) return;
-
-  const oldFields = getFieldsData(container);
-  const newIndex = oldFields.length;
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'field-wrapper';
-  wrapper.dataset.index = newIndex;
-
-  wrapper.innerHTML = `
+function fieldWrapperHTML(prefix, dataKeyPrefix, index) {
+  return `
     <div class="field">
       <div class="field-header d-flex justify-content-between align-items-center">
         <div class="name">
@@ -251,7 +246,7 @@ function addField(prefix, dataKeyPrefix) {
             class="field-name-input"
             placeholder="Field name"
             data-prefix="${prefix}"
-            data-index="${newIndex}"
+            data-index="${index}"
             data-field-key-prefix="${dataKeyPrefix}">
         </div>
 
@@ -259,7 +254,7 @@ function addField(prefix, dataKeyPrefix) {
           type="button"
           class="btn btn-danger btn-sm remove-field-btn"
           data-prefix="${prefix}"
-          data-index="${newIndex}"
+          data-index="${index}"
           data-field-key-prefix="${dataKeyPrefix}">
           <i class="bi bi-x"></i>
         </button>
@@ -271,7 +266,7 @@ function addField(prefix, dataKeyPrefix) {
           class="field-value-input"
           placeholder="Field value"
           data-prefix="${prefix}"
-          data-index="${newIndex}"
+          data-index="${index}"
           data-field-key-prefix="${dataKeyPrefix}">
       </div>
 
@@ -280,17 +275,51 @@ function addField(prefix, dataKeyPrefix) {
           type="checkbox"
           class="field-inline-checkbox"
           style="margin-right: 5px; width: 16px; height: 16px;"
-          id="${prefix}-field-${newIndex}-inline-checkbox"
+          id="${prefix}-field-${index}-inline-checkbox"
           data-prefix="${prefix}"
-          data-index="${newIndex}"
+          data-index="${index}"
           data-field-key-prefix="${dataKeyPrefix}">
 
-        <label for="${prefix}-field-${newIndex}-inline-checkbox">
+        <label for="${prefix}-field-${index}-inline-checkbox">
           Inline
         </label>
       </div>
     </div>
   `;
+}
+
+// Rebuild a fields container from a plain [{name, value, inline}] array.
+// Used both for adding one field and for reverting to the saved state.
+function renderFields(prefix, dataKeyPrefix, fields) {
+  const container = document.getElementById(`${prefix}-fields`);
+  if (!container) return null;
+
+  container.innerHTML = '';
+  fields.forEach((field, index) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'field-wrapper';
+    wrapper.dataset.index = index;
+    wrapper.innerHTML = fieldWrapperHTML(prefix, dataKeyPrefix, index);
+    wrapper.querySelector('.field-name-input').value = field?.name || '';
+    wrapper.querySelector('.field-value-input').value = field?.value || '';
+    wrapper.querySelector('.field-inline-checkbox').checked = !!field?.inline;
+    container.appendChild(wrapper);
+  });
+
+  setupFieldListeners(prefix, dataKeyPrefix, container);
+  return container;
+}
+
+function addField(prefix, dataKeyPrefix) {
+  const container = document.getElementById(`${prefix}-fields`);
+  if (!container) return;
+
+  const newIndex = getFieldsData(container).length;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'field-wrapper';
+  wrapper.dataset.index = newIndex;
+  wrapper.innerHTML = fieldWrapperHTML(prefix, dataKeyPrefix, newIndex);
 
   container.appendChild(wrapper);
 

@@ -265,7 +265,7 @@
       type: 'role',
       multiple: true,
       maxItems: 5,
-      options: JSON.parse(`{{data['autoRoles']['roles'] | tojson}}`)
+      options: JSON.parse(`{{ data['autoRoles']['roles'] | tojson }}`) || []
     });
 
     // Initialize embed editors with field support
@@ -316,6 +316,21 @@
 
     var save_data = {}
 
+    // Re-run a section's "show/hide the -data block" logic (used on load, on
+    // change, and when a Reset reverts the status toggle).
+    function syncSectionData(statusEl, dataEl, parentSel) {
+      if (!statusEl.checked) {
+        dataEl.remove();
+      } else if (!dataEl.isConnected) {
+        document.querySelector(parentSel).appendChild(dataEl);
+      }
+    }
+    // Re-activate a message-type tab button by its short name (text/embed).
+    function activateMsgTab(groupClass, type) {
+      const btn = document.querySelector(`button.nav-link.${groupClass}[data-bs-target$="-${type}-pane"]`);
+      if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+    }
+
     document.querySelector('#welcome-status').addEventListener('change', (e) => {
       fetch("/dashboard/{{guild.id}}/data/post", {
         method: "POST",
@@ -328,29 +343,26 @@
     const joinStatus = document.querySelector('#join-status');
     const joinData = document.querySelector('#join-data');
 
+    const joinChannelSaved = "{{data['join']['channel']}}";
     const welcomeSelectWrapper = document.querySelector('.join-select-wrapper.single');
     welcomeSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
 
-      show_toast("welcome.join.channel", "{{data['join']['channel']}}", option)
+      show_toast("welcome.join.channel", joinChannelSaved, option,
+        () => window._selects['.join-select-wrapper.single'].setSelectedOptions(joinChannelSaved ? [joinChannelSaved] : []))
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!joinStatus.checked) {
-        joinData.remove()
-      } else {
-        document.querySelector('.feature_card.join').appendChild(joinData);
-      }
-    })
+    const joinStatusSaved = "{{data['join']['status']}}" === "True";
+    const joinTypeSaved = "{{data['join']['message']['type']}}";
+    const joinContentSaved = JSON.parse(`{{ data['join']['message']['content'] | tojson }}`);
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(joinStatus, joinData, '.feature_card.join'))
     document.querySelector('#join-status').addEventListener('change', (e) => {
-      if (!joinStatus.checked) {
-        joinData.remove()
-      } else {
-        document.querySelector('.feature_card.join').appendChild(joinData);
-      }
-
-      show_toast("welcome.join.status", "{{data['join']['status']}}", joinStatus.checked)
+      syncSectionData(joinStatus, joinData, '.feature_card.join')
+      show_toast("welcome.join.status", "{{data['join']['status']}}", joinStatus.checked, () => {
+        joinStatus.checked = joinStatusSaved;
+        syncSectionData(joinStatus, joinData, '.feature_card.join');
+      })
     })
 
     document.querySelectorAll('button.nav-link.join-msg').forEach((button) => {
@@ -359,14 +371,16 @@
 
         var tab = e.target.dataset.bsTarget.replace('#join-', '').replace('-pane', '')
 
-        show_toast("welcome.join.message.type", "{{data['join']['message']['type']}}", tab)
+        show_toast("welcome.join.message.type", joinTypeSaved, tab,
+          () => activateMsgTab('join-msg', joinTypeSaved))
       })
     })
 
     // Welcome Message Text
     document.querySelector('#join-message').addEventListener('input', (e) => {
       var val = e.target.value;
-      show_toast("welcome.join.message.content", `{{data['join']['message']['content']}}`, val)
+      show_toast("welcome.join.message.content", joinContentSaved, val,
+        () => { e.target.value = joinContentSaved; })
     })
 
     // Welcome Message Embed — color/author/title/desc/footer listeners are
@@ -377,21 +391,16 @@
     /* DM */
     const dmStatus = document.querySelector('#dm-status');
     const dmData = document.querySelector('#dm-data');
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!dmStatus.checked) {
-        dmData.remove()
-      } else {
-        document.querySelector('.feature_card.dm').appendChild(dmData);
-      }
-    })
+    const dmStatusSaved = "{{data['dm']['status']}}" === "True";
+    const dmTypeSaved = "{{data['dm']['message']['type']}}";
+    const dmContentSaved = JSON.parse(`{{ data['dm']['message']['content'] | tojson }}`);
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(dmStatus, dmData, '.feature_card.dm'))
     document.querySelector('#dm-status').addEventListener('change', (e) => {
-      if (!dmStatus.checked) {
-        dmData.remove()
-      } else {
-        document.querySelector('.feature_card.dm').appendChild(dmData);
-      }
-
-      show_toast("welcome.dm.status", "{{data['dm']['status']}}", dmStatus.checked)
+      syncSectionData(dmStatus, dmData, '.feature_card.dm')
+      show_toast("welcome.dm.status", "{{data['dm']['status']}}", dmStatus.checked, () => {
+        dmStatus.checked = dmStatusSaved;
+        syncSectionData(dmStatus, dmData, '.feature_card.dm');
+      })
     })
 
     document.querySelectorAll('button.nav-link.dm-msg').forEach((button) => {
@@ -399,14 +408,16 @@
         if (!e.target.classList.contains('active')) return
         var tab = e.target.dataset.bsTarget.replace('#dm-', '').replace('-pane', '')
 
-        show_toast("welcome.dm.message.type", "{{data['dm']['message']['type']}}", tab)
+        show_toast("welcome.dm.message.type", dmTypeSaved, tab,
+          () => activateMsgTab('dm-msg', dmTypeSaved))
       })
     })
 
     // == DM Welcome Message Text ==
     document.querySelector('#dm-message').addEventListener('input', (e) => {
       var val = e.target.value;
-      show_toast("welcome.dm.message.content", `{{data['dm']['message']['content']}}`, val)
+      show_toast("welcome.dm.message.content", dmContentSaved, val,
+        () => { e.target.value = dmContentSaved; })
     })
 
     // DM Welcome Message Embed — wired by initEmbedEditor() above.
@@ -417,21 +428,17 @@
     const leaveStatus = document.querySelector('#leave-status')
     const leaveData = document.querySelector('#leave-data')
 
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!leaveStatus.checked) {
-        leaveData.remove()
-      } else {
-        document.querySelector('.feature_card.leave').appendChild(leaveData);
-      }
-    })
+    const leaveStatusSaved = "{{data['leave']['status']}}" === "True";
+    const leaveChannelSaved = "{{data['leave']['channel']}}";
+    const leaveTypeSaved = "{{data['leave']['message']['type']}}";
+    const leaveContentSaved = JSON.parse(`{{ data['leave']['message']['content'] | tojson }}`);
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(leaveStatus, leaveData, '.feature_card.leave'))
     document.querySelector('#leave-status').addEventListener('change', (e) => {
-      if (!leaveStatus.checked) {
-        leaveData.remove()
-      } else {
-        document.querySelector('.feature_card.leave').appendChild(leaveData);
-      }
-
-      show_toast("welcome.leave.status", "{{data['leave']['status']}}", leaveStatus.checked)
+      syncSectionData(leaveStatus, leaveData, '.feature_card.leave')
+      show_toast("welcome.leave.status", "{{data['leave']['status']}}", leaveStatus.checked, () => {
+        leaveStatus.checked = leaveStatusSaved;
+        syncSectionData(leaveStatus, leaveData, '.feature_card.leave');
+      })
     })
 
     const leaveSelectWrapper = document.querySelector('.leave-select-wrapper.single');
@@ -439,7 +446,8 @@
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
 
-      show_toast("welcome.leave.channel", "{{data['leave']['channel']}}", option)
+      show_toast("welcome.leave.channel", leaveChannelSaved, option,
+        () => window._selects['.leave-select-wrapper.single'].setSelectedOptions(leaveChannelSaved ? [leaveChannelSaved] : []))
     });
 
     document.querySelectorAll('button.nav-link.leave-msg').forEach((button) => {
@@ -447,14 +455,16 @@
         if (!e.target.classList.contains('active')) return
         var tab = e.target.dataset.bsTarget.replace('#leave-', '').replace('-pane', '')
 
-        show_toast("welcome.leave.message.type", "{{data['leave']['message']['type']}}", tab)
+        show_toast("welcome.leave.message.type", leaveTypeSaved, tab,
+          () => activateMsgTab('leave-msg', leaveTypeSaved))
       })
     })
 
     // == Leave Message Text ==
     document.querySelector('#leave-message').addEventListener('input', (e) => {
       var val = e.target.value;
-      show_toast("welcome.leave.message.content", `{{data['leave']['message']['content']}}`, val)
+      show_toast("welcome.leave.message.content", leaveContentSaved, val,
+        () => { e.target.value = leaveContentSaved; })
     })
 
     // Leave Message Embed — wired by initEmbedEditor() above.
@@ -464,28 +474,23 @@
     /* Auto Roles */
     const autorolesStatus = document.querySelector('#autoroles-status')
     const autorolesData = document.querySelector('#autoroles-data')
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!autorolesStatus.checked) {
-        autorolesData.remove()
-      } else {
-        document.querySelector('.feature_card.autoroles').appendChild(autorolesData);
-      }
-    })
+    const autorolesStatusSaved = "{{data['autoRoles']['status']}}" === "True";
+    const autorolesRolesSaved = JSON.parse(`{{ data['autoRoles']['roles'] | tojson }}`) || [];
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles'))
     document.querySelector('#autoroles-status').addEventListener('change', (e) => {
-      if (!autorolesStatus.checked) {
-        autorolesData.remove()
-      } else {
-        document.querySelector('.feature_card.autoroles').appendChild(autorolesData);
-      }
-
-      show_toast("welcome.autoRoles.status", "{{data['autoRoles']['status']}}", autorolesStatus.checked)
+      syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles')
+      show_toast("welcome.autoRoles.status", "{{data['autoRoles']['status']}}", autorolesStatus.checked, () => {
+        autorolesStatus.checked = autorolesStatusSaved;
+        syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles');
+      })
     })
 
     const autorolesSelectWrapper = document.querySelector('.autoroles-select-wrapper.multiple');
     autorolesSelectWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
 
-      show_toast("welcome.autoRoles.roles", "{{data['autoRoles']['roles']}}", selectedOptions)
+      show_toast("welcome.autoRoles.roles", autorolesRolesSaved, selectedOptions,
+        () => window._selects['.autoroles-select-wrapper.multiple'].setSelectedOptions(autorolesRolesSaved))
     });
   </script>
 

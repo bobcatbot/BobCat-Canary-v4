@@ -56,7 +56,53 @@
     <div class="prem-btns d-flex gap-2 justify-content-center mt-3">
       <button id="buy-now-btn" class="btn btn-premium">Continue to payment</button>
     </div>
- 
+
+    <section class="plans-compare pt-5">
+      <div class="section-title">
+        <h3 class="fw-bold">Free vs Premium</h3>
+        <p class="text-muted m-0">Every paid plan unlocks the same features - pick the billing that suits you.</p>
+      </div>
+
+      {% set compare_categories = [
+        ('Server Management', 'management'),
+        ('Utilities', 'utilities'),
+        ('Games & Fun', 'fun'),
+      ] %}
+
+      <div class="compare-table mt-3">
+        <div class="compare-row compare-head">
+          <span class="compare-feature">Plugin</span>
+          <span class="compare-cell">Free</span>
+          <span class="compare-cell compare-prem">Premium</span>
+        </div>
+
+        {% for cat_title, cat in compare_categories %}
+        <div class="compare-row compare-group"><span>{{ cat_title }}</span></div>
+        {% for key, plugin in plugins(guild) %}
+        {% if plugin.category == cat %}
+        {% set has_cap = plugin.max is defined %}
+        <div class="compare-row">
+          <span class="compare-feature">
+            <span class="material-icons">{{ plugin.icon }}</span>
+            {{ plugin.title }}
+          </span>
+          <span class="compare-cell">
+            {% if plugin.premium and has_cap %}<span class="compare-num compare-no">0</span>
+            {% elif plugin.premium %}<i class="bi bi-x-lg compare-no"></i>
+            {% elif has_cap %}<span class="compare-num">{{ plugin.max }}</span>
+            {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
+          </span>
+          <span class="compare-cell compare-prem">
+            {% if has_cap %}<span class="compare-num">{{ plugin.max_premium }}</span>
+            {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+      </div>
+    </section>
+
     <section id="faq" class="pt-5">
       <div class="section-title">
         <h3 class="fw-bold">Frequently asked questions</h3>
@@ -603,6 +649,70 @@
       font-size: 0.85rem;
       margin-top: 10px;
       min-height: 18px;
+    }
+
+    /* ── Free vs Premium comparison ─────────────────────────────── */
+    .plans-compare .section-title h3 { margin-bottom: 4px; }
+
+    .compare-table {
+      border: 1px solid var(--color-card-2);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .compare-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 90px;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid var(--color-card-2);
+    }
+    .compare-row:first-child { border-top: none; }
+
+    .compare-head {
+      background: var(--color-card-1);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+    }
+    .compare-group {
+      background: var(--color-card-1);
+      grid-template-columns: 1fr;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+    }
+
+    .compare-feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+    .compare-feature .material-icons {
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+    .compare-cell {
+      text-align: center;
+      font-size: 14px;
+    }
+    .compare-cell.compare-prem {
+      color: rgb(var(--premium-gold));
+      font-weight: 600;
+    }
+    .compare-num { font-weight: 600; }
+    .compare-yes { color: #3ba55d; }
+    .compare-no { color: var(--text-muted); opacity: .6; font-size: 12px; }
+
+    @media (max-width: 560px) {
+      .compare-row { grid-template-columns: 1fr 64px 64px; padding: 10px 12px; }
+      .compare-feature { font-size: 13px; gap: 8px; }
     }
   </style>
 </body>

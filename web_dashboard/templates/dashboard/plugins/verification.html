@@ -540,40 +540,55 @@
       })
     })
 
+    // Revert helper for the single-select widgets on this page. btn_cancel
+    // passes the live baseline; fall back to page-load `saved` otherwise.
+    const vRevertSelect = (sel, saved) => (live) => {
+      const v = live === undefined ? saved : live;
+      window._selects[sel].setSelectedOptions(v ? [v] : []);
+    };
+
     /* Verify Channel */
+    const verifyChannelSaved = "{{data['channel']}}";
     const channelMessageWrapper = document.querySelector('.chan-message-wrapper.single');
     channelMessageWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
 
-      show_toast("verification.channel", "{{data['channel']}}", option)
+      show_toast("verification.channel", verifyChannelSaved, option,
+        vRevertSelect('.chan-message-wrapper.single', verifyChannelSaved))
     });
 
     /* Verify Role */
+    const verifyRoleSaved = "{{data['role']}}";
     const channelRoleWrapper = document.querySelector('.verify-role-wrapper.single');
     channelRoleWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
 
-      show_toast("verification.role", "{{data['role']}}", option)
+      show_toast("verification.role", verifyRoleSaved, option,
+        vRevertSelect('.verify-role-wrapper.single', verifyRoleSaved))
     });
 
     /* Verify Mode */
+    const verifyModeSaved = "{{data['mode']}}";
     const channelModeWrapper = document.querySelector('.verify-mode-wrapper.single');
     channelModeWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : 'instant'
 
-      show_toast("verification.mode", "{{data['mode']}}", option)
+      show_toast("verification.mode", verifyModeSaved, option,
+        vRevertSelect('.verify-mode-wrapper.single', verifyModeSaved))
     });
 
     /* Fail Action */
+    const verifyFailSaved = "{{data['failAction']}}";
     const failActionWrapper = document.querySelector('.fail-action-wrapper.single');
     failActionWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : 'unverified'
 
-      show_toast("verification.failAction", "{{data['failAction']}}", option)
+      show_toast("verification.failAction", verifyFailSaved, option,
+        vRevertSelect('.fail-action-wrapper.single', verifyFailSaved))
     });
   </script>
 

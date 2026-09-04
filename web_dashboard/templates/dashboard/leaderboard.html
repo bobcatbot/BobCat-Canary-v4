@@ -5,14 +5,15 @@
 <body>
   <hero id="hero" class="d-flex align-items-center">
     <div class="container position-relative d-flex flex-column align-items-center justify-content-center">
+      {% set lb_banner = (data.leaderboard.banner or '') | trim %}
       <div class="hero-img-container">
-        {% if data.leaderboard.banner %}
+        {% if lb_banner %}
         <img
           id="banner"
           class="img-fluid banner"
-          src="{{data.leaderboard.banner}}"
+          src="{{ lb_banner }}"
           alt="Server banner"
-          style="max-height: 364px;border-radius: 16px;"
+          onerror="this.style.visibility='hidden';"
         >
         <img 
           id="hero-image"
@@ -117,19 +118,41 @@
             
             <hr>
             <div>
-              <a href="/dashboard/{{guild.id}}/leveling" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #131212;padding: 0;text-decoration: none;">
+              <a href="/dashboard/{{guild.id}}/leveling" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;">
                 <i class="bi bi-gear-fill pe-2"></i>
                 Leveling Settings
               </a>
             </div>
 
+            {% if lb_banner %}
             <hr>
             <div>
-              <button id="RemoveBanner" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;margin-bottom: 4px;">
+              <button class="btn btn-link" data-bs-toggle="modal" data-bs-target="#RemoveBannerModal" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;margin-bottom: 4px;">
                 <i class="bi bi-trash3 pe-2" style="color: rgb(255, 107, 134);"></i>
                 Remove banner
               </button>
+              <div class="modal dark fade" id="RemoveBannerModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5">
+                        <i class="bi bi-trash3 pe-2" style="color: rgb(255, 107, 134);"></i>
+                        Remove the leaderboard banner?
+                      </h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      The banner will be cleared from this leaderboard. You can set it again from Leveling Settings.
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="button" id="RemoveBanner" class="btn btn-danger">Remove</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            {% endif %}
 
             <hr>
             <div>
@@ -177,10 +200,7 @@
   </section>
 
   <script>
-    document.querySelector('#RemoveBanner').addEventListener('click', () => {
-      document.querySelector('#banner').remove();
-      document.querySelector('#hero-image').removeAttribute('style');
-
+    document.querySelector('#RemoveBanner')?.addEventListener('click', () => {
       fetch(window.location.pathname, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,6 +208,16 @@
           guild_id: '{{guild.id}}',
           key: 'RemoveBanner'
         })
+      })
+      .then(res => res.json())
+      .then(data => {
+        bootstrap.Modal.getInstance(document.querySelector('#RemoveBannerModal'))?.hide();
+
+        if (data.status === 200) {
+          document.querySelector('#banner')?.remove();
+          document.querySelector('#hero-image')?.removeAttribute('style');
+          window.location.reload();
+        }
       })
     })
 
@@ -255,7 +285,7 @@
     #hero .hero-img {
       width: 160px;
       height: 160px;
-      margin: 0 0 15px 0;
+      margin: 0 0 8px 0;
       border-radius: 20px;
     }
     #hero h1 {
@@ -265,13 +295,19 @@
     #hero .hero-img-container {
       position: relative;
       width: 100%;
-      top: -68px;
-      padding-top: 148px;
+      padding-top: 20px;
     }
     #hero .hero-img-container:has(#banner) {
       position: relative;
       top: -68px;
       padding-top: 50px;
+    }
+    #hero #banner {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      border-radius: 16px;
+      background: #1f2129;
     }
 
     .feature_card {

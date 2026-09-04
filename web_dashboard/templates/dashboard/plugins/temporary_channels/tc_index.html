@@ -28,14 +28,19 @@
       </div>
     </div>
 
+    {% set at_cap = data['hubs'] | length >= item_cap %}
+    {% set cap_msg = "You've reached your limit of " ~ item_cap ~ " hubs." ~ ("" if is_premium else " Upgrade to premium for up to " ~ item_cap_premium ~ ".") %}
     <section class="section">
       <div class="feature_card">
-        <a href="temporary-channels/creation" id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
-          <h2>New hub</h2>
-          <div>
-            <i class="bi bi-plus-lg"></i>
-          </div>
-        </div></a>
+        <span class="tooltipp" style="display:block">
+          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="temporary-channels/creation"{% endif %} id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
+            <h2>New hub</h2>
+            <div>
+              <i class="bi bi-plus-lg"></i>
+            </div>
+          </div></a>
+          <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
+        </span>
       </div>
     </section>
     
@@ -46,11 +51,7 @@
             <h2>Your Hubs</h2>
           </div>
 
-          <div class="d-flex gap-1 align-items-end ps-0 user-select-none form-switch">
-            <span id="form-count">{{data['hubs'] | length}}</span>
-            <span>/</span>
-            <span id="form-max-count">{{plugin['max_premium'] if guild_models(guild).isPremium else plugin['max']}}</span>
-          </div>
+          <span id="item-count" data-cap="{{ item_cap }}">{{ data['hubs'] | length }} / {{ item_cap }}</span>
         </div>
         <hr>
         
@@ -149,24 +150,6 @@
       </div>
     </section>
 
-    <!-- MaxHubLimit -->
-    <div class="modal fade dark" id="MaxHubLimit" tabindex="-1" aria-labelledby="MaxHubLimitLabel">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="MaxHubLimitLabel">Oops, an error occurred!</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            Maximum number of temporary channels reached.
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    
     {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
       <div class="toast-container w-100 p-3" style="position: absolute;top: 0;right: 0;">
@@ -190,29 +173,6 @@
         toastFlash.classList.remove('show')
       }, parseInt(toastFlash.dataset.autohide));
     }
-
-    document.addEventListener('DOMContentLoaded', (e) => {
-      var formCount = document.querySelector('#form-count');
-      var formMaxCount = document.querySelector('#form-max-count');
-      var createButton = document.querySelector('#create-hub-btn');
-
-      if (formCount.innerText >= formMaxCount.innerText) {
-        formCount.classList.add('text-danger');
-
-        // find the create ticket button and remove href
-        createButton.href = null;
-        createButton.setAttribute('data-bs-toggle', 'modal');
-        createButton.setAttribute('data-bs-target', '#MaxHubLimit');
-      } else {
-        formCount.classList.remove('text-danger');
-
-        // find the create ticket button and add href
-        createButton.href = 'ticketing/creation';
-        createButton.removeAttribute('data-bs-toggle');
-        createButton.removeAttribute('data-bs-target');
-      }
-    })
-
 
     document.querySelector('#tc-status').addEventListener('change', (e) => {
       fetch("/dashboard/{{guild.id}}/data/post", {
@@ -266,6 +226,17 @@
   </script>
   
   <style>
+    #item-count {
+      font-size: 13px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: var(--color-secondary-3);
+      color: var(--text-color);
+      font-weight: 500;
+    }
+    #create-hub-btn.at-cap { opacity: .4; pointer-events: none; }
+    .tooltipp .tooltiptext { max-width: 220px; font-size: 12px; }
+
     .search-container {
       display: flex;
       align-items: center;

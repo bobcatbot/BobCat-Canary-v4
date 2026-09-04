@@ -1,3 +1,4 @@
+import re
 import discord
 from datetime import datetime, timezone, timedelta
 from quart import Blueprint, current_app, redirect, url_for, render_template, flash, request, session, jsonify
@@ -5,8 +6,9 @@ from quart import Blueprint, current_app, redirect, url_for, render_template, fl
 from modules import bot as v
 from modules.models import Guild, Notification, Economy
 from ..config import CLIENT_ID, URL_BASE
-from ..consts import langs, premium_faqs, premium_types, tz
-from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required
+from ..consts import langs, premium_faqs, premium_types, tz, RESERVED_SLUGS
+from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap
+from ..plugins import PLUGIN_LIST
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -422,18 +424,23 @@ async def notifications(guild_id):
 
 # ── Data post (catch-all config update) ──────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
-@login_required
 async def data_post(guild_id):
     """
     Catch-all endpoint for dashboard setting updates.
-    Now includes proper permission checks and input validation.
+    JSON endpoint: every failure is a JSON error + HTTP status (no HTML login page).
     """
+    if 'token' not in session:
+        return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    current_user = bearer_client().get_current_user()
-    
+    try:
+        current_user = bearer_client().get_current_user()
+    except Exception:
+        return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
     # ── PERMISSION CHECK ──────────────────────────────────────────────────
     has_permission, permission_level = await _check_guild_permission(guild, current_user.id)
     if not has_permission:
@@ -534,6 +541,78 @@ async def data_post(guild_id):
                 'status': 'error',
                 'message': f'Invalid key path: contains disallowed pattern'
             }), 400
+
+        # Reject writes into a disabled plugin - except its own status toggle,
+        # which is how it gets turned back on.
+        plugin_name = parts[0]
+        is_status_toggle = len(parts) == 2 and parts[1] == 'status'
+        if plugin_name in DASHBOARD_PLUGIN_KEYS and not is_status_toggle:
+            plug_cfg = getattr(doc.dashboard, plugin_name, None)
+            plug_status = (plug_cfg.get('status') if isinstance(plug_cfg, dict)
+                           else getattr(plug_cfg, 'status', False))
+            if not plug_status:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'The {plugin_name} plugin is disabled. Enable it first.',
+                    'code': 'plugin_disabled',
+                }), 409
+
+        # Cap the economy shop by the guild's free / premium limit. The dashboard
+        # writes either the whole array ("economy.shop") or one slot
+        # ("economy.shop.<idx>") - guard both.
+        if parts[:2] == ['economy', 'shop']:
+            guild_premium = await is_premium(guild)
+            cap = plugin_item_cap('economy', guild_premium)
+
+            resulting_count = None
+            if len(parts) == 2 and isinstance(val, list):
+                resulting_count = len(val)
+            elif len(parts) == 3 and parts[2].isdigit():
+                existing = doc.dashboard.economy.get('shop', []) if isinstance(doc.dashboard.economy, dict) else []
+                resulting_count = max(len(existing), int(parts[2]) + 1)
+
+            if resulting_count is not None and resulting_count > cap:
+                msg = f"You've reached your limit of {cap} shop items."
+                if not guild_premium:
+                    msg += f" Upgrade to premium for up to {plugin_item_cap('economy', True)}."
+                return jsonify({'status': 'error', 'message': msg, 'code': 'shop_cap'}), 409
+
+        # Custom leaderboard URL: premium-only, must be a URL-safe slug that
+        # isn't all digits (those collide with the /leaderboard/<guild_id> form)
+        # and isn't already claimed by another guild. Empty or the guild's own
+        # id is the "no custom URL" state and skips every check.
+        if parts == ['leveling', 'leaderboard', 'url']:
+            slug = str(val or '').strip().lower()
+            if slug and slug != str(guild.id):
+                if not await is_premium(guild):
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'Custom leaderboard URLs are a premium feature.',
+                        'code': 'premium_only',
+                    }), 403
+                if slug.isdigit() or not re.fullmatch(r'[a-z0-9][a-z0-9-]{1,31}', slug):
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'URL must be 2-32 characters: lowercase letters, numbers and hyphens, and cannot be all numbers.',
+                        'code': 'bad_slug',
+                    }), 400
+                if slug in RESERVED_SLUGS:
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'That leaderboard URL is reserved. Pick another.',
+                        'code': 'slug_reserved',
+                    }), 400
+                clash = await Guild.find_one({
+                    'Dash.leveling.leaderboard.url': slug,
+                    '_id': {'$ne': str(guild.id)},
+                })
+                if clash is not None:
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'That leaderboard URL is already taken.',
+                        'code': 'slug_taken',
+                    }), 409
+            val = slug  # store the normalised value
 
         # ── ✅ FIX: Navigate through the DashConfig model ──────────────
         # Start with the dashboard object

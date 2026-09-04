@@ -1,0 +1,28 @@
+<!-- Shown when a user opens a disabled plugin (direct URL, sidebar, or plugin card).
+     Behaviour lives in static/dash/js/main.js -> window.PluginDisabledModal -->
+<div id="PluginDisabledModal" class="modal dark" tabindex="-1" data-guild-id="{{ guild.id }}">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body position-relative">
+        <div class="position-absolute" style="top: var(--bs-modal-padding); right: var(--bs-modal-padding);">
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <h5 class="m-0">This plugin is turned off</h5>
+        <p class="mt-2 mb-3" style="color: #899bbd;">
+          <span class="pdm-plugin-name">This plugin</span> is currently disabled. Activate it to open
+          and configure it.
+        </p>
+
+        <div class="buttons d-flex justify-content-end gap-2">
+          <button id="pdm-cancel" class="btn" style="--bs-btn-color: #fff" data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button id="pdm-activate" class="btn btn-blurple">
+            Activate <span class="pdm-plugin-name">this plugin</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

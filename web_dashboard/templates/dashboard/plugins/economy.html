@@ -48,24 +48,26 @@
     
     <section class="section">
       <div class="feature_card">
-        <div class="title  d-flex justify-content-between">
+        {% set at_cap = data['num_items'] >= shop_cap %}
+        {% set shop_cap_msg = "You've reached your limit of " ~ shop_cap ~ " shop items." ~ ("" if not is_premium else " Upgrade to premium for up to " ~ shop_cap_premium ~ ".") %}
+        <div class="title d-flex justify-content-between align-items-center">
           <h2 class="d-flex gap-1 align-items-center">
             Items
             <span class="badge rounded-pill text-bg-primary">Limited</span>
           </h2>
-
-          <div id="CurrentShopLimit" style="font-size: 18px;">
-            {{data['num_items']}} / 5
-          </div>
+          <span id="shop-count" data-cap="{{ shop_cap }}">{{ data['num_items'] }} / {{ shop_cap }}</span>
         </div>
-        
+
         <hr>
         <div id="ShopItems" class="d-flex flex-wrap gap-2">
-          <div id="CreateShopItem" class="shop-item icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40px" height="40px" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
-              <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
-            </svg>
-          </div>
+          <span class="tooltipp">
+            <div id="CreateShopItem" class="shop-item icon{% if at_cap %} at-cap{% endif %}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40px" height="40px" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+              </svg>
+            </div>
+            <span class="tooltiptext" id="shop-cap-tip"{% if not at_cap %} hidden{% endif %}>{{ shop_cap_msg }}</span>
+          </span>
 
           {% for item in data.shop %}
           <div 
@@ -260,8 +262,8 @@
     });
 
     var save_data = {}
-    const max_shop_limit = 5
 
+    const ecoIconSaved = JSON.parse(`{{ data['icon'] | tojson }}`);
     function editCurrencyIcon(emoji) {
       document.querySelector('.img-icon').innerText = emoji.icon
 
@@ -271,7 +273,8 @@
         delete save_data["economy.icon"]
       }
 
-      show_tost("{{data['icon']}}", emoji.icon)
+      show_toast("economy.icon", ecoIconSaved, emoji.icon,
+        () => { document.querySelector('.img-icon').innerText = ecoIconSaved; })
     }
     
     document.querySelector('#eco-status').addEventListener('change', (e) => {
@@ -291,7 +294,7 @@
         delete save_data["economy.name"]
       }
 
-      show_tost("{{data['name']}}", val)
+      show_toast("economy.name", "{{data['name']}}", val, () => { e.target.value = e.target.defaultValue; })
     })
 
     // ── Shop item create / edit / delete ─────────────────────────
@@ -348,19 +351,33 @@
       card.querySelector('.item-price').innerText = itm.price + ' ' + '{{ data.icon }}'
     }
 
+    // Shop item cap - mirrors the stats channel cap. The "+" card gets .at-cap
+    // (dimmed + pointer-events:none) at the limit, and the .tooltipp tooltip
+    // shows only then; the cap message is server-rendered.
+    const shopCountEl = document.getElementById('shop-count')
+    const createShopCard = document.getElementById('CreateShopItem')
+    const shopCapTip = document.getElementById('shop-cap-tip')
+    const shopCap = parseInt(shopCountEl ? shopCountEl.dataset.cap : '0', 10) || Infinity
+
+    function syncCap() {
+      const n = document.querySelectorAll('#ShopItems .shop-item-editable').length
+      shopCount = n
+      const atCap = n >= shopCap
+      if (shopCountEl) shopCountEl.textContent = n + ' / ' + shopCap
+      if (createShopCard) createShopCard.classList.toggle('at-cap', atCap)
+      if (shopCapTip) shopCapTip.hidden = !atCap
+    }
+
     function renumberShopItems() {
       document.querySelectorAll('#ShopItems .shop-item-editable').forEach((card, i) => {
         card.dataset.idx = i
       })
-      document.querySelector('#CurrentShopLimit').innerText = shopCount + ' / ' + max_shop_limit
+      syncCap()
     }
+    syncCap()
 
-    document.querySelector('#CreateShopItem').addEventListener('click', (e) => {
+    createShopCard.addEventListener('click', (e) => {
       e.preventDefault()
-      if (shopCount >= max_shop_limit) {
-        infoToast('This is limited to ' + max_shop_limit + ' shop items')
-        return
-      }
       editingIdx = null
       document.querySelector('#CreateItemLabel').innerText = 'Create a shop item'
       document.querySelector('#SubmitShopItem').innerText = 'Create item'
@@ -487,21 +504,21 @@
         delete save_data["economy.MaxGambling"]
       }
 
-      show_tost("{{data['MaxGambling']}}", val)
+      show_toast("economy.MaxGambling", "{{data['MaxGambling']}}", val, () => { e.target.value = e.target.defaultValue; })
     })
     
     document.querySelector('#MaxPayment').addEventListener('input', (e) => {
-      var val = e.target.value;
+      const input = e.target;
+      var val = input.value;
+      const err = document.querySelector('#error')
 
       if (val > 1500) {
-        var e = document.querySelector('#error')
-        e.style.color = '#ff0000'
-        e.innerText = 'Value cant be more then a 1500'
-        e.style.display = 'block'
+        err.style.color = '#ff0000'
+        err.innerText = 'Value cant be more then a 1500'
+        err.style.display = 'block'
       } else {
-        var e = document.querySelector('#error')
-        e.style.display = 'none'
-        e.innerText = ''
+        err.style.display = 'none'
+        err.innerText = ''
       }
 
       if ("{{data['MaxPayment']}}" != val) {
@@ -510,7 +527,11 @@
         delete save_data["economy.MaxPayment"]
       }
 
-      show_tost("{{data['MaxPayment']}}", val)
+      show_toast("economy.MaxPayment", "{{data['MaxPayment']}}", val, () => {
+        input.value = input.defaultValue;
+        err.style.display = 'none';
+        err.innerText = '';
+      })
     })
     
 
@@ -559,6 +580,23 @@
       min-width: 150px;
       height: 160px;
       background: var(--color-card-1);
+    }
+    #shop-count {
+      font-size: 13px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: var(--color-secondary-3);
+      color: var(--text-color);
+      font-weight: 500;
+    }
+    /* at the cap: dim the "+" card and let hover reach .tooltipp */
+    #CreateShopItem.at-cap {
+      opacity: .4;
+      pointer-events: none;
+    }
+    .tooltipp .tooltiptext {
+      max-width: 220px;
+      font-size: 12px;
     }
     .shop-item .info {
       display: flex;

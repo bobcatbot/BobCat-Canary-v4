@@ -22,20 +22,8 @@
           <img src="{{guild.icon.url}}" alt="" style="width: 52px;height: 52px;border-radius: 50%;">
 
           <div>
-            <div class="d-flex gap-1">
-              <h2>{{guild.name}}</h2>
-              <div class="tooltipp" onclick="new TooltipText(this, '{{guild.name}}')">
-                <span class="tooltiptext">Copy</span>
-                <i class="bi bi-clipboard"></i>
-              </div>
-            </div>
-            <div class="d-flex gap-1">
-              <p>({{guild.id}})</p>
-              <div class="tooltipp" onclick="new TooltipText(this, '{{guild.id}}')">
-                <span class="tooltiptext">Copy</span>
-                <i class="bi bi-clipboard"></i>
-              </div>
-            </div>
+            <h2>{{guild.name}}</h2>
+            <p>{{guild.id}}</p>
           </div>
           
           <div class="d-flex gap-1">
@@ -60,11 +48,14 @@
 
     <!-- ──── Plugins ───────────────────────────────────────── -->
     {% macro plugin_card(plugin, guild) %}
-    <a 
+    <a
       class="plugin"
       data-href="{{guild.id}}/{{plugin.url}}"
       data-premium="{{plugin.premium | lower}}"
       data-server-premium="{{guild_models(guild).isPremium | lower}}"
+      data-key="{{plugin.db_key}}"
+      data-enabled="{{plugin.status | lower}}"
+      data-plugin-name="{{plugin.title}}"
       onclick="handlePremiumOnClick(event)"
     >
       <div class="card">

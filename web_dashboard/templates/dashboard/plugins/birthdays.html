@@ -180,37 +180,44 @@
     })
     
     /* Channel */
+    const bdayChanSaved = "{{data['channel_id']}}";
     const bdayChanWrapper = document.querySelector('.bday-chan-wrapper.single');
     bdayChanWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
-      
-      show_toast("birthdays.channel_id", "{{data['channel_id']}}", option)
+
+      show_toast("birthdays.channel_id", bdayChanSaved, option,
+        () => window._selects['.bday-chan-wrapper.single'].setSelectedOptions(bdayChanSaved ? [bdayChanSaved] : []))
     });
 
     /* Hour */
+    const bdayHourSaved = "{{data['message_hour']}}";
     const bdayHourWrapper = document.querySelector('.bday-hour-wrapper.single');
     bdayHourWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
-      
-      show_toast("birthdays.message_hour", "{{data['message_hour']}}", parseInt(option))
+
+      show_toast("birthdays.message_hour", "{{data['message_hour']}}", parseInt(option),
+        () => window._selects['.bday-hour-wrapper.single'].setSelectedOptions(bdayHourSaved ? [bdayHourSaved] : []))
     });
 
     /* Message */
+    const bdayMsgSaved = JSON.parse(`{{ data['message'] | tojson }}`);
     document.querySelector('#b-msg').addEventListener('input', (e) => {
       var val = e.target.value;
-      
-      show_toast("birthdays.message", "{{data['message']}}", val)
+
+      show_toast("birthdays.message", bdayMsgSaved, val, () => { e.target.value = bdayMsgSaved; })
     })
 
     /* Role */
+    const bdayRoleSaved = "{{data['birthday_role']}}";
     const bdayRoleWrapper = document.querySelector('.bday-role-wrapper.single');
     bdayRoleWrapper.addEventListener('select:update', function (event) {
       const selectedOptions = event.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : ''
-      
-      show_toast("birthdays.birthday_role", "{{data['birthday_role']}}", option)
+
+      show_toast("birthdays.birthday_role", bdayRoleSaved, option,
+        () => window._selects['.bday-role-wrapper.single'].setSelectedOptions(bdayRoleSaved ? [bdayRoleSaved] : []))
     });
   </script>
 </body>

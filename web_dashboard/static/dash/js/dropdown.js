@@ -1,13 +1,20 @@
+// Registry of live Select instances, keyed by the selector passed to `new
+// Select(...)`. Lets callers (e.g. save-toast reverts) drive a widget without
+// having kept the constructor's return value.
+window._selects = window._selects || {};
+
 function Select(el, options={  placeholder: '', type: '', multiple: false, maxItems: 1, clearAll: false, removeBtn: false, options: []}) {
   const selectWrapper = document.querySelector(`${el}`);
   const select = selectWrapper.querySelector('.select');
   const selectSelected = select.querySelector('.select-selected');
   const selectOptions = select.querySelector('.select-options');
   const optionsList = selectOptions.querySelectorAll('.option');
-  
+
   let selectedOptionsList = [];
   let selectedOptionsListVals = [];
-  
+
+  window._selects[el] = this;
+
   // Function to get the selected options
   this.getSelectedOptions = function() {
     var selectedOptions = []
@@ -16,6 +23,25 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
       selectedOptions.push(item.id ?? item.value)
     }
     return selectedOptions;
+  };
+
+  // Replace the current selection with `values` (array of option id/value
+  // strings). Mirrors the default-value loading below and re-renders + fires
+  // the usual `select:update` event so listeners stay in sync.
+  this.setSelectedOptions = function(values) {
+    selectedOptionsList = [];
+    selectedOptionsListVals = [];
+    (values || []).forEach(function(val) {
+      const option = Array.from(optionsList).find(function(element) {
+        return (element.dataset.id && element.dataset.id === String(val)) ||
+               (element.dataset.value && element.dataset.value === String(val));
+      });
+      if (option) {
+        selectedOptionsList.push({ name: option.textContent, id: option.dataset.id, value: option.dataset.value });
+        selectedOptionsListVals.push(option.dataset.id ?? option.dataset.value);
+      }
+    });
+    updateSelectedOptions();
   };
   
   // Function to update and display selected options

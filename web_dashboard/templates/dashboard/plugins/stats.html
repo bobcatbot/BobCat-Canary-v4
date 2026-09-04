@@ -5,6 +5,8 @@
 <head>
   {% include 'include/dash-links.html' %}
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+  {% set plugin = get_plugin(guild, 'stats') %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -15,10 +17,8 @@
   <main id="main" class="main">
     <div class="pagetitle plugin">
       <div>
-        {% with plugin = get_plugin(guild, 'stats') %}
-          <h1>{{plugin['title']}}</h1>
-          <p class="m-0">{{plugin['description']}}</p>
-        {% endwith %}
+        <h1>{{plugin['title']}}</h1>
+        <p class="m-0">{{plugin['description']}}</p>
       </div>
       <div class="form-switch">
         <input type="checkbox" id="stats-status" class="form-check-input" role="switch" name="plugin-status" {% if data['status'] %}checked{% endif %}>
@@ -50,21 +50,36 @@
 
     <!-- Stats Cards List -->
     <section class="section">
+      {% set counters = data.get('counters') or [] %}
+      {% set at_cap = counters | length >= channel_cap %}
+      {% set cap_msg = "You've reached your limit of " ~ channel_cap ~ " stat channels." ~ ("" if is_premium else " Upgrade to premium for up to " ~ plugin['max_premium'] ~ ".") %}
       <div class="feature_card">
         <div class="title d-flex justify-content-between align-items-center">
           <div>
             <h2>Stats Channels</h2>
             <p class="mb-0">Voice channels that display server statistics in real-time</p>
           </div>
-          <button id="add-counter-btn" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#AddCounterModal">
-            <i class="bi bi-plus-lg"></i> Add Counter
-          </button>
+          <div class="d-flex align-items-center gap-2">
+            <span id="counter-count" data-cap="{{ channel_cap }}">{{ counters | length }} / {{ channel_cap }}</span>
+            <span class="tooltipp">
+              <button id="add-counter-btn" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#AddCounterModal"{% if at_cap %} disabled{% endif %}>
+                <i class="bi bi-plus-lg"></i> Add Counter
+              </button>
+              <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
+            </span>
+          </div>
         </div>
-        
         <hr>
-        {% if data['counters'] %}
+
         <div class="stats-list" id="stats-list">
-          {% for counter in data['counters'] %}
+          {% if not counters %}
+          <div id="empty-state" class="empty-state">
+            <i class="bi bi-bar-chart" style="font-size: 64px; color: var(--text-muted);"></i>
+            <h5 class="mt-3">No stats configured</h5>
+            <p class="text-muted">Click <strong>Add Counter</strong> or use <strong>Auto Setup</strong> to get started</p>
+          </div>
+          {% else %}
+          {% for counter in counters %}
           <div class="stats-row" data-index="{{ loop.index0 }}" data-target="{{ counter.target }}">
             <div style="display: flex;gap: 16px;">
               <span class="drag-handle" title="Drag to reorder">
@@ -95,8 +110,8 @@
             </div>
           </div>
           {% endfor %}
+          {% endif %}
         </div>
-        {% endif %}
       </div>
     </section>
 
@@ -193,6 +208,23 @@
       return label.trim();
     }
 
+    // Keep the "N / cap" badge, Add Counter button and its cap tooltip in sync.
+    // Tooltip uses the site's native .tooltipp/.tooltiptext; hiding the text
+    // element suppresses it, so it only shows while we're at the cap.
+    const capCountEl = document.getElementById('counter-count');
+    const capAddBtn = document.getElementById('add-counter-btn');
+    const capTipEl = document.getElementById('cap-tip');
+    const statsCap = parseInt(capCountEl ? capCountEl.dataset.cap : '0', 10) || Infinity;
+
+    function syncCap() {
+      const n = document.querySelectorAll('.stats-row').length;
+      const atCap = n >= statsCap;
+      if (capCountEl) capCountEl.textContent = n + ' / ' + statsCap;
+      if (capAddBtn) capAddBtn.disabled = atCap;
+      if (capTipEl) capTipEl.hidden = !atCap;
+    }
+    syncCap();
+
     // Status toggle
     document.querySelector('#stats-status').addEventListener('change', (e) => {
       fetch("/dashboard/{{guild.id}}/data/post", {
@@ -287,32 +319,38 @@
           
           // Insert new counter into the list without refreshing
           const newCounter = data.counter;
-          console.log('New counter created:', newCounter);
+          const counterList = document.querySelector('#stats-list');
 
-          const counterList = document.querySelector('.stats-list');
+          // Drop the empty-state placeholder if it's still showing
+          const emptyState = document.getElementById('empty-state');
+          if (emptyState) emptyState.remove();
+
+          const idx = document.querySelectorAll('.stats-row').length;
+          const channel = data.channel_name
+            ? `<i class="bi bi-volume-up"></i> ${data.channel_name}`
+            : '<span class="text-muted"><i class="bi bi-slash-circle"></i> No channel</span>';
+
           const counter = document.createElement('div');
-          counter.classList.add('stats-row');
-          counter.dataset.index = data.index;
+          counter.className = 'stats-row';
+          counter.dataset.index = idx;
+          counter.dataset.target = newCounter.target;
           counter.innerHTML = `
-            <div class="stats-row-content">
-              <div class="stats-row-left">
-                <span class="stats-label" data-target="${newCounter.target}">${formatStatLabel(newCounter.target)}</span>
-              </div>
-              <div class="stats-row-right">
-                <div class="stats-actions">
-                  <button class="btn btn-danger delete-counter-btn" data-index="2" title="Delete">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
+            <div style="display: flex;gap: 16px;">
+              <span class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>
+              <div class="stats-info">
+                <span class="stats-label">${formatStatLabel(newCounter.target)}</span>
+                <div class="stats-channel">${channel}</div>
               </div>
             </div>
-            <div class="stats-row-footer">
-              <div class="stats-channel">
-                ${data.channel_name ? `# ${data.channel_name}` : '<span class="text-muted"><i class="bi bi-slash-circle"></i> No channel</span>'}
-              </div>
+            <div class="stats-actions">
+              <button class="btn btn-danger delete-counter-btn" data-index="${idx}">
+                <i class="bi bi-trash"></i>
+              </button>
             </div>
           `;
+          counter.querySelector('.delete-counter-btn').addEventListener('click', handleDeleteCounter);
           counterList.appendChild(counter);
+          syncCap();
         } else {
           alert('Failed to create counter: ' + data.message);
           btn.innerHTML = 'Create & Add Counter';
@@ -478,52 +516,56 @@
     });
 
     // Delete Counter
-    document.querySelectorAll('.delete-counter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (!confirm('Delete this counter? The associated channel will also be deleted.')) return;
-            
-        const index = parseInt(btn.dataset.index);
-        
-        // Use the dedicated delete endpoint that handles both DB and Discord channel deletion
-        fetch(`/dashboard/{{guild.id}}/stats/counter/${index}/delete`, {
-          method: "DELETE",
-          headers: {"Content-Type": "application/json"},
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.status === 'success') {
-              // Remove the row from DOM instead of reloading
-              const row = document.querySelector(`.stats-row[data-index="${index}"]`);
-              if (row) row.remove();
-              
-              // Re-index remaining rows
-              document.querySelectorAll('.stats-row').forEach((el, idx) => {
-                el.dataset.index = idx;
-                const btns = el.querySelectorAll('.set-channel-btn, .delete-counter-btn');
-                btns.forEach(btn => btn.dataset.index = idx);
-              });
-              
-              // Show empty state if no rows left
-              if (document.querySelectorAll('.stats-row').length === 0) {
-                const list = document.querySelector('#stats-list');
-                if (list) {
-                  list.innerHTML = `
-                    <div id="empty-state" class="empty-state">
-                      <i class="bi bi-bar-chart" style="font-size: 64px; color: var(--text-muted);"></i>
-                      <h5 class="mt-3">No stats configured</h5>
-                      <p class="text-muted">Click <strong>Add Counter</strong> or use <strong>Auto Setup</strong> to get started</p>
-                    </div>
-                  `;
-                }
+    function handleDeleteCounter(event) {
+      const btn = event.currentTarget;
+      if (!confirm('Delete this counter? The associated channel will also be deleted.')) return;
+
+      const index = parseInt(btn.dataset.index);
+
+      // Use the dedicated delete endpoint that handles both DB and Discord channel deletion
+      fetch(`/dashboard/{{guild.id}}/stats/counter/${index}/delete`, {
+        method: "DELETE",
+        headers: {"Content-Type": "application/json"},
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            // Remove the row from DOM instead of reloading
+            const row = document.querySelector(`.stats-row[data-index="${index}"]`);
+            if (row) row.remove();
+
+            // Re-index remaining rows
+            document.querySelectorAll('.stats-row').forEach((el, idx) => {
+              el.dataset.index = idx;
+              const btns = el.querySelectorAll('.set-channel-btn, .delete-counter-btn');
+              btns.forEach(b => b.dataset.index = idx);
+            });
+
+            // Show empty state if no rows left
+            if (document.querySelectorAll('.stats-row').length === 0) {
+              const list = document.querySelector('#stats-list');
+              if (list) {
+                list.innerHTML = `
+                  <div id="empty-state" class="empty-state">
+                    <i class="bi bi-bar-chart" style="font-size: 64px; color: var(--text-muted);"></i>
+                    <h5 class="mt-3">No stats configured</h5>
+                    <p class="text-muted">Click <strong>Add Counter</strong> or use <strong>Auto Setup</strong> to get started</p>
+                  </div>
+                `;
               }
-            } else {
-              alert('Failed to delete counter: ' + data.message);
             }
-          })
-          .catch(error => {
-            alert('Error deleting counter: ' + error.message);
+            syncCap();
+          } else {
+            alert('Failed to delete counter: ' + data.message);
+          }
+        })
+        .catch(error => {
+          alert('Error deleting counter: ' + error.message);
         });
-      });
+    }
+
+    document.querySelectorAll('.delete-counter-btn').forEach(btn => {
+      btn.addEventListener('click', handleDeleteCounter);
     });
 
     // Reset Stats
@@ -752,6 +794,10 @@
       color: var(--text-color);
       font-weight: 500;
     }
+
+    /* hover must reach .tooltipp, not die on the disabled button */
+    #add-counter-btn:disabled { pointer-events: none; }
+    .tooltipp .tooltiptext { max-width: 220px; font-size: 12px; }
 
     /* ── SortableJS Custom Classes ────────────────────────────── */
     .sortable-ghost {

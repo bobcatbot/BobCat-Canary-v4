@@ -41,13 +41,30 @@
           </div>
         </div>
         <div class="mt-2">
-          <label for="lbLink" class="fw-bold">URL</label><br>
-          <div class="d-flex gap-2">
-            <input type="text" id="lbLink" name="lbLink" class="text-input" value="/leaderboard/{{data.leaderboard.url if data.leaderboard.url else guild.id}}" disabled readonly />
+          <div class="d-flex gap-2 align-items-center">
+            <label for="lbSlug" class="fw-bold">URL</label>
+            {% if not is_premium %}
+            {% include 'components/badges/prem.html' %}
+            {% endif %}
+          </div>
+          
+          <div class="d-flex gap-2 mt-1">
+            <div class="d-flex align-items-stretch flex-grow-1" style="border:1px solid rgba(255,255,255,.15);border-radius:8px;overflow:hidden;">
+              <span style="display:flex;align-items:center;padding:0 10px;background:rgba(255,255,255,.06);color:#8b8f9a;font-size:14px;white-space:nowrap;user-select:none;">/leaderboard/</span>
+              <input type="text" id="lbSlug" name="lbSlug" class="text-input"
+                style="border:0;border-radius:0;flex:1 1 auto;min-width:0;"
+                value="{{ data.leaderboard.url if data.leaderboard.url else guild.id }}"
+                placeholder="{{ guild.id }}"
+                {% if not is_premium %}disabled readonly{% endif %}
+              />
+            </div>
             <a id="lbLinka" class="btn d-flex align-items-center" href="/leaderboard/{{data.leaderboard.url if data.leaderboard.url else guild.id}}" variant="secondary" target="_blank">
               <i class="bi bi-box-arrow-up-right"></i>
             </a>
           </div>
+          {% if is_premium %}
+          <p class="m-0 mt-1 text-muted" style="font-size: 12px;">2-32 characters: lowercase letters, numbers and hyphens. Leave as the server ID to reset.</p>
+          {% endif %}
         </div>
         <div class="mt-2">
           <label for="lbBanner" class="fw-bold">Banner</label><br>
@@ -389,13 +406,18 @@
   </main>
 
   <script>
+    // Saved (page-load) values, parsed from JSON rather than inlined as raw JS.
+    const annoStatusSaved = "{{ data['message']['status'] }}";
+    const annoChanSaved = "{{ data['channel'] }}";
+    const noXpSaved = JSON.parse(`{{ data['noXP'] | tojson }}`) || [];
+
     // Custom Select Initialization
     new Select('.level-anno-wrapper.single', {
       placeholder: "Select announcement option",
       type: 'channel',
       multiple: false,
       maxItems: 1,
-      options: ["{{data['message']['status']}}"]
+      options: annoStatusSaved ? [annoStatusSaved] : []
     });
     
     new Select('.level-chan-wrapper.single', {
@@ -412,7 +434,7 @@
       multiple: true,
       maxItems: 0,
       removeBtn: true,
-      options: JSON.parse(`{{data['noXP'] | tojson}}`)
+      options: noXpSaved
     });
     
     // Status Toggle
@@ -426,31 +448,47 @@
 
     /* Leaderboard Settings */
     document.querySelector('#lbStatus').addEventListener('change', (e) => {
-      show_toast("leveling.leaderboard.public", "{{data['leaderboard']['public']}}", e.target.checked);
+      const saved = "{{data['leaderboard']['public']}}" === "True";
+      show_toast("leveling.leaderboard.public", "{{data['leaderboard']['public']}}", e.target.checked,
+        () => { e.target.checked = saved; });
     });
 
-    document.querySelector('#lbLink').addEventListener('change', (e) => {
-      let val = e.target.value.split('/').pop();
-      if (!val) val = '{{guild.id}}';
-      e.target.value = `/leaderboard/${val}`;
-      document.querySelector('#lbLinka').href = `/leaderboard/${val}`;
+    const lbSlugInput = document.querySelector('#lbSlug');
+    if (lbSlugInput) {
+      // show_toast compares against a fixed page-load value, so track the
+      // current saved value ourselves and advance it on save - otherwise
+      // reverting to the previous value after a save reads as "no change".
+      let lbCurrent = "{{ data.leaderboard.url if data.leaderboard.url else guild.id }}";
 
-      fetch("/dashboard/{{guild.id}}/data/post", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ "leveling.leaderboard.url": val }),
+      const lbSlugSaved = lbSlugInput.value;
+      lbSlugInput.addEventListener('input', (e) => {
+        let slug = e.target.value.trim().toLowerCase();
+        // Empty means "no custom URL" - fall back to the server ID.
+        const stored = slug && slug !== '{{ guild.id }}' ? slug : '{{ guild.id }}';
+        document.querySelector('#lbLinka').href = `/leaderboard/${stored}`;
+
+        show_toast("leveling.leaderboard.url", lbCurrent, stored, () => {
+          lbSlugInput.value = lbSlugSaved;
+          document.querySelector('#lbLinka').href = `/leaderboard/${lbCurrent}`;
+        });
       });
-    });
+
+      // On save: fill the server ID back in if the field was left blank, and
+      // treat the pending value as the new baseline.
+      const lbSaveBtn = document.querySelector('#save_toast .btn-success');
+      if (lbSaveBtn) lbSaveBtn.addEventListener('click', () => {
+        if (!lbSlugInput.value.trim()) lbSlugInput.value = '{{ guild.id }}';
+        lbCurrent = lbSlugInput.value.trim().toLowerCase() || '{{ guild.id }}';
+      });
+    }
 
     document.querySelector('#lbBanner').addEventListener('change', (e) => {
+      const saved = e.target.defaultValue;
       let val = e.target.value || '{{guild.banner.url if guild.banner else ""}}';
       e.target.value = val;
 
-      fetch("/dashboard/{{guild.id}}/data/post", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ "leveling.leaderboard.banner": val }),
-      });
+      show_toast("leveling.leaderboard.banner", "{{data['leaderboard']['banner']}}", val,
+        () => { e.target.value = saved; });
     });
 
     /* Level Announcement */
@@ -458,19 +496,23 @@
     levelAnnoWrapper.addEventListener('select:update', (event) => {
       const selectedOption = event.detail.selectedOptions[0] || 'current';
       document.querySelector('.level-chan-wrapper.single').style.display = (selectedOption === 'custom') ? 'block' : 'none';
-      show_toast("leveling.message.status", "{{data['message']['status']}}", selectedOption);
+      show_toast("leveling.message.status", annoStatusSaved, selectedOption,
+        () => window._selects['.level-anno-wrapper.single'].setSelectedOptions([annoStatusSaved]));
     });
 
     const levelChanWrapper = document.querySelector('.level-chan-wrapper.single');
     if (levelChanWrapper) {
       levelChanWrapper.addEventListener('select:update', (event) => {
         const option = event.detail.selectedOptions[0] || null;
-        show_toast("leveling.channel", "{{data['channel']}}", option);
+        show_toast("leveling.channel", annoChanSaved, option,
+          () => window._selects['.level-chan-wrapper.single'].setSelectedOptions(annoChanSaved ? [annoChanSaved] : []));
       });
     }
 
-    document.querySelector('#LevelAnnoMsg').addEventListener('input', (e) => {
-      show_toast("leveling.message.content", `{{data['message']['content']}}`, e.target.value);
+    const annoMsgEl = document.querySelector('#LevelAnnoMsg');
+    const annoMsgSaved = annoMsgEl.value;  // set from server data in the inline script above
+    annoMsgEl.addEventListener('input', (e) => {
+      show_toast("leveling.message.content", annoMsgSaved, e.target.value, () => { e.target.value = annoMsgSaved; });
     });
 
     /* Server Rank Card Selector & Live Preview */
@@ -526,11 +568,16 @@
     });
 
     /* Role Rewards Stacked Toggle */
+    const rrStackedSaved = "{{data['roleRewards']['stacked']}}" === "True";
+    const rrRevertStacked = () => {
+      document.querySelector('#role-reward-stacked1').checked = rrStackedSaved;
+      document.querySelector('#role-reward-stacked2').checked = !rrStackedSaved;
+    };
     document.querySelector('#role-reward-stacked1').addEventListener('change', () => {
-      show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", true);
+      show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", true, rrRevertStacked);
     });
     document.querySelector('#role-reward-stacked2').addEventListener('change', () => {
-      show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", false);
+      show_toast("leveling.roleRewards.stacked", "{{data['roleRewards']['stacked']}}", false, rrRevertStacked);
     });
 
     /* Role Reward Table & Event Delegation */
@@ -541,6 +588,31 @@
         name: row.children[1].innerText,
         level: row.children[0].innerText
       }));
+    }
+
+    function roleRewardRowHTML(role) {
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-role-id', role.id);
+      tr.innerHTML = `
+        <td>${role.level}</td>
+        <td>${role.name}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-blurple role-reward-edit" title="Edit"><i class="bi bi-pencil"></i></button>
+          <button type="button" class="btn btn-danger role-reward-delete" title="Delete"><i class="bi bi-trash"></i></button>
+        </td>
+      `;
+      return tr;
+    }
+
+    const rrNormRole = (r) => ({ id: String(r.id ?? ''), name: String(r.name ?? ''), level: String(r.level ?? '') });
+    const rrRolesSaved = (JSON.parse(`{{ data['roleRewards']['roles'] | tojson }}`) || []).map(rrNormRole);
+    function rrRevertRoles() {
+      const table = document.querySelector('#RoleRewardTableBody');
+      table.innerHTML = '';
+      rrRolesSaved.forEach(role => table.appendChild(roleRewardRowHTML(role)));
+    }
+    function rrToastRoles() {
+      show_toast("leveling.roleRewards.roles", rrRolesSaved, getTableRoles().map(rrNormRole), rrRevertRoles);
     }
 
     document.querySelector('#RoleRewardSave').addEventListener('click', () => {
@@ -564,7 +636,7 @@
       `;
       table.appendChild(row);
 
-      show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", getTableRoles());
+      rrToastRoles();
     });
 
     // Delegated Edit / Delete handlers for table rows
@@ -583,7 +655,7 @@
 
       if (deleteBtn) {
         deleteBtn.closest('tr').remove();
-        show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", getTableRoles());
+        rrToastRoles();
       }
     });
 
@@ -600,16 +672,18 @@
       currentEditingRow.children[1].innerText = roleName;
 
       bootstrap.Modal.getInstance(document.querySelector('#RoleRewardEditModal')).hide();
-      show_toast("leveling.roleRewards.roles", "{{data['roleRewards']['roles']}}", getTableRoles());
+      rrToastRoles();
     });
 
     /* XP Options & Modifiers */
     document.querySelector('#xp_cooldown').addEventListener('input', (e) => {
-      show_toast("leveling.cooldown", "{{data['cooldown']}}", e.target.value);
+      show_toast("leveling.cooldown", "{{data['cooldown']}}", e.target.value,
+        () => { e.target.value = e.target.defaultValue; });
     });
 
     document.querySelector('#xp_max_level').addEventListener('input', (e) => {
-      show_toast("leveling.max_level", "{{data['max_level']}}", e.target.value);
+      show_toast("leveling.max_level", "{{data['max_level']}}", e.target.value,
+        () => { e.target.value = e.target.defaultValue; });
     });
 
     // No XP Channels Selector Update
@@ -617,17 +691,20 @@
     if (NoXpChansWrapper) {
       NoXpChansWrapper.addEventListener('select:update', (event) => {
         const channelIds = (event.detail.selectedOptions || []).map(opt => opt.id || opt);
-        show_toast("leveling.noXP", "{{data['noXP']}}", channelIds);
+        show_toast("leveling.noXP", noXpSaved, channelIds,
+          () => window._selects['.NoXpChans-select-wrapper.multiple'].setSelectedOptions(noXpSaved));
       });
     }
 
     /* Auto Reset & Economy Toggles */
     document.querySelector('#level-auto-reset').addEventListener('change', (e) => {
-      show_toast("leveling.auto_reset", "{{data['auto_reset']}}", e.target.checked);
+      show_toast("leveling.auto_reset", "{{data['auto_reset']}}", e.target.checked,
+        () => { e.target.checked = "{{data['auto_reset']}}" === "True"; });
     });
 
     document.querySelector('#level-eco-status').addEventListener('change', (e) => {
-      show_toast("leveling.economy", "{{data['economy']}}", e.target.checked);
+      show_toast("leveling.economy", "{{data['economy']}}", e.target.checked,
+        () => { e.target.checked = "{{data['economy']}}" === "True"; });
     });
   </script>
 

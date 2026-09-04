@@ -64,15 +64,16 @@
                 </div>
                 {% endif %}
 
-                {% for field in embed.get('fields', []) %}
+                {% if embed.get('fields') %}
                 <div class="fields">
-                  {%  %}
+                  {% for field in embed.get('fields') %}
                   <div class="field">
-                    <div class="name">{{field.name}}</div>
-                    <div class="value">{{field.value}}</div>
+                    <div class="name">{{ field.name }}</div>
+                    <div class="value">{{ field.value }}</div>
                   </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
+                {% endif %}
               </div>
             </div>
             {% endfor %}

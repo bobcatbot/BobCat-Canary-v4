@@ -1,6 +1,6 @@
 from bson import ObjectId
 from beanie import Document
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, field_validator
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
@@ -174,6 +174,7 @@ class Ticket(Document):
             "status",
         ]
 
+    id: str = Field(alias="_id")
     guild_id: str
     channel_id: str
     message_id: str
@@ -205,6 +206,12 @@ class Ticket(Document):
     })
     transcript: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _coerce_id(cls, value):
+        # Older ticket docs were stored with an ObjectId _id.
+        return str(value) if value is not None else value
 
 class Birthday(Document):
     class Settings:
