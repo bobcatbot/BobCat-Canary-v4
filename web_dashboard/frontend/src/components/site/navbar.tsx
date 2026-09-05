@@ -1,5 +1,6 @@
 import type { Session } from "next-auth";
 import { InviteLink } from "./invite-link";
+import { LogoutLink } from "./logout-link";
 
 /** Port of templates/components/Navbar.html */
 export function SiteNavbar({
@@ -58,7 +59,7 @@ export function SiteNavbar({
 
             {!user && (
               <li>
-                <a href="/api/auth/signin" className="nav-profile getstarted">
+                <a href="/login" className="nav-profile getstarted">
                   Login with Discord
                 </a>
               </li>
@@ -84,9 +85,9 @@ export function SiteNavbar({
                 <hr style={{ color: "lightgray", margin: "5px 0px" }} />
 
                 <li>
-                  <a href="/api/auth/signout" className="text-danger">
+                  <LogoutLink className="text-danger">
                     <span>Logout</span>
-                  </a>
+                  </LogoutLink>
                 </li>
               </ul>
             </div>

@@ -74,12 +74,12 @@ Tailwind was removed from the project — its Preflight reset fought Bootstrap.
 | `terms.html` | `/terms` | ✅ ported |
 | `thanks.html` | `/thanks` | ✅ ported |
 | `contact-us.html` | `/contact-us` | ✅ ported |
-| `status.html` + `/api/shard_status` | `/status` | ⬜ |
-| `web-plugins/management.html` | `/plugins/management` | ⬜ |
-| `web-plugins/utilities.html` | `/plugins/utilities` | ⬜ |
-| `web-plugins/engagement-and-fun.html` | `/plugins/engagement-and-fun` | ⬜ |
+| `web-plugins/management.html` | `/plugins/management` | ✅ ported |
+| `web-plugins/utilities.html` | `/plugins/utilities` | ✅ ported |
+| `web-plugins/engagement-and-fun.html` | `/plugins/engagement-and-fun` | ✅ ported |
+| `login.html` | `/login` | ✅ ported (Auth.js `pages.signIn`) |
+| `status.html` + `/api/shard_status` | `/status` | ⬜ needs Quart shard JSON |
 | `docs.html` (1310 lines, JS-driven sections) | `/docs/[[...slug]]` | ⬜ |
-| `login.html` | n/a — Auth.js `/api/auth/signin` | ⬜ decide |
 
 Shared shell: `src/app/(site)/layout.tsx`, `src/components/site/{navbar,footer,scripts,invite-link}.tsx`.
 `SiteScripts` reimplements `static/js/index.js` + `main.js` behaviour (mobile
@@ -124,3 +124,22 @@ Per page, the pattern is:
       only login path.
 - [ ] Deploy: run Next alongside Quart (reverse proxy `/` → Next, `/api` →
       Quart) or as separate services.
+
+## Auth (Auth.js / Discord OAuth) — wired
+
+- `src/auth.ts`: Discord provider, scope `identify guilds`, `trustHost: true`,
+  `pages.signIn: "/login"`. JWT callback stores access/refresh tokens and
+  transparently refreshes against `https://discord.com/api/oauth2/token` when
+  the access token is within 60s of expiry; `session.error` is set if refresh
+  fails so the UI can force re-auth.
+- `/login` = port of `templates/login.html`; its "Login with Discord" button is
+  a server action calling `signIn("discord", { redirectTo })`. `proxy.ts`
+  bounces unauthed `/dashboard/*` here with `?callbackUrl=`.
+- Navbar: login link → `/login`; logout → `LogoutLink` client component
+  (`signOut({ redirectTo: "/" })`), replacing the old `/oauth/logout`.
+- Verified locally: `/dashboard/123` → 302 `/login?callbackUrl=%2Fdashboard%2F123`;
+  signin POST → correct Discord authorize URL (right client_id, redirect_uri,
+  scope, PKCE). Full consent round-trip needs the redirect URI
+  `http://localhost:3000/api/auth/callback/discord` registered on the Discord app.
+- Quart side already accepts the forwarded Bearer token via
+  `utils.current_token()` (header OR legacy session cookie).

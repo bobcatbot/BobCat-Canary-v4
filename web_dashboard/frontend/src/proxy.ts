@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 
 export default auth((req) => {
   if (!req.auth && req.nextUrl.pathname.startsWith("/dashboard")) {
-    const url = new URL("/api/auth/signin", req.nextUrl.origin);
-    url.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    const url = new URL("/login", req.nextUrl.origin);
+    url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return Response.redirect(url);
   }
 });
