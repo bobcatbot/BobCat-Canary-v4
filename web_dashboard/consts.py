@@ -87,8 +87,8 @@ tz = sorted(pytz.all_timezones)
 # Reserved names a custom leaderboard slug may not use (avoids confusing URLs
 # and collisions with real top-level paths).
 RESERVED_SLUGS = {
-    "dashboard", "leaderboard", "oauth", "login", "logout", "callback",
-    "docs", "status", "api", "premium", "terms", "thanks", "contact-us",
-    "plugins", "static", "lvl-cards", "t", "stripe", "web",
-    "favicon.ico", "robots.txt", "sitemap.xml", "index", "about",
+  "dashboard", "leaderboard", "oauth", "login", "logout", "callback",
+  "docs", "status", "api", "premium", "terms", "thanks", "contact-us",
+  "plugins", "static", "lvl-cards", "t", "stripe", "web",
+  "favicon.ico", "robots.txt", "sitemap.xml", "index", "about",
 }
