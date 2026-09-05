@@ -19,8 +19,19 @@ export async function quartFetch(
 }
 
 export async function quartJSON<T>(path: string): Promise<T> {
-  const res = await quartFetch(path);
+  let res: Response;
+  try {
+    res = await quartFetch(path);
+  } catch (e) {
+    console.error(
+      `[quart] ${path} — request failed (is the bot/Quart API up at ${BASE}?)`,
+      e,
+    );
+    throw e;
+  }
   if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[quart] ${path} -> ${res.status} ${res.statusText} ${body.slice(0, 300)}`);
     throw new Error(`Quart ${path} -> ${res.status}`);
   }
   return res.json() as Promise<T>;

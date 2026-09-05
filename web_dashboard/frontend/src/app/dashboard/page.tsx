@@ -16,10 +16,12 @@ export default async function GuildPickerPage() {
   if (!session) redirect("/login?callbackUrl=/dashboard");
 
   let guilds: EligibleGuild[] = [];
+  let loadError: string | null = null;
   try {
     ({ guilds } = await getGuildList());
-  } catch {
-    /* API unreachable — falls through to the "no servers" copy */
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : String(e);
+    console.error("[dashboard] guild list failed:", loadError);
   }
 
   return (
@@ -40,6 +42,16 @@ export default async function GuildPickerPage() {
             <p className="mb-1 fs-7">
               Are you sure you are logged in to the correct account?
             </p>
+            {process.env.NODE_ENV !== "production" && loadError && (
+              <p
+                className="mb-1 mt-3"
+                style={{ color: "#ff6b6b", fontSize: "12px", maxWidth: 520 }}
+              >
+                dev: guild list request failed — <code>{loadError}</code>. Check
+                the Next dev-server terminal for the full <code>[quart]</code>{" "}
+                line (is <code>python main.py</code> running on :8000?).
+              </p>
+            )}
           </div>
         ) : (
           <div
