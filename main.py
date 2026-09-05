@@ -1,3 +1,6 @@
+import sys
+sys.dont_write_bytecode = True  # no __pycache__/*.pyc clutter - set before any other import
+
 import asyncio
 import discord
 import traceback
