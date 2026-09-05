@@ -1,0 +1,805 @@
+    // ── Icon helpers ──────────────────────────────────────────────────
+    const docIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+    const chevronIcon = `<svg class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+    // ── Page data ─────────────────────────────────────────────────────
+    const pages = [
+      // ── Home ──
+      {
+        _id: 'home',
+        title: 'Docs | BobCat',
+        isHome: true,
+      },
+
+      // ── Changelogs ──
+      {
+        _id: 'changelogs',
+        title: 'Changelogs',
+        description: 'Stay up to date with the latest BobCat updates, fixes, and new features.',
+        isChangelogs: true,
+        changelog: [
+          {
+            version: '3.2.0',
+            date: '2023-05-23',
+            notes: `
+            Phase 2 has been released
+
+            ## TL;DR
+            - The bugs have been bashedd
+            - Updates to many systems
+            - We have gave the bot a new look
+            - We are putting BobCat's crocs into sports mode
+
+            ## The bugs have been bashed
+            There has been many bugs found within the depths of the code, but they have been bashed.
+
+            ## Updates to many systems
+            - Moderaion
+              - We are modernising the commands from prefix to slash
+              - Removeal to the lesser used or not needed commands
+            - Levelling
+              - Level up faster than before by gaining more per message
+              - Gain coins with the economy system (only if your server enables it)
+            - Economy
+            - Giveaways
+            - Starboard
+            - Logging
+
+            ## We gave the bot a new look
+            Embeds, messages, and colors are now more consistent between all the diffrent systems. 
+
+            ## We are putting BobCat's crocs into sports mode
+            We recently was able to upgrade his server and giving it up to 22% more speed.`,
+          }
+        ]
+      },
+
+      // ── General ──
+      {
+        _id: 'help',
+        section: 'General',
+        title: 'Help',
+        description: 'Displays the BobCat help menu with all available command categories.',
+        usage: '/help',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'invite',
+        section: 'General',
+        title: 'Invite',
+        description: 'Generates an invite link to add BobCat to your server.',
+        usage: '/invite',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'server',
+        section: 'General',
+        title: 'Server',
+        description: 'Displays detailed information about the current server including member count, channels, and roles.',
+        usage: '/server',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'user',
+        section: 'General',
+        title: 'User',
+        description: 'Shows profile information for you or another member.',
+        usage: '/user {member}',
+        permissions: 'None',
+        arguments: '{member} — The member to view. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // ── Games ──
+      {
+        _id: 'games',
+        section: 'Games',
+        title: 'Games',
+        description: 'Lists all available games in BobCat.',
+        usage: '/games',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: '8ball',
+        section: 'Games',
+        title: '8Ball',
+        description: 'Ask the magic 8ball any yes/no question and receive a mystical answer.',
+        usage: '/8ball [question]',
+        permissions: 'None',
+        arguments: '[question] — The question to ask the magic 8ball.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'coinflip',
+        section: 'Games',
+        title: 'Coin Flip',
+        description: 'Flips a coin and returns either Heads or Tails.',
+        usage: '/coinflip',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'diceroll',
+        section: 'Games',
+        title: 'Dice Roll',
+        description: 'Rolls a 6-sided die and returns the result.',
+        usage: '/diceroll',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'guess',
+        section: 'Games',
+        title: 'Guess',
+        description: 'Guess the random number between 1 and 20. You have 5 attempts.',
+        usage: '/guess',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'rps',
+        section: 'Games',
+        title: 'Rock, Paper, Scissors',
+        description: 'Play Rock, Paper, Scissors against BobCat.',
+        usage: '/rps',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'tictactoe',
+        section: 'Games',
+        title: 'Tic Tac Toe',
+        description: 'Challenge another server member to a game of Tic Tac Toe.',
+        usage: '/tictactoe [member]',
+        permissions: 'None',
+        arguments: '[member] — The server member you want to challenge.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // ── Moderation ──
+      {
+        _id: 'mod-dashboard',
+        section: 'Moderation',
+        title: 'Dashboard',
+        description: 'Opens the BobCat dashboard to configure bot plugins for your server.',
+        usage: '/dashboard {plugin}',
+        permissions: 'Admin Role / Bot Master',
+        arguments: '{plugin} — The plugin to open directly. Optional.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'clear',
+        section: 'Moderation',
+        title: 'Clear',
+        description: 'Bulk deletes a specified number of messages from the current channel.',
+        usage: '/clear [amount]',
+        permissions: 'Manage Messages',
+        arguments: '[amount] — Number of messages to delete. Max 150.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'kick',
+        section: 'Moderation',
+        title: 'Kick',
+        description: 'Kicks a member from the server. They can rejoin with a new invite.',
+        usage: '/kick [member] {reason}',
+        permissions: 'Kick Members',
+        arguments: '[member] — The member to kick.\n{reason} — Reason for the kick.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'ban',
+        section: 'Moderation',
+        title: 'Ban',
+        description: 'Permanently bans a member from the server.',
+        usage: '/ban [member] {reason} {delete_messages}',
+        permissions: 'Ban Members',
+        arguments: '[member] — The member to ban.\n{reason} — Reason for the ban.\n{delete_messages} — Days of messages to delete.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'unban',
+        section: 'Moderation',
+        title: 'Unban',
+        description: 'Removes a ban and allows the user to rejoin the server.',
+        usage: '/unban [member]',
+        permissions: 'Ban Members',
+        arguments: '[member] — The member to unban.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'mute',
+        section: 'Moderation',
+        title: 'Mute',
+        description: 'Mutes a member using either a role or Discord timeout, depending on your dashboard settings.',
+        usage: '/mute [member] {reason}',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to mute.\n{reason} — Reason for the mute.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'unmute',
+        section: 'Moderation',
+        title: 'Unmute',
+        description: 'Removes a mute from a member.',
+        usage: '/unmute [member]',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to unmute.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'warn',
+        section: 'Moderation',
+        title: 'Warn',
+        description: 'Issues a warning to a member. Warnings are logged and viewable via /warnings.',
+        usage: '/warn [member] {reason}',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to warn.\n{reason} — Reason for the warning.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'unwarn',
+        section: 'Moderation',
+        title: 'Unwarn',
+        description: 'Removes a specific warning from a member by case ID.',
+        usage: '/unwarn [member] [case]',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to unwarn.\n[case] — The warning case ID to remove.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'warnings',
+        section: 'Moderation',
+        title: 'Warnings',
+        description: 'Lists all active warnings for a member with timestamps and reasons.',
+        usage: '/warnings {member}',
+        permissions: 'Moderate Members',
+        arguments: '{member} — Member to view warnings for. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'slowmode',
+        section: 'Moderation',
+        title: 'Slowmode',
+        description: 'Sets the slowmode delay for the current channel.',
+        usage: '/slowmode [delay]',
+        permissions: 'Manage Channels',
+        arguments: '[delay] — Delay in seconds, or "off" to disable.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'lockdown-channel',
+        section: 'Moderation',
+        title: 'Lockdown Channel',
+        description: 'Locks a channel so only admins can send messages.',
+        usage: '/lockdown add channel [channel]',
+        permissions: 'Manage Channels',
+        arguments: '[channel] — The channel to lock.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'lockdown-server',
+        section: 'Moderation',
+        title: 'Lockdown Server',
+        description: 'Locks the entire server. Optionally hides all channels and creates a visible status channel.',
+        usage: '/lockdown add server {hidden}',
+        permissions: 'Manage Channels',
+        arguments: '{hidden} — Whether to hide all channels from non-admins.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'unlock-channel',
+        section: 'Moderation',
+        title: 'Unlock Channel',
+        description: 'Unlocks a previously locked channel.',
+        usage: '/lockdown remove channel [channel]',
+        permissions: 'Manage Channels',
+        arguments: '[channel] — The channel to unlock.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'unlock-server',
+        section: 'Moderation',
+        title: 'Unlock Server',
+        description: 'Restores all channel access after a server lockdown.',
+        usage: '/lockdown remove server',
+        permissions: 'Manage Channels',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // ── Leveling ──
+      {
+        _id: 'rank',
+        section: 'Leveling',
+        title: 'Rank',
+        description: 'Displays a rank card showing the member\'s current level, XP, and progress toward the next level.',
+        usage: '/rank {member}',
+        permissions: 'None',
+        arguments: '{member} — Member to check. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'leaderboard',
+        section: 'Leveling',
+        title: 'Leaderboard',
+        description: 'Shows the top 5 members by level and XP in the server.',
+        usage: '/leaderboard',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // ── Economy ──
+      {
+        _id: 'eco-give',
+        section: 'Economy',
+        sub: 'Admin Commands',
+        title: 'Give',
+        description: 'Admin command to give coins directly to a member\'s bank.',
+        usage: '/economy give-coins [member] [amount]',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to give coins to.\n[amount] — Amount of coins to give.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-remove',
+        section: 'Economy',
+        sub: 'Admin Commands',
+        title: 'Remove',
+        usage: '/economy remove-coins [member]',
+        permissions: 'Moderate Members',
+        arguments: '[member] — The member to remove coins from.',
+        description: 'Admin command to remove a random amount of coins from a member.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-leaderboard',
+        section: 'Economy',
+        title: 'Eco Leaderboard',
+        description: 'Shows the top 10 richest members in the server by combined wallet + bank balance.',
+        usage: '/economy leaderboard',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-shop',
+        section: 'Economy',
+        title: 'Shop',
+        description: 'Displays all available items in the server economy shop.',
+        usage: '/economy shop',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-balance',
+        section: 'Economy',
+        title: 'Balance',
+        description: 'Shows the wallet and bank balance for you or another member.',
+        usage: '/economy balance {member}',
+        permissions: 'None',
+        arguments: '{member} — Member to check balance for. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-work',
+        section: 'Economy',
+        title: 'Work',
+        description: 'Earn coins every hour. Run the command once and come back to claim your paycheck.',
+        usage: '/economy work',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-withdraw',
+        section: 'Economy',
+        title: 'Withdraw',
+        description: 'Moves coins from your bank into your wallet.',
+        usage: '/economy withdraw [amount]',
+        permissions: 'None',
+        arguments: '[amount] — Amount to withdraw from bank to wallet.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-deposit',
+        section: 'Economy',
+        title: 'Deposit',
+        description: 'Moves coins from your wallet into your bank.',
+        usage: '/economy deposit [amount]',
+        permissions: 'None',
+        arguments: '[amount] — Amount to deposit from wallet to bank.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-buy',
+        section: 'Economy',
+        title: 'Buy',
+        description: 'Purchase an item from the shop using your wallet balance.',
+        usage: '/economy buy [item] {amount}',
+        permissions: 'None',
+        arguments: '[item] — Item name from the shop.\n{amount} — Quantity to buy. Default: 1.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-sell',
+        section: 'Economy',
+        title: 'Sell',
+        description: 'Sell an item from your inventory for 90% of its shop value.',
+        usage: '/economy sell [item]',
+        permissions: 'None',
+        arguments: '[item] — Item from your inventory to sell.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'eco-inventory',
+        section: 'Economy',
+        title: 'Inventory',
+        description: 'Lists all items currently in your inventory.',
+        usage: '/economy inventory',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // Giveaways
+      {
+        _id: 'giveaway-list',
+        section: 'Giveaways',
+        title: 'Giveaways List',
+        description: 'Lists all giveaways currently running in the server.',
+        usage: '/giveaway list',
+        permissions: 'Manage Messages',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'giveaway-create',
+        section: 'Giveaways',
+        title: 'Giveaway Create',
+        description: 'Starts a new giveaway in the specified channel with the given parameters.',
+        usage: '/giveaway create [channel] [duration] [winners] [prize]',
+        permissions: 'Manage Messages',
+        arguments: '[channel] — Channel to host the giveaway.\n[duration] — Duration of the giveaway (e.g., 1h, 30m).\n[winners] — Number of winners.\n[prize] — Prize for the giveaway.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'giveaway-end',
+        section: 'Giveaways',
+        title: 'Giveaway End',
+        description: 'Ends a running giveaway and selects a winner.',
+        usage: '/giveaway end [message-id]',
+        permissions: 'Manage Messages',
+        arguments: '[message-id] — ID of the giveaway message to end.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'giveaway-reroll',
+        section: 'Giveaways',
+        title: 'Giveaway Reroll',
+        description: 'Rerolls a giveaway to select a new winner.',
+        usage: '/giveaway reroll [message-id]',
+        permissions: 'Manage Messages',
+        arguments: '[message-id] — ID of the giveaway message to reroll.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+
+      // Birthdays
+      {
+        _id: 'birthdays-list',
+        section: 'Birthdays',
+        title: 'Birthdays List',
+        description: 'Show all birthdays for the current month',
+        usage: '/birthdays',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'birthdays-next',
+        section: 'Birthdays',
+        title: 'Birthdays Next',
+        description: 'Shows the next 10 upcoming birthdays',
+        usage: '/next-birthdays',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'birthdays',
+        section: 'Birthdays',
+        title: 'Birthdays',
+        description: 'Show yours or another member\'s birthday',
+        usage: '/birthday {member}',
+        permissions: 'None',
+        arguments: '{member} — The member to view. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'birthdays-set',
+        section: 'Birthdays',
+        title: 'Birthdays Set',
+        description: 'Set your or another member\'s birthday for the server',
+        usage: '/set-birthday [date] {member}',
+        permissions: 'None',
+        arguments: '[date] — Birthday date (YYYY-MM-DD)\n{member} — The member to set the birthday for. Defaults to yourself.',
+        syntax: '[] - Required\n{} - Optional',
+      },
+      {
+        _id: 'birthdays-remove',
+        section: 'Birthdays',
+        title: 'Birthdays Remove',
+        description: 'Removes your birthday',
+        usage: '/remove-birthday',
+        permissions: 'None',
+        arguments: 'None',
+        syntax: '[] - Required\n{} - Optional',
+      }
+    ];
+
+    function dedent(str) {
+      const lines = str.split('\n');
+      const minIndent = lines
+        .filter(line => line.trim())
+        .reduce((min, line) => Math.min(min, line.match(/^\s*/)[0].length), Infinity);
+      
+      return lines.map(line => line.slice(minIndent)).join('\n');
+    }
+
+    // ── Build section map ─────────────────────────────────────────────
+    const sections = {};
+
+    pages.forEach(p => {
+      if (p.isHome) return;
+      if (p.isChangelogs) return;
+      const sec = p.section || 'Other';
+      if (!sections[sec]) sections[sec] = [];
+      sections[sec].push(p);
+    });
+
+    // Track collapse state — all open by default
+    const collapseState = {};
+    Object.keys(sections).forEach(s => collapseState[s] = true);
+
+    const nav = document.getElementById('sidebarNav');
+
+    // Home
+    const homeEl = document.createElement('div');
+    homeEl.className = 'nav-home';
+    homeEl.dataset.id = 'home';
+    homeEl.innerHTML = `${docIcon} Home`;
+    homeEl.addEventListener('click', () => showPage('home'));
+    nav.appendChild(homeEl);
+
+    // Changelogs
+    const changelogsEl = document.createElement('div');
+    changelogsEl.className = 'nav-changelog';
+    changelogsEl.dataset.id = 'changelogs';
+    changelogsEl.innerHTML = `${docIcon} Changelogs`;
+    changelogsEl.addEventListener('click', () => showPage('changelogs'));
+    nav.appendChild(changelogsEl);
+
+    // Sections
+    Object.entries(sections).forEach(([sectionName, items]) => {
+      // Section toggle header
+      const secHeader = document.createElement('div');
+      secHeader.className = 'nav-section-header';
+      secHeader.innerHTML = `
+        <span class="sec-left">${docIcon} ${sectionName}</span>
+        ${chevronIcon}
+      `;
+      nav.appendChild(secHeader);
+
+      // Body
+      const secBody = document.createElement('div');
+      secBody.className = 'nav-section-body';
+      nav.appendChild(secBody);
+
+      // Toggle on click
+      secHeader.addEventListener('click', () => {
+        const isOpen = secBody.classList.contains('open');
+        secBody.classList.toggle('open', !isOpen);
+        secHeader.classList.toggle('open', !isOpen);
+      });
+
+      // Items
+      let lastSub = null;
+      items.forEach(page => {
+        if (page.sub && page.sub !== lastSub) {
+          const sublabel = document.createElement('div');
+          sublabel.className = 'nav-sublabel';
+          sublabel.innerHTML = `${docIcon} ${page.sub}`;
+          secBody.appendChild(sublabel);
+          lastSub = page.sub;
+        }
+
+        const itemEl = document.createElement('div');
+        itemEl.className = 'nav-item' + (page.sub ? ' sub' : '');
+        itemEl.dataset.id = page._id;
+        itemEl.innerHTML = `${docIcon} ${page.title}`;
+        itemEl.addEventListener('click', () => showPage(page._id));
+        secBody.appendChild(itemEl);
+      });
+    });
+
+    // ── Build page content ────────────────────────────────────────────
+    const content = document.getElementById('mainContent');
+
+    pages.forEach(page => {
+      const div = document.createElement('div');
+      div.className = 'doc-page';
+      div.id = `page-${page._id}`;
+
+      if (page.isHome) {
+        div.innerHTML = `
+          <div class="home-hero">
+            <h1>BobCat Docs</h1>
+            <p style="color:var(--muted);font-size:15px;margin-top:8px;">Everything you need to know about BobCat's commands, plugins, and configuration.</p>
+          </div>
+          <h2>Browse by category</h2>
+          <div class="home-cards">
+            ${Object.keys(sections).map(sec => `
+              <div class="home-card" onclick="showFirstInSection('${sec}')">
+                <div class="card-icon">${sectionEmoji(sec)}</div>
+                <div class="card-title">${sec}</div>
+                <div class="card-desc">${sections[sec].length} page${sections[sec].length !== 1 ? 's' : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (page.changelog !== undefined) {
+        div.innerHTML = `
+          <h1>${page.title}</h1>
+          <p class="page-subtitle">${page.description}</p>
+          ${page.changelog.length === 0
+            ? `<div class="info-row"><div class="label">No entries yet</div><div class="value plain" style="color:var(--muted)">Check back soon.</div></div>`
+            : page.changelog.map(entry => `
+              <div class="info-row changelog" style="margin-bottom:12px;">
+                <div class="label" stlye="font-size:18px">${entry.version} · ${entry.date}</div>
+                <div class="value plain">${marked.parse(dedent(entry.notes))}</div>
+              </div>`).join('')}
+        `;
+      } else {
+        const args = page.arguments && page.arguments !== 'None'
+          ? page.arguments.split('\n').map(a => {
+            const match = a.match(/^(\[.*?\]|\{.*?\})\s*[—-]\s*(.+)$/);
+            if (match) return `<div style="margin-bottom:6px;">
+              <code>${match[1]}</code>
+              <span style="color:var(--muted)">—</span>
+              <span>${match[2]}</span>
+            </div>`;
+            return `<div style="margin-bottom:4px;">${a}</div>`;
+          }).join('')
+          : null;
+
+        div.innerHTML = `
+          <div class="breadcrumb">${docIcon} ${page.section} <span class="sep">></span> <span>${page.title}</span></div>
+          
+          <h1>${page.title}</h1>
+          <p class="page-subtitle">${page.description}</p>
+          
+          <div class="info-grid">
+            ${page.usage ? 
+            `<div class="info-row">
+              <div class="label">Usage</div>
+              <div class="value">${page.usage}</div>
+            </div>` : ''}
+            
+            <div class="info-row">
+              <div class="label">Permissions</div>
+              <div class="value plain">
+                ${page.permissions === 'None' ? 
+                  '<span class="tag none">None</span>' : 
+                  page.permissions
+                    .split(',')
+                    .map(p => `<span class="tag">${p.trim()}</span>`)
+                    .join('')
+                }
+              </div>
+            </div>
+           
+            ${page.arguments ? `
+            <div class="info-row">
+              <div class="label">Arguments</div>
+              <div class="value plain">
+                ${page.arguments === 'None' ? 
+                '<span class="tag none">None</span>' : 
+                args
+              }
+              </div>
+            </div>` : ''}
+           
+            ${page.syntax ? `
+            <div class="info-row">
+              <div class="label">Syntax</div>
+              <div class="value plain">
+                ${page.syntax
+                  .split('\n')
+                  .map(l => `<div style="font-size:12.5px;color:var(--muted);margin-bottom:3px;">${l}</div>`)
+                  .join('')
+                }
+              </div>
+            </div>` : ''}
+
+          </div>
+        `;
+      }
+
+      content.appendChild(div);
+    });
+
+    // ── Navigation ────────────────────────────────────────────────────
+
+
+    function showFirstInSection(sec) {
+      const first = sections[sec]?.[0];
+      if (first) showPage(first._id);
+    }
+
+    function sectionEmoji(sec) {
+      const map = {
+        'Changelogs': '📋',
+        'General': '🌐',
+        'Games': '🎮',
+        'Moderation': '🔨',
+        'Leveling': '⬆️',
+        'Economy': '💰',
+        'Giveaways': '🎉',
+        'Birthdays': '🎂'
+      };
+      return map[sec] || '📄';
+    }
+
+    // ── URL routing ───────────────────────────────────────────────────
+    function showPage(id, pushState = true) {
+      document.querySelectorAll('.doc-page').forEach(p => p.classList.remove('visible'));
+      document.querySelectorAll('.nav-item, .nav-home, .nav-changelog').forEach(i => i.classList.remove('active'));
+
+      const target = document.getElementById(`page-${id}`);
+      if (target) { target.classList.add('visible'); content.scrollTop = 0; }
+
+      const navItem = document.querySelector(`[data-id="${id}"]`);
+      if (navItem) navItem.classList.add('active');
+
+      if (pushState) {
+        const page = pages.find(p => p._id === id);
+        if (id === 'home') {
+          history.pushState({ id }, '', '/docs');
+        } else if (page) {
+          const sec = page.section.toLowerCase().replace(/\s+/g, '-');
+          history.pushState({ id }, '', `/docs/${sec}/${id}`);
+        }
+      }
+    }
+
+    window.addEventListener('popstate', (e) => {
+      if (e.state?.id) showPage(e.state.id, false);
+    });
+
+    const initialPage = (window.__DOCS_INITIAL_PAGE__ || 'home');
+    console.log("initialPage", initialPage);
+    
+    const exactMatch = pages.find(p => p._id === initialPage);
+    if (exactMatch) {
+      showPage(initialPage, false);
+    } else {
+      // Try matching as a section slug
+      const sec = Object.keys(sections).find(s => s.toLowerCase().replace(/\s+/g, '-') === initialPage);
+      if (sec) showFirstInSection(sec);
+      else showPage('home', false);
+    }

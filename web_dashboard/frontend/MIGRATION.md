@@ -78,8 +78,12 @@ Tailwind was removed from the project — its Preflight reset fought Bootstrap.
 | `web-plugins/utilities.html` | `/plugins/utilities` | ✅ ported |
 | `web-plugins/engagement-and-fun.html` | `/plugins/engagement-and-fun` | ✅ ported |
 | `login.html` | `/login` | ✅ ported (Auth.js `pages.signIn`) |
-| `status.html` + `/api/shard_status` | `/status` | ⬜ needs Quart shard JSON |
-| `docs.html` (1310 lines, JS-driven sections) | `/docs/[[...slug]]` | ⬜ |
+| `status.html` | `/status` | ✅ ported — reuses existing `/api/shard_status` via the `/api/quart` proxy; initial data server-fetched |
+| `docs.html` (1310 lines) | `/docs/[[...slug]]` | ✅ ported — script/style lifted verbatim to `public/legacy/{js/docs.js,css/docs.css}`; runs client-side, `initial_page` → last path segment |
+
+**Phase 1 is code-complete.** Error pages (`error/404.html`, `500.html`,
+`NoAccess.html`) use the dashboard stylesheet, not `style.css` — deferred to
+phase 2. Everything still runs dev-only; no Jinja template deleted.
 
 Shared shell: `src/app/(site)/layout.tsx`, `src/components/site/{navbar,footer,scripts,invite-link}.tsx`.
 `SiteScripts` reimplements `static/js/index.js` + `main.js` behaviour (mobile
