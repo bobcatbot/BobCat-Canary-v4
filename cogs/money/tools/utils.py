@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple, Union
 from modules.models import Guild, Economy
 
@@ -6,6 +7,13 @@ from modules.models import Guild, Economy
 DEFAULT_CURRENCY_ICON = "🪙"
 # Fallback icon for shop items without one
 DEFAULT_ITEM_ICON = "📦"
+
+# ── daily reward + streak ────────────────────────────────
+DAILY_BASE_REWARD = 250
+DAILY_STREAK_STEP = 0.10        # +10% reward per consecutive streak day
+DAILY_STREAK_MAX_MULTIPLIER = 2.0  # caps out at day 10 (1 + 9 * 0.10 = 1.9 -> capped to 2.0)
+DAILY_COOLDOWN = timedelta(hours=24)     # must wait this long before claiming again
+DAILY_STREAK_GRACE = timedelta(hours=48)  # claim again within this window to keep the streak alive
 
 # Default shop items
 mainshop = [
@@ -84,6 +92,90 @@ async def open_account(guild, member) -> Optional[Dict[str, Any]]:
     except Exception as e:
         print(f"Error opening account for {member.id} in guild {guild.id}: {e}")
         return None
+
+async def claim_daily(guild, member) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Claim the daily reward, extending or resetting the streak.
+
+    The claim is a compare-and-swap: the update is filtered on the exact
+    last_daily value we just read, so if two requests race each other only
+    one of them can actually land — the loser's filter no longer matches
+    and it re-checks the (now updated) cooldown instead of double-paying.
+
+    Returns (success, data).
+        On failure: data = {"retry_after": seconds_until_next_claim}
+        On success: data = {"reward": int, "streak": int, "wallet": int, "bank": int}
+    """
+    economy_id = _get_economy_id(guild.id, member.id)
+    try:
+        user = await Economy.get(economy_id)
+
+        if user is None:
+            if await open_account(guild, member) is None:
+                raise RuntimeError("Failed to create economy account")
+            user = await Economy.get(economy_id)
+
+        if user is None:
+            raise RuntimeError("Failed to retrieve economy account")
+
+        for _ in range(3):
+            raw_last_daily = user.last_daily
+            now = datetime.now(timezone.utc)
+            last = raw_last_daily
+            if last is not None and last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+
+            if last is not None:
+                elapsed = now - last
+                if elapsed < DAILY_COOLDOWN:
+                    retry_after = (DAILY_COOLDOWN - elapsed).total_seconds()
+                    return (False, {"retry_after": retry_after})
+                # Claimed again in time to keep the streak going, otherwise it resets.
+                new_streak = user.daily_streak + 1 if elapsed <= DAILY_STREAK_GRACE else 1
+            else:
+                new_streak = 1
+
+            multiplier = min(
+                1 + (new_streak - 1) * DAILY_STREAK_STEP,
+                DAILY_STREAK_MAX_MULTIPLIER,
+            )
+            reward = int(DAILY_BASE_REWARD * multiplier)
+
+            result = await Economy.find_one(
+                Economy.id == economy_id,
+                Economy.last_daily == raw_last_daily,
+            ).update({
+                "$inc": {"wallet": reward},
+                "$set": {"last_daily": now, "daily_streak": new_streak},
+            })
+
+            if getattr(result, "modified_count", 0):
+                user = await Economy.get(economy_id)
+                if user is None:
+                    raise RuntimeError("Failed to retrieve economy account after claim")
+                return (True, {
+                    "reward": reward,
+                    "streak": new_streak,
+                    "wallet": user.wallet,
+                    "bank": user.bank,
+                })
+
+            # Someone else claimed in the gap between our read and write —
+            # refresh and loop back to re-evaluate the (now updated) cooldown.
+            user = await Economy.get(economy_id)
+            if user is None:
+                raise RuntimeError("Failed to retrieve economy account")
+
+        # Lost the race repeatedly; fall back to whatever the latest state says.
+        last = user.last_daily
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - last) if last else DAILY_COOLDOWN
+        retry_after = max(0.0, (DAILY_COOLDOWN - elapsed).total_seconds())
+        return (False, {"retry_after": retry_after})
+    except Exception as e:
+        print(f"Error claiming daily reward for {member.id} in guild {guild.id}: {e}")
+        return (False, {"error": str(e)})
 
 async def update_bank(guild, member, mode: str = "wallet", change: int = 0) -> Optional[Dict[str, Any]]:
     """Update a user's wallet or bank balance. Returns the updated balances."""

@@ -5,7 +5,7 @@ from modules import bot as v
 from modules.models import Economy
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
-from .tools.utils import get_shop, get_currency_icon, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance, DEFAULT_ITEM_ICON
+from .tools.utils import get_shop, get_currency_icon, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance, claim_daily, DEFAULT_ITEM_ICON
 
 # ── rob-coins success odds ───────────────────────────────────
 ROB_BASE_CHANCE = 0.5     # odds when robber and victim wallets are equal
@@ -75,7 +75,7 @@ class Money(commands.Cog):
             {"$addFields": {"total": {"$add": ["$wallet", "$bank"]}}},
             {"$sort": {"total": -1}},
             {"$limit": 10},
-            {"$project": {"user_id": 1, "wallet": 1, "bank": 1, "total": 1}}
+            {"$project": {"user_id": 1, "wallet": 1, "bank": 1, "total": 1, "daily_streak": 1}}
         ]
         
         try:
@@ -100,7 +100,9 @@ class Money(commands.Cog):
                         display_name = f"Unknown User ({data['user_id']})"
                     
                     cash = data.get("wallet", 0) + data.get("bank", 0)
-                    desc += f"\n#{idx} ● {display_name} ● `{cash}` coins"
+                    streak = data.get("daily_streak", 0)
+                    streak_suffix = f" ● {streak} 🔥" if streak > 0 else ""
+                    desc += f"\n#{idx} ● {display_name} ● `{cash}` coins{streak_suffix}"
                 except Exception as e:
                     print(f"Error processing leaderboard entry: {e}")
                     continue
@@ -150,6 +152,48 @@ class Money(commands.Cog):
         embed.set_footer(text=f"Requested by {ctx.author.display_name}")
         await ctx.respond(embed=embed)
         
+    @eco.command(description="Claim your daily reward and build up a streak")
+    @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
+    async def daily(self, ctx):
+        await ctx.defer()
+        await open_account(ctx.guild, ctx.author)
+        success, data = await claim_daily(ctx.guild, ctx.author)
+
+        if not success:
+            if "retry_after" not in data:
+                embed = discord.Embed(
+                    title="❌ Error",
+                    description="Something went wrong claiming your daily reward. Please try again later.",
+                    color=v.error
+                )
+                return await ctx.respond(embed=embed, ephemeral=True)
+
+            retry_after = int(data["retry_after"])
+            hours, remainder = divmod(retry_after, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if hours:
+                time_left = f"{hours}h {minutes}m"
+            elif minutes:
+                time_left = f"{minutes}m {seconds}s"
+            else:
+                time_left = f"{seconds}s"
+            embed = discord.Embed(
+                color=v.error,
+                description=f"⏰ {ctx.author.display_name}, you've already claimed your daily reward! Come back in **{time_left}**.",
+            )
+            return await ctx.respond(embed=embed, ephemeral=True)
+
+        streak = data["streak"]
+        embed = discord.Embed(
+            color=v.style(ctx.guild),
+            title="🎁 Daily Reward Claimed!",
+            description=f"✅ {ctx.author.display_name}, you claimed **`{data['reward']}`** coins!",
+        )
+        embed.add_field(name="🔥 Streak", value=f"`{streak}` day{'s' if streak != 1 else ''}", inline=True)
+        embed.add_field(name="💰 Wallet", value=f"`{data['wallet']}` coins", inline=True)
+        embed.set_footer(text="Come back tomorrow to keep your streak going!")
+        await ctx.respond(embed=embed)
+
     @eco.command(description="Work for one hour and come back to claim your paycheck")
     @commands.cooldown(rate=1, per=3600, type=commands.BucketType.user)
     async def work(self, ctx):

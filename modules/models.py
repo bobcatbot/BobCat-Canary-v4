@@ -93,6 +93,8 @@ class Economy(Document):
     wallet: int = 0
     bank: int = 0
     bag: List[Any] = Field(default_factory=list)
+    last_daily: Optional[datetime] = None
+    daily_streak: int = 0
 
 class Leveling(Document):
     class Settings:
