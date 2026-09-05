@@ -7,7 +7,7 @@ from modules import bot as v
 from modules.models import Guild, Notification, Economy
 from ..config import CLIENT_ID, URL_BASE
 from ..consts import langs, premium_faqs, premium_types, tz, RESERVED_SLUGS
-from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap
+from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap, current_token
 from ..plugins import PLUGIN_LIST
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -429,7 +429,7 @@ async def data_post(guild_id):
     Catch-all endpoint for dashboard setting updates.
     JSON endpoint: every failure is a JSON error + HTTP status (no HTML login page).
     """
-    if 'token' not in session:
+    if not current_token():
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 
     guild = v.client.get_guild(guild_id)

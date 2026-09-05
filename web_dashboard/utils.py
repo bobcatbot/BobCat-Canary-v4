@@ -13,9 +13,24 @@ from .plugins import PLUGIN_LIST
 
 api_client = APIClient(BOT_TOKEN, client_secret=CLIENT_SECRET)
 
+
+def current_token():
+    """The caller's Discord bearer token.
+
+    Server-rendered pages carry it in the signed-cookie session
+    (``session["token"]``); the Next.js frontend calls the same routes with an
+    ``Authorization: Bearer <token>`` header instead. Accept either so one set
+    of blueprints serves both front-ends during the migration.
+    """
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        return header[7:].strip()
+    return session.get("token")
+
+
 def bearer_client():
-    """Returns a Zenora users client scoped to the current session token."""
-    c = APIClient(session.get("token"), bearer=True)
+    """Returns a Zenora users client scoped to the current caller's token."""
+    c = APIClient(current_token(), bearer=True)
     return c.users
 
 
@@ -188,7 +203,7 @@ def plugin_guard(plugin_key, *, require_enabled=True):
                 session['redirect'] = request.url
                 return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
 
-            if 'token' not in session:
+            if not current_token():
                 if is_write:
                     return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
                 return await login_page()

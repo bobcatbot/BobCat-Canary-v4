@@ -13,6 +13,7 @@ from .blueprints.auth import auth_bp
 from .blueprints.web import web_bp
 from .blueprints.dashboard import dashboard_bp
 from .blueprints.stripe import stripe_bp
+from .blueprints.api import api_bp
 
 # ── Server Management ──────────────────────────────────────────────────────
 from .blueprints.plugins.welcome import welcome_bp
@@ -51,6 +52,7 @@ app.register_blueprint(web_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(stripe_bp)
+app.register_blueprint(api_bp)
 
 # Server Management
 app.register_blueprint(welcome_bp)
