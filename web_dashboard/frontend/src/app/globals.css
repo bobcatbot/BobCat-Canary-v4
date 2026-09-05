@@ -1,26 +1,11 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/*
+ * Intentionally minimal. Visual styling comes from the legacy stylesheets
+ * loaded per route group (Bootstrap 5.3.2 + /legacy/css/*.css), so this file
+ * must NOT introduce a global reset (Tailwind Preflight, etc.) that would
+ * fight Bootstrap Reboot and break pixel parity with the old dashboard.
+ */
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
 }

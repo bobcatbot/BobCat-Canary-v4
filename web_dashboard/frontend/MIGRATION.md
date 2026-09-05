@@ -56,7 +56,40 @@ Add `http://localhost:3000/api/auth/callback/discord` to the Discord app's
 OAuth redirects. Then visit `http://localhost:3000`, sign in, open
 `/dashboard/<guildId>/economy`.
 
-## Remaining work
+## Phase 1 — static / marketing pages (in progress)
+
+Decisions: keep old Jinja templates until a single final cutover; no reverse
+proxy, Next runs dev-only until 100% done.
+
+**Parity approach:** no redesign. Legacy stylesheets are copied verbatim to
+`frontend/public/legacy/` (`css/style.css`, `css/dash-*.css`, `img/**`, `js/**`)
+and loaded via `<link>` in the route-group layout alongside the same CDN bundles
+(Bootstrap 5.3.2, Bootstrap Icons, Material Icons, Balsamiq Sans, AOS). Each
+`.html` template is translated to `.tsx` keeping every class name and DOM node.
+Tailwind was removed from the project — its Preflight reset fought Bootstrap.
+
+| Page | Route | Status |
+|---|---|---|
+| `index.html` | `/` | ✅ ported |
+| `terms.html` | `/terms` | ✅ ported |
+| `thanks.html` | `/thanks` | ✅ ported |
+| `contact-us.html` | `/contact-us` | ✅ ported |
+| `status.html` + `/api/shard_status` | `/status` | ⬜ |
+| `web-plugins/management.html` | `/plugins/management` | ⬜ |
+| `web-plugins/utilities.html` | `/plugins/utilities` | ⬜ |
+| `web-plugins/engagement-and-fun.html` | `/plugins/engagement-and-fun` | ⬜ |
+| `docs.html` (1310 lines, JS-driven sections) | `/docs/[[...slug]]` | ⬜ |
+| `login.html` | n/a — Auth.js `/api/auth/signin` | ⬜ decide |
+
+Shared shell: `src/app/(site)/layout.tsx`, `src/components/site/{navbar,footer,scripts,invite-link}.tsx`.
+`SiteScripts` reimplements `static/js/index.js` + `main.js` behaviour (mobile
+nav, scroll-spy, back-to-top, preloader, AOS init, flash toast) because the
+legacy IIFEs bind to `window load`, already fired by hydration time.
+
+Not visually diffed against the live site yet (browser tooling was unavailable);
+markup + CSS are a 1:1 port, needs a screenshot pass.
+
+## Remaining work (dashboard — phase 2)
 
 Per page, the pattern is:
 

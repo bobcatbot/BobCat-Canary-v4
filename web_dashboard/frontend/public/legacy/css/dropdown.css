@@ -1,0 +1,161 @@
+.select {
+  --bg-color: var(--select-bg);
+  --chip-bg: rgb(242 244 251 / 20%);
+  --chip-bg-hover: #677BC4;
+  --option-bg-hover: var(--color-secondary);
+  --placeholder: var(--select-placeholder-color);
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.select {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  padding: 10px;
+  width: min(var(--select-width), 100%);
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.select[disabled=true] {
+  cursor: not-allowed;
+}
+
+.select .clear-all-button {
+  padding: 5px 6px;
+  /* color: var(--text-color); */
+  /* background-color: var(--chip-bg); */
+  border: none;
+  border-radius: 4px;
+}
+
+.select-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.select-selected.placeholderr {
+  color: var(--placeholder);
+}
+
+.select-selected .chip {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  color: var(--text-color);
+  background-color: var(--chip-bg);
+  border-radius: 8px;
+  font-size: 0.875rem; /* 14px */
+}
+/* .select-selected .chip:hover {
+  background-color: var(--chip-bg-hover);
+} */
+
+.chip[data-type]::before {
+  height: max-content;
+  margin-right: 0px;
+}
+.chip[data-type='channel']::before {
+  content: '#';
+}
+.chip[data-type='role']::before {
+  content: '@';
+}
+
+.select-selected .chip .remove-option {
+  margin-left: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.select-options {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  max-height: 200px;
+  background-color: var(--bg-color);
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+/* Scroll bar */
+.select-options::-webkit-scrollbar {
+  width: 14px;
+}
+.select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+.select-options::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 25px;
+}
+.select-options::-webkit-scrollbar-thumb:hover {
+  background: #646161;
+}
+
+.select-options.active {
+  display: block;
+}
+
+.option {
+  margin: 7px;
+  padding: 10px;
+  border-radius: 5px;
+  /* background-color: var(--option-bg); */
+}
+.option:hover,
+.option.selected {
+  background-color: var(--option-bg-hover);
+}
+ 
+.option[style*="--color"] {
+  color: var(--color, #fff);
+}
+.option[style*="--color: #000000"] {
+  color: #fff;
+}
+
+.option[data-type]::before {
+  height: 18px;
+  width: 18px;
+  margin-right: 5px;
+}
+.option[data-type="channel"]::before {
+  content: '#';
+}
+.option[data-type="role"]::before {
+  content: '@';
+}
+
+
+.option[data-can-send="False"] {
+  color: #999999;
+  text-decoration: line-through;
+}
+.option[data-disabled="True"] {
+  color: #999999;
+  text-decoration: line-through;
+}
+
+/* Defualt Select Menu */
+select.select {
+  border: 2px solid var(--bg-color);
+}
+select.select:hover {
+  border: 2px solid #5865f2;
+}
+select.select:focus-visible {
+  outline: none;
+  border: 2px solid #5865f2;
+  box-shadow: 0px 0px 0px 5px rgb(88 101 242 / .3);
+}
