@@ -18,14 +18,13 @@ async def get_settings_config(guild) -> dict | None:
     doc = await get_guild(guild)
     return doc.settings if doc else None
 
-def get_dash_config(guild) -> DashConfig | None:
-    """Sync read of the guild's DashConfig for sync-only call sites
-    (context processors / async-Jinja templates). Read-only."""
-    guild_id = _guild_id(guild)
-    doc = v._sync_guilds.find_one({"_id": guild_id}, {"Dash": 1})
-    if not doc:
-        return None
-    return DashConfig(**(doc.get("Dash") or {}))
+async def get_dash_config(guild) -> DashConfig | None:
+    """Async read of the guild's DashConfig. Quart's Jinja environment runs
+    async, so context-processor helpers can await this directly instead of
+    going through the blocking PyMongo client, which stalls the event loop
+    that's shared with the Discord bot."""
+    doc = await get_guild(guild)
+    return doc.dashboard if doc else None
 
 async def get_premium_config(guild) -> dict | None:
     doc = await get_guild(guild)

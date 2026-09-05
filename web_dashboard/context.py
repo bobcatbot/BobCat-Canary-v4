@@ -1,19 +1,24 @@
 from modules import bot as v
-from .db import get_dash_config
+from modules.models import Notification
 from .plugins import fetch_plugins
-from .utils import bearer_client, GuildModels
+from .utils import bearer_client, GuildModels, _cached_guild
 
 def register_context_processors(app):
     @app.context_processor
     async def utility_processor():
 
-        def plugs(guild):
-            guild_dash = get_dash_config(guild)
-            return fetch_plugins(guild_dash)
+        async def plugs(guild):
+            # _cached_guild memoizes the Guild doc per-request (on Quart's `g`),
+            # so calling this repeatedly in one render (dashboard.html and the
+            # sidebar each call it) only hits Mongo once, and does so with a
+            # real async query instead of a blocking PyMongo call on the event
+            # loop shared with the Discord bot.
+            doc = await _cached_guild(getattr(guild, "id", guild))
+            return fetch_plugins(doc.dashboard if doc else None)
 
-        def get_plugin(guild, plugin):
+        async def get_plugin(guild, plugin):
             return next(
-                (_plugin for _item, _plugin in plugs(guild) if _item == plugin),
+                (_plugin for _item, _plugin in await plugs(guild) if _item == plugin),
                 None
             )
 
@@ -39,40 +44,50 @@ def register_context_processors(app):
             session["cached_guilds"] = guilds
             return guilds
 
-        def notifications(guild):
-            """Returns the guild's notifications for the navbar (read-only, sync)."""
+        _notif_cache = {}
+
+        async def notifications(guild):
+            """Returns the guild's unread notifications for the navbar bell.
+
+            Only `unread` (capped to 5) and `unread_count` are used by
+            DashNavbar.html, which calls this 3 times per page render - so
+            this queries unread-only (sorted/newest-first at the DB level,
+            not fetching+sorting the guild's whole notification history in
+            Python) and caches the result per-request/per-guild so the 3
+            calls only hit Mongo once.
+            """
             guild_id = str(getattr(guild, "id", guild))
-            all_notifs = list(v._sync_notifs.find({"guild_id": guild_id}))
+            if guild_id in _notif_cache:
+                return _notif_cache[guild_id]
 
-            shaped = []
-            for n in all_notifs:
-                created = n.get("created_at")
-                shaped.append({
-                    'id': n.get('notification_id'),
-                    'type': n.get('type', 'info'),
-                    'title': n.get('title'),
-                    'description': n.get('description'),
-                    'fix': n.get('fix'),
-                    'link': n.get('link'),
-                    'user': n.get('user'),
-                    'read': n.get('read', False),
+            unread_docs = await Notification.find(
+                Notification.guild_id == guild_id,
+                Notification.read == False,
+            ).sort(
+                [(Notification.created_at, -1)]  # Newest first
+            ).to_list()
+
+            unread = [
+                {
+                    'id': n.notification_id,
+                    'type': n.type,
+                    'title': n.title,
+                    'description': n.description,
+                    'fix': n.fix,
+                    'link': n.link,
+                    'user': n.user,
+                    'read': n.read,
                     'created_at': {
-                        'date': created.strftime('%Y-%m-%d') if created else '',
-                        'time': created.strftime('%H:%M:%S') if created else '',
-                        'timestamp': created.timestamp() if created else 0,
+                        'date': n.created_at.strftime('%Y-%m-%d') if n.created_at else '',
+                        'time': n.created_at.strftime('%H:%M:%S') if n.created_at else '',
+                        'timestamp': n.created_at.timestamp() if n.created_at else 0,
                     },
-                })
-
-            read = sorted(
-                [n for n in shaped if n['read']],
-                key=lambda n: n['created_at']['timestamp']
-            )
-            unread = sorted(
-                [n for n in shaped if not n['read']],
-                key=lambda n: n['created_at']['timestamp'],
-                reverse=True
-            )
-            return {'read': read, 'unread': unread[:5], 'unread_count': len(unread)}
+                }
+                for n in unread_docs[:5]
+            ]
+            result = {'unread': unread, 'unread_count': len(unread_docs)}
+            _notif_cache[guild_id] = result
+            return result
 
         return {
             'plugins': plugs,

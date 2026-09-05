@@ -9,9 +9,13 @@ def fetch_plugins(dash):
   Returns a fresh copy of the plugin list with live status values from the
   guild's DashConfig. `dash` is a pydantic DashConfig object.
   Uses getattr() instead of .get() because DashConfig is not a dict.
+
+  Deep-copies the in-memory PLUGIN_LIST instead of re-reading/re-parsing
+  plugin_list.json from disk - this is called several times per page
+  render (once per plugins()/get_plugin() call in the templates), so
+  re-parsing the file each time was pure overhead for static data.
   """
-  with open('web_dashboard/plugin_list.json', 'r', encoding='utf-8') as f:
-    PluginList = json.load(f)
+  PluginList = copy.deepcopy(PLUGIN_LIST)
 
   if dash is not None:
     for plugin in PluginList.values():
@@ -21,5 +25,5 @@ def fetch_plugins(dash):
         plugin['status'] = plug_config.get('status', False)
       else:
         plugin['status'] = False
-  
+
   return PluginList.items()
