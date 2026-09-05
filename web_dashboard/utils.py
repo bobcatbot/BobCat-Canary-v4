@@ -176,6 +176,39 @@ def deep_merge(base: dict, incoming: dict) -> dict:
             base[key] = value
     return base
 
+# ── Dashboard (non-plugin) JSON guard ───────────────────────────────────────
+def dashboard_guard(f):
+    """Auth + guild-permission only, JSON responses.
+
+    For dashboard API routes that aren't tied to one plugin (guild meta, the
+    guild picker, settings): authenticated -> guild is known -> caller has
+    guild permission. No premium / plugin-enabled checks. Routes without a
+    ``guild_id`` (e.g. the guild list) just get the auth check.
+    """
+    @wraps(f)
+    async def wrapper(*args, **kwargs):
+        if not current_token():
+            return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
+        try:
+            user = bearer_client().get_current_user()
+        except Exception:
+            return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
+        guild_id = kwargs.get('guild_id')
+        if guild_id is not None:
+            guild = v.client.get_guild(guild_id)
+            if guild is None:
+                return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+
+            allowed, level = await check_guild_permission(guild, user.id)
+            if not allowed:
+                return jsonify({'status': 'error', 'message': f'Permission denied: {level}'}), 403
+
+        return await f(*args, **kwargs)
+    return wrapper
+
+
 # ── Plugin-route authorization guard ─────────────────────────────────────────
 def plugin_guard(plugin_key, *, require_enabled=True):
     """Guard for every dashboard guild route - page, action, or combined.

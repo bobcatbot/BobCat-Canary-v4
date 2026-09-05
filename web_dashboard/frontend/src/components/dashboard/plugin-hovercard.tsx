@@ -1,0 +1,169 @@
+/** Port of templates/components/plugin_hovercard.html.
+ *  Populated + positioned by /legacy/dash/js/main.js. */
+export function PluginHoverCard({ guildId }: { guildId: string }) {
+  return (
+    <>
+      <div
+        id="PluginHoverCard"
+        className="plugin-hovercard"
+        hidden
+        data-guild-id={guildId}
+      >
+        <div className="phc-head">
+          <span className="material-icons phc-icon" />
+          <h6 className="phc-title" />
+        </div>
+        <p className="phc-desc" />
+
+        <div className="phc-upgrade" hidden>
+          <p className="phc-upgrade-text">
+            To use this feature, <strong>upgrade your plan</strong> and unlock
+            every premium feature for your server.
+          </p>
+          <a
+            className="phc-upgrade-btn"
+            href={`/dashboard/${guildId}/premium`}
+          >
+            Upgrade your Server
+          </a>
+        </div>
+
+        <div className="phc-included" hidden>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z" />
+          </svg>
+          <span>Included in your plan</span>
+        </div>
+      </div>
+
+      <style>{`
+  .plugin-hovercard {
+    position: fixed;
+    z-index: 1030;
+    width: 300px;
+    max-width: calc(100vw - 32px);
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--color-card-1, #1e2124);
+    border: 1px solid var(--border-color, #2f3136);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    color: var(--text-color, #fff);
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .plugin-hovercard.is-visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .plugin-hovercard[hidden] { display: none; }
+
+  .plugin-hovercard::before {
+    content: "";
+    position: absolute;
+    top: var(--phc-caret-top, 50%);
+    right: 100%;
+    transform: translateY(-50%);
+    border: 7px solid transparent;
+    border-right-color: var(--border-color, #2f3136);
+  }
+  .plugin-hovercard::after {
+    content: "";
+    position: absolute;
+    top: var(--phc-caret-top, 50%);
+    right: 100%;
+    margin-right: -1px;
+    transform: translateY(-50%);
+    border: 7px solid transparent;
+    border-right-color: var(--color-card-1, #1e2124);
+  }
+  .plugin-hovercard.phc-flip::before,
+  .plugin-hovercard.phc-flip::after {
+    right: auto;
+    left: 100%;
+    border-right-color: transparent;
+  }
+  .plugin-hovercard.phc-flip::before { border-left-color: var(--border-color, #2f3136); }
+  .plugin-hovercard.phc-flip::after {
+    margin-right: 0;
+    margin-left: -1px;
+    border-left-color: var(--color-card-1, #1e2124);
+  }
+
+  .plugin-hovercard .phc-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .plugin-hovercard .phc-icon {
+    font-size: 20px;
+    color: var(--blurple, #5865f2);
+  }
+  .plugin-hovercard .phc-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .plugin-hovercard .phc-desc {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-muted, #99aab5);
+  }
+  .plugin-hovercard .phc-desc[hidden] { display: none; }
+
+  .plugin-hovercard .phc-upgrade {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid rgb(var(--premium-gold) / 0.5);
+    border-radius: 8px;
+  }
+  .plugin-hovercard .phc-upgrade[hidden] { display: none; }
+  .plugin-hovercard .phc-upgrade-text {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .plugin-hovercard .phc-upgrade-text strong { color: rgb(var(--premium-gold)); }
+  .plugin-hovercard .phc-upgrade-btn {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: rgb(var(--premium-gold));
+    background: rgb(var(--premium-gold) / 0.12);
+    border: 1px solid rgb(var(--premium-gold) / 0.4);
+  }
+  .plugin-hovercard .phc-upgrade-btn:hover { background: rgb(var(--premium-gold) / 0.2); }
+
+  .plugin-hovercard .phc-included {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgb(var(--premium-gold));
+    background: rgb(var(--premium-gold) / 0.1);
+    border: 1px solid rgb(var(--premium-gold) / 0.28);
+  }
+  .plugin-hovercard .phc-included[hidden] { display: none; }
+
+  @media (hover: none) {
+    .plugin-hovercard { display: none !important; }
+  }
+`}</style>
+    </>
+  );
+}

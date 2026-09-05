@@ -1,4 +1,8 @@
 
+// [next-migration] run now if the document is already parsed/loaded,
+// since these scripts are injected after window 'load' has fired.
+function __ready(fn){ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+
 const guild_switcher = document.querySelector('.guild-selector')
 guild_switcher.addEventListener('click', function() {
   guild_switcher.classList.toggle('active');
@@ -16,7 +20,7 @@ function TooltipText(e, txt) {
 // Navbar - side menu
 var navbar_item = document.querySelectorAll('.navbar-item');
 
-window.addEventListener('load', function() {
+__ready(function() {
   var currentURL = window.location.pathname;
 
   navbar_item.forEach((item) => {
@@ -132,7 +136,7 @@ function handlePremiumOnClick(event) {
   //    enable it silently and patch the UI in place - no reload. Plugin pages
   //    only use the status to set the main toggle's checked state, so flipping
   //    that plus the sidebar indicator is enough. On failure, show the modal.
-  document.addEventListener('DOMContentLoaded', function () {
+  __ready(function () {
     const path = window.location.pathname;
     let link = null;
     for (const l of pluginLinks) {

@@ -1,0 +1,71 @@
+/**
+ * Stylesheet stack from templates/include/dash-links.html — the CDN bundles
+ * the dashboard templates assume plus the local dash-*.css. Framework first,
+ * dash stylesheets last so they win.
+ */
+export function DashStyles() {
+  return (
+    <>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans&display=swap"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/icon?family=Material+Icons"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/aos@2.3.1/dist/aos.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.quilljs.com/1.3.6/quill.snow.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdn.quilljs.com/1.3.6/quill.bubble.css"
+        precedence="framework"
+      />
+      <link
+        rel="stylesheet"
+        href="/legacy/dash/css/dash-style.css"
+        precedence="app"
+      />
+      <link
+        rel="stylesheet"
+        href="/legacy/dash/css/dash-main.css"
+        precedence="app"
+      />
+      <link
+        rel="stylesheet"
+        href="/legacy/dash/css/dropdown.css"
+        precedence="app"
+      />
+    </>
+  );
+}
