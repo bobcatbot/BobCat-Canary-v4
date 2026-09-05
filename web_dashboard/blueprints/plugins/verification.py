@@ -203,7 +203,7 @@ async def verify_publish(guild_id):
         except Exception as e:
             logger.error(f"Error in publish task for guild {guild_id}: {e}", exc_info=True)
 
-    asyncio.run_coroutine_threadsafe(publish(), v.client.loop)
+    v.client.loop.create_task(publish())
     return jsonify({'status': 'success', 'message': 'Publishing verification message in background...'})
 
 
@@ -250,7 +250,7 @@ async def verify_unpublish(guild_id):
         except Exception as e:
             logger.error(f"Error in unpublish task for guild {guild_id}: {e}", exc_info=True)
 
-    asyncio.run_coroutine_threadsafe(unpublish(), v.client.loop)
+    asyncio.create_task(unpublish())
     return jsonify({'status': 'success', 'message': 'Unpublishing verification message in background...'})
 
 

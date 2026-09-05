@@ -110,8 +110,7 @@ async def form(guild_id, form_id):
                     except Exception as e:
                         logger.error(f"Error sending form submission: {e}")
 
-                # Fire and forget using asyncio.create_task
-                asyncio.run_coroutine_threadsafe(send_submission(), v.client.loop)
+                v.client.loop.create_task(send_submission())
 
         return jsonify({'status': 'success', 'message': 'Form submitted successfully'})
 

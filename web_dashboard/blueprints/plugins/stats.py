@@ -11,15 +11,6 @@ from ...plugins import PLUGIN_LIST
 stats_bp = Blueprint('stats', __name__)
 logger = logging.getLogger(__name__)
 
-async def run_on_bot_loop(coro):
-    """Schedule coroutine on bot's event loop and await result."""
-    future = asyncio.run_coroutine_threadsafe(coro, v.client.loop)
-    try:
-        return await asyncio.wrap_future(future)
-    except asyncio.CancelledError:
-        future.cancel()
-        raise
-
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats")
 @plugin_guard('stats')
@@ -79,11 +70,11 @@ async def stats_setup(guild_id):
     created_count = 0
     for counter in default_counters:
         try:
-            channel = await run_on_bot_loop(guild.create_voice_channel(
+            channel = await guild.create_voice_channel(
                 name=counter["text"].format(count=0),
                 reason="Stats auto-setup",
                 user_limit=0,
-            ))
+            )
             counter["channel_id"] = str(channel.id)
             counter["count"] = 0
             created_count += 1
@@ -118,7 +109,7 @@ async def stats_refresh(guild_id):
     if cog is None:
         return jsonify({'status': 'error', 'message': 'Stats cog not loaded'}), 404
 
-    await run_on_bot_loop(cog.update_guild_stats(guild, force=True))
+    await cog.update_guild_stats(guild, force=True)
     logger.info(f"Refreshed stats for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Stats refreshed'})
@@ -156,12 +147,12 @@ async def stats_create_counter(guild_id):
             msg += f" Upgrade to premium for up to {plugin_item_cap('stats', True)}."
         return jsonify({'status': 'error', 'message': msg, 'code': 'stats_cap'}), 409
 
-    # Create the voice channel on the bot's loop
-    channel = await run_on_bot_loop(guild.create_voice_channel(
+    # Create the voice channel
+    channel = await guild.create_voice_channel(
         name=template.format(kind=formated_target, count=0),
         reason=f"Stats counter for {target}",
         user_limit=0,
-    ))
+    )
     logger.info(f"Created stats counter channel {channel.name} for guild {guild_id}")
 
     # Add the counter to config
@@ -185,9 +176,7 @@ async def stats_create_counter(guild_id):
     # Force an immediate update
     cog = v.client.get_cog("Stats")
     if cog:
-        await run_on_bot_loop(
-            cog.update_guild_stats(guild, force=True)
-        )
+        await cog.update_guild_stats(guild, force=True)
 
     return jsonify({
         'status': 'success',
@@ -223,9 +212,7 @@ async def stats_delete_counter(guild_id, counter_idx):
         channel = guild.get_channel(int(channel_id))
         if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             try:
-                await run_on_bot_loop(channel.delete(
-                    reason="Stats counter deleted"
-                ))
+                await channel.delete(reason="Stats counter deleted")
                 logger.info(f"Deleted stats counter channel for guild {guild_id}")
             except discord.Forbidden:
                 logger.error(f"No permissions to delete channel in guild {guild_id}")
@@ -261,9 +248,7 @@ async def stats_reset(guild_id):
             channel = guild.get_channel(int(channel_id))
             if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
                 try:
-                    await run_on_bot_loop(channel.delete(
-                        reason="Stats reset"
-                    ))
+                    await channel.delete(reason="Stats reset")
                     logger.info(f"Deleted stats channel for guild {guild_id}")
                 except discord.Forbidden:
                     logger.warning(f"No permissions to delete channel in guild {guild_id}")
@@ -330,12 +315,12 @@ async def stats_reorder(guild_id):
             try:
                 new_position = len(stats_channels) - 1 - idx
                 if category:
-                    await run_on_bot_loop(channel.edit(
+                    await channel.edit(
                         position=new_position,
                         category=category
-                    ))
+                    )
                 else:
-                    await run_on_bot_loop(channel.edit(position=new_position))
+                    await channel.edit(position=new_position)
             except discord.HTTPException as e:
                 logger.warning(f"Failed to reorder channel {channel.name}: {e}")
             await asyncio.sleep(0.3)
