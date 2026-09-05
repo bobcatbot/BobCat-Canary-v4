@@ -147,3 +147,16 @@ Per page, the pattern is:
   `http://localhost:3000/api/auth/callback/discord` registered on the Discord app.
 - Quart side already accepts the forwarded Bearer token via
   `utils.current_token()` (header OR legacy session cookie).
+
+## Phase 2 — dashboard (in progress)
+
+### Error pages ✅
+| Template | Next file | Notes |
+|---|---|---|
+| `error/404.html` | `app/not-found.tsx` | via `ErrorCard`; inline `<style>` verbatim, `<a href>` retargeted `/guilds`→`/dashboard` (the old link was dead) |
+| `error/NoAccess.html` | `app/no-access/page.tsx` | via `ErrorCard`; dashboard `[guildId]` layout will redirect here on a 403 from `/meta` |
+| `error/500.html` | `app/error.tsx` + `app/global-error.tsx` | via `ServerErrorCard`; standalone light-theme design, styles verbatim |
+
+`ErrorCard` pulls only `LegacyStyles` (Bootstrap base `.btn` + Balsamiq font),
+not the full `dash-links.html` vendor stack — the inline `<style>` fully
+determines the look.
