@@ -5,7 +5,7 @@ from modules import bot as v
 from modules.models import Economy
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
-from .tools.utils import get_shop, get_currency_icon, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance, claim_daily, DEFAULT_ITEM_ICON
+from ._shop import get_shop, get_currency_icon, get_user_items, open_account, update_bank, buy_this, sell_this, get_user_balance, claim_daily, DEFAULT_ITEM_ICON
 
 # ── rob-coins success odds ───────────────────────────────────
 ROB_BASE_CHANCE = 0.5     # odds when robber and victim wallets are equal

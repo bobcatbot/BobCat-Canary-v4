@@ -10,7 +10,7 @@ from discord.ext import commands
 from easy_pil import Editor, Font, load_image
 from modules import bot as v
 from modules.models import Guild, Leveling as LevelingModel
-from cogs.money.tools.utils import open_account, update_bank
+from cogs.money._shop import open_account, update_bank
 
 CARDS_URL = "images/lvl-cards"
 FALLBACK_CARD = "blurple-rank.png"

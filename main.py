@@ -67,7 +67,12 @@ def discover_extensions() -> list[str]:
         if not category_path.is_dir() or category_path.name.startswith("__"):
             continue
         for file_path in category_path.glob("*.py"):
-            if file_path.name.startswith("__"):
+            # "__x.py" (dunder) and "_x.py" (single leading underscore) are
+            # private helper modules for cogs in this category, not cogs
+            # themselves - e.g. cogs/mod/_helpers.py, cogs/money/_shop.py.
+            # Skip both so load_extension() isn't attempted on a module
+            # with no setup() function.
+            if file_path.name.startswith("_"):
                 continue
             # Convert path to module name: cogs.category.filename
             rel_path = file_path.relative_to(cogs_path.parent)

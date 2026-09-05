@@ -94,7 +94,7 @@ class GiveawayCog(commands.Cog):
                             member = await guild.fetch_member(int(user_id))
                             # Award coins
                             if data.give_coins.get('enabled'):
-                                from cogs.money.tools.utils import open_account, update_bank
+                                from cogs.money._shop import open_account, update_bank
                                 await open_account(guild, member)
                                 await update_bank(guild, member, 'bank', data.give_coins['amount'])
                             # Award XP

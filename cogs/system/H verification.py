@@ -5,7 +5,7 @@ import io
 import discord
 from discord.ext import commands, tasks
 from captcha.image import ImageCaptcha
-from cogs.mod.mod_utils.utils import audit_log
+from cogs.mod._helpers import audit_log
 from modules import bot as v
 from modules.models import Guild
 from datetime import datetime, timedelta

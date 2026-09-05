@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from modules import bot as v
 from modules.models import Guild
-from .mod_utils.utils import can_moderate, send_member_dm, audit_log
+from ._helpers import can_moderate, send_member_dm, audit_log
 
 DURATIONS = {
     "60-sec": (datetime.timedelta(seconds=60), "60 seconds"),
