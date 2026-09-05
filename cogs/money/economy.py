@@ -146,10 +146,9 @@ class Money(commands.Cog):
             title=f"{member.display_name}'s Balance",
             color=v.style(ctx.guild)
         )
-        embed.add_field(name="💰 Wallet Balance", value=f"`{user_data['wallet']}` coins", inline=True)
-        embed.add_field(name="🏦 Bank Balance", value=f"`{user_data['bank']}` coins", inline=True)
-        embed.add_field(name="📦 Total Worth", value=f"`{user_data['wallet'] + user_data['bank']}` coins", inline=False)
-        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+        embed.add_field(name="Wallet", value=f"`{user_data['wallet']}` coins", inline=True)
+        embed.add_field(name="Bank", value=f"`{user_data['bank']}` coins", inline=True)
+        embed.add_field(name="Total", value=f"`{user_data['wallet'] + user_data['bank']}` coins", inline=True)
         await ctx.respond(embed=embed)
         
     @eco.command(description="Claim your daily reward and build up a streak")

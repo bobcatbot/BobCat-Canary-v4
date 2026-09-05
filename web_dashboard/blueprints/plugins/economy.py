@@ -41,5 +41,5 @@ async def economy(guild_id):
         data=data,
         is_premium=guild_premium,
         shop_cap=plugin_item_cap('economy', guild_premium),
-        shop_cap_premium=_ECONOMY_META.get('max_premium', 15),
+        shop_cap_premium=PLUGIN_LIST.get('economy', {}).get('max_premium', 15),
     )
