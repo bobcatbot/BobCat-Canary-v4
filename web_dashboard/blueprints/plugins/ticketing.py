@@ -174,7 +174,7 @@ async def ticketing_create(guild_id):
                 logger.error(f"Error creating ticket panel for guild {guild_id}: {e}", exc_info=True)
 
         # Fire and forget
-        asyncio.create_task(create_panel())
+        v.client.loop.create_task(create_panel())
         
         await flash(f"Successfully created ticket panel {data['id']}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully created ticket'})
@@ -272,7 +272,7 @@ async def ticketing_edit(guild_id, ticket_id):
                 logger.error(f"Error editing ticket panel for guild {guild_id}: {e}", exc_info=True)
 
         # Fire and forget
-        asyncio.create_task(edit_panel())
+        v.client.loop.create_task(edit_panel())
         
         await flash(f"Successfully updated ticket panel {ticket_id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully updated ticket'})
@@ -343,7 +343,7 @@ async def ticketing_delete(guild_id, ticket_id):
             logger.error(f"Error deleting ticket panel for guild {guild_id}: {e}", exc_info=True)
 
     # Fire and forget
-    asyncio.create_task(delete_panel())
+    v.client.loop.create_task(delete_panel())
     
     await flash(f"Successfully deleted ticket panel {ticket_id}", 'success')
     return jsonify({'status': 'success', 'message': 'Successfully deleted ticket panel'})

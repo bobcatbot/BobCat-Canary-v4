@@ -135,7 +135,7 @@ async def temporary_channels_create(guild_id):
                 logger.error(f"Error creating hub for guild {guild_id}: {e}", exc_info=True)
 
         # Fire and forget
-        asyncio.create_task(create_hub())
+        v.client.loop.create_task(create_hub())
         
         await flash(f"Successfully created hub {data['id']}", 'success')
         return jsonify({'status': 'success', 'message': f"Successfully created hub {data['id']}"})
@@ -226,7 +226,7 @@ async def temporary_channels_edit(guild_id, hub_id):
                 logger.error(f"Error editing hub for guild {guild_id}: {e}", exc_info=True)
 
         # Fire and forget
-        asyncio.create_task(edit_hub())
+        v.client.loop.create_task(edit_hub())
         
         await flash(f"Successfully updated hub {hub['id']}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully updated hub'})
@@ -306,7 +306,7 @@ async def temporary_channels_delete(guild_id, hub_id):
             logger.error(f"Error deleting hub for guild {guild_id}: {e}", exc_info=True)
 
     # Fire and forget
-    asyncio.create_task(delete_hub())
+    v.client.loop.create_task(delete_hub())
     
     await flash(f"Successfully deleted hub {hub_id}", 'success')
     return jsonify({'status': 'success', 'message': 'Successfully deleted hub'})

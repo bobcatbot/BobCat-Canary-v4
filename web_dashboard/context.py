@@ -1,3 +1,5 @@
+from quart import g
+
 from modules import bot as v
 from modules.models import Notification
 from .plugins import fetch_plugins
@@ -8,13 +10,21 @@ def register_context_processors(app):
     async def utility_processor():
 
         async def plugs(guild):
-            # _cached_guild memoizes the Guild doc per-request (on Quart's `g`),
-            # so calling this repeatedly in one render (dashboard.html and the
-            # sidebar each call it) only hits Mongo once, and does so with a
-            # real async query instead of a blocking PyMongo call on the event
-            # loop shared with the Discord bot.
-            doc = await _cached_guild(getattr(guild, "id", guild))
-            return fetch_plugins(doc.dashboard if doc else None)
+            # dashboard.html iterates this 4x and the sidebar once more per
+            # render; memoize the shaped list per-request/per-guild on Quart's
+            # `g` so fetch_plugins (a deepcopy of PLUGIN_LIST + a status merge)
+            # runs once instead of ~5x on the event loop shared with the bot.
+            # _cached_guild already memoizes the underlying Guild doc the same
+            # way; this also spares a blocking PyMongo call per iteration.
+            guild_id = str(getattr(guild, "id", guild))
+            cache = getattr(g, "_plugins_cache", None)
+            if cache is None:
+                cache = {}
+                g._plugins_cache = cache
+            if guild_id not in cache:
+                doc = await _cached_guild(guild_id)
+                cache[guild_id] = fetch_plugins(doc.dashboard if doc else None)
+            return cache[guild_id]
 
         async def get_plugin(guild, plugin):
             return next(
@@ -60,12 +70,19 @@ def register_context_processors(app):
             if guild_id in _notif_cache:
                 return _notif_cache[guild_id]
 
+            # Only the 5 newest are shown; fetch just those, and get the total
+            # with a count() rather than materialising every unread doc (the
+            # backlog is unbounded - nothing marks notifications read).
             unread_docs = await Notification.find(
                 Notification.guild_id == guild_id,
                 Notification.read == False,
             ).sort(
                 [(Notification.created_at, -1)]  # Newest first
-            ).to_list()
+            ).limit(5).to_list()
+            unread_count = await Notification.find(
+                Notification.guild_id == guild_id,
+                Notification.read == False,
+            ).count()
 
             unread = [
                 {
@@ -83,9 +100,9 @@ def register_context_processors(app):
                         'timestamp': n.created_at.timestamp() if n.created_at else 0,
                     },
                 }
-                for n in unread_docs[:5]
+                for n in unread_docs
             ]
-            result = {'unread': unread, 'unread_count': len(unread_docs)}
+            result = {'unread': unread, 'unread_count': unread_count}
             _notif_cache[guild_id] = result
             return result
 

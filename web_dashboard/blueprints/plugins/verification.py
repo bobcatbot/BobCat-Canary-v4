@@ -1,5 +1,4 @@
 import discord
-import asyncio
 import logging
 from quart import Blueprint, jsonify, render_template, request
 
@@ -250,7 +249,7 @@ async def verify_unpublish(guild_id):
         except Exception as e:
             logger.error(f"Error in unpublish task for guild {guild_id}: {e}", exc_info=True)
 
-    asyncio.create_task(unpublish())
+    v.client.loop.create_task(unpublish())
     return jsonify({'status': 'success', 'message': 'Unpublishing verification message in background...'})
 
 

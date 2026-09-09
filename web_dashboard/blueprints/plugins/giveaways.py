@@ -244,7 +244,7 @@ async def giveaways_edition(guild_id, gway_id):
                 logger.error(f"Error updating giveaway for guild {guild_id}: {e}", exc_info=True)
 
         # Fire and forget
-        asyncio.create_task(update_giveaway())
+        v.client.loop.create_task(update_giveaway())
         
         await flash('Giveaway updated successfully!', 'success')
         return jsonify({'status': 'success', 'message': 'Giveaway updated successfully!'})
