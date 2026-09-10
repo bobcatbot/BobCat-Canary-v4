@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import logging
 from quart import Blueprint, request, render_template, jsonify
 
 from modules import bot as v
@@ -9,7 +8,6 @@ from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 stats_bp = Blueprint('stats', __name__)
-logger = logging.getLogger(__name__)
 
 
 @stats_bp.route("/dashboard/<int:guild_id>/stats")
@@ -78,7 +76,7 @@ async def stats_setup(guild_id):
             counter["channel_id"] = str(channel.id)
             counter["count"] = 0
             created_count += 1
-            logger.info(f"Created stats channel {channel.name} for guild {guild_id}")
+            print(f"Created stats channel {channel.name} for guild {guild_id}")
         except discord.Forbidden:
             return jsonify({'status': 'error', 'message': 'No permissions to create voice channels'}), 403
         except Exception as e:
@@ -88,7 +86,7 @@ async def stats_setup(guild_id):
     config.dashboard.stats["counters"] = default_counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
-    logger.info(f"Setup stats channels for guild {guild_id}")
+    print(f"Setup stats channels for guild {guild_id}")
 
     return jsonify({
         'status': 'success',
@@ -110,7 +108,7 @@ async def stats_refresh(guild_id):
         return jsonify({'status': 'error', 'message': 'Stats cog not loaded'}), 404
 
     await cog.update_guild_stats(guild, force=True)
-    logger.info(f"Refreshed stats for guild {guild_id}")
+    print(f"Refreshed stats for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Stats refreshed'})
 
@@ -153,7 +151,7 @@ async def stats_create_counter(guild_id):
         reason=f"Stats counter for {target}",
         user_limit=0,
     )
-    logger.info(f"Created stats counter channel {channel.name} for guild {guild_id}")
+    print(f"Created stats counter channel {channel.name} for guild {guild_id}")
 
     # Add the counter to config
     counters = config.dashboard.stats.get('counters', [])
@@ -171,7 +169,7 @@ async def stats_create_counter(guild_id):
     config.dashboard.stats["counters"] = counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
-    logger.info(f"Saved counter {target} for guild {guild_id}")
+    print(f"Saved counter {target} for guild {guild_id}")
 
     # Force an immediate update
     cog = v.client.get_cog("Stats")
@@ -213,9 +211,9 @@ async def stats_delete_counter(guild_id, counter_idx):
         if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             try:
                 await channel.delete(reason="Stats counter deleted")
-                logger.info(f"Deleted stats counter channel for guild {guild_id}")
+                print(f"Deleted stats counter channel for guild {guild_id}")
             except discord.Forbidden:
-                logger.error(f"No permissions to delete channel in guild {guild_id}")
+                print(f"No permissions to delete channel in guild {guild_id}")
                 return jsonify({'status': 'error', 'message': 'No permissions to delete channel'}), 403
 
     # Remove from config
@@ -223,7 +221,7 @@ async def stats_delete_counter(guild_id, counter_idx):
     config.dashboard.stats["counters"] = counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
-    logger.info(f"Deleted counter {counter_idx} for guild {guild_id}")
+    print(f"Deleted counter {counter_idx} for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Successfully deleted counter'})
 
@@ -249,17 +247,17 @@ async def stats_reset(guild_id):
             if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
                 try:
                     await channel.delete(reason="Stats reset")
-                    logger.info(f"Deleted stats channel for guild {guild_id}")
+                    print(f"Deleted stats channel for guild {guild_id}")
                 except discord.Forbidden:
-                    logger.warning(f"No permissions to delete channel in guild {guild_id}")
+                    print(f"No permissions to delete channel in guild {guild_id}")
                 except Exception as e:
-                    logger.error(f"Error deleting channel: {e}")
+                    print(f"Error deleting channel: {e}")
 
     # Clear config
     config.dashboard.stats["counters"] = []
     config.updated_at = discord.utils.utcnow()
     await config.save()
-    logger.info(f"Reset all stats for guild {guild_id}")
+    print(f"Reset all stats for guild {guild_id}")
 
     return jsonify({'status': 'success', 'message': 'Successfully deleted all stats channels'})
 
@@ -322,10 +320,10 @@ async def stats_reorder(guild_id):
                 else:
                     await channel.edit(position=new_position)
             except discord.HTTPException as e:
-                logger.warning(f"Failed to reorder channel {channel.name}: {e}")
+                print(f"Failed to reorder channel {channel.name}: {e}")
             await asyncio.sleep(0.3)
 
-    logger.info(f"Reordered stats channels for guild {guild_id}")
+    print(f"Reordered stats channels for guild {guild_id}")
 
     return jsonify({
         'status': 'success',

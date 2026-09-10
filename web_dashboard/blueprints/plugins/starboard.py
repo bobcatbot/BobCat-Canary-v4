@@ -1,4 +1,3 @@
-import logging
 from quart import Blueprint, render_template
 
 from modules import bot as v
@@ -6,7 +5,6 @@ from modules.models import Guild
 from ...utils import bearer_client, plugin_guard
 
 starboard_bp = Blueprint('starboard', __name__)
-logger = logging.getLogger(__name__)
 
 @starboard_bp.route("/dashboard/<int:guild_id>/starboard")
 @plugin_guard('starboard')

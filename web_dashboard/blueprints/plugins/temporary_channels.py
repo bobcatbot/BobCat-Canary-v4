@@ -1,6 +1,6 @@
+import traceback
 import discord
 import asyncio
-import logging
 from quart import Blueprint, request, render_template, redirect, url_for, jsonify, flash
 
 from modules import bot as v
@@ -9,7 +9,6 @@ from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 temporary_channels_bp = Blueprint('temporary_channels', __name__)
-logger = logging.getLogger(__name__)
 
 
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels")
@@ -71,7 +70,7 @@ async def temporary_channels_create(guild_id):
                 # Get the guild document
                 config = await Guild.get(str(guild.id))
                 if config is None:
-                    logger.error(f"Guild config not found for {guild_id}")
+                    print(f"Guild config not found for {guild_id}")
                     return
 
                 # Ensure temporary_channels exists
@@ -87,7 +86,7 @@ async def temporary_channels_create(guild_id):
                     if category_id:
                         category = guild.get_channel(int(category_id))
                         if category is None:
-                            logger.error(f"Category {category_id} not found for guild {guild_id}")
+                            print(f"Category {category_id} not found for guild {guild_id}")
                             return
                     else:
                         try:
@@ -96,12 +95,12 @@ async def temporary_channels_create(guild_id):
                                 reason=f"Temp category for hub {data['id']}"
                             )
                             data['category_id'] = str(category.id)
-                            logger.info(f"Created category for hub {data['id']} in guild {guild_id}")
+                            print(f"Created category for hub {data['id']} in guild {guild_id}")
                         except discord.Forbidden:
-                            logger.error(f"No permissions to create category in guild {guild_id}")
+                            print(f"No permissions to create category in guild {guild_id}")
                             return
                         except Exception as e:
-                            logger.error(f"Error creating category: {e}")
+                            print(f"Error creating category: {e}")
                             return
                 else:
                     category = guild
@@ -116,12 +115,12 @@ async def temporary_channels_create(guild_id):
                         reason=f"Temp voice channel for hub {data['id']}"
                     )
                     data['channel_id'] = str(vc.id)
-                    logger.info(f"Created voice channel for hub {data['id']} in guild {guild_id}")
+                    print(f"Created voice channel for hub {data['id']} in guild {guild_id}")
                 except discord.Forbidden:
-                    logger.error(f"No permissions to create voice channel in guild {guild_id}")
+                    print(f"No permissions to create voice channel in guild {guild_id}")
                     return
                 except Exception as e:
-                    logger.error(f"Error creating voice channel: {e}")
+                    print(f"Error creating voice channel: {e}")
                     return
 
                 # Save to dashboard
@@ -129,10 +128,11 @@ async def temporary_channels_create(guild_id):
                 config.dashboard.temporary_channels['hubs'] = hubs
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
-                logger.info(f"Saved hub {data['id']} for guild {guild_id}")
+                print(f"Saved hub {data['id']} for guild {guild_id}")
             
             except Exception as e:
-                logger.error(f"Error creating hub for guild {guild_id}: {e}", exc_info=True)
+                print(f"Error creating hub for guild {guild_id}: {e}")
+                traceback.print_exc()
 
         # Fire and forget
         v.client.loop.create_task(create_hub())
@@ -211,19 +211,20 @@ async def temporary_channels_edit(guild_id, hub_id):
 
                             if edit_kwargs:
                                 await channel.edit(**edit_kwargs)
-                            logger.info(f"Updated Discord channel for hub {hub_id} in guild {guild_id}")
+                            print(f"Updated Discord channel for hub {hub_id} in guild {guild_id}")
                         except discord.Forbidden:
-                            logger.error(f"No permissions to edit channel in guild {guild_id}")
+                            print(f"No permissions to edit channel in guild {guild_id}")
                         except Exception as e:
-                            logger.error(f"Error editing channel: {e}")
+                            print(f"Error editing channel: {e}")
 
                 config.dashboard.temporary_channels['hubs'] = hubs
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
-                logger.info(f"Updated hub {hub_id} for guild {guild_id}")
+                print(f"Updated hub {hub_id} for guild {guild_id}")
             
             except Exception as e:
-                logger.error(f"Error editing hub for guild {guild_id}: {e}", exc_info=True)
+                print(f"Error editing hub for guild {guild_id}: {e}")
+                traceback.print_exc()
 
         # Fire and forget
         v.client.loop.create_task(edit_hub())
@@ -276,11 +277,11 @@ async def temporary_channels_delete(guild_id, hub_id):
                 if channel:
                     try:
                         await channel.delete(reason=f"Hub {hub_id} deleted")
-                        logger.info(f"Deleted voice channel for hub {hub_id} in guild {guild_id}")
+                        print(f"Deleted voice channel for hub {hub_id} in guild {guild_id}")
                     except discord.Forbidden:
-                        logger.error(f"No permissions to delete channel in guild {guild_id}")
+                        print(f"No permissions to delete channel in guild {guild_id}")
                     except Exception as e:
-                        logger.error(f"Error deleting channel: {e}")
+                        print(f"Error deleting channel: {e}")
 
             # Delete category if it was synced
             if hub.get('sync_hub_category') and hub.get('category_id'):
@@ -288,11 +289,11 @@ async def temporary_channels_delete(guild_id, hub_id):
                 if category:
                     try:
                         await category.delete(reason=f"Hub {hub_id} deleted")
-                        logger.info(f"Deleted category for hub {hub_id} in guild {guild_id}")
+                        print(f"Deleted category for hub {hub_id} in guild {guild_id}")
                     except discord.Forbidden:
-                        logger.error(f"No permissions to delete category in guild {guild_id}")
+                        print(f"No permissions to delete category in guild {guild_id}")
                     except Exception as e:
-                        logger.error(f"Error deleting category: {e}")
+                        print(f"Error deleting category: {e}")
 
             # Remove from config
             hub_idx = hubs.index(hub)
@@ -300,10 +301,11 @@ async def temporary_channels_delete(guild_id, hub_id):
             config.dashboard.temporary_channels['hubs'] = hubs
             config.updated_at = discord.utils.utcnow()
             await config.save()
-            logger.info(f"Deleted hub {hub_id} for guild {guild_id}")
+            print(f"Deleted hub {hub_id} for guild {guild_id}")
         
         except Exception as e:
-            logger.error(f"Error deleting hub for guild {guild_id}: {e}", exc_info=True)
+            print(f"Error deleting hub for guild {guild_id}: {e}")
+            traceback.print_exc()
 
     # Fire and forget
     v.client.loop.create_task(delete_hub())

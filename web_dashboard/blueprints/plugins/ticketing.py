@@ -1,6 +1,6 @@
+import traceback
 import discord
 import asyncio
-import logging
 from bson import ObjectId
 from bson.errors import InvalidId
 from quart import Blueprint, render_template, redirect, url_for, flash, jsonify, request
@@ -11,7 +11,6 @@ from ...utils import bearer_client, login_required, plugin_guard, is_premium, pl
 from ...plugins import PLUGIN_LIST
 
 ticketing_bp = Blueprint('ticketing', __name__)
-logger = logging.getLogger(__name__)
 
 def _parse_embed_color(value, default=0x5865f2) -> int:
     """Coerce a panel embed color (int, hex string, or missing) to an int."""
@@ -128,7 +127,7 @@ async def ticketing_create(guild_id):
                 # Get the guild document
                 config = await Guild.get(str(guild.id))
                 if config is None:
-                    logger.error(f"Guild config not found for {guild_id}")
+                    print(f"Guild config not found for {guild_id}")
                     return
 
                 # Ensure ticketing exists
@@ -158,9 +157,9 @@ async def ticketing_create(guild_id):
                 if channel:
                     msg = await channel.send(embed=embed, view=view)
                     data['panel_message_id'] = str(msg.id)
-                    logger.info(f"Created ticket panel message for guild {guild_id}")
+                    print(f"Created ticket panel message for guild {guild_id}")
                 else:
-                    logger.error(f"Channel {data.get('channel_id')} not found for guild {guild_id}")
+                    print(f"Channel {data.get('channel_id')} not found for guild {guild_id}")
                     return
 
                 # Save to dashboard
@@ -168,10 +167,11 @@ async def ticketing_create(guild_id):
                 config.dashboard.ticketing['panels'] = panels
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
-                logger.info(f"Saved ticket panel {data['id']} for guild {guild_id}")
+                print(f"Saved ticket panel {data['id']} for guild {guild_id}")
             
             except Exception as e:
-                logger.error(f"Error creating ticket panel for guild {guild_id}: {e}", exc_info=True)
+                print(f"Error creating ticket panel for guild {guild_id}: {e}")
+                traceback.print_exc()
 
         # Fire and forget
         v.client.loop.create_task(create_panel())
@@ -257,19 +257,20 @@ async def ticketing_edit(guild_id, ticket_id):
                             ))
                             
                             await msg.edit(embed=embed, view=view)
-                            logger.info(f"Updated ticket panel message for guild {guild_id}")
+                            print(f"Updated ticket panel message for guild {guild_id}")
                         except discord.NotFound:
-                            logger.warning(f"Ticket panel message not found for guild {guild_id}")
+                            print(f"Ticket panel message not found for guild {guild_id}")
                         except Exception as e:
-                            logger.error(f"Error updating ticket panel message: {e}")
+                            print(f"Error updating ticket panel message: {e}")
 
                 config.dashboard.ticketing['panels'] = panels
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
-                logger.info(f"Updated ticket panel {ticket_id} for guild {guild_id}")
+                print(f"Updated ticket panel {ticket_id} for guild {guild_id}")
             
             except Exception as e:
-                logger.error(f"Error editing ticket panel for guild {guild_id}: {e}", exc_info=True)
+                print(f"Error editing ticket panel for guild {guild_id}: {e}")
+                traceback.print_exc()
 
         # Fire and forget
         v.client.loop.create_task(edit_panel())
@@ -325,11 +326,11 @@ async def ticketing_delete(guild_id, ticket_id):
                     try:
                         msg = await channel.fetch_message(int(panel_msg_id))
                         await msg.delete()
-                        logger.info(f"Deleted ticket panel message for guild {guild_id}")
+                        print(f"Deleted ticket panel message for guild {guild_id}")
                     except discord.NotFound:
-                        logger.warning(f"Ticket panel message not found for guild {guild_id}")
+                        print(f"Ticket panel message not found for guild {guild_id}")
                     except Exception as e:
-                        logger.error(f"Error deleting ticket panel message: {e}")
+                        print(f"Error deleting ticket panel message: {e}")
 
             # Remove from config
             ticket_idx = panels.index(data)
@@ -337,10 +338,11 @@ async def ticketing_delete(guild_id, ticket_id):
             config.dashboard.ticketing['panels'] = panels
             config.updated_at = discord.utils.utcnow()
             await config.save()
-            logger.info(f"Deleted ticket panel {ticket_id} for guild {guild_id}")
+            print(f"Deleted ticket panel {ticket_id} for guild {guild_id}")
         
         except Exception as e:
-            logger.error(f"Error deleting ticket panel for guild {guild_id}: {e}", exc_info=True)
+            print(f"Error deleting ticket panel for guild {guild_id}: {e}")
+            traceback.print_exc()
 
     # Fire and forget
     v.client.loop.create_task(delete_panel())

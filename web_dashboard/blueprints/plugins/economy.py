@@ -1,4 +1,3 @@
-import logging
 from quart import Blueprint, render_template
 
 from modules import bot as v
@@ -7,7 +6,6 @@ from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 economy_bp = Blueprint('economy', __name__)
-logger = logging.getLogger(__name__)
 
 @economy_bp.route("/dashboard/<int:guild_id>/economy")
 @plugin_guard('economy')

@@ -1,6 +1,6 @@
+import traceback
 import discord
 import asyncio
-import logging
 from quart import Blueprint, request, flash, jsonify, render_template, redirect, url_for
 
 from modules import bot as v
@@ -8,7 +8,6 @@ from modules.models import Guild, Giveaway
 from ...utils import bearer_client, plugin_guard
 
 giveaways_bp = Blueprint('giveaways', __name__)
-logger = logging.getLogger(__name__)
 
 
 def _build_giveaway_embed(giveaway):
@@ -76,7 +75,8 @@ async def _send_giveaway_message(guild, giveaway):
     except discord.Forbidden:
         return False, "I don't have permission to send messages in that channel"
     except Exception as e:
-        logger.error(f"Error sending giveaway message for {giveaway.id}: {e}", exc_info=True)
+        print(f"Error sending giveaway message for {giveaway.id}: {e}")
+        traceback.print_exc()
         return False, 'Failed to send giveaway message'
 
     giveaway.message_id = str(msg.id)
@@ -99,7 +99,7 @@ async def giveaways(guild_id):
     # Get all giveaways for this guild
     giveaways_list = await Giveaway.find(Giveaway.guild_id == str(guild.id)).to_list()
 
-    logger.info(f"Loaded {len(giveaways_list)} giveaways for guild {guild_id}")
+    print(f"Loaded {len(giveaways_list)} giveaways for guild {guild_id}")
     
     return await render_template(
         "dashboard/plugins/giveaways/gway_index.html",
@@ -175,13 +175,13 @@ async def giveaways_creation(guild_id):
 
             await giveaway.insert()
             await flash('Giveaway published successfully!', 'success')
-            logger.info(f"Published giveaway {uuid} for guild {guild_id}")
+            print(f"Published giveaway {uuid} for guild {guild_id}")
             return jsonify({'status': 'success', 'message': 'Giveaway published successfully!'})
 
         # Default: save as draft
         await giveaway.insert()
         await flash('Giveaway saved successfully!', 'success')
-        logger.info(f"Saved giveaway draft {uuid} for guild {guild_id}")
+        print(f"Saved giveaway draft {uuid} for guild {guild_id}")
         return jsonify({'status': 'success', 'message': 'Giveaway saved successfully!'})
 
     return await render_template(
@@ -231,17 +231,18 @@ async def giveaways_edition(guild_id, gway_id):
                             embed.fields[2].value = f"**{giveaway.winner_count}**"
                             embed.fields[3].value = f"**{len(giveaway.participants)}**"
                             await msg.edit(embed=embed)
-                            logger.info(f"Updated giveaway message for {gway_id} in guild {guild_id}")
+                            print(f"Updated giveaway message for {gway_id} in guild {guild_id}")
                         except discord.NotFound:
-                            logger.warning(f"Giveaway message not found for {gway_id} in guild {guild_id}")
+                            print(f"Giveaway message not found for {gway_id} in guild {guild_id}")
                         except Exception as e:
-                            logger.error(f"Error updating giveaway message: {e}")
+                            print(f"Error updating giveaway message: {e}")
 
                 await giveaway.save()
-                logger.info(f"Updated giveaway {gway_id} for guild {guild_id}")
+                print(f"Updated giveaway {gway_id} for guild {guild_id}")
             
             except Exception as e:
-                logger.error(f"Error updating giveaway for guild {guild_id}: {e}", exc_info=True)
+                print(f"Error updating giveaway for guild {guild_id}: {e}")
+                traceback.print_exc()
 
         # Fire and forget
         v.client.loop.create_task(update_giveaway())
@@ -288,7 +289,7 @@ async def giveaways_publish(guild_id, gway_id):
 
     await giveaway.save()
     await flash('Giveaway published successfully!', 'success')
-    logger.info(f"Published draft giveaway {gway_id} for guild {guild_id}")
+    print(f"Published draft giveaway {gway_id} for guild {guild_id}")
     return jsonify({'status': 'success', 'message': 'Giveaway published successfully!'})
 
 
@@ -316,5 +317,5 @@ async def giveaways_delete(guild_id, gway_id):
                 pass  # message may already be gone
 
     await giveaway.delete()
-    logger.info(f"Deleted giveaway {gway_id} for guild {guild_id}")
+    print(f"Deleted giveaway {gway_id} for guild {guild_id}")
     return jsonify({'status': 'success', 'message': 'Giveaway deleted'})

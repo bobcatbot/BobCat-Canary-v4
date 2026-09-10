@@ -352,7 +352,7 @@ class GiveawayCog(commands.Cog):
                 channel = guild.get_channel(int(item.channel_id)) or await guild.fetch_channel(int(item.channel_id))
                 msg = await channel.fetch_message(int(item.message_id))
                 jump_url = msg.jump_url
-            except:
+            except discord.HTTPException:
                 jump_url = "#"
 
             winner_word = "winner" if item.winner_count == 1 else "winners"
@@ -394,7 +394,7 @@ class GiveawayCog(commands.Cog):
         try:
             user = ctx.guild.get_member(int(user_id)) or await ctx.guild.fetch_member(int(user_id))
             mention = user.mention
-        except:
+        except discord.HTTPException:
             mention = f"<@{user_id}>"
 
         data.winners.append(user_id)
@@ -427,7 +427,7 @@ class GiveawayCog(commands.Cog):
         try:
             channel = await ctx.guild.fetch_channel(int(data.channel_id))
             message = await channel.fetch_message(int(data.message_id))
-        except:
+        except discord.HTTPException:
             return await ctx.respond("❌ Could not find the giveaway message!", ephemeral=True)
 
         if data.participants:
@@ -435,7 +435,7 @@ class GiveawayCog(commands.Cog):
             try:
                 user = ctx.guild.get_member(int(user_id)) or await ctx.guild.fetch_member(int(user_id))
                 winner_text = user.mention
-            except:
+            except discord.HTTPException:
                 winner_text = f"<@{user_id}>"
             data.winners = [user_id]
             await message.reply(content=f"🎉 Congratulations {winner_text}! You won **{data.prize}**!")
@@ -474,7 +474,7 @@ class GiveawayCog(commands.Cog):
             channel = await ctx.guild.fetch_channel(int(data.channel_id))
             message = await channel.fetch_message(int(data.message_id))
             await message.delete()
-        except:
+        except discord.HTTPException:
             pass  # Message may already be deleted
         
         await data.delete()

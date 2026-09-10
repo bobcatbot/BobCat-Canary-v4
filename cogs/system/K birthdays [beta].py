@@ -114,7 +114,7 @@ class BirthdayTimers(commands.Cog):
                 if config.get("dm", False):
                     try:
                         await member.send(f"🎉 Happy Birthday {member.display_name}! 🎂\n\nHope you have an amazing day! 🎈")
-                    except:
+                    except discord.HTTPException:
                         pass
 
                 birthday.wished = True
@@ -158,7 +158,7 @@ class BirthdayTimers(commands.Cog):
                     if member and role in member.roles:
                         try:
                             await member.remove_roles(role, reason="Birthday over")
-                        except:
+                        except discord.HTTPException:
                             pass
 
                     birthday.wished = False

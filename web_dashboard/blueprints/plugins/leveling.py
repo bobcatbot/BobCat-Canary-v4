@@ -1,6 +1,5 @@
 import discord
 import pymongo
-import logging
 from pathlib import Path
 from quart import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for, send_from_directory
 
@@ -11,7 +10,6 @@ from ...db import get_guild
 from ...utils import bearer_client, check_guild_permission, plugin_guard, is_premium
 
 leveling_bp = Blueprint('leveling', __name__)
-logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RANK_CARD_DIR = PROJECT_ROOT / "images" / "lvl-cards"
@@ -66,7 +64,7 @@ async def _leaderboard_action(guild, config):
             {"$set": {"exp": 0, "lvl": 0, "msg_count": 0}}
         )
         modified = getattr(result, "modified_count", 0)
-        logger.info(f"Leaderboard: {current_user.id} reset all XP for guild {guild.id} ({modified} members)")
+        print(f"Leaderboard: {current_user.id} reset all XP for guild {guild.id} ({modified} members)")
         return jsonify({"status": 200, "message": f"Reset {modified} members"})
 
     if key == "reset":
@@ -79,7 +77,7 @@ async def _leaderboard_action(guild, config):
             doc.lvl = 0
             doc.msg_count = 0
             await doc.save()
-        logger.info(f"Leaderboard: {current_user.id} reset XP for {user_id} in guild {guild.id}")
+        print(f"Leaderboard: {current_user.id} reset XP for {user_id} in guild {guild.id}")
         return jsonify({"status": 200, "message": "Member XP reset"})
 
     return jsonify({"status": 400, "message": "Unknown action"}), 400

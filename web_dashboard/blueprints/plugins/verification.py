@@ -1,5 +1,5 @@
+import traceback
 import discord
-import logging
 from quart import Blueprint, jsonify, render_template, request
 
 from modules import bot as v
@@ -7,7 +7,6 @@ from modules.models import Guild
 from ...utils import bearer_client, plugin_guard
 
 verification_bp = Blueprint('verification', __name__)
-logger = logging.getLogger(__name__)
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification", methods=['GET'])
 @plugin_guard('verification')
@@ -81,15 +80,15 @@ async def verify_publish(guild_id):
                         try:
                             msg = await channel.fetch_message(int(message_id))
                             await msg.edit(embed=embed, view=view)
-                            logger.info(f"Updated verification message for guild {guild_id}")
+                            print(f"Updated verification message for guild {guild_id}")
                             return
                         except discord.NotFound:
-                            logger.warning(f"Verification message not found for guild {guild_id}, recreating...")
+                            print(f"Verification message not found for guild {guild_id}, recreating...")
                         except discord.Forbidden:
-                            logger.error(f"No permissions to edit message in guild {guild_id}")
+                            print(f"No permissions to edit message in guild {guild_id}")
                             return
                         except Exception as e:
-                            logger.error(f"Error editing verification message: {e}")
+                            print(f"Error editing verification message: {e}")
                             return
 
             # Get or create verification role
@@ -103,12 +102,12 @@ async def verify_publish(guild_id):
                     )
                     config.dashboard.verification['role'] = str(role.id)
                     await config.save()
-                    logger.info(f"Created Verified role for guild {guild_id}")
+                    print(f"Created Verified role for guild {guild_id}")
                 except discord.Forbidden:
-                    logger.error(f"No permissions to create role in guild {guild_id}")
+                    print(f"No permissions to create role in guild {guild_id}")
                     return
                 except Exception as e:
-                    logger.error(f"Error creating role: {e}")
+                    print(f"Error creating role: {e}")
                     return
 
             # Get or create verification channel
@@ -134,12 +133,12 @@ async def verify_publish(guild_id):
                     )
                     config.dashboard.verification['channel'] = str(channel.id)
                     await config.save()
-                    logger.info(f"Created verification channel for guild {guild_id}")
+                    print(f"Created verification channel for guild {guild_id}")
                 except discord.Forbidden:
-                    logger.error(f"No permissions to create channel in guild {guild_id}")
+                    print(f"No permissions to create channel in guild {guild_id}")
                     return
                 except Exception as e:
-                    logger.error(f"Error creating channel: {e}")
+                    print(f"Error creating channel: {e}")
                     return
 
             # Set permissions
@@ -159,9 +158,9 @@ async def verify_publish(guild_id):
                     )
                 )
             except discord.Forbidden:
-                logger.warning(f"Could not set permissions in guild {guild_id}")
+                print(f"Could not set permissions in guild {guild_id}")
             except Exception as e:
-                logger.error(f"Error setting permissions: {e}")
+                print(f"Error setting permissions: {e}")
             
             try:
                 await guild.default_role.edit(
@@ -169,9 +168,9 @@ async def verify_publish(guild_id):
                     permissions=discord.Permissions(read_messages=False)
                 )
             except discord.Forbidden:
-                logger.warning(f"Could not edit default role in guild {guild_id}")
+                print(f"Could not edit default role in guild {guild_id}")
             except Exception as e:
-                logger.error(f"Error editing default role: {e}")
+                print(f"Error editing default role: {e}")
 
             if role.id == int(verification_config.get('role', 0)):
                 try:
@@ -180,9 +179,9 @@ async def verify_publish(guild_id):
                         permissions=discord.Permissions(read_messages=True)
                     )
                 except discord.Forbidden:
-                    logger.warning(f"Could not edit Verified role in guild {guild_id}")
+                    print(f"Could not edit Verified role in guild {guild_id}")
                 except Exception as e:
-                    logger.error(f"Error editing Verified role: {e}")
+                    print(f"Error editing Verified role: {e}")
 
             # Send the verification message
             try:
@@ -193,14 +192,15 @@ async def verify_publish(guild_id):
                 config.dashboard.verification['message_published'] = True
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
-                logger.info(f"Published verification message for guild {guild_id}")
+                print(f"Published verification message for guild {guild_id}")
             except discord.Forbidden:
-                logger.error(f"No permissions to send message in guild {guild_id}")
+                print(f"No permissions to send message in guild {guild_id}")
             except Exception as e:
-                logger.error(f"Error sending verification message: {e}")
+                print(f"Error sending verification message: {e}")
 
         except Exception as e:
-            logger.error(f"Error in publish task for guild {guild_id}: {e}", exc_info=True)
+            print(f"Error in publish task for guild {guild_id}: {e}")
+            traceback.print_exc()
 
     v.client.loop.create_task(publish())
     return jsonify({'status': 'success', 'message': 'Publishing verification message in background...'})
@@ -231,23 +231,24 @@ async def verify_unpublish(guild_id):
                     try:
                         msg = await channel.fetch_message(int(message_id))
                         await msg.delete()
-                        logger.info(f"Deleted verification message for guild {guild_id}")
+                        print(f"Deleted verification message for guild {guild_id}")
                     except discord.NotFound:
-                        logger.warning(f"Verification message not found for guild {guild_id}")
+                        print(f"Verification message not found for guild {guild_id}")
                     except discord.Forbidden:
-                        logger.error(f"No permissions to delete message in guild {guild_id}")
+                        print(f"No permissions to delete message in guild {guild_id}")
                     except Exception as e:
-                        logger.error(f"Error deleting verification message: {e}")
+                        print(f"Error deleting verification message: {e}")
 
             # Update dashboard
             config.dashboard.verification['message_published'] = False
             config.dashboard.verification['message_id'] = None
             config.updated_at = discord.utils.utcnow()
             await config.save()
-            logger.info(f"Unpublished verification for guild {guild_id}")
+            print(f"Unpublished verification for guild {guild_id}")
         
         except Exception as e:
-            logger.error(f"Error in unpublish task for guild {guild_id}: {e}", exc_info=True)
+            print(f"Error in unpublish task for guild {guild_id}: {e}")
+            traceback.print_exc()
 
     v.client.loop.create_task(unpublish())
     return jsonify({'status': 'success', 'message': 'Unpublishing verification message in background...'})
@@ -296,5 +297,5 @@ async def verify_update(guild_id):
     config.updated_at = discord.utils.utcnow()
     await config.save()
 
-    logger.info(f"Updated verification setting {key} for guild {guild_id}")
+    print(f"Updated verification setting {key} for guild {guild_id}")
     return jsonify({'status': 'success', 'message': 'Successfully updated verification settings'})

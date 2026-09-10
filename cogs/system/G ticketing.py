@@ -327,7 +327,7 @@ class TicketControls(discord.ui.View):
                             str(self.ticket.id)[:8]
                         )
                         await creator.send(file=file, embed=transcript_data['embed'], view=transcript_button_view)
-                    except:
+                    except discord.HTTPException:
                         pass
 
                 await interaction.channel.delete()
@@ -372,7 +372,7 @@ class Ticketing(commands.Cog):
                                     child.disabled = False
                             await msg.edit(view=view)
                             await _set_ticket_channel_state(channel, archived=True, locked=True)
-                        except:
+                        except discord.HTTPException:
                             pass
                         
                         self.ticket_timeouts.pop(channel_id, None)

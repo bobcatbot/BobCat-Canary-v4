@@ -1,7 +1,7 @@
 import discord
 import asyncio
-import logging
 from bson import ObjectId
+from bson.errors import InvalidId
 from quart import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from modules import bot as v
@@ -10,7 +10,6 @@ from ...utils import bearer_client, login_required, plugin_guard, is_premium, pl
 from ...plugins import PLUGIN_LIST
 
 forms_bp = Blueprint('forms', __name__)
-logger = logging.getLogger(__name__)
 
 
 # ── Public form submission pages ──────────────────────────────────────────────
@@ -46,7 +45,7 @@ async def form(guild_id, form_id):
             answers=data.get('answers', [])
         )
         await response.insert()
-        logger.info(f"Form response submitted for form {form_id} by user {current_user.id}")
+        print(f"Form response submitted for form {form_id} by user {current_user.id}")
 
         # Send to channel if configured
         channel_id = form_data.settings.get('submission_channel')
@@ -85,7 +84,7 @@ async def form(guild_id, form_id):
                         
                         # Send the message
                         msg = await channel.send(content=mention_text if mention_text else None, embed=embed)
-                        logger.info(f"Form submission sent to channel {channel_id} for form {form_id}")
+                        print(f"Form submission sent to channel {channel_id} for form {form_id}")
 
                         # Add reactions
                         reactions_config = form_data.settings.get('options', {}).get('reactions', {})
@@ -94,21 +93,21 @@ async def form(guild_id, form_id):
                                 try:
                                     await msg.add_reaction(reaction)
                                 except Exception as e:
-                                    logger.error(f"Failed to add reaction {reaction}: {e}")
-                            logger.info(f"Added reactions to form submission message for form {form_id}")
+                                    print(f"Failed to add reaction {reaction}: {e}")
+                            print(f"Added reactions to form submission message for form {form_id}")
 
                         # Start a thread
                         if form_data.settings.get('options', {}).get('thread', False):
                             try:
                                 await msg.create_thread(name=f"Form response #{response.id}")
-                                logger.info(f"Created thread for form submission message for form {form_id}")
+                                print(f"Created thread for form submission message for form {form_id}")
                             except Exception as e:
-                                logger.error(f"Failed to create thread: {e}")
+                                print(f"Failed to create thread: {e}")
                     
                     except discord.Forbidden:
-                        logger.error(f"No permissions to send message in channel {channel_id}")
+                        print(f"No permissions to send message in channel {channel_id}")
                     except Exception as e:
-                        logger.error(f"Error sending form submission: {e}")
+                        print(f"Error sending form submission: {e}")
 
                 v.client.loop.create_task(send_submission())
 
@@ -185,7 +184,7 @@ async def form_submissions(guild_id, form_id):
         [(FormResponse.submitted_at, -1)]  # Newest first
     ).to_list()
 
-    logger.info(f"Loaded {len(submissions)} submissions for form {form_id} in guild {guild_id}")
+    print(f"Loaded {len(submissions)} submissions for form {form_id} in guild {guild_id}")
 
     return await render_template(
         "dashboard/plugins/forms/form_subs.html",
@@ -243,7 +242,7 @@ async def form_submission_detail(guild_id, form_id, submission_id):
             FormResponse.form_id == form_id,
             FormResponse.id == obj_id
         )
-    except:
+    except (InvalidId, TypeError):
         pass
     
     # If not found, try as string
@@ -325,7 +324,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
             FormResponse.form_id == form_id,
             FormResponse._id == obj_id  # Use _id directly
         )
-    except:
+    except (InvalidId, TypeError):
         pass
     
     # If not found, try as string
@@ -340,7 +339,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
         return jsonify({'status': 'error', 'message': 'Submission not found'}), 404
 
     await submission.delete()
-    logger.info(f"Deleted submission {submission_id} for form {form_id} by user {current_user.id}")
+    print(f"Deleted submission {submission_id} for form {form_id} by user {current_user.id}")
 
     return jsonify({'status': 'success', 'message': 'Submission deleted successfully'})
 
@@ -360,7 +359,7 @@ async def forms(guild_id):
     # Get all forms for this guild using Beanie
     forms_list = await Form.find(Form.guild_id == str(guild.id)).to_list()
 
-    logger.info(f"Loaded {len(forms_list)} forms for guild {guild_id}")
+    print(f"Loaded {len(forms_list)} forms for guild {guild_id}")
 
     guild_premium = await is_premium(guild)
 
@@ -412,7 +411,7 @@ async def forms_create(guild_id):
             status=True
         )
         await form.insert()
-        logger.info(f"Created form {form.id} for guild {guild_id}")
+        print(f"Created form {form.id} for guild {guild_id}")
 
         await flash(f"Successfully created form {form.id}", 'success')
         return jsonify({'status': 'success', 'message': f"Successfully created form {form.id}"})
@@ -481,12 +480,12 @@ async def forms_edit(guild_id, form_id):
                         form_data.settings['options']['reactions']['emojis'] = settings['options']['reactions']['emojis']
         
         await form_data.save()
-        logger.info(f"Updated form {form_id} for guild {guild_id}")
+        print(f"Updated form {form_id} for guild {guild_id}")
         return jsonify({'status': 'success', 'message': 'Successfully updated form'})
 
     if request.method == 'DELETE':
         await form_data.delete()
-        logger.info(f"Deleted form {form_id} for guild {guild_id}")
+        print(f"Deleted form {form_id} for guild {guild_id}")
         return jsonify({'status': 'success', 'message': 'Successfully deleted form'})
 
     return await render_template(

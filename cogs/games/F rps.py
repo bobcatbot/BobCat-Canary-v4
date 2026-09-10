@@ -274,7 +274,7 @@ class RPSGame(commands.Cog):
         # Get the message to edit
         try:
             msg = await ctx.channel.fetch_message(game_data.get("message_id"))
-        except:
+        except discord.HTTPException:
             msg = None
             
         if game_data["mode"] == "ai":

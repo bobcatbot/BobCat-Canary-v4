@@ -166,7 +166,7 @@ async def premium(guild_id):
     if user_id:
         try:
             user = v.client.get_user(int(user_id))
-        except:
+        except (ValueError, TypeError):
             pass
 
     # ✅ Get all guilds the user owns or has admin in
@@ -208,7 +208,7 @@ async def premium(guild_id):
         elif isinstance(expiry_date, str):
             try:
                 next_bill_date = datetime.fromisoformat(expiry_date)
-            except:
+            except ValueError:
                 pass
         elif isinstance(expiry_date, datetime):
             next_bill_date = expiry_date
@@ -362,8 +362,8 @@ async def transfer_premium_execute(guild_id):
             'Premium Transferred',
             f"Your premium has been transferred to **{target_guild.name}**"
         )
-    except:
-        pass
+    except Exception as e:
+        print(f"Failed to push premium-transfer notification for guild {guild_id}: {e}")
     
     try:
         await v.push_notification(
@@ -372,8 +372,8 @@ async def transfer_premium_execute(guild_id):
             'Premium Received! 🎉',
             f"You received a premium subscription from **{guild.name}**!"
         )
-    except:
-        pass
+    except Exception as e:
+        print(f"Failed to push premium-received notification for guild {target_doc.id}: {e}")
     
     return jsonify({'status': 'success', 'message': 'Premium transferred successfully'}), 200
 

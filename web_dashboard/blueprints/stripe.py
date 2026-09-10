@@ -1,5 +1,5 @@
+import traceback
 import asyncio
-import logging
 import json
 import pytz
 import stripe
@@ -13,8 +13,6 @@ from ..utils import bearer_client, check_guild_permission, login_required
 from modules import bot as v
 from modules.models import Guild, StripeEvent
 
-# Configure logging
-logger = logging.getLogger(__name__)
 
 stripe_bp = Blueprint('stripe', __name__)
 
@@ -70,7 +68,7 @@ async def _claim_event(event) -> bool:
     try:
         await StripeEvent(id=event['id'], type=event['type']).insert()
     except DuplicateKeyError:
-        logger.info(f"Duplicate event {event['id']}, skipping")
+        print(f"Duplicate event {event['id']}, skipping")
         return False
     return True
 
@@ -80,7 +78,7 @@ async def _release_event(event_id):
     record = await StripeEvent.get(event_id)
     if record:
         await record.delete()
-        logger.info(f"Released claim for event {event_id}")
+        print(f"Released claim for event {event_id}")
 
 
 def _tz_from_doc(doc):
@@ -103,7 +101,7 @@ async def _find_guild_for_subscription(subscription_id, customer_id=None):
         return None
     doc_customer = doc.premium.get('customer')
     if customer_id and doc_customer and doc_customer != customer_id:
-        logger.warning(f"Subscription {subscription_id} does not match customer on guild {doc.id}")
+        print(f"Subscription {subscription_id} does not match customer on guild {doc.id}")
         return None
     return doc
 
@@ -128,7 +126,7 @@ def _get_stripe_metadata(obj):
                 return metadata
             try:
                 return dict(metadata) if metadata else {}
-            except:
+            except (TypeError, ValueError):
                 return {}
         
         if 'metadata' in obj:
@@ -140,7 +138,7 @@ def _get_stripe_metadata(obj):
             return {}
             
     except Exception as e:
-        logger.warning(f"Error extracting metadata: {e}")
+        print(f"Error extracting metadata: {e}")
     
     return {}
 
@@ -149,33 +147,33 @@ def _get_stripe_metadata(obj):
 
 async def _handle_checkout_completed(session):
     """Handle successful checkout session completion."""
-    logger.info(f"Processing checkout.completed: {session.id}")
+    print(f"Processing checkout.completed: {session.id}")
     
     if not session:
-        logger.error("No session data")
+        print("No session data")
         return {"error": "No session data"}, 400
 
     metadata = _get_stripe_metadata(session)
-    logger.info(f"Extracted metadata: {metadata}")
+    print(f"Extracted metadata: {metadata}")
     
     guild_id = metadata.get('guild_id')
     user_id = metadata.get('user_id')
     plan = metadata.get('plan')
     
     if not guild_id or not user_id:
-        logger.warning(f"Missing metadata: guild_id={guild_id}, user_id={user_id}")
+        print(f"Missing metadata: guild_id={guild_id}, user_id={user_id}")
         return {"status": "ignored", "reason": "Missing metadata"}, 200
 
     doc = await Guild.get(str(guild_id))
     if not doc:
-        logger.warning(f"Guild not found: {guild_id}")
+        print(f"Guild not found: {guild_id}")
         return {"status": "ignored", "reason": "Guild not found"}, 200
 
     mode = session.mode
     payment_id = session.subscription if mode == 'subscription' else session.payment_intent
     
     if mode not in ('subscription', 'payment') or not payment_id:
-        logger.warning(f"Invalid mode or payment_id: mode={mode}, payment_id={payment_id}")
+        print(f"Invalid mode or payment_id: mode={mode}, payment_id={payment_id}")
         return {"status": "ignored", "reason": "Invalid mode"}, 200
 
     current_period_end = None
@@ -183,7 +181,7 @@ async def _handle_checkout_completed(session):
     if mode == 'subscription' and session.subscription:
         try:
             subscription = stripe.Subscription.retrieve(session.subscription)
-            logger.info(f"✅ Got subscription: {subscription.id}")
+            print(f"✅ Got subscription: {subscription.id}")
             
             if hasattr(subscription, 'items') and subscription.items:
                 items = subscription.items
@@ -192,17 +190,17 @@ async def _handle_checkout_completed(session):
                     
                     if hasattr(subscription_item, 'current_period_end'):
                         current_period_end = subscription_item.current_period_end
-                        logger.info(f"✅ Got period_end from items: {current_period_end}")
-                        logger.info(f"✅ Period end date: {datetime.fromtimestamp(current_period_end)}")
+                        print(f"✅ Got period_end from items: {current_period_end}")
+                        print(f"✅ Period end date: {datetime.fromtimestamp(current_period_end)}")
                     else:
-                        logger.warning("⚠️ No current_period_end found in subscription item")
+                        print("⚠️ No current_period_end found in subscription item")
                 else:
-                    logger.warning("⚠️ No data in subscription items")
+                    print("⚠️ No data in subscription items")
             else:
-                logger.warning("⚠️ No items found in subscription")
+                print("⚠️ No items found in subscription")
                 
         except Exception as e:
-            logger.error(f"Error retrieving subscription: {e}")
+            print(f"Error retrieving subscription: {e}")
 
     if not plan or plan not in premium_types:
         try:
@@ -216,7 +214,7 @@ async def _handle_checkout_completed(session):
             if not plan:
                 plan = 'basic'
         except Exception as e:
-            logger.error(f"Error getting line items: {e}")
+            print(f"Error getting line items: {e}")
             plan = 'basic'
 
     doc.premium = {
@@ -230,26 +228,26 @@ async def _handle_checkout_completed(session):
     }
     await doc.save()
     
-    logger.info(f"✅ Premium activated for guild {guild_id} with plan {plan}")
-    logger.info(f"📅 Stored period_end: {doc.premium.get('period_end')}")
+    print(f"✅ Premium activated for guild {guild_id} with plan {plan}")
+    print(f"📅 Stored period_end: {doc.premium.get('period_end')}")
     return {"status": "success", "guild_id": guild_id, "plan": plan}, 200
 
 
 async def _handle_subscription_updated(subscription):
     """Handle subscription updates."""
     if not subscription or not subscription.id:
-        logger.error("Invalid subscription data")
+        print("Invalid subscription data")
         return {"error": "Invalid subscription data"}, 400
 
     doc = await _find_guild_for_subscription(subscription.id, subscription.customer)
     if not doc:
-        logger.info(f"No guild found for subscription {subscription.id}")
+        print(f"No guild found for subscription {subscription.id}")
         return {"status": "ignored"}, 200
 
     if subscription.cancel_at or subscription.canceled_at:
         doc.premium = {}
         await doc.save()
-        logger.info(f"❌ Subscription cancelled for guild {doc.id}")
+        print(f"❌ Subscription cancelled for guild {doc.id}")
         return {"status": "success", "msg": "User canceled subscription"}, 200
 
     if not doc.premium.get('status'):
@@ -260,7 +258,7 @@ async def _handle_subscription_updated(subscription):
             doc.premium['period_end'] = _utc(subscription.current_period_end).astimezone(_tz_from_doc(doc))
 
         await doc.save()
-        logger.info(f"✅ Subscription renewed for guild {doc.id}")
+        print(f"✅ Subscription renewed for guild {doc.id}")
         return {"status": "success", "msg": "User subscribed to premium"}, 200
 
     return {"status": "success"}, 200
@@ -269,17 +267,17 @@ async def _handle_subscription_updated(subscription):
 async def _handle_subscription_deleted(subscription):
     """Handle subscription deletion."""
     if not subscription or not subscription.id:
-        logger.error("Invalid subscription data")
+        print("Invalid subscription data")
         return {"error": "Invalid subscription data"}, 400
 
     doc = await _find_guild_for_subscription(subscription.id, subscription.customer)
     if not doc:
-        logger.info(f"No guild found for subscription {subscription.id}")
+        print(f"No guild found for subscription {subscription.id}")
         return {"status": "ignored"}, 200
 
     doc.premium = {}
     await doc.save()
-    logger.info(f"❌ Subscription deleted for guild {doc.id}")
+    print(f"❌ Subscription deleted for guild {doc.id}")
     return {"status": "success", "msg": "Subscription canceled"}, 200
 
 
@@ -287,12 +285,12 @@ async def _handle_invoice_paid(invoice):
     """Handle successful invoice payment."""
     subscription_id = invoice.subscription
     if not subscription_id:
-        logger.info("No subscription in invoice, ignoring")
+        print("No subscription in invoice, ignoring")
         return {"status": "ignored"}, 200
 
     doc = await _find_guild_for_subscription(subscription_id, invoice.customer)
     if not doc:
-        logger.info(f"No guild found for subscription {subscription_id}")
+        print(f"No guild found for subscription {subscription_id}")
         return {"status": "ignored"}, 200
 
     try:
@@ -312,10 +310,10 @@ async def _handle_invoice_paid(invoice):
             "period_end": _utc(period_end).astimezone(_tz_from_doc(doc)) if period_end else None,
         })
         await doc.save()
-        logger.info(f"✅ Invoice paid for guild {doc.id}")
+        print(f"✅ Invoice paid for guild {doc.id}")
         return {"status": "success", "msg": "Invoice paid, subscription updated"}, 200
     except Exception as e:
-        logger.error(f"Error handling invoice paid: {e}")
+        print(f"Error handling invoice paid: {e}")
         return {"error": str(e)}, 500
 
 
@@ -323,18 +321,18 @@ async def _handle_invoice_payment_failed(invoice):
     """Handle failed invoice payment."""
     subscription_id = invoice.subscription
     if not subscription_id:
-        logger.info("No subscription in invoice, ignoring")
+        print("No subscription in invoice, ignoring")
         return {"status": "ignored"}, 200
 
     doc = await _find_guild_for_subscription(subscription_id, invoice.customer)
     if not doc:
-        logger.info(f"No guild found for subscription {subscription_id}")
+        print(f"No guild found for subscription {subscription_id}")
         return {"status": "ignored"}, 200
 
     doc.premium['active'] = False
     doc.premium['status'] = False
     await doc.save()
-    logger.warning(f"❌ Invoice payment failed for guild {doc.id}")
+    print(f"❌ Invoice payment failed for guild {doc.id}")
     return {"status": "success", "msg": "Invoice payment failed"}, 200
 
 
@@ -374,9 +372,10 @@ async def stripe_pay(guild_id, type):
 
     try:
         session = await asyncio.to_thread(_create_session)
-        logger.info(f"✅ Created checkout session {session.id}")
+        print(f"✅ Created checkout session {session.id}")
     except stripe.error.StripeError as e:
-        logger.exception(f"Failed to create checkout session for guild {guild_id}")
+        print(f"Failed to create checkout session for guild {guild_id}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 502
 
     return jsonify({
@@ -408,7 +407,8 @@ async def stripe_portal(guild_id):
     try:
         portal = await asyncio.to_thread(_create_portal)
     except stripe.error.StripeError as e:
-        logger.exception(f"Failed to create billing portal for guild {guild_id}")
+        print(f"Failed to create billing portal for guild {guild_id}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 502
 
     return jsonify({'url': portal.url}), 200
@@ -417,64 +417,64 @@ async def stripe_portal(guild_id):
 @stripe_bp.route('/webhook/stripe', methods=['POST'])
 async def stripe_webhook():
     """Handle Stripe webhook events."""
-    logger.info("📨 Webhook received")
+    print("📨 Webhook received")
     
     if request.content_length and request.content_length > 1024 * 1024:
-        logger.error("Request too big")
+        print("Request too big")
         return jsonify({"error": "Request too big"}), 400
 
     try:
         payload = await request.get_data()
     except Exception as e:
-        logger.error(f"Failed to get payload: {e}")
+        print(f"Failed to get payload: {e}")
         return jsonify({"error": "Failed to read payload"}), 400
     
     sig_header = request.headers.get('Stripe-Signature')
     endpoint_secret = current_app.config.get("STRIPE_WEBHOOK_KEY")
     
     if not endpoint_secret:
-        logger.error("Webhook secret not configured")
+        print("Webhook secret not configured")
         return jsonify({"error": "Webhook not configured"}), 500
     
     if not sig_header:
-        logger.error("Missing Stripe signature header")
+        print("Missing Stripe signature header")
         return jsonify({"error": "Missing signature"}), 400
 
     event = None
     
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-        logger.info(f"✅ Event verified: {event['type']} - {event['id']}")
+        print(f"✅ Event verified: {event['type']} - {event['id']}")
     except ValueError as e:
-        logger.error(f"Invalid payload: {e}")
+        print(f"Invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
     except stripe.error.SignatureVerificationError as e:
         if current_app.config.get("PY_ENV") != "production":
-            logger.warning(f"⚠️ Signature verification failed, parsing directly (DEV MODE)")
+            print(f"⚠️ Signature verification failed, parsing directly (DEV MODE)")
             try:
                 data = json.loads(payload.decode('utf-8'))
                 event = stripe.Event.construct_from(data, stripe.api_key)
-                logger.info(f"⚠️ Processing without verification: {event['type']} - {event['id']}")
+                print(f"⚠️ Processing without verification: {event['type']} - {event['id']}")
             except Exception as parse_error:
-                logger.error(f"Failed to parse payload: {parse_error}")
+                print(f"Failed to parse payload: {parse_error}")
                 return jsonify({"error": "Invalid payload"}), 400
         else:
-            logger.error(f"Signature verification failed in production: {e}")
+            print(f"Signature verification failed in production: {e}")
             return jsonify({"error": "Invalid signature"}), 400
     except Exception as e:
-        logger.error(f"Unexpected error during verification: {e}")
+        print(f"Unexpected error during verification: {e}")
         return jsonify({"error": "Verification error"}), 400
 
     if not event:
-        logger.error("No event to process")
+        print("No event to process")
         return jsonify({"error": "No event"}), 400
 
     try:
         if not await _claim_event(event):
-            logger.info(f"⏭️ Duplicate event {event['id']}, skipping")
+            print(f"⏭️ Duplicate event {event['id']}, skipping")
             return jsonify({"status": "duplicate"}), 200
     except Exception as e:
-        logger.error(f"Error claiming event: {e}")
+        print(f"Error claiming event: {e}")
         return jsonify({"error": "Database error"}), 500
 
     handlers = {
@@ -487,17 +487,17 @@ async def stripe_webhook():
 
     handler = handlers.get(event['type'])
     if not handler:
-        logger.info(f"⏭️ No handler for event type: {event['type']}")
+        print(f"⏭️ No handler for event type: {event['type']}")
         return jsonify({"status": "ignored"}), 200
 
     try:
         result = await handler(event['data']['object'])
-        logger.info(f"✅ Handler completed for {event['type']}")
+        print(f"✅ Handler completed for {event['type']}")
         
         if isinstance(result, tuple) and len(result) == 2:
             data, status = result
             if status >= 400:
-                logger.error(f"Handler returned error: {data}")
+                print(f"Handler returned error: {data}")
                 await _release_event(event['id'])
                 return jsonify(data), status
             return jsonify(data), status
@@ -505,7 +505,8 @@ async def stripe_webhook():
         return jsonify(result if isinstance(result, dict) else {"status": "success"}), 200
         
     except Exception as e:
-        logger.exception(f"Handler failed for event {event['id']}: {e}")
+        print(f"Handler failed for event {event['id']}: {e}")
+        traceback.print_exc()
         await _release_event(event['id'])
         return jsonify({"error": "Handler failed"}), 500
 
