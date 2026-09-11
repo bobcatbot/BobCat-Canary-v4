@@ -79,7 +79,7 @@ def _default_dashboard() -> dict:
             "message": {
                 "embed": {
                     "title": "Verification",
-                    "desc": "To enter this server and see all channels, you must first prove that you are human. \nClick on the button below to start...",
+                    "description": "To enter this server and see all channels, you must first prove that you are human. \nClick on the button below to start...",
                     "color": "#5865f2",
                     "author": {"name": ""},
                     "footer": {"text": ""},

@@ -30,6 +30,17 @@ class GiveawayCog(commands.Cog):
             if data.winners:
                 winners = " ".join(f"<@{w}>" for w in data.winners)
                 embed.add_field(name=f"Winners [{len(data.winners)}]", value=winners, inline=False)
+
+            # Show what was actually awarded - without this, winners have no
+            # way to see what they won once the giveaway embed updates to ENDED.
+            rewards = []
+            if data.give_coins.get('enabled'):
+                rewards.append(f"💰 {data.give_coins['amount']} coins")
+            if data.give_xp.get('enabled'):
+                rewards.append(f"⭐ {data.give_xp['amount']} XP")
+            if rewards:
+                embed.add_field(name="🎁 Rewards", value="\n".join(rewards), inline=False)
+
             return embed
 
         embed = discord.Embed(
@@ -248,6 +259,15 @@ class GiveawayCog(commands.Cog):
             embed.add_field(name="Winners", value=data.winner_count, inline=True)
             embed.add_field(name=f"🏆 Winners [{len(data.winners)}]", value=winners, inline=False)
             embed.add_field(name=f"👥 Participants [{len(data.participants)}]", value=participants_list or "No participants", inline=False)
+
+            rewards = []
+            if data.give_coins.get('enabled'):
+                rewards.append(f"💰 {data.give_coins['amount']} coins")
+            if data.give_xp.get('enabled'):
+                rewards.append(f"⭐ {data.give_xp['amount']} XP")
+            if rewards:
+                embed.add_field(name="🎁 Rewards", value="\n".join(rewards), inline=False)
+
             embed.set_footer(text=f"ID: {data.id}")
 
             return await interaction.followup.send(embed=embed, ephemeral=True)

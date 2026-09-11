@@ -65,6 +65,17 @@ async def temporary_channels_create(guild_id):
         # Generate a unique ID for the hub
         data['id'] = v.uuid(length=12, strCase='upper/lower/nums')
 
+        # Normalize numeric fields - the cog reads these straight into
+        # create_voice_channel(), which requires ints, not strings.
+        try:
+            data['user_limit'] = int(data.get('user_limit') or 0)
+        except (TypeError, ValueError):
+            data['user_limit'] = 0
+        try:
+            data['bitrate'] = int(data.get('bitrate') or 64000)
+        except (TypeError, ValueError):
+            data['bitrate'] = 64000
+
         async def create_hub():
             try:
                 # Get the guild document
@@ -175,6 +186,18 @@ async def temporary_channels_edit(guild_id, hub_id):
         if not data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
+        # Normalize numeric fields - same reasoning as the create route.
+        if 'user_limit' in data:
+            try:
+                data['user_limit'] = int(data.get('user_limit') or 0)
+            except (TypeError, ValueError):
+                data['user_limit'] = 0
+        if 'bitrate' in data:
+            try:
+                data['bitrate'] = int(data.get('bitrate') or 64000)
+            except (TypeError, ValueError):
+                data['bitrate'] = 64000
+
         async def edit_hub():
             try:
                 # Get fresh config
@@ -187,6 +210,25 @@ async def temporary_channels_edit(guild_id, hub_id):
                 # Update the hub data
                 for key, value in data.items():
                     hubs[hub_idx][key] = value
+
+                # If sync-with-category is on but no category is set, auto-create
+                # one - mirrors the create route. Without this a hub can end up
+                # sync_hub_category=True with an empty category_id (e.g. it was
+                # created with sync off, then toggled on here without picking a
+                # category), which crashes TempVoice.handle_join on the next join.
+                if hubs[hub_idx].get('sync_hub_category') and not hubs[hub_idx].get('category_id'):
+                    try:
+                        new_category = await guild.create_category_channel(
+                            hubs[hub_idx].get('hub_name', 'Temporary Channels'),
+                            reason=f"Temp category for hub {hub_id}"
+                        )
+                        hubs[hub_idx]['category_id'] = str(new_category.id)
+                        data['category_id'] = str(new_category.id)
+                        print(f"Created category for hub {hub_id} in guild {guild_id} (edit)")
+                    except discord.Forbidden:
+                        print(f"No permissions to create category in guild {guild_id}")
+                    except Exception as e:
+                        print(f"Error creating category during edit: {e}")
 
                 # Update Discord channel if it exists
                 channel_id = hubs[hub_idx].get('channel_id')

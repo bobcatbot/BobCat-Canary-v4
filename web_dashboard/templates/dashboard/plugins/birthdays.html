@@ -93,7 +93,7 @@
   
             <textarea id="b-msg" class="text-input"></textarea>
             <script>
-              document.getElementById("b-msg").value = '{{data["message"]}}'
+              document.getElementById("b-msg").value = JSON.parse(`{{ data["message"] | tojson }}`)
             </script>
           </div>
         </div>

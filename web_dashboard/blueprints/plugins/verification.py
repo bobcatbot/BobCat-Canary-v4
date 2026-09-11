@@ -1,12 +1,43 @@
+import copy
 import traceback
 import discord
 from quart import Blueprint, jsonify, render_template, request
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, plugin_guard
+from ...utils import bearer_client, plugin_guard, deep_merge
 
 verification_bp = Blueprint('verification', __name__)
+
+# Mirrors the guild-join default in cogs/_bot/bot_dash.py. Guild documents
+# created before this plugin's `message`/`message_id`/`message_published`
+# fields existed (or by any path that doesn't build the full nested default)
+# only have the older, flatter shape - {'status', 'channel', 'role', 'mode',
+# 'failAction'} with nothing else. verification.html assumes the full nested
+# shape via dot-attribute access (data.message.btn.emoji, etc.), which throws
+# UndefinedError and 500s the page for any such guild. Deep-merging the
+# stored config onto this default (see below) guarantees every key the
+# template expects always exists, regardless of when the guild doc was made.
+DEFAULT_VERIFICATION_CONFIG = {
+    'status': False,
+    'channel': None,
+    'role': None,
+    'mode': 'instant',
+    'failAction': 'unverified',
+    'message': {
+        'embed': {
+            'title': 'Verification',
+            'description': "To enter this server and see all channels, you must first prove that you are human. \nClick on the button below to start...",
+            'color': '#5865f2',
+            'author': {'name': ''},
+            'footer': {'text': ''},
+        },
+        'btn': {'emoji': '✅', 'title': 'Verify', 'color': 'green'},
+    },
+    'message_id': '',
+    'message_published': False,
+}
+
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification", methods=['GET'])
 @plugin_guard('verification')
@@ -16,7 +47,8 @@ async def verify(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    config = (await Guild.get(str(guild.id))).dashboard.verification
+    stored = (await Guild.get(str(guild.id))).dashboard.verification
+    config = deep_merge(copy.deepcopy(DEFAULT_VERIFICATION_CONFIG), stored)
 
     return await render_template(
         "dashboard/plugins/verification.html",
