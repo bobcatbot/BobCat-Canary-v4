@@ -19,6 +19,10 @@ INVITE_URL = f"https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}&pe
 
 WEBHOOK_PREM = os.getenv('WEBHOOK_PREM')
 
+# Cloudflare Turnstile — used by the captcha_web verification mode.
+TURNSTILE_SITE_KEY = os.getenv('TURNSTILE_SITE_KEY')
+TURNSTILE_SECRET_KEY = os.getenv('TURNSTILE_SECRET_KEY')
+
 mongoURI_db = os.getenv('mongoURI_db')
 mongo_cdn = os.getenv('mongoURI_cdn')
 

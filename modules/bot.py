@@ -39,6 +39,12 @@ guild_ids = [ btz_gid, ]
 web_url = os.getenv('URL_BASE') or "http://localhost:8000"
 docs = f"{web_url}/docs"
 
+# Dedicated secret for signing captcha_web verification links. Falls back to
+# APP_SECRET (the Quart session key) so the feature still works before anyone
+# adds a dedicated VERIFY_SECRET, but a separate secret is preferred so it can
+# be rotated independently of dashboard sessions.
+verify_secret = (os.getenv('VERIFY_SECRET') or os.getenv('APP_SECRET') or "").encode()
+
 premium = "<:premium:1442138047348084806>"
 
 ## Colour Codes ##
@@ -49,7 +55,6 @@ white = 0xFFFFFF
 clear = 0x2b2d31
 error = red
 success = green
-
 
 async def dashboard(guild) -> DashConfig | None:
     guild_id = str(getattr(guild, "id", guild))

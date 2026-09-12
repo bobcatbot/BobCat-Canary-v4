@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/links.html' %}
+  {% if state == 'challenge' %}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
+</head>
+<body style="height: 100dvh;display: flex;flex-direction: column;justify-content: center;">
+  {% include 'components/Navbar.html' %}
+
+  <main class="mainn" align="center">
+    <img src="{{url_for('static', filename='img/bobcat.png')}}" alt="">
+
+    {% if state == 'login' %}
+      <div>
+        <h2>Verify {{ guild.name if guild else '' }}</h2>
+        <p>Verify your Discord account to gain access to the server.</p>
+      </div>
+      <a href="{{ login_url }}" class="btn btn-blurple">Login with Discord</a>
+
+    {% elif state == 'mismatch' %}
+      <div>
+        <h2>Wrong account</h2>
+        <p>
+          You're logged in as <b>{{ user.username }}</b>, but this verification
+          link was started by a different Discord account.
+        </p>
+        <p>Log out, then log back in as the account that clicked Verify in Discord.</p>
+      </div>
+      <a href="{{ logout_url }}" class="btn btn-blurple">Log out</a>
+
+    {% elif state == 'challenge' %}
+      <div>
+        <h2>Verify {{ guild.name if guild else '' }}</h2>
+        <p>Pass the check below to gain access to the server.</p>
+        {% if error %}<p style="color:#ED4245;">{{ error }}</p>{% endif %}
+      </div>
+      {% if site_key %}
+      <form method="POST" action="{{ verify_url }}">
+        <input type="hidden" name="guild" value="{{ guild_id }}">
+        <input type="hidden" name="user" value="{{ user_id }}">
+        <input type="hidden" name="exp" value="{{ exp }}">
+        <input type="hidden" name="hash" value="{{ sig }}">
+        <div class="cf-turnstile" data-sitekey="{{ site_key }}" data-callback="onTurnstileSuccess"></div>
+        <button type="submit" id="verify-submit" class="btn btn-blurple" style="margin-top:1rem;" disabled>Verify</button>
+      </form>
+      <script>
+        function onTurnstileSuccess() {
+          document.getElementById('verify-submit').disabled = false;
+        }
+      </script>
+      {% else %}
+      <p style="color:#ED4245;">Web verification isn't configured yet (missing Turnstile keys). Please contact a server admin.</p>
+      {% endif %}
+
+    {% elif state == 'already' %}
+      <div>
+        <h2>Already verified</h2>
+        <p>You've already passed verification for <b>{{ guild.name if guild else 'this server' }}</b>. You're all set.</p>
+      </div>
+
+    {% elif state == 'success' %}
+      <div>
+        <h2>All good!</h2>
+        <p>You've been verified in <b>{{ guild.name if guild else 'the server' }}</b>. You can close this tab.</p>
+      </div>
+
+    {% elif state == 'disabled' %}
+      <div>
+        <h2>Verification unavailable</h2>
+        <p>Verification has been turned off or reconfigured for this server. Please contact a server admin.</p>
+      </div>
+
+    {% elif state == 'expired' %}
+      <div>
+        <h2>Link expired</h2>
+        <p>This verification link has expired. Please click Verify again in Discord.</p>
+      </div>
+
+    {% else %}
+      <div>
+        <h2>Link invalid</h2>
+        <p>{{ message or "This verification link isn't valid. Please click Verify again in Discord." }}</p>
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>
