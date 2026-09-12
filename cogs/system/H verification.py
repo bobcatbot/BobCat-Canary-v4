@@ -1,7 +1,10 @@
+import io
+import hmac
+import time
+import hashlib
 import string
 import asyncio
 import random
-import io
 import discord
 from discord.ext import commands, tasks
 from captcha.image import ImageCaptcha
@@ -107,6 +110,36 @@ class Verification(commands.Cog):
             "timeout": "Timed Out (5m)",
             "unverified": "Kept Unverified"
         }.get(action, "Kept Unverified")
+
+    def _verify_signature(self, guild_id: str, user_id: str, exp: str) -> str:
+        """HMAC over the fields carried by a captcha_web verify link. Shared by
+        the bot (to sign) and the dashboard (to verify) so the two never drift."""
+        payload = f"{guild_id}:{user_id}:{exp}".encode()
+        return hmac.new(v.verify_secret, payload, hashlib.sha256).hexdigest()
+
+    def build_verify_url(self, guild_id, user_id, ttl_seconds: int = 600) -> str:
+        """Builds a signed, stateless captcha_web verification link — no token
+        storage/cleanup needed, the link itself carries and proves its claims."""
+        guild_id, user_id = str(guild_id), str(user_id)
+        exp = str(int(time.time()) + ttl_seconds)
+        sig = self._verify_signature(guild_id, user_id, exp)
+        return f"{v.web_url}/verify?guild={guild_id}&user={user_id}&exp={exp}&hash={sig}"
+
+    def verify_link_reason(self, guild_id: str, user_id: str, exp: str, sig: str) -> str:
+        """Validates a captcha_web link, distinguishing *why* it failed —
+        'ok' / 'expired' / 'invalid'. Used by the dashboard route; kept here
+        so bot and dashboard share one implementation."""
+        if not exp or not str(exp).isdigit():
+            return "invalid"
+        if int(exp) < int(time.time()):
+            return "expired"
+        expected = self._verify_signature(str(guild_id), str(user_id), str(exp))
+        return "ok" if hmac.compare_digest(expected, sig or "") else "invalid"
+
+    def check_verify_signature(self, guild_id: str, user_id: str, exp: str, sig: str) -> bool:
+        """Validates a captcha_web link's signature and expiry. Used by the
+        dashboard route; kept here so bot and dashboard share one implementation."""
+        return self.verify_link_reason(guild_id, user_id, exp, sig) == "ok"
 
     # ── ✅ CLEANUP TASK ────────────────────────────────────────────────────────
     @tasks.loop(minutes=5)
@@ -485,6 +518,29 @@ class Verification(commands.Cog):
                 file=captcha_file,
                 ephemeral=True
             )
+
+        # ── Captcha Web ───────────────────────────────────────────────────────
+        if mode == "captcha_web":
+            # Stateless: the link itself carries a signed guild/user/expiry,
+            # so there's no pending state to babysit on this side — the
+            # dashboard verifies the signature, gates on Discord OAuth login
+            # matching this user, then runs Turnstile before adding the role.
+            verify_url = self.build_verify_url(interaction.guild.id, interaction.user.id)
+
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="🌐 Verify", url=verify_url, style=discord.ButtonStyle.link))
+
+            await interaction.followup.send(
+                embed=discord.Embed(
+                    title="🌐 Web Verification",
+                    description="Click the button below to verify through your browser.",
+                    color=v.style(interaction.guild.id)
+                ),
+                view=view,
+                ephemeral=True
+            )
+            self.active_verifications.pop(interaction.user.id, None)
+            return
 
 def setup(client):
     client.add_cog(Verification(client))
