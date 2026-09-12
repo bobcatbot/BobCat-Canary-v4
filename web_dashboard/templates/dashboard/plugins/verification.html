@@ -348,6 +348,9 @@
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({ }),
         })
+        // Server just unpublished the message - reflect that on the button
+        // instead of leaving it stuck showing "Published".
+        togglePublish();
       }
     })
 

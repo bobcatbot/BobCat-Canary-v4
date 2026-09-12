@@ -5,7 +5,8 @@ from quart import Blueprint, request, flash, jsonify, render_template, redirect,
 
 from modules import bot as v
 from modules.models import Guild, Giveaway
-from ...utils import bearer_client, plugin_guard
+from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...plugins import PLUGIN_LIST
 
 giveaways_bp = Blueprint('giveaways', __name__)
 
@@ -25,6 +26,19 @@ def _build_giveaway_embed(giveaway):
     embed.add_field(name="Hosted by", value=f"<@{giveaway.author_id}>", inline=False)
     embed.add_field(name="Winners", value=f"**{giveaway.winner_count}**", inline=False)
     embed.add_field(name="Participants", value=f"**{len(giveaway.participants)}**", inline=False)
+
+    # Mirrors GiveawayCog._build_giveaway_embed (cogs/system/I giveaway [beta].py) -
+    # without this, a giveaway published from the dashboard never shows
+    # participants what they're winning, even though coins/XP are configured
+    # and will actually be awarded when it ends.
+    rewards = []
+    if giveaway.give_coins.get('enabled'):
+        rewards.append(f"💰 {giveaway.give_coins['amount']} coins")
+    if giveaway.give_xp.get('enabled'):
+        rewards.append(f"⭐ {giveaway.give_xp['amount']} XP")
+    if rewards:
+        embed.add_field(name="🎁 Rewards", value="\n".join(rewards), inline=False)
+
     embed.set_footer(text=f"Giveaway ID: {giveaway.id}")
     return embed
 
@@ -130,6 +144,18 @@ async def giveaways_creation(guild_id):
         if not data.get('prize'):
             return jsonify({'status': 'error', 'message': 'Prize is required'}), 400
 
+        # Enforce the free / premium giveaway cap - the dashboard list page only
+        # disables the "New giveaway" button client-side, which a direct request
+        # here bypasses entirely.
+        existing_count = await Giveaway.find(Giveaway.guild_id == str(guild.id)).count()
+        guild_premium = await is_premium(guild)
+        cap = plugin_item_cap('giveaway', guild_premium)
+        if existing_count >= cap:
+            msg = f"You've reached your limit of {cap} giveaways."
+            if not guild_premium:
+                msg += f" Upgrade to premium for up to {PLUGIN_LIST.get('giveaway', {}).get('max_premium', 100)}."
+            return jsonify({'status': 'error', 'message': msg, 'code': 'item_cap'}), 409
+
         uuid = v.uuid(length=12, strCase="upper/lower/nums")
         channel = guild.get_channel(int(data['channel_id']))
         
@@ -224,12 +250,12 @@ async def giveaways_edition(guild_id, gway_id):
                     if channel:
                         try:
                             msg = await channel.fetch_message(int(giveaway.message_id))
-                            embed = discord.Embed.from_dict(msg.embeds[0].to_dict())
-                            embed.title = f"🎉 {giveaway.prize} 🎉"
-                            embed.description = giveaway.embed_desc
-                            embed.fields[0].value = f"<t:{int(giveaway.end_epoch)}:R> (<t:{int(giveaway.end_epoch)}:f>)"
-                            embed.fields[2].value = f"**{giveaway.winner_count}**"
-                            embed.fields[3].value = f"**{len(giveaway.participants)}**"
+                            # Rebuild from scratch rather than patching fields by
+                            # index - a fixed index silently went stale or wrong
+                            # the moment the optional Rewards field was involved
+                            # (added/removed/updated), since its presence depends
+                            # on give_coins/give_xp being enabled.
+                            embed = _build_giveaway_embed(giveaway)
                             await msg.edit(embed=embed)
                             print(f"Updated giveaway message for {gway_id} in guild {guild_id}")
                         except discord.NotFound:

@@ -32,7 +32,17 @@ class TempVoice(commands.Cog):
     # ------------------------------------------------------
     async def handle_join(self, member: discord.Member, hub_channel: discord.VoiceChannel):
 
-        hubs = (await Guild.get(str(hub_channel.guild.id))).dashboard.temporary_channels["hubs"]
+        guild_doc = await Guild.get(str(hub_channel.guild.id))
+        if guild_doc is None:
+            return
+
+        tc_data = guild_doc.dashboard.temporary_channels
+
+        # Master toggle for the whole Temporary Channels plugin
+        if not tc_data.get('status', False):
+            return
+
+        hubs = tc_data.get("hubs", [])
         tempvoice_db = await TempChannel.find(TempChannel.guild_id == str(hub_channel.guild.id)).to_list()
 
         hub = next((h for h in hubs if h['channel_id'] == str(hub_channel.id)), None)
@@ -46,27 +56,33 @@ class TempVoice(commands.Cog):
 
         try:
             # Determine PERMISSIONS
-            if hub['sync_hub_category']:
-                category = discord.utils.get(hub_channel.guild.categories, id=int(hub['category_id']))
-                overwrites = category.overwrites.copy()
-            else:
-                overwrites = {}
+            category = None
+            if hub.get('sync_hub_category') and hub.get('category_id'):
+                try:
+                    category = discord.utils.get(hub_channel.guild.categories, id=int(hub['category_id']))
+                except (TypeError, ValueError):
+                    category = None
+            # category can still be None here - category_id left empty (e.g. sync
+            # was toggled on via edit without picking one) or the synced category
+            # was since deleted on Discord. Fall back to no overwrites rather than
+            # crashing channel creation for every future joiner.
+            overwrites = category.overwrites.copy() if category else {}
 
             # Give creator full perms
-            mod_perms = discord.PermissionOverwrite(**hub["permissions"])
+            mod_perms = discord.PermissionOverwrite(**hub.get("permissions", {}))
             overwrites[member] = mod_perms
 
-            # Determine index
-            idx = 1
-            if tempvoice_db:
-                idx = max(tc.index for tc in tempvoice_db) + 1
+            # Determine index - scoped to this hub, not the whole guild, so two
+            # hubs each number their own channels from #1 instead of interleaving.
+            hub_channels = [tc for tc in tempvoice_db if tc.hub_id == hub['id']]
+            idx = max((tc.index for tc in hub_channels), default=0) + 1
 
             # CREATE VOICE CHANNEL
             new_chan = await hub_channel.guild.create_voice_channel(
                 name=v.render_placeholders(hub['name'], index=idx, username=member.name),
                 category=hub_channel.category,
-                user_limit=hub['user_limit'],
-                bitrate=hub['bitrate'],
+                user_limit=int(hub.get('user_limit') or 0),
+                bitrate=int(hub.get('bitrate') or 64000),
                 overwrites=overwrites
             )
 
@@ -76,6 +92,7 @@ class TempVoice(commands.Cog):
                 guild_id=str(hub_channel.guild.id),
                 channel_id=str(new_chan.id),
                 creator_id=str(member.id),
+                hub_id=hub['id'],
                 index=idx
             ).insert()
 

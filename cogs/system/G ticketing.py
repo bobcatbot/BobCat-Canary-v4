@@ -85,6 +85,19 @@ async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator
         author = msg.get('user', {}).get('name', 'Unknown')
         content = msg.get('content', '')
         transcript_text += f"[{timestamp}] {author}: {content}\n"
+        # Bot notices (close reason, reopen notice, etc.) are almost always
+        # embed-only - content is empty and the actual info lives in the
+        # embed, which this loop otherwise never looks at, silently dropping
+        # it from the exported .txt even though it's saved fine in the DB.
+        for embed in msg.get('embeds') or []:
+            if embed.get('title'):
+                transcript_text += f"  [embed] {embed['title']}\n"
+            if embed.get('description'):
+                transcript_text += f"  {embed['description']}\n"
+            for field in embed.get('fields') or []:
+                name = field.get('name', '')
+                value = field.get('value', '')
+                transcript_text += f"  {name}: {value}\n"
         if msg.get('attachments'):
             for att in msg['attachments']:
                 transcript_text += f"  📎 {att}\n"
@@ -256,7 +269,14 @@ class TicketControls(discord.ui.View):
         ticket = await get_channel_ticket(interaction.guild, interaction.channel.id)
         panel = next((p for p in panels if p['id'] == ticket.panel_id), None)
 
-        if ticket.closed['status'] == True and ticket.closed['user'] == interaction.user.id:
+        # Ticket creators can't unilaterally delete their own ticket while it's
+        # still open (staff needs a chance to review it first) - but the guard
+        # here had this backwards: it checked closed['status'] == True (already
+        # closed) instead of False (still open), and closed['user'] (whoever
+        # closed it) instead of creator_id, so it blocked the wrong case
+        # entirely - a ticket you'd already closed yourself could never be
+        # deleted by you, while your own still-open ticket had no restriction.
+        if not ticket.closed.get('status') and interaction.user.id == int(ticket.creator_id):
             return await interaction.response.send_message("> **Warning:** You cannot delete your own ticket. Please close it first.", ephemeral=True)
 
         delete_confirm_em = discord.Embed(
@@ -390,7 +410,18 @@ class Ticketing(commands.Cog):
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.data.get("custom_id") == "create_ticket":
-            panels = (await get_ticketing(interaction.guild))['panels']
+            ticketing_data = await get_ticketing(interaction.guild)
+
+            # Master toggle for the whole Ticketing plugin - a panel message
+            # stays live on Discord even while disabled, so this has to be
+            # checked here, not just enforced on the dashboard's write routes.
+            if not ticketing_data.get('status', False):
+                return await interaction.response.send_message(
+                    "❌ The ticketing service has been disabled. Please contact your server owner.",
+                    ephemeral=True
+                )
+
+            panels = ticketing_data['panels']
             tickets = await get_guild_tickets(interaction.guild)
 
             panel = next((p for p in panels if p['channel_id'] == str(interaction.channel.id)), None)

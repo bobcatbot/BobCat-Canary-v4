@@ -179,13 +179,10 @@
       }
     });
 
-    const initial_values = JSON.parse('{{data | tojson | safe}}');
-    
-    var required_fields = [];
     const save_data = {}
 
     document.querySelector('#discard-btn').addEventListener('click', (e) => {
-      if (required_fields.some(field => save_data[field] !== initial_values[field])) {
+      if (Object.keys(save_data).length > 0) {
         var res = confirm("Are you sure you want to discard changes?")
         if (res) {
           window.location.href = '/dashboard/{{guild.id}}/giveaways'
@@ -256,7 +253,7 @@
     // Channel id
     const gwayChanSelectWrapper = document.querySelector('.gway-chan-select-wrapper.single');
     gwayChanSelectWrapper.addEventListener('select:update', (e) => {
-      const selectedOptions = event.detail.selectedOptions;
+      const selectedOptions = e.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
 
       save_data['channel_id'] = option
