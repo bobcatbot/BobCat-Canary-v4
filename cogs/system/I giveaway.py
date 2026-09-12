@@ -142,8 +142,8 @@ class GiveawayCog(commands.Cog):
         """Log giveaway results to audit channel."""
         try:
             guild_data = await Guild.get(str(guild.id))
-            if guild_data and guild_data.dashboard.giveaways.get('logChannel'):
-                log_channel_id = guild_data.dashboard.giveaways['logChannel']
+            if guild_data and guild_data.dashboard.giveaways.logChannel:
+                log_channel_id = guild_data.dashboard.giveaways.logChannel
                 log_channel = guild.get_channel(int(log_channel_id))
                 if log_channel:
                     embed = discord.Embed(
@@ -296,10 +296,10 @@ class GiveawayCog(commands.Cog):
 
         dashboard = (await Guild.get(str(ctx.guild.id))).dashboard
 
-        if coins and not dashboard.economy.get("status", False):
+        if coins and not dashboard.economy.status:
             return await ctx.respond("❌ Economy is currently disabled!", ephemeral=True)
 
-        if xp and not dashboard.leveling.get("status", False):
+        if xp and not dashboard.leveling.status:
             return await ctx.respond("❌ Leveling is currently disabled!", ephemeral=True)
 
         winner_count = int(winners or 1)

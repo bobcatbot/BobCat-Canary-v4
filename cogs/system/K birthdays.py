@@ -52,14 +52,14 @@ class BirthdayTimers(commands.Cog):
         for guild in self.client.guilds:
             config = (await Guild.get(str(guild.id))).dashboard.birthdays
 
-            if not config.get("status"):
+            if not config.status:
                 continue
 
             # FIX: v.datetimes returns a timezone, use it with datetime.now()
             tz = v.datetimes(guild.id)
             now = datetime.datetime.now(tz)
 
-            channel_id = config.get("channel_id")
+            channel_id = config.channel_id
             if not channel_id:
                 continue
 
@@ -70,7 +70,7 @@ class BirthdayTimers(commands.Cog):
             # Only wish birthdays during the configured hour (default: midnight).
             # birthday.wished still guards against resending for the rest of that hour.
             try:
-                wishing_hour = int(config.get("message_hour") or 0)
+                wishing_hour = int(config.message_hour or 0)
             except (TypeError, ValueError):
                 wishing_hour = 0
             if now.hour != wishing_hour:
@@ -96,7 +96,7 @@ class BirthdayTimers(commands.Cog):
                 age = now.year - date.year
 
                 # Assign birthday role
-                birthday_role_id = config.get("birthday_role")
+                birthday_role_id = config.birthday_role
                 if birthday_role_id:
                     role = guild.get_role(int(birthday_role_id))
                     if role:
@@ -115,7 +115,7 @@ class BirthdayTimers(commands.Cog):
                             print(f"⚠️ Bot missing manage_roles permission in {guild.name}")
 
                 # Send birthday message
-                message_template = config.get("message", "🎉 Happy Birthday {user}! You are now {age} years old! 🎂")
+                message_template = config.message or "🎉 Happy Birthday {user}! You are now {age} years old! 🎂"
                 await channel.send(v.render_placeholders(
                     message_template,
                     user=member,
@@ -144,7 +144,7 @@ class BirthdayTimers(commands.Cog):
         """Removes birthday role at end of birthday (midnight in guild timezone)."""
         for guild in self.client.guilds:
             config = (await Guild.get(str(guild.id))).dashboard.birthdays
-            birthday_role_id = config.get("birthday_role")
+            birthday_role_id = config.birthday_role
 
             if not birthday_role_id:
                 continue

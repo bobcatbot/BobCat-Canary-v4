@@ -2,7 +2,7 @@ import time
 import discord
 from discord.ext import commands
 from modules import bot as v
-from modules.models import Guild, Starboard
+from modules.models import Guild, Starboard, StarboardConfig
 
 DEFAULT_EMOJI = "⭐"
 _CONFIG_CACHE_TTL = 30  # seconds
@@ -47,7 +47,7 @@ class starboard(commands.Cog):
             return cached[1]
 
         doc = await Guild.get(guild_id)
-        data = doc.dashboard.starboard if doc else {}
+        data = doc.dashboard.starboard if doc else StarboardConfig()
         self._config_cache[guild_id] = (time.monotonic() + _CONFIG_CACHE_TTL, data)
         return data
 
@@ -58,14 +58,14 @@ class starboard(commands.Cog):
             return
 
         data = await self._config(message.guild.id)
-        if not data.get("status") or data.get("locked"):
+        if not data.status or data.locked:
             return
 
-        auto_channels = data.get("autoStar") or []
+        auto_channels = data.autoStar
         if str(message.channel.id) not in [str(c) for c in auto_channels]:
             return
 
-        emoji = data.get("emoji") or DEFAULT_EMOJI
+        emoji = data.emoji or DEFAULT_EMOJI
         try:
             await message.add_reaction(emoji)
         except (discord.HTTPException, discord.Forbidden):
@@ -78,16 +78,16 @@ class starboard(commands.Cog):
 
         data = await self._config(payload.guild_id)
 
-        starReaction = data.get("emoji") or DEFAULT_EMOJI
-        starStatus = data.get("status")
-        starChannel = data.get("channel")
-        starLimit = data.get("limit")
-        starJumpLink = data.get("jumpLink")
-        starSelf = data.get("selfStar")
-        starLocked = data.get("locked")
-        starIgnore = [str(c) for c in (data.get("ignore") or [])]
-        allowNsfw = data.get("allowNsfw")
-        embedNsfwImages = data.get("embedNsfwImages")
+        starReaction = data.emoji or DEFAULT_EMOJI
+        starStatus = data.status
+        starChannel = data.channel
+        starLimit = data.limit
+        starJumpLink = data.jumpLink
+        starSelf = data.selfStar
+        starLocked = data.locked
+        starIgnore = [str(c) for c in data.ignore]
+        allowNsfw = data.allowNsfw
+        embedNsfwImages = data.embedNsfwImages
 
         if not _emoji_matches(payload.emoji, starReaction):
             return
@@ -173,12 +173,12 @@ class starboard(commands.Cog):
     async def on_raw_reaction_remove(self, payload):
         data = await self._config(payload.guild_id)
 
-        starReaction = data.get("emoji") or DEFAULT_EMOJI
-        starStatus = data.get("status")
-        starChannel = data.get("channel")
-        starLimit = data.get("limit")
-        starLocked = data.get("locked")
-        starIgnore = [str(c) for c in (data.get("ignore") or [])]
+        starReaction = data.emoji or DEFAULT_EMOJI
+        starStatus = data.status
+        starChannel = data.channel
+        starLimit = data.limit
+        starLocked = data.locked
+        starIgnore = [str(c) for c in data.ignore]
 
         if not _emoji_matches(payload.emoji, starReaction):
             return
@@ -227,7 +227,7 @@ class starboard(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_reaction_clear(self, payload):
         data = await self._config(payload.guild_id)
-        starChannel = data.get("channel")
+        starChannel = data.channel
         if not starChannel:
             return
 

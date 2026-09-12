@@ -8,11 +8,6 @@
       <i class="bi bi-chevron-down"></i>
     </div>
     <div class="content">
-      <a href="/profile" class="user">
-        <img src="{{user.avatar_url}}" alt="">
-        My Profile
-      </a>
-      <hr>
       <!-- {# keep the current plugin section when switching guilds (drop any deeper,
          guild-specific ids so the target always resolves) #} -->
       {% set _seg = request.path.split('/') %}

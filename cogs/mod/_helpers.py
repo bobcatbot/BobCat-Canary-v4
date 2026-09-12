@@ -86,14 +86,12 @@ async def audit_log(
     if dashboard is None:
         return False
 
-    moderation = dashboard.moderation or {}
-    logging_config = moderation.get("logging", {})
-    enabled_events = logging_config.get("events", {})
+    logging_config = dashboard.moderation.logging
 
-    if not enabled_events.get(event, False):
+    if not logging_config.events.get(event, False):
         return False
 
-    channel_id = logging_config.get("channel")
+    channel_id = logging_config.channel
 
     if not channel_id:
         return False

@@ -5,7 +5,7 @@ import discord
 from quart import Blueprint, jsonify, render_template, request, session, url_for
 
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, VerificationConfig
 from cogs.mod._helpers import audit_log
 from ...utils import bearer_client, plugin_guard
 from ...config import OAUTH_URL, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY
@@ -22,8 +22,8 @@ async def verify(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    stored = (await Guild.get(str(guild.id))).dashboard.verification
-    config = deep_merge(copy.deepcopy(DEFAULT_VERIFICATION_CONFIG), stored)
+    guild_doc = await Guild.get(str(guild.id))
+    config = guild_doc.dashboard.verification if guild_doc else None
 
     return await render_template(
         "dashboard/plugins/verification.html",
@@ -78,9 +78,9 @@ async def verify_publish(guild_id):
             ))
 
             # Check if already published
-            if verification_config.get('message_published', False):
-                channel_id = verification_config.get('channel')
-                message_id = verification_config.get('message_id')
+            if verification_config.message_published:
+                channel_id = verification_config.channel
+                message_id = verification_config.message_id
                 if channel_id and message_id:
                     channel = guild.get_channel(int(channel_id))
                     if channel:
@@ -99,7 +99,7 @@ async def verify_publish(guild_id):
                             return
 
             # Get or create verification role
-            role_id = verification_config.get('role')
+            role_id = verification_config.role
             role = guild.get_role(int(role_id)) if role_id else None
             if role is None:
                 try:
@@ -107,7 +107,7 @@ async def verify_publish(guild_id):
                         name='Verified',
                         reason='Enabled verification system'
                     )
-                    config.dashboard.verification['role'] = str(role.id)
+                    config.dashboard.verification.role = str(role.id)
                     await config.save()
                     print(f"Created Verified role for guild {guild_id}")
                 except discord.Forbidden:
@@ -118,7 +118,7 @@ async def verify_publish(guild_id):
                     return
 
             # Get or create verification channel
-            channel_id = verification_config.get('channel')
+            channel_id = verification_config.channel
             channel = guild.get_channel(int(channel_id)) if channel_id else None
             if channel is None:
                 try:
@@ -138,7 +138,7 @@ async def verify_publish(guild_id):
                             ),
                         }
                     )
-                    config.dashboard.verification['channel'] = str(channel.id)
+                    config.dashboard.verification.channel = str(channel.id)
                     await config.save()
                     print(f"Created verification channel for guild {guild_id}")
                 except discord.Forbidden:
@@ -179,7 +179,7 @@ async def verify_publish(guild_id):
             except Exception as e:
                 print(f"Error editing default role: {e}")
 
-            if role.id == int(verification_config.get('role', 0)):
+            if role.id == int(verification_config.role or 0):
                 try:
                     await role.edit(
                         reason="Verification system enabled",
@@ -195,8 +195,8 @@ async def verify_publish(guild_id):
                 msg = await channel.send(embed=embed, view=view)
                 
                 # Save message ID and published status
-                config.dashboard.verification['message_id'] = str(msg.id)
-                config.dashboard.verification['message_published'] = True
+                config.dashboard.verification.message_id = str(msg.id)
+                config.dashboard.verification.message_published = True
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
                 print(f"Published verification message for guild {guild_id}")
@@ -229,8 +229,8 @@ async def verify_unpublish(guild_id):
 
     async def unpublish():
         try:
-            channel_id = verification_config.get('channel')
-            message_id = verification_config.get('message_id')
+            channel_id = verification_config.channel
+            message_id = verification_config.message_id
             
             if channel_id and message_id:
                 channel = guild.get_channel(int(channel_id))
@@ -247,8 +247,8 @@ async def verify_unpublish(guild_id):
                         print(f"Error deleting verification message: {e}")
 
             # Update dashboard
-            config.dashboard.verification['message_published'] = False
-            config.dashboard.verification['message_id'] = None
+            config.dashboard.verification.message_published = False
+            config.dashboard.verification.message_id = None
             config.updated_at = discord.utils.utcnow()
             await config.save()
             print(f"Unpublished verification for guild {guild_id}")
@@ -363,12 +363,12 @@ async def _resolve_verify_link(guild_id, user_id, exp, sig):
         return "invalid", {"message": "You're no longer a member of this server."}
 
     guild_doc = await Guild.get(str(guild_id))
-    verify_data = (guild_doc.dashboard.verification if guild_doc else None) or {}
+    verify_data = guild_doc.dashboard.verification if guild_doc else VerificationConfig()
 
-    if not verify_data.get('status') or verify_data.get('mode') != 'captcha_web':
+    if not verify_data.status or verify_data.mode != 'captcha_web':
         return "disabled", {}
 
-    role_id = verify_data.get('role')
+    role_id = verify_data.role
     role = guild.get_role(int(role_id)) if role_id else None
     if role is None:
         return "invalid", {"message": "Verification isn't fully configured for this server. Please contact a server admin."}

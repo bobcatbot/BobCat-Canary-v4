@@ -1,32 +1,400 @@
 from bson import ObjectId
 from beanie import Document
-from pydantic import Field, BaseModel, field_validator
+from pydantic import ConfigDict, Field, BaseModel, field_validator
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 
 # ---------------------------------------------------------
-# Embedded Dash Sub-Models (Optional, for Autocomplete!)
+# DictModel: Pydantic model that still behaves like a dict
+# ---------------------------------------------------------
+class DictModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __contains__(self, key):
+        return hasattr(self, key)
+
+    def setdefault(self, key, default=None):
+        if getattr(self, key, None) is None:
+            setattr(self, key, default)
+        return getattr(self, key)
+
+    def keys(self):
+        return self.model_dump().keys()
+
+    def items(self):
+        return self.model_dump().items()
+
+    def values(self):
+        return self.model_dump().values()
+
+    def copy(self):
+        return self.model_dump()
+
+    def update(self, other=None, **kwargs):
+        for key, value in {**(other or {}), **kwargs}.items():
+            setattr(self, key, value)
+
+# ---------------------------------------------------------
+# Shared embed shape (used by welcome/verification messages and
+# ticketing panels — all built through the same embed_editor.html
+# component, so they share one schema). Every field is optional
+# since the editor only ever writes what the user filled in.
+# ---------------------------------------------------------
+class EmbedFieldConfig(DictModel):
+    name: Optional[str] = None
+    value: Optional[str] = None
+    inline: bool = False
+
+class EmbedAuthorConfig(DictModel):
+    name: Optional[str] = None
+
+class EmbedFooterConfig(DictModel):
+    text: Optional[str] = None
+
+class EmbedConfig(DictModel):
+    color: Optional[Any] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    author: EmbedAuthorConfig = Field(default_factory=EmbedAuthorConfig)
+    footer: EmbedFooterConfig = Field(default_factory=EmbedFooterConfig)
+    fields: List[EmbedFieldConfig] = Field(default_factory=list)
+
+# ---------------------------------------------------------
+# Welcome plugin
+# ---------------------------------------------------------
+class MessageConfig(DictModel):
+    type: Optional[str] = None
+    content: Optional[str] = None
+    embed: EmbedConfig = Field(default_factory=EmbedConfig)
+
+class WelcomeJoinConfig(DictModel):
+    status: bool = False
+    channel: Optional[str] = None
+    message: MessageConfig = Field(default_factory=MessageConfig)
+
+class WelcomeLeaveConfig(DictModel):
+    status: bool = False
+    channel: Optional[str] = None
+    message: MessageConfig = Field(default_factory=MessageConfig)
+
+class WelcomeDMConfig(DictModel):
+    status: bool = False
+    message: MessageConfig = Field(default_factory=MessageConfig)
+
+class WelcomeAutoRolesConfig(DictModel):
+    status: bool = False
+    roles: List[str] = Field(default_factory=list)
+
+class WelcomeConfig(DictModel):
+    status: bool = False
+    join: WelcomeJoinConfig = Field(default_factory=WelcomeJoinConfig)
+    leave: WelcomeLeaveConfig = Field(default_factory=WelcomeLeaveConfig)
+    dm: WelcomeDMConfig = Field(default_factory=WelcomeDMConfig)
+    autoRoles: WelcomeAutoRolesConfig = Field(default_factory=WelcomeAutoRolesConfig)
+
+# ---------------------------------------------------------
+# Verification plugin
+# ---------------------------------------------------------
+class VerificationButtonConfig(DictModel):
+    color: Optional[str] = None
+    emoji: Optional[str] = None
+    title: Optional[str] = None
+
+class VerificationMessageConfig(DictModel):
+    btn: VerificationButtonConfig = Field(default_factory=VerificationButtonConfig)
+    embed: EmbedConfig = Field(default_factory=EmbedConfig)
+
+class VerificationConfig(DictModel):
+    status: bool = False
+    mode: Optional[str] = None
+    role: Optional[Any] = None
+    channel: Optional[str] = None
+    failAction: Optional[str] = None
+    message_id: Optional[str] = None
+    message_published: bool = False
+    message: VerificationMessageConfig = Field(default_factory=VerificationMessageConfig)
+
+# ---------------------------------------------------------
+# Moderation plugin
+# ---------------------------------------------------------
+class LoggingEventsConfig(DictModel):
+    ChannelCreate: bool = False
+    ChannelDelete: bool = False
+    ChannelUpdate: bool = False
+    MemberBan: bool = False
+    MemberJoin: bool = False
+    MemberLeave: bool = False
+    MemberUnban: bool = False
+    MemberUpdate: bool = False
+    MessageDelete: bool = False
+    MessageEdit: bool = False
+    ModerationBan: bool = False
+    ModerationKick: bool = False
+    ModerationMute: bool = False
+    ModerationUnban: bool = False
+    ModerationUnmute: bool = False
+    ModerationUnwarn: bool = False
+    ModerationWarn: bool = False
+    RoleCreate: bool = False
+    RoleDelete: bool = False
+    RoleUpdate: bool = False
+    ServerEmojis: bool = False
+    ServerInviteCreate: bool = False
+    ServerInviteDelete: bool = False
+    ServerUpdate: bool = False
+    Verification: bool = False
+
+class ModerationLoggingConfig(DictModel):
+    bots: bool = False
+    channel: Optional[str] = None
+    events: LoggingEventsConfig = Field(default_factory=LoggingEventsConfig)
+
+class ActionSettingsConfig(DictModel):
+    """Base shape for a moderation action's DM-on-punishment settings.
+    Values are the embed-field keys _helpers.send_member_dm knows how to
+    render - real guild data confirmed to only ever use these four."""
+    dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
+
+class BanSettingsConfig(ActionSettingsConfig):
+    deleteMessageDays: Optional[str] = None
+
+class MuteSettingsConfig(ActionSettingsConfig):
+    duration: Optional[str] = None
+    type: Optional[str] = None
+
+class ModerationSettingsConfig(DictModel):
+    ban: BanSettingsConfig = Field(default_factory=BanSettingsConfig)
+    kick: ActionSettingsConfig = Field(default_factory=ActionSettingsConfig)
+    mute: MuteSettingsConfig = Field(default_factory=MuteSettingsConfig)
+    warn: ActionSettingsConfig = Field(default_factory=ActionSettingsConfig)
+
+class ModerationConfig(DictModel):
+    status: bool = False
+    logging: ModerationLoggingConfig = Field(default_factory=ModerationLoggingConfig)
+    settings: ModerationSettingsConfig = Field(default_factory=ModerationSettingsConfig)
+
+# ---------------------------------------------------------
+# Server utility plugins
+# ---------------------------------------------------------
+class StarboardConfig(DictModel):
+    status: bool = False
+    allowNsfw: bool = False
+    autoStar: List[Any] = Field(default_factory=list)
+    channel: Optional[str] = None
+    embedNsfwImages: bool = False
+    emoji: Optional[str] = None
+    ignore: List[Any] = Field(default_factory=list)
+    jumpLink: bool = False
+    limit: Optional[str] = None
+    locked: bool = False
+    selfStar: bool = False
+
+# ---------------------------------------------------------
+# Forms plugin
+# ---------------------------------------------------------
+class FormsConfig(DictModel):
+    status: bool = False
+
+# ---------------------------------------------------------
+# Temporary channels plugin
+# ---------------------------------------------------------
+class HubPermissionsConfig(DictModel):
+    manage_channels: bool = False
+    manage_permissions: bool = False
+    move_members: bool = False
+    priority_speaker: bool = False
+
+class HubConfig(DictModel):
+    id: Optional[str] = None
+    channel_id: Optional[str] = None
+    hub_name: Optional[str] = None
+    name: Optional[str] = None
+    bitrate: Optional[int] = None
+    user_limit: Optional[int] = None
+    sync_hub_category: bool = False
+    permissions: HubPermissionsConfig = Field(default_factory=HubPermissionsConfig)
+
+class TemporaryChannelsConfig(DictModel):
+    status: bool = False
+    hubs: List[HubConfig] = Field(default_factory=list)
+
+# ---------------------------------------------------------
+# Ticketing plugin
+# ---------------------------------------------------------
+class TicketMessageConfig(DictModel):
+    embed: EmbedConfig = Field(default_factory=EmbedConfig)
+
+class PanelButtonConfig(DictModel):
+    emoji: Optional[str] = None
+    label: Optional[str] = None
+    style: Optional[str] = None
+
+class TicketPanelConfig(DictModel):
+    id: Optional[str] = None
+    panel_name: Optional[str] = None
+    channel_id: Optional[str] = None
+    category_open: Optional[str] = None
+    category_claimed: Optional[str] = None
+    category_closed: Optional[str] = None
+    intro_message: TicketMessageConfig = Field(default_factory=TicketMessageConfig)
+    panel_message: TicketMessageConfig = Field(default_factory=TicketMessageConfig)
+    panel_message_id: Optional[str] = None
+    panel_button: PanelButtonConfig = Field(default_factory=PanelButtonConfig)
+    manager_roles: List[str] = Field(default_factory=list)
+    max_open_tickets: Optional[int] = None
+    pin_intro: bool = False
+    threading_mode: bool = False
+    transcript_channel: Optional[str] = None
+    transcript_dm: bool = False
+
+class TicketingConfig(DictModel):
+    status: bool = False
+    panels: List[TicketPanelConfig] = Field(default_factory=list)
+
+# ---------------------------------------------------------
+# Statistics plugin
+# ---------------------------------------------------------
+class StatsCounterConfig(DictModel):
+    channel_id: Optional[str] = None
+    count: Optional[int] = None
+    position: Optional[int] = None
+    target: Optional[str] = None
+    text: Optional[str] = None
+
+class StatsConfig(DictModel):
+    status: bool = False
+    counters: List[StatsCounterConfig] = Field(default_factory=list)
+
+# ---------------------------------------------------------
+# Leveling plugins
+# ---------------------------------------------------------
+class LevelingLeaderboardConfig(DictModel):
+    banner: Optional[str] = None
+    public: bool = False
+    url: Optional[str] = None
+
+class LevelingMessageConfig(DictModel):
+    content: Optional[str] = None
+    status: Optional[Any] = None
+
+class LevelingRoleRewardConfig(DictModel):
+    id: Optional[str] = None
+    level: Optional[str] = None
+    name: Optional[str] = None
+
+class LevelingRoleRewardsConfig(DictModel):
+    stacked: bool = False
+    roles: List[LevelingRoleRewardConfig] = Field(default_factory=list)
+
+class LevelingConfig(DictModel):
+    status: bool = False
+    auto_reset: bool = False
+    card: Optional[str] = None
+    channel: Optional[str] = None
+    cooldown: Optional[Any] = None 
+    economy: bool = False
+    max_level: Optional[Any] = None
+    noXP: List[str] = Field(default_factory=list)
+    message: LevelingMessageConfig = Field(default_factory=LevelingMessageConfig)
+    leaderboard: LevelingLeaderboardConfig = Field(default_factory=LevelingLeaderboardConfig)
+    roleRewards: LevelingRoleRewardsConfig = Field(default_factory=LevelingRoleRewardsConfig)
+
+# ---------------------------------------------------------
+# Birthdays plugin
+# ---------------------------------------------------------
+class BirthdaysConfig(DictModel):
+    status: bool = False
+    birthday_role: Optional[str] = None
+    channel_id: Optional[str] = None
+    message: Optional[str] = None
+    message_hour: Optional[Any] = None
+
+# ---------------------------------------------------------
+# Giveaways plugin
+# ---------------------------------------------------------
+class GiveawaysConfig(DictModel):
+    status: bool = False
+
+# ---------------------------------------------------------
+# Economy plugin
+# ---------------------------------------------------------
+class EconomyConfig(DictModel):
+    status: bool = False
+    icon: Optional[str] = None
+    name: Optional[str] = None
+    MaxGambling: Optional[str] = None
+    MaxPayment: Optional[str] = None
+    shop: List[ShopItemConfig] = Field(default_factory=list)
+
+class ShopItemConfig(DictModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    price: Optional[int] = None
+    max_limit: Optional[int] = None
+    type: Optional[str] = None
+
+# =========================================================
+
+# ---------------------------------------------------------
+# Guild.premium / Guild.settings
+# ---------------------------------------------------------
+class PremiumConfig(DictModel):
+    """Guild.premium 
+    \nThis is written almost entirely by the Stripe webhook handlers in web_dashboard/blueprints/stripe.py.
+    \nEvery field optional since a fresh/cancelled guild's premium is `{}` (an all-defaults PremiumConfig)."""
+
+    id: Optional[str] = None
+    status: bool = False
+    active: bool = False
+    plan: Optional[str] = None
+    customer: Optional[str] = None
+    user_id: Optional[Any] = None
+    period_end: Optional[datetime] = None
+    subscribed_at: Optional[datetime] = None
+    code_expiry: Optional[datetime] = None
+
+class SettingsConfig(DictModel):
+    """Guild.settings - general server settings."""
+    language: Optional[str] = None
+    timezone: Optional[str] = None
+    color: Optional[str] = None
+    admin_roles: List[str] = Field(default_factory=list)
+    bot_masters: List[str] = Field(default_factory=list)
+    moderator_roles: List[str] = Field(default_factory=list)
+
+# ---------------------------------------------------------
+# Dashboard Config
 # ---------------------------------------------------------
 class DashConfig(BaseModel):
     """Embedded Dashboard configuration inside Guild document"""
 
     # Management
-    welcome: Dict[str, Any] = Field(default_factory=dict)
-    moderation: Dict[str, Any] = Field(default_factory=dict)
-    verification: Dict[str, Any] = Field(default_factory=dict)
+    welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
+    moderation: ModerationConfig = Field(default_factory=ModerationConfig)
+    verification: VerificationConfig = Field(default_factory=VerificationConfig)
 
     # Server utility
-    starboard: Dict[str, Any] = Field(default_factory=dict)
-    forms: Dict[str, Any] = Field(default_factory=dict)
-    temporary_channels: Dict[str, Any] = Field(default_factory=dict)
-    ticketing: Dict[str, Any] = Field(default_factory=dict)
-    stats: Dict[str, Any] = Field(default_factory=dict)
+    starboard: StarboardConfig = Field(default_factory=StarboardConfig)
+    forms: FormsConfig = Field(default_factory=FormsConfig)
+    temporary_channels: TemporaryChannelsConfig = Field(default_factory=TemporaryChannelsConfig)
+    ticketing: TicketingConfig = Field(default_factory=TicketingConfig)
+    stats: StatsConfig = Field(default_factory=StatsConfig)
 
     # Engagement & economy
-    leveling: Dict[str, Any] = Field(default_factory=dict)
-    birthdays: Dict[str, Any] = Field(default_factory=dict)
-    giveaways: Dict[str, Any] = Field(default_factory=dict)
-    economy: Dict[str, Any] = Field(default_factory=dict)
+    leveling: LevelingConfig = Field(default_factory=LevelingConfig)
+    birthdays: BirthdaysConfig = Field(default_factory=BirthdaysConfig)
+    giveaways: GiveawaysConfig = Field(default_factory=GiveawaysConfig)
+    economy: EconomyConfig = Field(default_factory=EconomyConfig)
 
     # sticky_messages: Dict[str, Any] = Field(default_factory=dict)
 
@@ -38,8 +406,8 @@ class Guild(Document):
         name = "guilds"
 
     id: str = Field(alias="_id")  # Guild ID
-    premium: Dict[str, Any] = Field(default_factory=dict)
-    settings: Dict[str, Any] = Field(default_factory=dict)
+    premium: PremiumConfig = Field(default_factory=PremiumConfig)
+    settings: SettingsConfig = Field(default_factory=SettingsConfig)
     dashboard: DashConfig = Field(default_factory=DashConfig, alias="Dash")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -70,6 +438,8 @@ class StripeEvent(Document):
     id: str = Field(alias="_id")  # Stripe event ID (evt_...)
     type: str
     processed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# =========================================================
 
 class Warning(Document):
     class Settings:
@@ -128,13 +498,13 @@ class Giveaway(Document):
     prize: str
     status: str = "Ongoing"
     channel_id: str
-    channel_name: str = ""
+    channel_name: str
     message_id: str
     author_id: str
-    embed_title: str = ""
-    embed_desc: str = ""
+    embed_title: str
+    embed_desc: str
     end_epoch: float
-    end_timestamp: str = ""
+    end_timestamp: str
     winner_count: int = 1
     participants: List[str] = Field(default_factory=list)
     winners: List[str] = Field(default_factory=list)
@@ -150,7 +520,7 @@ class Form(Document):
     guild_id: str
     status: bool = True
     name: str
-    description: Optional[str] = ""
+    description: Optional[str]
     questions: List[Dict[str, Any]] = Field(default_factory=list)
     settings: Dict[str, Any] = Field(default_factory=dict)
 
@@ -236,13 +606,6 @@ class TempChannel(Document):
     guild_id: str
     channel_id: str
     creator_id: str
-    # Which hub (temporary_channels.hubs[].id) spawned this channel - lets the
-    # per-hub #index counter in TempVoice.handle_join scope to just that hub
-    # instead of numbering every hub's channels off one shared, interleaved
-    # counter. Optional so pre-existing rows from before this field existed
-    # still validate; they just fall out of every hub's index scoping (treated
-    # as belonging to no hub), which only affects the numbering of new channels,
-    # not anything already created.
     hub_id: Optional[str] = None
     index: int = 1
 
@@ -252,6 +615,7 @@ ALL_MODELS = [
     Guild,
     Notification,
     StripeEvent,
+
     Warning,
     Economy,
     Leveling,

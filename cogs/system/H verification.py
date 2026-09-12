@@ -105,10 +105,10 @@ class Verification(commands.Cog):
     def _get_fail_action_label(self, action: str) -> str:
         """Get human-readable label for fail action."""
         return {
+            "unverified": "Kept Unverified",
             "kick": "Kicked",
             "ban": "Banned",
             "timeout": "Timed Out (5m)",
-            "unverified": "Kept Unverified"
         }.get(action, "Kept Unverified")
 
     def _verify_signature(self, guild_id: str, user_id: str, exp: str) -> str:
@@ -208,12 +208,12 @@ class Verification(commands.Cog):
             )
             
         verify_data = guild_doc.dashboard.verification
-        status = verify_data.get('status', False)
-        chan = verify_data.get('channel')
-        verify_role = verify_data.get('role')
-        mode = verify_data.get('mode', 'captcha_dm')
-        fail_action = verify_data.get('failAction', 'unverified')
-        log_channel = verify_data.get('logChannel')
+        status = verify_data.status
+        chan = verify_data.channel
+        verify_role = verify_data.role
+        mode = verify_data.mode or 'captcha_dm'
+        fail_action = verify_data.failAction or 'unverified'
+        log_channel = verify_data.get('logChannel')  # not a declared field yet - unused below
 
         # Status check before anything else
         if not status:

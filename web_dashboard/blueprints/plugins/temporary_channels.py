@@ -53,7 +53,7 @@ async def temporary_channels_create(guild_id):
             return jsonify({'status': 'error', 'message': 'Hub name is required'}), 400
 
         # Enforce the free / premium hub cap
-        existing = (await Guild.get(str(guild.id))).dashboard.temporary_channels.get('hubs', [])
+        existing = (await Guild.get(str(guild.id))).dashboard.temporary_channels.hubs
         guild_premium = await is_premium(guild)
         cap = plugin_item_cap('temporary_channels', guild_premium)
         if len(existing) >= cap:
@@ -84,11 +84,7 @@ async def temporary_channels_create(guild_id):
                     print(f"Guild config not found for {guild_id}")
                     return
 
-                # Ensure temporary_channels exists
-                if not hasattr(config.dashboard, 'temporary_channels'):
-                    config.dashboard.temporary_channels = {}
-                
-                hubs = config.dashboard.temporary_channels.get('hubs', [])
+                hubs = config.dashboard.temporary_channels.hubs
 
                 # Create the Discord channel
                 category = None
@@ -136,7 +132,7 @@ async def temporary_channels_create(guild_id):
 
                 # Save to dashboard
                 hubs.append(data)
-                config.dashboard.temporary_channels['hubs'] = hubs
+                config.dashboard.temporary_channels.hubs = hubs
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
                 print(f"Saved hub {data['id']} for guild {guild_id}")
@@ -172,8 +168,8 @@ async def temporary_channels_edit(guild_id, hub_id):
         await flash('Guild config not found', 'error')
         return redirect(url_for('temporary_channels.temporary_channels', guild_id=guild_id))
 
-    hubs = config.dashboard.temporary_channels.get('hubs', [])
-    hub = next((h for h in hubs if h.get('id') == hub_id), None)
+    hubs = config.dashboard.temporary_channels.hubs
+    hub = next((h for h in hubs if h.id == hub_id), None)
 
     if hub is None:
         await flash('Hub not found', 'error')
@@ -205,8 +201,8 @@ async def temporary_channels_edit(guild_id, hub_id):
                 if config is None:
                     return
 
-                hubs = config.dashboard.temporary_channels.get('hubs', [])
-                
+                hubs = config.dashboard.temporary_channels.hubs
+
                 # Update the hub data
                 for key, value in data.items():
                     hubs[hub_idx][key] = value
@@ -216,10 +212,10 @@ async def temporary_channels_edit(guild_id, hub_id):
                 # sync_hub_category=True with an empty category_id (e.g. it was
                 # created with sync off, then toggled on here without picking a
                 # category), which crashes TempVoice.handle_join on the next join.
-                if hubs[hub_idx].get('sync_hub_category') and not hubs[hub_idx].get('category_id'):
+                if hubs[hub_idx].sync_hub_category and not hubs[hub_idx].get('category_id'):
                     try:
                         new_category = await guild.create_category_channel(
-                            hubs[hub_idx].get('hub_name', 'Temporary Channels'),
+                            hubs[hub_idx].hub_name or 'Temporary Channels',
                             reason=f"Temp category for hub {hub_id}"
                         )
                         hubs[hub_idx]['category_id'] = str(new_category.id)
@@ -231,7 +227,7 @@ async def temporary_channels_edit(guild_id, hub_id):
                         print(f"Error creating category during edit: {e}")
 
                 # Update Discord channel if it exists
-                channel_id = hubs[hub_idx].get('channel_id')
+                channel_id = hubs[hub_idx].channel_id
                 if channel_id:
                     channel = guild.get_channel(int(channel_id))
                     if channel:
@@ -259,7 +255,7 @@ async def temporary_channels_edit(guild_id, hub_id):
                         except Exception as e:
                             print(f"Error editing channel: {e}")
 
-                config.dashboard.temporary_channels['hubs'] = hubs
+                config.dashboard.temporary_channels.hubs = hubs
                 config.updated_at = discord.utils.utcnow()
                 await config.save()
                 print(f"Updated hub {hub_id} for guild {guild_id}")
@@ -271,7 +267,7 @@ async def temporary_channels_edit(guild_id, hub_id):
         # Fire and forget
         v.client.loop.create_task(edit_hub())
         
-        await flash(f"Successfully updated hub {hub['id']}", 'success')
+        await flash(f"Successfully updated hub {hub.id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully updated hub'})
 
     return await render_template(
@@ -293,9 +289,9 @@ async def temporary_channels_delete(guild_id, hub_id):
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
-    hubs = config.dashboard.temporary_channels.get('hubs', [])
-    hub = next((h for h in hubs if h.get('id') == hub_id), None)
-    
+    hubs = config.dashboard.temporary_channels.hubs
+    hub = next((h for h in hubs if h.id == hub_id), None)
+
     if hub is None:
         return jsonify({'status': 'error', 'message': 'Hub not found'}), 404
 
@@ -306,14 +302,14 @@ async def temporary_channels_delete(guild_id, hub_id):
             if config is None:
                 return
 
-            hubs = config.dashboard.temporary_channels.get('hubs', [])
-            hub = next((h for h in hubs if h.get('id') == hub_id), None)
+            hubs = config.dashboard.temporary_channels.hubs
+            hub = next((h for h in hubs if h.id == hub_id), None)
             
             if hub is None:
                 return
 
             # Delete Discord channel
-            channel_id = hub.get('channel_id')
+            channel_id = hub.channel_id
             if channel_id:
                 channel = guild.get_channel(int(channel_id))
                 if channel:
@@ -326,7 +322,7 @@ async def temporary_channels_delete(guild_id, hub_id):
                         print(f"Error deleting channel: {e}")
 
             # Delete category if it was synced
-            if hub.get('sync_hub_category') and hub.get('category_id'):
+            if hub.sync_hub_category and hub.get('category_id'):
                 category = guild.get_channel(int(hub['category_id']))
                 if category:
                     try:
@@ -340,7 +336,7 @@ async def temporary_channels_delete(guild_id, hub_id):
             # Remove from config
             hub_idx = hubs.index(hub)
             hubs.pop(hub_idx)
-            config.dashboard.temporary_channels['hubs'] = hubs
+            config.dashboard.temporary_channels.hubs = hubs
             config.updated_at = discord.utils.utcnow()
             await config.save()
             print(f"Deleted hub {hub_id} for guild {guild_id}")

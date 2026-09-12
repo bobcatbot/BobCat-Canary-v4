@@ -80,6 +80,48 @@
     border-left-color: var(--color-card-1, #1e2124);
   }
 
+  /* Mobile: card sits above the row instead of beside it (the sidebar is a
+     full-width overlay there, so left/right placement doesn't make sense) -
+     caret points down from the bottom, centred on the row via --phc-caret-left. */
+  .plugin-hovercard.phc-above::before,
+  .plugin-hovercard.phc-above::after {
+    top: 100%;
+    right: auto;
+    left: var(--phc-caret-left, 50%);
+    transform: translateX(-50%);
+    border-right-color: transparent;
+  }
+  .plugin-hovercard.phc-above::before {
+    margin-right: 0;
+    border-top-color: var(--border-color, #2f3136);
+  }
+  .plugin-hovercard.phc-above::after {
+    margin-right: 0;
+    margin-top: -1px;
+    border-top-color: var(--color-card-1, #1e2124);
+  }
+  /* Rare fallback when there's no room above the row - card sits below it
+     instead, caret points up. */
+  .plugin-hovercard.phc-below::before,
+  .plugin-hovercard.phc-below::after {
+    top: auto;
+    bottom: 100%;
+    right: auto;
+    left: var(--phc-caret-left, 50%);
+    transform: translateX(-50%);
+    border-right-color: transparent;
+    border-top-color: transparent;
+  }
+  .plugin-hovercard.phc-below::before {
+    margin-right: 0;
+    border-bottom-color: var(--border-color, #2f3136);
+  }
+  .plugin-hovercard.phc-below::after {
+    margin-right: 0;
+    margin-bottom: -1px;
+    border-bottom-color: var(--color-card-1, #1e2124);
+  }
+
   .plugin-hovercard .phc-head {
     display: flex;
     align-items: center;
@@ -143,8 +185,9 @@
   }
   .plugin-hovercard .phc-included[hidden] { display: none; }
 
-  /* Touch devices have no real hover - keep it out of the way */
-  @media (hover: none) {
-    .plugin-hovercard { display: none !important; }
-  }
+  /* No hover/any-hover media gate here on purpose - on hybrid touch+mouse
+     Windows laptops (tablet mode, some touchscreen drivers) those queries can
+     report false even with a real mouse in use, which would force-hide this
+     card outright. main.js only shows it on a real pointerType:"mouse" event,
+     so touch taps never trigger it in the first place. */
 </style>

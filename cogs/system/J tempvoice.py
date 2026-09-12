@@ -39,13 +39,13 @@ class TempVoice(commands.Cog):
         tc_data = guild_doc.dashboard.temporary_channels
 
         # Master toggle for the whole Temporary Channels plugin
-        if not tc_data.get('status', False):
+        if not tc_data.status:
             return
 
-        hubs = tc_data.get("hubs", [])
+        hubs = tc_data.hubs
         tempvoice_db = await TempChannel.find(TempChannel.guild_id == str(hub_channel.guild.id)).to_list()
 
-        hub = next((h for h in hubs if h['channel_id'] == str(hub_channel.id)), None)
+        hub = next((h for h in hubs if h.channel_id == str(hub_channel.id)), None)
         if hub is None:
             return  # not a tempvoice hub
 
@@ -57,7 +57,10 @@ class TempVoice(commands.Cog):
         try:
             # Determine PERMISSIONS
             category = None
-            if hub.get('sync_hub_category') and hub.get('category_id'):
+            # category_id isn't a declared HubConfig field - no real guild doc
+            # sampled had it set, so it stays on dict-style .get()/[] access
+            # rather than guessing its type.
+            if hub.sync_hub_category and hub.get('category_id'):
                 try:
                     category = discord.utils.get(hub_channel.guild.categories, id=int(hub['category_id']))
                 except (TypeError, ValueError):
@@ -69,20 +72,20 @@ class TempVoice(commands.Cog):
             overwrites = category.overwrites.copy() if category else {}
 
             # Give creator full perms
-            mod_perms = discord.PermissionOverwrite(**hub.get("permissions", {}))
+            mod_perms = discord.PermissionOverwrite(**hub.permissions)
             overwrites[member] = mod_perms
 
             # Determine index - scoped to this hub, not the whole guild, so two
             # hubs each number their own channels from #1 instead of interleaving.
-            hub_channels = [tc for tc in tempvoice_db if tc.hub_id == hub['id']]
+            hub_channels = [tc for tc in tempvoice_db if tc.hub_id == hub.id]
             idx = max((tc.index for tc in hub_channels), default=0) + 1
 
             # CREATE VOICE CHANNEL
             new_chan = await hub_channel.guild.create_voice_channel(
-                name=v.render_placeholders(hub['name'], index=idx, username=member.name),
+                name=v.render_placeholders(hub.name, index=idx, username=member.name),
                 category=hub_channel.category,
-                user_limit=int(hub.get('user_limit') or 0),
-                bitrate=int(hub.get('bitrate') or 64000),
+                user_limit=int(hub.user_limit or 0),
+                bitrate=int(hub.bitrate or 64000),
                 overwrites=overwrites
             )
 
@@ -92,7 +95,7 @@ class TempVoice(commands.Cog):
                 guild_id=str(hub_channel.guild.id),
                 channel_id=str(new_chan.id),
                 creator_id=str(member.id),
-                hub_id=hub['id'],
+                hub_id=hub.id,
                 index=idx
             ).insert()
 

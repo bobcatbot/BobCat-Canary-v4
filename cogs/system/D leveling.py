@@ -60,7 +60,7 @@ class Leveling(commands.Cog):
  
     async def get_ratelimit(self, message: discord.Message) -> float | None:
         config = (await Guild.get(str(message.guild.id))).dashboard.leveling
-        cd = config.get('cooldown', 60)
+        cd = config.cooldown if config.cooldown is not None else 60
         mapping = self._get_cooldown(message.guild.id, cd)
         bucket = mapping.get_bucket(message)
         return bucket.update_rate_limit()
@@ -123,12 +123,12 @@ class Leveling(commands.Cog):
             return
             
         lvl_data = guild_doc.dashboard.leveling
- 
-        if not lvl_data.get('status', False):
+
+        if not lvl_data.status:
             return
- 
+
         # No XP channels
-        noXP: List[str] = lvl_data.get('noXP', [])
+        noXP: List[str] = lvl_data.noXP
         if noXP and str(message.channel.id) in noXP:
             return
  
@@ -147,7 +147,7 @@ class Leveling(commands.Cog):
 
         exp: int = int(data.exp)
         lvl: int = int(data.lvl)
-        maxLevel: int = int(lvl_data.get('max_level', 0))
+        maxLevel: int = int(lvl_data.max_level or 0)
  
         # Don't give XP if already at max level (0 = no limit)
         if maxLevel != 0 and lvl >= maxLevel:
@@ -178,10 +178,10 @@ class Leveling(commands.Cog):
             return
  
         # ── Level-up announcement ──────────────────────────────────────────
-        message_config = lvl_data.get('message', {})
-        anno: str = message_config.get('status', 'current')
-        mess: str = message_config.get('content', '{user} just reached level {level}!')
-        chan = lvl_data.get('channel')
+        message_config = lvl_data.message
+        anno: str = message_config.status or 'current'
+        mess: str = message_config.content or '{user} just reached level {level}!'
+        chan = lvl_data.channel
  
         def replace_placeholder(match: re.Match) -> str:
             key = match.group(1)
@@ -210,34 +210,34 @@ class Leveling(commands.Cog):
                 await channel.send(msg_text)
  
         # ── Economy integration ────────────────────────────────────────────
-        if lvl_data.get('economy', False):
+        if lvl_data.economy:
             await open_account(message.guild, message.author)
             await update_bank(message.guild, message.author, 'bank', 5)
- 
+
         # ── Role rewards ───────────────────────────────────────────────────
-        auto_roles: dict = lvl_data.get('roleRewards', {})
-        stacked: bool = auto_roles.get('stacked', False)
- 
-        for reward in auto_roles.get('roles', []):
-            if new_lvl != int(reward['level']):
+        auto_roles = lvl_data.roleRewards
+        stacked: bool = auto_roles.stacked
+
+        for reward in auto_roles.roles:
+            if new_lvl != int(reward.level):
                 continue
- 
-            role_id = int(reward['id'])
+
+            role_id = int(reward.id)
             role = message.guild.get_role(role_id)
             if role is None:
                 continue
- 
+
             if not stacked:
                 # Remove all other reward roles first
                 roles_to_remove = [
-                    message.guild.get_role(int(r['id']))
-                    for r in auto_roles['roles']
-                    if message.guild.get_role(int(r['id'])) in message.author.roles
+                    message.guild.get_role(int(r.id))
+                    for r in auto_roles.roles
+                    if message.guild.get_role(int(r.id)) in message.author.roles
                 ]
                 roles_to_remove = [r for r in roles_to_remove if r is not None]
                 if roles_to_remove:
                     await message.author.remove_roles(*roles_to_remove)
- 
+
             await message.author.add_roles(role)
 
     # ── Slash commands ─────────────────────────────────────────────────────
@@ -249,8 +249,7 @@ class Leveling(commands.Cog):
             return await ctx.respond("❌ Guild not found!", ephemeral=True)
             
         lvl_data = guild_doc.dashboard.leveling
-        status = lvl_data.get('status', False)
-        if not status:
+        if not lvl_data.status:
             embed = discord.Embed(description="Leveling is disabled", color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
         
@@ -266,7 +265,7 @@ class Leveling(commands.Cog):
         lvl = data.lvl
         next_lvl_xp = xp_for_level(lvl)
         
-        configured_card = lvl_data.get('card', FALLBACK_CARD)
+        configured_card = lvl_data.card or FALLBACK_CARD
         card_cfg = get_level_card_config(configured_card)
 
         # ── FIX: Download avatar as bytes ──────────────────────────────────
@@ -303,7 +302,7 @@ class Leveling(commands.Cog):
             return await ctx.respond("❌ Guild not found!", ephemeral=True)
             
         lvl_data = guild_doc.dashboard.leveling
-        if not lvl_data.get('status', False):
+        if not lvl_data.status:
             return await ctx.respond(
                 embed=discord.Embed(description="Leveling is disabled", color=v.error),
                 ephemeral=True

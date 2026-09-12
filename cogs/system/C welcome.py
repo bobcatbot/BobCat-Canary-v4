@@ -45,40 +45,33 @@ class welcomeSystem(commands.Cog):
         wel_data = guild_doc.dashboard.welcome
 
         # Master toggle for the whole Welcome plugin
-        if not wel_data.get('status', False):
+        if not wel_data.status:
             return
 
         # ── Join message ────────────────────────────────────────────────────
-        join_data = wel_data.get('join', {})
-        joinStatus = join_data.get('status', False)
-        joinChannel = join_data.get('channel')
-        joinMessage = join_data.get('message', {})
-        joinMessageType = joinMessage.get('type')
+        join = wel_data.join
 
-        if joinStatus and joinChannel:
-            channel = self.client.get_channel(int(joinChannel))
-            if channel and joinMessageType == "text":
+        if join.status and join.channel:
+            channel = self.client.get_channel(int(join.channel))
+            if channel and join.message.type == "text":
                 await channel.send(v.render_placeholders(
-                    joinMessage.get('content'),
+                    join.message.content,
                     user=member,
                     server=member.guild.name,
                     membercount=member.guild.member_count
                 ))
 
-            if channel and joinMessageType == "embed":
-                embed_data = joinMessage.get('embed', {})
-                em = await self.create_embed(embed_data, member)
+            if channel and join.message.type == "embed":
+                em = await self.create_embed(join.message.embed, member)
                 await channel.send(embed=em)
         ###
 
         # ── Auto Roles ────────────────────────────────────────────────────
-        autoRoles_data = wel_data.get("autoRoles", {})
-        autoRolesStatus = autoRoles_data.get("status", False)
-        autoRolesRoles = autoRoles_data.get("roles", [])
+        autoRoles = wel_data.autoRoles
 
-        if autoRolesStatus and autoRolesRoles:
+        if autoRoles.status and autoRoles.roles:
             roles_to_add = [
-                role for roleID in autoRolesRoles
+                role for roleID in autoRoles.roles
                 if (role := member.guild.get_role(int(roleID))) is not None
             ]
             if roles_to_add:
@@ -88,24 +81,20 @@ class welcomeSystem(commands.Cog):
                     pass
 
         # ── DM ────────────────────────────────────────────────────
-        welcomeDm_data = wel_data.get('dm', {})
-        welcomeDm = welcomeDm_data.get('status', False)
-        welcomeDmMsg = welcomeDm_data.get('message', {})
-        welcomeDmMsgType = welcomeDmMsg.get('type')
+        dm = wel_data.dm
 
-        if welcomeDm and not member.bot:
+        if dm.status and not member.bot:
             try:
-                if welcomeDmMsgType == "text":
+                if dm.message.type == "text":
                     await member.send(v.render_placeholders(
-                        welcomeDmMsg.get('content', ''),
+                        dm.message.content or '',
                         user=member,
                         server=member.guild.name,
                         membercount=member.guild.member_count
                     ))
 
-                elif welcomeDmMsgType == "embed":
-                    embed_data = welcomeDmMsg.get('embed', {})
-                    em = await self.create_embed(embed_data, member)
+                elif dm.message.type == "embed":
+                    em = await self.create_embed(dm.message.embed, member)
                     await member.send(embed=em)
             except (discord.Forbidden, discord.HTTPException):
                 pass
@@ -119,36 +108,31 @@ class welcomeSystem(commands.Cog):
         wel_data = guild_doc.dashboard.welcome
 
         # Master toggle for the whole Welcome plugin
-        if not wel_data.get("status", False):
+        if not wel_data.status:
             return
 
         # ── Leave message ──────────────────────────────────────
-        leave_data = wel_data.get("leave", {})
-        leaveStatus = leave_data.get("status", False)
-        leaveChan = leave_data.get("channel")
-        leaveMessage = leave_data.get("message", {})
-        leaveMessageType = leaveMessage.get("type")
+        leave = wel_data.leave
 
-        if not (leaveStatus and leaveChan):
+        if not (leave.status and leave.channel):
             return
 
-        channel = self.client.get_channel(int(leaveChan))
+        channel = self.client.get_channel(int(leave.channel))
         if not channel:
             return
 
-        if leaveMessageType == "text":
+        if leave.message.type == "text":
             await channel.send(
                 v.render_placeholders(
-                    leaveMessage.get("content", ""),
+                    leave.message.content or "",
                     user=member,
                     server=member.guild.name,
                     membercount=member.guild.member_count,
                 )
             )
 
-        elif leaveMessageType == "embed":
-            embed_data = leaveMessage.get("embed", {})
-            em = await self.create_embed(embed_data, member)
+        elif leave.message.type == "embed":
+            em = await self.create_embed(leave.message.embed, member)
             await channel.send(embed=em)
         
 def setup(client):

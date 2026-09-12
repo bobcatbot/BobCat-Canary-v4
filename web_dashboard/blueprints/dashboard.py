@@ -4,8 +4,9 @@ from datetime import datetime, timezone, timedelta
 from quart import Blueprint, current_app, redirect, url_for, render_template, flash, request, session, jsonify
 
 from modules import bot as v
-from modules.models import Guild, Notification, Economy
-from ..config import CLIENT_ID, URL_BASE
+from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig
+from cogs._bot.bot_dash import sync_guild_dashboard
+from ..config import INVITE_URL, REDIRECT_URI
 from ..consts import langs, premium_faqs, premium_types, tz, RESERVED_SLUGS
 from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap
 from ..plugins import PLUGIN_LIST
@@ -41,8 +42,8 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
             if member:
                 settings = config.settings
                 bot_master = any(
-                    str(role.id) in settings.get('admin_roles', []) or
-                    str(role.id) in settings.get('bot_masters', [])
+                    str(role.id) in settings.admin_roles or
+                    str(role.id) in settings.bot_masters
                     for role in member.roles
                 )
 
@@ -55,7 +56,10 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
             'name': guild.name,
             'icon_url': guild.icon_url,
             'perm': "Owner" if guild.is_owner else "Bot Master" if bot_master else "Admin",
-            'is_bot_in_guild': guild.id in bot_guild_ids,
+            # "Go" (already set up) requires both: the bot is actually in the
+            # Discord guild AND it has a config doc. A guild the bot left (or
+            # whose doc was deleted/not yet synced) should read "Setup", not "Go".
+            'is_bot_in_guild': guild.id in bot_guild_ids and str(guild.id) in configs,
         })
 
     perm_order = {'Owner': 0, 'Bot Master': 1, 'Admin': 2}
@@ -95,14 +99,21 @@ async def dashboard_home(guild_id):
     session['guild_id'] = guild_id
 
     if guild is None:
+        # Preselect this guild in Discord's bot-add picker, and send the browser back to REDIRECT_URI (the one URI actually registered
+        # with Discord for this app - a one-off {URL_BASE}/dashboard here gets rejected as "Invalid OAuth2 redirect_uri"). state=guild_id
+        # round-trips through the callback so it knows to send them to /dashboard/<guild_id> once the bot's been added, rather than treating this as a normal login.
         return redirect(
-            f"https://discord.com/oauth2/authorize?client_id={CLIENT_ID}"
-            f"&scope=bot&permissions=8&guild_id={guild_id}"
-            f"&response_type=code&redirect_uri={URL_BASE}/dashboard"
+            f"{INVITE_URL}&guild_id={guild_id}"
+            f"&response_type=code&redirect_uri={REDIRECT_URI}&state={guild_id}"
         )
 
+    # Bot's in the guild but there's no config doc yet (never set up, or one that was deleted)
+    # create it now instead of every plugin page below this 404'ing on a missing Guild.get().
+    if await Guild.get(str(guild.id)) is None:
+        await sync_guild_dashboard(guild)
+
     return await render_template(
-        "dashboard/dashboard.html", 
+        "dashboard/dashboard.html",
         user=current_user, guild=guild
     )
 
@@ -114,7 +125,7 @@ async def settings(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     config = await Guild.get(str(guild.id))
-    data = config.settings if config else {}
+    data = config.settings if config else SettingsConfig()
     return await render_template(
         "dashboard/settings.html",
         user=current_user, guild=guild, data=data, languages=langs, timezones=tz
@@ -128,7 +139,7 @@ async def premium(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     config = await Guild.get(str(guild.id))
-    prem_data = config.premium if config else {}
+    prem_data = config.premium if config else PremiumConfig()
 
     # ✅ Build dynamic plans list with all needed data
     plans = []
@@ -148,7 +159,7 @@ async def premium(guild_id):
     # ✅ Get Stripe publishable key from config
     stripe_public_key = current_app.config.get('STRIPE_PUBLIC_KEY', '')
 
-    if not prem_data.get('status', False):
+    if not prem_data.status:
         return await render_template(
             "dashboard/premium/index.html",
             user=current_user,
@@ -162,7 +173,7 @@ async def premium(guild_id):
 
     # Get the user who purchased premium
     user = None
-    user_id = prem_data.get('user_id')
+    user_id = prem_data.user_id
     if user_id:
         try:
             user = v.client.get_user(int(user_id))
@@ -176,15 +187,15 @@ async def premium(guild_id):
     expiry_date = None
     
     # Try period_end (from Stripe)
-    if prem_data.get('period_end'):
-        expiry_date = prem_data['period_end']
+    if prem_data.period_end:
+        expiry_date = prem_data.period_end
     # Try code_expiry (from dev command)
-    elif prem_data.get('code_expiry'):
-        expiry_date = prem_data['code_expiry']
+    elif prem_data.code_expiry:
+        expiry_date = prem_data.code_expiry
     # Fallback: calculate from subscribed_at
-    elif prem_data.get('subscribed_at') and prem_data.get('plan'):
-        subscribed_at = prem_data['subscribed_at']
-        plan = prem_data['plan']
+    elif prem_data.subscribed_at and prem_data.plan:
+        subscribed_at = prem_data.subscribed_at
+        plan = prem_data.plan
         
         if isinstance(subscribed_at, datetime):
             if plan == 'trial':
@@ -199,7 +210,7 @@ async def premium(guild_id):
     days_countdown = "0"
     next_bill_formatted = "Never"
     is_expired = False
-    is_trial = prem_data.get('plan') == 'trial'
+    is_trial = prem_data.plan == 'trial'
     
     if expiry_date:
         # Convert to datetime if needed
@@ -226,9 +237,9 @@ async def premium(guild_id):
                 next_bill_formatted = "Expired"
                 is_expired = True
                 # Auto-deactivate if expired
-                if prem_data.get('active', True):
-                    prem_data['active'] = False
-                    prem_data['status'] = False
+                if prem_data.active:
+                    prem_data.active = False
+                    prem_data.status = False
                     await config.save()
             elif days_remaining == 0:
                 days_countdown = "0"
@@ -247,8 +258,8 @@ async def premium(guild_id):
         'countdown': days_countdown,
         'is_expired': is_expired,
         'is_trial': is_trial,
-        'is_lifetime': prem_data.get('plan') == 'lifetime',
-        'plan': prem_data.get('plan'),
+        'is_lifetime': prem_data.plan == 'lifetime',
+        'plan': prem_data.plan,
         'user': {
             'avatar': user.avatar.url if user and hasattr(user, 'avatar') else '',
             'name': user.name if user else 'Unknown',
@@ -283,7 +294,7 @@ async def transfer_premium_page(guild_id):
         return redirect(url_for('dashboard.premium', guild_id=guild_id))
     
     doc = await Guild.get(str(guild_id))
-    if not doc or not doc.premium.get('status', False):
+    if not doc or not doc.premium.status:
         await flash("This guild doesn't have premium", "warning")
         return redirect(url_for('dashboard.premium', guild_id=guild_id))
     
@@ -314,7 +325,7 @@ async def transfer_premium_execute(guild_id):
         return jsonify({'error': 'Only the guild owner can transfer premium'}), 403
     
     doc = await Guild.get(str(guild_id))
-    if not doc or not doc.premium.get('status', False):
+    if not doc or not doc.premium.status:
         return jsonify({'error': 'This guild does not have premium'}), 404
     
     data = await request.get_json()
@@ -337,21 +348,21 @@ async def transfer_premium_execute(guild_id):
     if not target_doc:
         return jsonify({'error': 'Target guild config not found'}), 404
     
-    if target_doc.premium.get('status', False):
+    if target_doc.premium.status:
         return jsonify({'error': 'Target guild already has premium'}), 400
-    
+
     # Transfer the premium
     premium_data = doc.premium.copy()
     premium_data['transferred_from'] = str(guild_id)
     premium_data['transferred_at'] = datetime.now(timezone.utc)
     premium_data['original_user_id'] = premium_data.get('user_id')
-    
+
     # Apply to target
-    target_doc.premium = premium_data
+    target_doc.premium = PremiumConfig(**premium_data)
     await target_doc.save()
-    
+
     # Remove from source
-    doc.premium = {}
+    doc.premium = PremiumConfig()
     await doc.save()
     
     # Send notifications
@@ -568,7 +579,7 @@ async def data_post(guild_id):
             if len(parts) == 2 and isinstance(val, list):
                 resulting_count = len(val)
             elif len(parts) == 3 and parts[2].isdigit():
-                existing = doc.dashboard.economy.get('shop', []) if isinstance(doc.dashboard.economy, dict) else []
+                existing = doc.dashboard.economy.shop
                 resulting_count = max(len(existing), int(parts[2]) + 1)
 
             if resulting_count is not None and resulting_count > cap:

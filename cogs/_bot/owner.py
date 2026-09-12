@@ -5,7 +5,7 @@ import speedtest
 import time, asyncio, humanize, datetime
 from discord.ext import commands, pages
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, PremiumConfig
 
 TRIAL_DAYS = {
     "1 Month": 31,
@@ -238,7 +238,7 @@ class Owner(commands.Cog):
             "code_expiry": period_end,  # Keep for backwards compatibility
         }
 
-        doc.premium = premium
+        doc.premium = PremiumConfig(**premium)
         await doc.save()
 
         emb = discord.Embed(
@@ -264,8 +264,8 @@ class Owner(commands.Cog):
         if doc is None:
             return await ctx.respond("That guild has no config yet.", ephemeral=True)
 
-        doc.premium['status'] = False
-        doc.premium['active'] = False
+        doc.premium.status = False
+        doc.premium.active = False
         await doc.save()
 
         emb = discord.Embed(

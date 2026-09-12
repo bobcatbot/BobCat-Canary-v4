@@ -23,8 +23,8 @@ class Premium(commands.Cog):
         }).to_list()
 
         for doc in expired:
-            doc.premium['status'] = False
-            doc.premium['active'] = False
+            doc.premium.status = False
+            doc.premium.active = False
             await doc.save()
             guild = self.client.get_guild(int(doc.id))
             if guild:

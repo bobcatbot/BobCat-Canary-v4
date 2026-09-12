@@ -28,7 +28,7 @@ class ModKick(commands.Cog):
         reason = reason or "Unspecified"
 
         mod_data = (await Guild.get(str(ctx.guild.id))).dashboard.moderation
-        dm_fields = mod_data["settings"]["kick"]["dm"]
+        dm_fields = mod_data.settings.kick.dm
 
         await send_member_dm(
             member=member,

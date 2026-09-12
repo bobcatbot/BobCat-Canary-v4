@@ -32,8 +32,8 @@ class Ban(commands.Cog):
         reason = reason or "Unspecified"
 
         mod_data = (await Guild.get(str(ctx.guild.id))).dashboard.moderation
-        dm_fields = mod_data["settings"]["ban"]["dm"]
-        default_delete_days = mod_data["settings"]["ban"]["deleteMessageDays"]
+        dm_fields = mod_data.settings.ban.dm
+        default_delete_days = mod_data.settings.ban.deleteMessageDays
 
         try:
             default_delete_days = int(default_delete_days)

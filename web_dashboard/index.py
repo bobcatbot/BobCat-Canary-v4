@@ -1,6 +1,8 @@
 import logging
 import stripe
+from pydantic import BaseModel
 from quart import Quart, render_template, flash, session, redirect, request, url_for
+from quart.json.provider import DefaultJSONProvider
 from zenora import BadTokenError
 
 from modules import bot as v
@@ -32,7 +34,21 @@ from .blueprints.plugins.birthdays import birthdays_bp
 from .blueprints.plugins.giveaways import giveaways_bp
 from .blueprints.plugins.economy import economy_bp
 
+class PydanticAwareJSONProvider(DefaultJSONProvider):
+    """Lets `| tojson` (and jsonify) serialize the typed DashConfig
+    sub-models directly - e.g. `data['join']['message']['embed'].fields`,
+    which is now a list of EmbedFieldConfig instances rather than plain
+    dicts, still round-trips through `{{ ... | tojson }}` in templates."""
+
+    @staticmethod
+    def default(obj):
+        if isinstance(obj, BaseModel):
+            return obj.model_dump()
+        return DefaultJSONProvider.default(obj)
+
 app = Quart(__name__)
+app.json_provider_class = PydanticAwareJSONProvider
+app.json = PydanticAwareJSONProvider(app)
 
 app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]

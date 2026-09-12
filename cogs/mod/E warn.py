@@ -104,7 +104,7 @@ class Warn(commands.Cog):
         embed.set_author(icon_url=member.avatar.url, name=f"{member} has been warned")
         await ctx.respond(embed=embed)
 
-        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation["settings"]["warn"]["dm"]
+        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation.settings.warn.dm
 
         await send_member_dm(
             member=member,
@@ -197,7 +197,7 @@ class UnWarn(commands.Cog):
         embed.add_field(name="Infraction", value=f"{warning.reason} • `{warning.case}`", inline=False)
         await ctx.respond(embed=embed)
 
-        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation["settings"]["warn"]["dm"]
+        dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation.settings.warn.dm
 
         await send_member_dm(
             member=member,

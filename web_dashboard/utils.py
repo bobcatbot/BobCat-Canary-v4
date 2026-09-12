@@ -4,7 +4,8 @@ from quart import session, request, render_template, url_for, redirect, jsonify,
 from zenora import APIClient
 
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, DictModel
+from cogs._bot.bot_dash import sync_guild_dashboard
 from .config import BOT_TOKEN, CLIENT_SECRET
 from .db import get_guild
 from .plugins import PLUGIN_LIST
@@ -69,13 +70,11 @@ async def check_guild_permission(guild, user_id) -> tuple[bool, str]:
             return True, "Administrator"
 
         # Check custom admin roles
-        admin_roles = settings.get('admin_roles', [])
-        if any(str(role.id) in admin_roles for role in member.roles):
+        if any(str(role.id) in settings.admin_roles for role in member.roles):
             return True, "Admin Role"
 
         # Check bot master roles
-        bot_masters = settings.get('bot_masters', [])
-        if any(str(role.id) in bot_masters for role in member.roles):
+        if any(str(role.id) in settings.bot_masters for role in member.roles):
             return True, "Bot Master"
 
         return False, "Insufficient permissions"
@@ -147,16 +146,20 @@ def unflatten_keys(data: dict) -> dict:
     return result
 
 
-def deep_merge(base: dict, incoming: dict) -> dict:
+def deep_merge(base, incoming: dict):
     """Recursively merge ``incoming`` into ``base`` (mutates and returns ``base``).
 
-    Nested dicts merge key-by-key so a partial update (e.g. only
+    Nested dict-likes merge key-by-key so a partial update (e.g. only
     ``intro_message.embed.title``) doesn't wipe its siblings; every other value
-    type overwrites.
+    type overwrites. ``base`` can be a plain dict or a DictModel (the typed
+    DashConfig sub-models) - both support .get()/[]=/__setitem__, but only
+    DictModel needs the isinstance check widened to still recurse into it
+    instead of overwriting the whole nested object.
     """
     for key, value in incoming.items():
-        if isinstance(value, dict) and isinstance(base.get(key), dict):
-            deep_merge(base[key], value)
+        current = base.get(key)
+        if isinstance(value, dict) and isinstance(current, (dict, DictModel)):
+            deep_merge(current, value)
         else:
             base[key] = value
     return base
@@ -198,6 +201,13 @@ def plugin_guard(plugin_key, *, require_enabled=True):
                 if is_write:
                     return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
                 return await render_template("error/404.html"), 404
+
+            # The bot's in the guild but there's no config doc yet (never set
+            # up, or a doc that was deleted) - create it now so every route
+            # behind this guard (not just the dashboard home page) has a real
+            # doc to work with, whether reached via "Setup" or a direct link.
+            if await Guild.get(str(guild.id)) is None:
+                await sync_guild_dashboard(guild)
 
             try:
                 user = bearer_client().get_current_user()

@@ -3,7 +3,7 @@ import discord
 from quart import Blueprint, request, render_template, jsonify
 
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, StatsConfig
 from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
@@ -20,7 +20,7 @@ async def stats(guild_id):
         return await render_template("error/404.html"), 404
 
     config = await Guild.get(str(guild.id))
-    stats_config = config.dashboard.stats if config else {}
+    stats_config = config.dashboard.stats if config else StatsConfig()
 
     guild_premium = await is_premium(guild)
 
@@ -47,8 +47,8 @@ async def stats_setup(guild_id):
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
     # Check if already set up
-    counters = config.dashboard.stats.get('counters', [])
-    if any(c.get('channel_id') for c in counters):
+    counters = config.dashboard.stats.counters
+    if any(c.channel_id for c in counters):
         return jsonify({'status': 'error', 'message': 'Stats already configured'}), 400
 
     # Default counters
@@ -83,7 +83,7 @@ async def stats_setup(guild_id):
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     # Save config
-    config.dashboard.stats["counters"] = default_counters
+    config.dashboard.stats.counters = default_counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
     print(f"Setup stats channels for guild {guild_id}")
@@ -139,7 +139,7 @@ async def stats_create_counter(guild_id):
     # Enforce the free / premium channel cap before touching Discord
     guild_premium = await is_premium(guild)
     cap = plugin_item_cap('stats', guild_premium)
-    if len(config.dashboard.stats.get('counters', [])) >= cap:
+    if len(config.dashboard.stats.counters) >= cap:
         msg = f"You've reached your limit of {cap} stat channels."
         if not guild_premium:
             msg += f" Upgrade to premium for up to {plugin_item_cap('stats', True)}."
@@ -154,7 +154,7 @@ async def stats_create_counter(guild_id):
     print(f"Created stats counter channel {channel.name} for guild {guild_id}")
 
     # Add the counter to config
-    counters = config.dashboard.stats.get('counters', [])
+    counters = config.dashboard.stats.counters
     new_counter = {
         "target": target,
         "text": template.format(kind=formated_target, count='{count}'),
@@ -166,7 +166,7 @@ async def stats_create_counter(guild_id):
     counter_index = len(counters) - 1
 
     # Save config
-    config.dashboard.stats["counters"] = counters
+    config.dashboard.stats.counters = counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
     print(f"Saved counter {target} for guild {guild_id}")
@@ -198,14 +198,14 @@ async def stats_delete_counter(guild_id, counter_idx):
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
-    counters = config.dashboard.stats.get('counters', [])
+    counters = config.dashboard.stats.counters
     if counter_idx >= len(counters):
         return jsonify({'status': 'error', 'message': 'Counter not found'}), 404
 
     counter = counters[counter_idx]
 
     # Delete Discord channel
-    channel_id = counter.get('channel_id')
+    channel_id = counter.channel_id
     if channel_id:
         channel = guild.get_channel(int(channel_id))
         if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
@@ -218,7 +218,7 @@ async def stats_delete_counter(guild_id, counter_idx):
 
     # Remove from config
     counters.pop(counter_idx)
-    config.dashboard.stats["counters"] = counters
+    config.dashboard.stats.counters = counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
     print(f"Deleted counter {counter_idx} for guild {guild_id}")
@@ -238,10 +238,10 @@ async def stats_reset(guild_id):
     if config is None:
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
-    counters = config.dashboard.stats.get('counters', [])
+    counters = config.dashboard.stats.counters
 
     for counter in counters:
-        channel_id = counter.get('channel_id')
+        channel_id = counter.channel_id
         if channel_id:
             channel = guild.get_channel(int(channel_id))
             if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
@@ -254,7 +254,7 @@ async def stats_reset(guild_id):
                     print(f"Error deleting channel: {e}")
 
     # Clear config
-    config.dashboard.stats["counters"] = []
+    config.dashboard.stats.counters = []
     config.updated_at = discord.utils.utcnow()
     await config.save()
     print(f"Reset all stats for guild {guild_id}")
@@ -278,8 +278,8 @@ async def stats_reorder(guild_id):
     if config is None:
         return jsonify({'status': 'error', 'message': 'Config not found'}), 404
 
-    counters = config.dashboard.stats.get('counters', [])
-    counter_map = {c['target']: c for c in counters}
+    counters = config.dashboard.stats.counters
+    counter_map = {c.target: c for c in counters}
 
     # Reorder counters
     ordered_counters = []
@@ -288,20 +288,20 @@ async def stats_reorder(guild_id):
             ordered_counters.append(counter_map[target])
 
     # Add any missing counters at the end
-    existing_targets = set(c['target'] for c in ordered_counters)
+    existing_targets = set(c.target for c in ordered_counters)
     for counter in counters:
-        if counter['target'] not in existing_targets:
+        if counter.target not in existing_targets:
             ordered_counters.append(counter)
 
     # Save to database
-    config.dashboard.stats["counters"] = ordered_counters
+    config.dashboard.stats.counters = ordered_counters
     config.updated_at = discord.utils.utcnow()
     await config.save()
 
     # Reorder Discord channels
     stats_channels = []
     for counter in ordered_counters:
-        channel_id = counter.get('channel_id')
+        channel_id = counter.channel_id
         if channel_id:
             channel = guild.get_channel(int(channel_id))
             if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):

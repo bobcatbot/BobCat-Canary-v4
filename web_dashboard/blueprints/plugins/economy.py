@@ -21,14 +21,10 @@ async def economy(guild_id):
     
     # Get economy config from dashboard
     dash_data = config.dashboard.economy
-    
-    # Count shop items
-    shop_items = dash_data.get('shop', [])
-    num_items = len(shop_items)
-    
+
     # Add num_items to the data for the template
-    data = dash_data.copy() if isinstance(dash_data, dict) else {}
-    data['num_items'] = num_items
+    data = dash_data.copy()
+    data['num_items'] = len(dash_data.shop)
 
     guild_premium = await is_premium(guild)
 

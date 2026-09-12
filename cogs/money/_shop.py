@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple, Union
-from modules.models import Guild, Economy
+from modules.models import Guild, Economy, ShopItemConfig
 
 # Fallback currency icon when the guild hasn't set one on the dashboard
 DEFAULT_CURRENCY_ICON = "🪙"
@@ -35,12 +35,15 @@ async def get_shop(guild) -> List[dict]:
         if doc is None:
             return mainshop
         
-        shop = doc.dashboard.economy.get("shop", [])
+        shop = doc.dashboard.economy.shop
         if not shop:
-            doc.dashboard.economy["shop"] = mainshop
+            # Assign typed instances (not raw dicts) so this doesn't trip a
+            # Pydantic serializer warning on save - DictModel doesn't
+            # validate/coerce on plain attribute assignment, only on load.
+            doc.dashboard.economy.shop = [ShopItemConfig(**item) for item in mainshop]
             await doc.save()
             return mainshop
-        
+
         return shop
     except Exception as e:
         print(f"Error getting shop for guild {guild.id}: {e}")
@@ -52,7 +55,7 @@ async def get_currency_icon(guild) -> str:
         doc = await Guild.get(str(guild.id))
         if doc is None:
             return DEFAULT_CURRENCY_ICON
-        return doc.dashboard.economy.get("icon") or DEFAULT_CURRENCY_ICON
+        return doc.dashboard.economy.icon or DEFAULT_CURRENCY_ICON
     except Exception as e:
         print(f"Error getting currency icon for guild {guild.id}: {e}")
         return DEFAULT_CURRENCY_ICON

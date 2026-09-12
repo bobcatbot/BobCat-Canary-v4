@@ -1,7 +1,14 @@
 import discord
 import json
+import pathlib
 from discord.ext import commands
 from modules import bot as v
+
+# "server.json" is a relative path, so it only resolves if the process's cwd
+# happens to be the repo root - not guaranteed depending on how the bot is
+# launched. Resolve it from this file's own location instead so it works
+# regardless of the launch cwd. (cogs/system/<this file> -> repo root is two parents up.)
+SERVER_JSON = pathlib.Path(__file__).resolve().parent.parent.parent / "server.json"
 
 class Sticky(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -35,7 +42,7 @@ class Sticky(commands.Cog):
         channel = message.channel
 
         # Load config inline
-        with open("server.json", "r") as f:
+        with open(SERVER_JSON, "r") as f:
             config = json.load(f)
 
         sticky_root = config["Dash"]["sticky_messages"]
@@ -68,7 +75,7 @@ class Sticky(commands.Cog):
         sticky_root["messages"] = messages
         config["Dash"]["sticky_messages"] = sticky_root
 
-        with open("server.json", "w") as f:
+        with open(SERVER_JSON, "w") as f:
             json.dump(config, f, indent=2)
 
         # Cache
@@ -90,7 +97,7 @@ class Sticky(commands.Cog):
         channel = ctx.channel
 
         # Load config inline
-        with open("server.json", "r") as f:
+        with open(SERVER_JSON, "r") as f:
             config = json.load(f)
 
         sticky_root = config["Dash"]["sticky_messages"]
@@ -112,7 +119,7 @@ class Sticky(commands.Cog):
                 sticky_root["messages"] = messages
                 config["Dash"]["sticky_messages"] = sticky_root
 
-                with open("server.json", "w") as f:
+                with open(SERVER_JSON, "w") as f:
                     json.dump(config, f, indent=2)
 
                 return await ctx.send("🗑️ Sticky removed from this channel.")
@@ -146,7 +153,7 @@ class Sticky(commands.Cog):
         sticky_root["messages"] = messages
         config["Dash"]["sticky_messages"] = sticky_root
 
-        with open("server.json", "w") as f:
+        with open(SERVER_JSON, "w") as f:
             json.dump(config, f, indent=2)
 
         await ctx.send("✅ Sticky saved. It will update after the next message.")

@@ -36,23 +36,14 @@ def register_context_processors(app):
             from quart import session
             if "token" not in session:
                 return []
-            
+
             guild_ids = {g.id for g in v.client.guilds}
-            
-            if "cached_guilds" in session:
-                return [g for g in session["cached_guilds"] if g['id'] in guild_ids]
-            
-            guilds = []
-            for guild in bearer_client().get_my_guilds():
-                if guild.id in guild_ids:
-                    guilds.append({
-                        'id': guild.id,
-                        'name': guild.name,
-                        'icon_url': guild.icon_url,
-                    })
-            
-            session["cached_guilds"] = guilds
-            return guilds
+
+            return [
+                {'id': guild.id, 'name': guild.name, 'icon_url': guild.icon_url}
+                for guild in bearer_client().get_my_guilds()
+                if guild.id in guild_ids
+            ]
 
         _notif_cache = {}
 

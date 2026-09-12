@@ -18,13 +18,10 @@ async def moderation(guild_id):
     # Get the guild document using Beanie
     config = (await Guild.get(str(guild.id))).dashboard.moderation
 
-    # Get logging config from moderation
-    logging_config = config.get('logging', {})
-    
     return await render_template(
         "dashboard/plugins/moderation.html",
         user=current_user,
         guild=guild,
         data=config,
-        logging=logging_config
+        logging=config.logging
     )

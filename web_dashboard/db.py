@@ -1,7 +1,7 @@
 # web_dashboard/db.py – QUART VERSION (NO FLASK g)
 
 from modules import bot as v
-from modules.models import Guild, Notification, DashConfig
+from modules.models import Guild, Notification, DashConfig, SettingsConfig
 
 def _guild_id(guild) -> str:
     return str(getattr(guild, "id", guild))
@@ -14,7 +14,7 @@ async def get_guild(guild) -> Guild | None:
     guild_id = _guild_id(guild)
     return await Guild.get(guild_id)
 
-async def get_settings_config(guild) -> dict | None:
+async def get_settings_config(guild) -> SettingsConfig | None:
     doc = await get_guild(guild)
     return doc.settings if doc else None
 

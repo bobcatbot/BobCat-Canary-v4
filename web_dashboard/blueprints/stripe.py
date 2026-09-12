@@ -11,7 +11,7 @@ from ..consts import premium_types
 from ..utils import bearer_client, check_guild_permission, login_required
 
 from modules import bot as v
-from modules.models import Guild, StripeEvent
+from modules.models import Guild, StripeEvent, PremiumConfig
 
 
 stripe_bp = Blueprint('stripe', __name__)
@@ -46,7 +46,7 @@ async def _authorize_billing(guild_id):
 
 def _resolve_customer(doc, current_user):
     """Return an existing Stripe customer for this guild/user, creating one if needed."""
-    customer_id = (doc.premium or {}).get('customer')
+    customer_id = doc.premium.customer
     if customer_id:
         return customer_id
 
@@ -84,7 +84,7 @@ async def _release_event(event_id):
 def _tz_from_doc(doc):
     """Get timezone from guild settings or default to UTC."""
     try:
-        return pytz.timezone(doc.settings.get('timezone') or 'UTC')
+        return pytz.timezone(doc.settings.timezone or 'UTC')
     except (pytz.UnknownTimeZoneError, AttributeError):
         return pytz.UTC
 
@@ -99,7 +99,7 @@ async def _find_guild_for_subscription(subscription_id, customer_id=None):
     doc = await Guild.find_one({"premium.id": subscription_id})
     if not doc:
         return None
-    doc_customer = doc.premium.get('customer')
+    doc_customer = doc.premium.customer
     if customer_id and doc_customer and doc_customer != customer_id:
         print(f"Subscription {subscription_id} does not match customer on guild {doc.id}")
         return None
@@ -217,19 +217,19 @@ async def _handle_checkout_completed(session):
             print(f"Error getting line items: {e}")
             plan = 'basic'
 
-    doc.premium = {
-        "id": payment_id,
-        "status": True,
-        "active": session.status == 'complete',
-        "plan": plan,
-        "customer": session.customer,
-        "user_id": user_id,
-        "period_end": _utc(current_period_end).astimezone(_tz_from_doc(doc)) if current_period_end else None,
-    }
+    doc.premium = PremiumConfig(
+        id=payment_id,
+        status=True,
+        active=session.status == 'complete',
+        plan=plan,
+        customer=session.customer,
+        user_id=user_id,
+        period_end=_utc(current_period_end).astimezone(_tz_from_doc(doc)) if current_period_end else None,
+    )
     await doc.save()
-    
+
     print(f"✅ Premium activated for guild {guild_id} with plan {plan}")
-    print(f"📅 Stored period_end: {doc.premium.get('period_end')}")
+    print(f"📅 Stored period_end: {doc.premium.period_end}")
     return {"status": "success", "guild_id": guild_id, "plan": plan}, 200
 
 
@@ -245,17 +245,17 @@ async def _handle_subscription_updated(subscription):
         return {"status": "ignored"}, 200
 
     if subscription.cancel_at or subscription.canceled_at:
-        doc.premium = {}
+        doc.premium = PremiumConfig()
         await doc.save()
         print(f"❌ Subscription cancelled for guild {doc.id}")
         return {"status": "success", "msg": "User canceled subscription"}, 200
 
-    if not doc.premium.get('status'):
-        doc.premium['status'] = True
-        doc.premium['active'] = True
+    if not doc.premium.status:
+        doc.premium.status = True
+        doc.premium.active = True
 
         if subscription.current_period_end:
-            doc.premium['period_end'] = _utc(subscription.current_period_end).astimezone(_tz_from_doc(doc))
+            doc.premium.period_end = _utc(subscription.current_period_end).astimezone(_tz_from_doc(doc))
 
         await doc.save()
         print(f"✅ Subscription renewed for guild {doc.id}")
@@ -275,7 +275,7 @@ async def _handle_subscription_deleted(subscription):
         print(f"No guild found for subscription {subscription.id}")
         return {"status": "ignored"}, 200
 
-    doc.premium = {}
+    doc.premium = PremiumConfig()
     await doc.save()
     print(f"❌ Subscription deleted for guild {doc.id}")
     return {"status": "success", "msg": "Subscription canceled"}, 200
@@ -296,9 +296,9 @@ async def _handle_invoice_paid(invoice):
     try:
         subscription = stripe.Subscription.retrieve(subscription_id)
         items = subscription['items']['data']
-        plan = (items[0]['price'].get('nickname') or '').lower() if items else doc.premium.get('plan')
+        plan = (items[0]['price'].get('nickname') or '').lower() if items else doc.premium.plan
         if plan and plan not in premium_types:
-            plan = doc.premium.get('plan', 'basic')
+            plan = doc.premium.plan or 'basic'
 
         period_end = subscription.current_period_end
         doc.premium.update({
@@ -329,8 +329,8 @@ async def _handle_invoice_payment_failed(invoice):
         print(f"No guild found for subscription {subscription_id}")
         return {"status": "ignored"}, 200
 
-    doc.premium['active'] = False
-    doc.premium['status'] = False
+    doc.premium.active = False
+    doc.premium.status = False
     await doc.save()
     print(f"❌ Invoice payment failed for guild {doc.id}")
     return {"status": "success", "msg": "Invoice payment failed"}, 200
@@ -392,7 +392,7 @@ async def stripe_portal(guild_id):
     if error:
         return jsonify(error[0]), error[1]
 
-    customer_id = (doc.premium or {}).get('customer')
+    customer_id = doc.premium.customer
     if not customer_id:
         return jsonify({'error': 'No billing account for this guild'}), 404
 

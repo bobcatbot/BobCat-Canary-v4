@@ -2,7 +2,7 @@ import datetime
 import discord
 from discord.ext import commands
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, MuteSettingsConfig
 from ._helpers import can_moderate, send_member_dm, audit_log
 
 DURATIONS = {
@@ -23,12 +23,11 @@ TIMEOUT_CHOICES = {
     "1 WEEK": (datetime.timedelta(weeks=1), "1 week"),
 }
 
-async def get_mute_settings(guild: discord.Guild) -> dict:
+async def get_mute_settings(guild: discord.Guild) -> MuteSettingsConfig:
     guild_config = await Guild.get(str(guild.id))
     if guild_config is None:
-        return {}
-    moderation = guild_config.dashboard.moderation or {}
-    return moderation.get("settings", {}).get("mute", {})
+        return MuteSettingsConfig()
+    return guild_config.dashboard.moderation.settings.mute
 
 class Mute(commands.Cog):
     def __init__(self, client):
@@ -50,9 +49,9 @@ class Mute(commands.Cog):
         reason = reason or "Unspecified"
 
         mute_settings = await get_mute_settings(ctx.guild)
-        mute_type = mute_settings.get("type", "timeout")
-        mute_duration = mute_settings.get("duration", "10-min")
-        dm_fields = mute_settings.get("dm", [])
+        mute_type = mute_settings.type or "timeout"
+        mute_duration = mute_settings.duration or "10-min"
+        dm_fields = mute_settings.dm
 
         duration_text = None
 
@@ -155,8 +154,8 @@ class UnMute(commands.Cog):
             return await ctx.respond(embed=discord.Embed(title="❌ Unmute failed", description=error_message, color=v.error), ephemeral=True)
 
         mute_settings = await get_mute_settings(ctx.guild)
-        mute_type = mute_settings.get("type", "timeout")
-        dm_fields = mute_settings.get("dm", [])
+        mute_type = mute_settings.type or "timeout"
+        dm_fields = mute_settings.dm
 
         if mute_type == "role":
             muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
@@ -245,7 +244,7 @@ class Timeout(commands.Cog):
             return await ctx.respond("❌ Invalid timeout duration.", ephemeral=True)
 
         mute_settings = await get_mute_settings(ctx.guild)
-        dm_fields = mute_settings.get("dm", [])
+        dm_fields = mute_settings.dm
 
         timeout_duration, duration_text = timeout_data
         reason = reason or "Unspecified"

@@ -9,21 +9,20 @@ class events(commands.Cog):
         self.client = client
 
     # ── Helper ────────────────────────────────────────────────────────────────
-    async def _get_logging(self, guild_id: int) -> dict:
-        return (await Guild.get(str(guild_id))).dashboard.moderation["logging"]
+    async def _get_logging(self, guild_id: int):
+        return (await Guild.get(str(guild_id))).dashboard.moderation.logging
 
     async def _get_log_channel(self, guild_id: int, event: str) -> discord.TextChannel | None:
         """Returns the log channel if the event is enabled, otherwise None."""
         logging = await self._get_logging(guild_id)
 
-        if not logging["events"].get(event, False):
+        if not logging.events.get(event, False):
             return None
 
-        log_channel = logging.get("channel")
-        if not log_channel:
+        if not logging.channel:
             return None
 
-        return self.client.get_channel(int(log_channel))
+        return self.client.get_channel(int(logging.channel))
 
     def _author(self, embed: discord.Embed, user: discord.User | discord.Member) -> discord.Embed:
         """Sets the embed author with avatar fallback."""
@@ -160,7 +159,7 @@ class events(commands.Cog):
             return
 
         # Skip bot messages if the setting says to
-        if (await self._get_logging(message.guild.id)).get("bots", False) and message.author.bot:
+        if (await self._get_logging(message.guild.id)).bots and message.author.bot:
             return
 
         content = message.content or "*[No text content]*"
@@ -208,7 +207,7 @@ class events(commands.Cog):
         if not channel:
             return
 
-        if (await self._get_logging(after.guild.id)).get("bots", False) and after.author.bot:
+        if (await self._get_logging(after.guild.id)).bots and after.author.bot:
             return
 
         embed = discord.Embed(

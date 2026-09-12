@@ -1,81 +1,105 @@
 import discord
 from discord.ext import commands
+from pymongo.errors import DuplicateKeyError
 from modules import bot as v
 from modules.models import Guild, Leveling as LevelingModel
 
 def _default_dashboard() -> dict:
-    """Default `dashboard` (Dash) config for a brand new guild.
-    Keys here must match DashConfig's fields in models.py exactly."""
+    """Default dashboard config for a brand new guild. Keys here must match DashConfig's fields in models.py exactly."""
     return {
         "welcome": {
-            'status': False,
-            'join': {
-                'status': False,
-                'channel': None,
-                'message': {'type': 'text', 'content': 'Hey {user}, welcome to **{server}**!'},
+            "status": False,
+            "join": {
+                "status": False,
+                "channel": None,
+                "message": {
+                    "type": "text",
+                    "content": "Hey {user}, welcome to **{server}**!"
+                },
             },
-            'dm': {
-                'status': False,
-                'message': {'type': 'text', 'content': 'Have a great time here in **{server}**'},
+            "dm": {
+                "status": False,
+                "message": {
+                    "type": "text",
+                    "content": "Have a great time here in **{server}**"
+                },
             },
-            'leave': {
-                'status': False,
-                'channel': None,
-                'message': {'type': 'text', 'content': '**{user}** just left the server. Bye!'},
+            "leave": {
+                "status": False,
+                "channel": None,
+                "message": {
+                    "type": "text",
+                    "content": "**{user}** just left the server. Bye!"
+                },
             },
-            'autoRoles': {'status': False, 'roles': []},
+            "autoRoles": {
+                "status": False,
+                "roles": []
+            },
         },
         "moderation": {
-            'status': False,
-            'automod': {
-                'Timeout': {'enabled': False},
-                'ServerInvites': {'enabled': False},
-                'Externallinks': {'enabled': False},
-                'GhostPing': {'enabled': False},
+            "status": False,
+            "settings": {
+                "kick": {
+                    "dm": []  # server | action | moderator | reason
+                },
+                "ban": {
+                    "dm": [],  # server | action | moderator | reason
+                    "deleteMessageDays": "0"
+                },
+                "mute": {
+                    "dm": [],  # server | action | moderator | reason
+                    "type": "timeout",
+                    "duration": "60-sec"
+                },
+                "warn": {
+                    "dm": []  # server | action | moderator | reason
+                },
             },
-            'settings': {
-                'kick': {'dm': []},
-                'ban': {'dm': [], 'deleteMessageDays': '0'},
-                'mute': {'dm': [], 'type': 'timeout', 'duration': '60-sec'},
-                'warn': {'dm': []},
-            },
-            'logging': {
+            "logging": {
                 "channel": None,
                 "bots": False,
                 "events": {
-                    'ModerationKick': False, 'ModerationBan': False, 'ModerationUnban': False,
-                    'ModerationMute': False, 'ModerationUnmute': False, 'ModerationWarn': False,
-                    'ModerationUnwarn': False,
-                    'Verification': False,
-                    'MemberJoin': False, 'MemberLeave': False, 'MemberUpdate': False,
-                    'MemberBan': False, 'MemberUnban': False,
-                    'MessageDelete': False, 'MessageEdit': False,
-                    'ServerUpdate': False, 'ServerInviteCreate': False, 'ServerInviteDelete': False,
-                    'ServerEmojis': False,
-                    'ChannelCreate': False, 'ChannelDelete': False, 'ChannelUpdate': False,
-                    'RoleCreate': False, 'RoleDelete': False, 'RoleUpdate': False,
+                    "ModerationKick": False, "ModerationBan": False, "ModerationUnban": False, "ModerationMute": False,
+                    "ModerationUnmute": False, "ModerationWarn": False, "ModerationUnwarn": False,
+                    "MemberJoin": False, "MemberLeave": False, "MemberUpdate": False, "MemberBan": False, "MemberUnban": False,
+                    "MessageDelete": False, "MessageEdit": False,
+                    "ServerUpdate": False, "ServerInviteCreate": False, "ServerInviteDelete": False, "ServerEmojis": False,
+                    "ChannelCreate": False, "ChannelDelete": False, "ChannelUpdate": False,
+                    "RoleCreate": False, "RoleDelete": False, "RoleUpdate": False,
+                    "Verification": False,
                 },
             },
         },
         "leveling": {
-            'status': False,
-            'channel': None,
-            'message': {'status': 'CurrentChannel', 'content': 'Congrats, {user} You has reached level {level}'},
-            'roleRewards': {"stacked": False, "roles": []},
-            'leaderboard': {'public': False, 'url': '', 'banner': ''},
-            'card': 'blurple-rank.png',
-            'economy': False,
-            'auto_reset': True,
-            'cooldown': 60,
-            'max_level': 0,
-            'noXP': [],
+            "status": False,
+            "channel": None,
+            "message": {
+                "status": "CurrentChannel",
+                "content": "Congrats, {user} You has reached level {level}"
+            },
+            "roleRewards": {
+                "stacked": False,
+                "roles": []
+            },
+            "leaderboard": {
+                "public": False,
+                "url": "",
+                "banner": ""
+            },
+            "card": "blurple-rank.png",
+            "economy": False,
+            "auto_reset": True,
+            "cooldown": 60,
+            "max_level": 0,
+            "noXP": [],
         },
         "verification": {
-            'status': False,
-            'channel': None,
-            'role': None,
-            'mode': 'instant',
-            'failAction': 'unverified',
+            "status": False,
+            "channel": None,
+            "role": None,
+            "mode": "instant",  # instant | captcha_dm | captcha_channel | captcha_web
+            "failAction": "unverified",  # unverified | kick | ban | timeout
             "message": {
                 "embed": {
                     "title": "Verification",
@@ -84,27 +108,33 @@ def _default_dashboard() -> dict:
                     "author": {"name": ""},
                     "footer": {"text": ""},
                 },
-                "btn": {"emoji": "\u2705", "title": "Verify", "color": "green"},
+                "btn": {"emoji": "✅", "title": "Verify", "color": "green"},
             },
             "message_id": "",
             "message_published": False,
         },
         "starboard": {
-            'status': False,
-            'channel': None,
-            'emoji': '⭐',
-            'limit': '3',
-            'jumpLink': True,
-            'selfStar': False,
-            'locked': False,
-            'ignore': [],
-            'allowNsfw': False,
-            'embedNsfwImages': False,
-            'autoStar': [],
+            "status": False,
+            "channel": None,
+            "emoji": "⭐",
+            "limit": "3",
+            "jumpLink": True,
+            "selfStar": False,
+            "locked": False,
+            "ignore": [],
+            "allowNsfw": False,
+            "embedNsfwImages": False,
+            "autoStar": [],
         },
-        "forms": { 'status': False, },
-        "temporary_channels": {'status': False, 'hubs': []},
-        "ticketing": {'status': False, 'panels': []},
+        "forms": {"status": False},
+        "temporary_channels": {
+            "status": False,
+            "hubs": []
+        },
+        "ticketing": {
+            "status": False,
+            "panels": []
+        },
         "birthdays": {
             "status": False,
             "channel_id": "",
@@ -112,21 +142,25 @@ def _default_dashboard() -> dict:
             "birthday_role": "",
             "message": "**Happy birthday, {user.mention}!** They are now {age} years old.",
         },
-        "giveaways": {},
+        "giveaways": {
+        },
         "economy": {
-            'status': False,
-            'shop': [
+            "status": False,
+            "shop": [
                 {"name": "Teddy", "price": 50, "icon": "🧸", "description": "Very soft cuddly teddy bear", "type": "string", "max_limit": 5},
                 {"name": "Watch", "price": 100, "icon": "⌚", "description": "A thing to tell the time", "type": "string", "max_limit": 5},
                 {"name": "Phone", "price": 500, "icon": "📱", "description": "A phone", "type": "string", "max_limit": 5},
                 {"name": "Laptop", "price": 1000, "icon": "💻", "description": "A nice laptop for work and play", "type": "string", "max_limit": 5},
             ],
-            'name': 'BobCat Coin',
-            'icon': '🪙',
-            'MaxGambling': '250',
-            'MaxPayment': '500',
+            "name": "BobCat Coin",
+            "icon": "🪙",
+            "MaxGambling": "250",
+            "MaxPayment": "500",
         },
-        "stats": {"status": False, "counters": []},
+        "stats": {
+            "status": False,
+            "counters": []
+        },
     }
 
 async def init_database(guild: discord.Guild) -> bool:
@@ -140,9 +174,9 @@ async def init_database(guild: discord.Guild) -> bool:
         id=str(guild.id),
         premium={"status": False},
         settings={
-            'language': guild.preferred_locale,
-            'timezone': "UTC",
-            'color': "#5865f2",
+            "language": guild.preferred_locale,
+            "timezone": "UTC",
+            "color": "#5865f2",
             "admin_roles": admin_roles,
             "bot_masters": [],
             "moderator_roles": [],
@@ -152,6 +186,49 @@ async def init_database(guild: discord.Guild) -> bool:
 
     return True
 
+
+def _deep_fill_gaps(existing: dict, defaults: dict) -> list[str]:
+    """Recursively add any key present in `defaults` but missing from
+    `existing` (mutates `existing` in place). Never touches a key that's
+    already there, even if its value differs from the default - this is
+    for backfilling schema drift (a plugin field added after the guild's
+    doc was created), not resetting customization. Returns the dotted
+    paths that were added, for logging."""
+    added = []
+    for key, value in defaults.items():
+        if key not in existing:
+            existing[key] = value
+            added.append(key)
+        elif isinstance(value, dict) and isinstance(existing.get(key), dict):
+            added.extend(f"{key}.{path}" for path in _deep_fill_gaps(existing[key], value))
+    return added
+
+
+async def sync_guild_dashboard(guild: discord.Guild) -> None:
+    """Runs on every on_ready (all guilds) and on_guild_join.
+
+    If the guild has no doc yet, creates one with full defaults
+    (init_database). If it already has one, backfills any dashboard keys
+    missing from the *stored* document (e.g. a plugin field added to
+    _default_dashboard() after this guild's doc was created) without
+    touching anything already configured. Reads/writes the raw document
+    directly - Guild.get() would silently paper over a missing key with
+    its (safe-empty) model default rather than the real starter value,
+    and never persist the fix back to Mongo.
+    """
+    collection = Guild.get_pymongo_collection()
+    raw = await collection.find_one({"_id": str(guild.id)})
+
+    if raw is None:
+        await init_database(guild)
+        return
+
+    dash = raw.get("Dash", {})
+    added = _deep_fill_gaps(dash, _default_dashboard())
+    if added:
+        await collection.update_one({"_id": str(guild.id)}, {"$set": {"Dash": dash}})
+        print(f"Backfilled dashboard fields for guild {guild.id}: {', '.join(added)}")
+
 async def sync_admin_roles(guild: discord.Guild) -> None:
     """Keeps settings.admin_roles in line with which roles actually
     have the Administrator permission right now."""
@@ -159,7 +236,7 @@ async def sync_admin_roles(guild: discord.Guild) -> None:
     if doc is None:
         return
 
-    doc.settings["admin_roles"] = [
+    doc.settings.admin_roles = [
         str(role.id) for role in guild.roles if role.permissions.administrator
     ]
     await doc.save()
@@ -171,11 +248,11 @@ class GuildEvents(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.client.guilds:
-            await init_database(guild)  # no-op if the guild already has a doc
+            await sync_guild_dashboard(guild)  # creates the doc if missing, else backfills gaps
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        await init_database(guild)
+        await sync_guild_dashboard(guild)
 
         channel = self.client.get_guild(v.btz_gid).get_channel(962696085787254814)
         await channel.send(f"<:enter:1110325436501737536> Joined {guild.name} ({guild.id})")
@@ -218,7 +295,7 @@ class GuildEvents(commands.Cog):
         if doc is None:
             return
 
-        if not doc.dashboard.leveling.get("auto_reset", False):
+        if not doc.dashboard.leveling.auto_reset:
             return
 
         await LevelingModel.find(

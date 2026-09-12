@@ -54,7 +54,7 @@ async def _leaderboard_action(guild, config):
     key = body.get("key")
 
     if key == "RemoveBanner":
-        config.dashboard.leveling.setdefault("leaderboard", {})["banner"] = ""
+        config.dashboard.leveling.leaderboard.banner = ""
         config.updated_at = discord.utils.utcnow()
         await config.save()
         return jsonify({"status": 200, "message": "Banner removed"})
@@ -122,7 +122,7 @@ async def leaderboard_home(identifier):
         return await _leaderboard_action(guild, config)
 
     lvl_config = config.dashboard.leveling
-    leaderboard_config = lvl_config.get('leaderboard', {})
+    leaderboard_config = lvl_config.leaderboard
 
     current_user = None
     if "token" in session:
@@ -132,7 +132,7 @@ async def leaderboard_home(identifier):
             current_user = None
 
     # Private leaderboards are visible only to logged-in members of the guild
-    if not leaderboard_config.get('public', False):
+    if not leaderboard_config.public:
         if not current_user or not guild.get_member(current_user.id):
             await flash('You are not allowed to view the leaderboard', 'error')
             return redirect(url_for('web.index'))
@@ -164,8 +164,8 @@ async def leaderboard_home(identifier):
             else:
                 settings = config.settings
                 if any(
-                    str(role.id) in settings.get('admin_roles', []) or 
-                    str(role.id) in settings.get('bot_masters', [])
+                    str(role.id) in settings.admin_roles or
+                    str(role.id) in settings.bot_masters
                     for role in member.roles
                 ):
                     gp = {'administrator': False, 'bot_master': True}

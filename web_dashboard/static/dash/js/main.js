@@ -189,11 +189,12 @@ function handlePremiumOnClick(event) {
 /* ── Sidebar plugin hover card ─────────────────────────────────────────────────
    Hover a sidebar plugin -> floating card with its name + description, and an
    "Upgrade your Server" CTA only when the plugin is premium and the guild is
-   not. Pointer-hover devices only. */
+   not. Mouse: shows on hover. Touch: a plain tap opens the plugin as normal;
+   holding a row down shows this as a peek instead (see hold-to-preview below). */
 (function () {
   const card = document.getElementById('PluginHoverCard');
   const nav = document.getElementById('sidebar-nav');
-  if (!card || !nav || !window.matchMedia('(hover: hover)').matches) return;
+  if (!card || !nav) return;
 
   const iconEl = card.querySelector('.phc-icon');
   const titleEl = card.querySelector('.phc-title');
@@ -208,6 +209,30 @@ function handlePremiumOnClick(event) {
     const r = link.getBoundingClientRect();
     const cw = card.offsetWidth;
     const ch = card.offsetHeight;
+
+    // Below the Bootstrap lg breakpoint the sidebar is a full-width mobile
+    // overlay, so placing the card beside the row (like desktop) doesn't
+    // work - sit it above the row instead, caret pointing down at it.
+    if (window.matchMedia('(max-width: 991.98px)').matches) {
+      card.classList.remove('phc-flip');
+
+      let left = r.left + r.width / 2 - cw / 2;
+      left = Math.max(12, Math.min(left, window.innerWidth - cw - 12));
+
+      let top = r.top - ch - 6;
+      const below = top < 12;
+      if (below) top = r.bottom + 6;
+      top = Math.max(12, Math.min(top, window.innerHeight - ch - 12));
+
+      card.classList.toggle('phc-above', !below);
+      card.classList.toggle('phc-below', below);
+      card.style.top = top + 'px';
+      card.style.left = left + 'px';
+      const caretLeft = r.left + r.width / 2 - left;
+      card.style.setProperty('--phc-caret-left', Math.max(12, Math.min(caretLeft, cw - 12)) + 'px');
+      return;
+    }
+    card.classList.remove('phc-above', 'phc-below');
 
     let top = r.top + r.height / 2 - ch / 2;
     top = Math.max(12, Math.min(top, window.innerHeight - ch - 12));
@@ -255,13 +280,80 @@ function handlePremiumOnClick(event) {
   }
 
   nav.querySelectorAll('.navbar-item.plugin > .navbar-link[data-key]').forEach(function (link) {
-    link.addEventListener('mouseenter', function () { show(link); });
-    link.addEventListener('mouseleave', scheduleHide);
+    link.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') show(link); });
+    link.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') scheduleHide(); });
   });
-  card.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
-  card.addEventListener('mouseleave', scheduleHide);
+  card.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') clearTimeout(hideTimer); });
+  card.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') scheduleHide(); });
   window.addEventListener('scroll', function () {
     if (active) { card.classList.remove('is-visible'); card.hidden = true; active = null; }
+  }, true);
+
+  // Touch has no hover, so give it a hold-to-preview gesture instead: a plain
+  // tap opens the plugin as normal (untouched, no interception); holding a
+  // row down for HOLD_MS shows this same card (desc + premium status) as a
+  // peek, and releasing dismisses it without navigating anywhere.
+  const HOLD_MS = 50;
+  const MOVE_TOLERANCE = 15; // px of finger drift before we call it a scroll, not a hold
+  let holdTimer = null;
+  let holdLink = null;
+  let holdStart = null;
+  let holdActive = false; // true once HOLD_MS has elapsed and the preview is showing
+  let suppressClickFor = null;
+
+  function clearHold() {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    holdLink = null;
+    holdStart = null;
+  }
+
+  nav.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch') return;
+    const link = e.target.closest('.navbar-item.plugin > .navbar-link[data-key]');
+    if (!link) return;
+    clearHold();
+    holdLink = link;
+    holdStart = { x: e.clientX, y: e.clientY };
+    holdActive = false;
+    holdTimer = setTimeout(function () {
+      holdActive = true;
+      show(link);
+    }, HOLD_MS);
+  }, true);
+
+  nav.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'touch' || !holdStart) return;
+    const dx = e.clientX - holdStart.x;
+    const dy = e.clientY - holdStart.y;
+    if (Math.hypot(dx, dy) > MOVE_TOLERANCE) clearHold();
+  }, true);
+
+  nav.addEventListener('pointerup', function (e) {
+    if (e.pointerType !== 'touch') return;
+    const link = holdLink;
+    const wasHold = holdActive;
+    clearHold();
+    holdActive = false;
+    if (wasHold && link) {
+      // this release was ending a hold-preview, not a tap - don't navigate
+      suppressClickFor = link;
+      scheduleHide();
+    }
+  }, true);
+
+  nav.addEventListener('pointercancel', function () {
+    clearHold();
+    holdActive = false;
+  }, true);
+
+  nav.addEventListener('click', function (e) {
+    const link = e.target.closest('.navbar-item.plugin > .navbar-link[data-key]');
+    if (link && suppressClickFor === link) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      suppressClickFor = null;
+    }
   }, true);
 })();
 

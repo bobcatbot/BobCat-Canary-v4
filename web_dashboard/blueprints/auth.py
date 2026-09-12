@@ -18,12 +18,22 @@ async def login():
 async def logout():
     session.pop("token", None)
     session.pop("user", None)
-    session.pop("cached_guilds", None)
     await flash("Logged you out...", "log-out")
     return redirect(url_for("web.index"))
 
 @auth_bp.route("/oauth/callback")
 async def oauth_callback():
+    # Bot-install completion (from dashboard_home's "Setup" redirect) rides
+    # the same registered redirect_uri as login, distinguished by `state`
+    # (the guild_id it was sent for). There's no identify-scoped code to
+    # exchange here - the bot's already been added by the time Discord
+    # redirects back - so just send them to that guild's dashboard, which
+    # creates the config doc if on_guild_join hasn't landed yet.
+    guild_id = request.args.get("state")
+    if guild_id and guild_id.isdigit():
+        await flash("Bot added! Setting up your server...", "log-in")
+        return redirect(url_for("dashboard.dashboard_home", guild_id=int(guild_id)))
+
     try:
         code = request.args.get("code")
         token = _api_client.oauth.get_access_token(code, REDIRECT_URI).access_token

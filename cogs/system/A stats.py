@@ -133,9 +133,9 @@ class Stats(commands.Cog):
             return False
         
         stats_config = guild_doc.dashboard.stats
-        statsStatus = stats_config.get('status', False)
-        statsCounters = stats_config.get('counters', [])
-        
+        statsStatus = stats_config.status
+        statsCounters = stats_config.counters
+
         if not statsStatus:
             return False
         if not statsCounters:
@@ -146,8 +146,8 @@ class Stats(commands.Cog):
         updated = False
         
         for counter in statsCounters:
-            target = counter.get("target")
-            channel_id = counter.get("channel_id")
+            target = counter.target
+            channel_id = counter.channel_id
             handler = self.COUNTER_HANDLERS.get(target)
             
             if handler is None:
@@ -181,7 +181,7 @@ class Stats(commands.Cog):
             
             try:
                 count = handler(stats)
-                text_template = counter.get("text", "{kind}: {count}")
+                text_template = counter.text or "{kind}: {count}"
                 
                 new_name = text_template.format(
                     kind=target.replace("Count", "").lower(),
@@ -209,17 +209,15 @@ class Stats(commands.Cog):
                     print(f"⏳ Rate limited on stats channel {channel.name}, backing off...")
                 continue
         
-        # Update stored counts
+        # Update stored counts - statsCounters is the live list on
+        # stats_config, so mutating each counter in place is enough; no
+        # need to reassign it back onto the dashboard.
         if updated:
             for counter in statsCounters:
-                target = counter.get("target")
-                handler = self.COUNTER_HANDLERS.get(target)
+                handler = self.COUNTER_HANDLERS.get(counter.target)
                 if handler:
-                    counter["count"] = handler(stats)
-                    
-            current_stats = getattr(guild_doc.dashboard, "stats", {})
-            current_stats["counters"] = statsCounters
-            guild_doc.dashboard.stats = current_stats
+                    counter.count = handler(stats)
+
             guild_doc.updated_at = discord.utils.utcnow()
             await guild_doc.save()
         
