@@ -1,3 +1,4 @@
+import copy
 import traceback
 import aiohttp
 import discord
@@ -21,7 +22,8 @@ async def verify(guild_id):
     if guild is None:
         return await render_template("error/404.html"), 404
 
-    config = (await Guild.get(str(guild.id))).dashboard.verification
+    stored = (await Guild.get(str(guild.id))).dashboard.verification
+    config = deep_merge(copy.deepcopy(DEFAULT_VERIFICATION_CONFIG), stored)
 
     return await render_template(
         "dashboard/plugins/verification.html",

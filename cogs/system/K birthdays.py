@@ -22,11 +22,15 @@ def next_birthday(date: datetime.datetime, now: datetime.datetime = None) -> tup
     
     next_bd = date.replace(year=now.year)
     age = now.year - date.year
-    
-    if next_bd < now:
+
+    # Compare by date, not full timestamp: next_bd is always midnight of the
+    # target day (strptime never sets a time-of-day), so comparing it against
+    # `now` directly made TODAY's birthday look "already passed" the instant
+    # any time had elapsed past midnight, pushing it a full year ahead.
+    if next_bd.date() < now.date():
         next_bd = next_bd.replace(year=now.year + 1)
         age = now.year + 1 - date.year
-    
+
     return next_bd, age
 
 async def get_bdays(guild_id) -> list[Birthday]:
@@ -61,6 +65,15 @@ class BirthdayTimers(commands.Cog):
 
             channel = guild.get_channel(int(channel_id))
             if not channel:
+                continue
+
+            # Only wish birthdays during the configured hour (default: midnight).
+            # birthday.wished still guards against resending for the rest of that hour.
+            try:
+                wishing_hour = int(config.get("message_hour") or 0)
+            except (TypeError, ValueError):
+                wishing_hour = 0
+            if now.hour != wishing_hour:
                 continue
 
             birthdays = await get_bdays(guild.id)
@@ -111,14 +124,18 @@ class BirthdayTimers(commands.Cog):
                 ))
 
                 # Send DM if enabled
-                if config.get("dm", False):
-                    try:
-                        await member.send(f"🎉 Happy Birthday {member.display_name}! 🎂\n\nHope you have an amazing day! 🎈")
-                    except discord.HTTPException:
-                        pass
+                # if config.get("dm", False):
+                #     try:
+                #         await member.send(f"🎉 Happy Birthday {member.display_name}! 🎂\n\nHope you have an amazing day! 🎈")
+                #     except discord.HTTPException:
+                #         pass
 
                 birthday.wished = True
-                birthday.wished_at = now.isoformat()
+                # Store a real datetime, not a string - Birthday.wished_at is typed
+                # Optional[datetime]. Assigning a str here bypasses validation on
+                # write, but the next fetch re-validates and hands role_reset() an
+                # actual datetime, not the string it expects (see role_reset below).
+                birthday.wished_at = now
                 birthday.age = age
                 await birthday.save()
 
@@ -128,10 +145,10 @@ class BirthdayTimers(commands.Cog):
         for guild in self.client.guilds:
             config = (await Guild.get(str(guild.id))).dashboard.birthdays
             birthday_role_id = config.get("birthday_role")
-            
+
             if not birthday_role_id:
                 continue
-                
+
             # FIX: v.datetimes returns a timezone, use it with datetime.now()
             tz = v.datetimes(guild.id)
             now = datetime.datetime.now(tz)
@@ -150,8 +167,13 @@ class BirthdayTimers(commands.Cog):
                 if not birthday.wished or not birthday.wished_at:
                     continue
 
-                wished_at = datetime.datetime.fromisoformat(birthday.wished_at)
-                
+                # wished_at is normally already a real datetime (Beanie/Pydantic
+                # validates it on load from Mongo), but tolerate a leftover string
+                # from data written before this field stopped being isoformat()'d.
+                wished_at = birthday.wished_at
+                if isinstance(wished_at, str):
+                    wished_at = datetime.datetime.fromisoformat(wished_at)
+
                 # If it's past midnight after their birthday, remove role
                 if wished_at.date() < now.date():
                     member = guild.get_member(int(birthday.user_id))
@@ -289,7 +311,9 @@ class BirthdayCommands(commands.Cog):
         # Prevent setting birthday in the future (can't be born tomorrow)
         tz = v.datetimes(ctx.guild.id)
         now = datetime.datetime.now(tz)
-        if parsed > now:
+        # parsed is naive (strptime never attaches tzinfo) - localize it to the
+        # guild's timezone before comparing, same as next_birthday() has to.
+        if parsed.replace(tzinfo=tz) > now:
             return await ctx.respond("❌ Birthday can't be in the future!", ephemeral=True)
 
         next_bd, age = next_birthday(parsed, now)

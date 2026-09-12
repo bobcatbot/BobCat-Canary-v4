@@ -231,11 +231,19 @@ class Birthday(Document):
 class TempChannel(Document):
     class Settings:
         name = "temp_channels"
-        indexes = ["guild_id", "channel_id", "creator_id"]
+        indexes = ["guild_id", "channel_id", "creator_id", "hub_id"]
 
     guild_id: str
     channel_id: str
     creator_id: str
+    # Which hub (temporary_channels.hubs[].id) spawned this channel - lets the
+    # per-hub #index counter in TempVoice.handle_join scope to just that hub
+    # instead of numbering every hub's channels off one shared, interleaved
+    # counter. Optional so pre-existing rows from before this field existed
+    # still validate; they just fall out of every hub's index scoping (treated
+    # as belonging to no hub), which only affects the numbering of new channels,
+    # not anything already created.
+    hub_id: Optional[str] = None
     index: int = 1
 
 

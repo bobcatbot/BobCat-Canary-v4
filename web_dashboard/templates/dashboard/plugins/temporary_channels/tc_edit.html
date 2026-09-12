@@ -327,7 +327,7 @@
     window.addEventListener('load', () => {
       updateUserLimitSliderValuePosition();
 
-      tempchan_data['user_limit'] = userLimitSlider.value
+      tempchan_data['user_limit'] = parseInt(userLimitSlider.value, 10)
     });
 
     userLimitSlider.addEventListener("input", function() {

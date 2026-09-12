@@ -241,7 +241,7 @@
 
     const gwayChanSelectWrapper = document.querySelector('.gway-chan-select-wrapper.single');
     gwayChanSelectWrapper.addEventListener('select:update', (e) => {
-      const selectedOptions = event.detail.selectedOptions;
+      const selectedOptions = e.detail.selectedOptions;
       const option = selectedOptions[0] ? selectedOptions[0] : null
 
       save_data['channel_id'] = option

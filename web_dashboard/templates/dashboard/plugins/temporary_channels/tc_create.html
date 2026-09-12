@@ -291,7 +291,7 @@
     window.addEventListener('load', () => {
       updateUserLimitSliderValuePosition();
 
-      tempchan_data['user_limit'] = userLimitSlider.value
+      tempchan_data['user_limit'] = parseInt(userLimitSlider.value, 10)
     });
 
     userLimitSlider.addEventListener("input", function() {
@@ -384,9 +384,8 @@
       'hub-channel-priority_speaker',
       'hub-channel-move_members',
     ]
+    tempchan_data["permissions"] = {};
     hubChannelPerms.forEach(perms => {
-      tempchan_data["permissions"] = {};
-
       // Remove the 'hub-channel-' prefix
       const permName = perms.replace('hub-channel-', '');
       
