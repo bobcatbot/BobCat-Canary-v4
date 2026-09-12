@@ -157,7 +157,7 @@
                         {% if gway['status'] == 'Draft' %}
                         <li><button class="dropdown-item gway-publish" data-id="{{gway['id']}}"><i class="bi bi-send-fill"></i> Publish</button></li>
                         {% endif %}
-                        <li><button class="dropdown-item" id="delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal"><i class="bi bi-trash-fill"></i> Delete</button></li>
+                        <li><button class="dropdown-item delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal-{{gway['id']}}"><i class="bi bi-trash-fill"></i> Delete</button></li>
                       </ul>
                     </div>
                   </div>
@@ -174,14 +174,14 @@
                       {% if gway['status'] == 'Draft' %}
                       <li><button class="dropdown-item gway-publish" data-id="{{gway['id']}}"><i class="bi bi-send-fill"></i> Publish</button></li>
                       {% endif %}
-                      <li><button class="dropdown-item" id="delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal"><i class="bi bi-trash-fill"></i> Delete</button></li>
+                      <li><button class="dropdown-item delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal-{{gway['id']}}"><i class="bi bi-trash-fill"></i> Delete</button></li>
                     </ul>
                   </div>
                 </div>
               </div>
             </a>
             <!-- DeleteModal -->
-            <div class="modal fade dark" id="DeleteModal" tabindex="-1" aria-labelledby="DeleteModalLabel" aria-hidden="true">
+            <div class="modal fade dark" id="DeleteModal-{{gway['id']}}" tabindex="-1" aria-labelledby="DeleteModalLabel" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -193,7 +193,7 @@
                   </div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="delete-hub" data-id="{{gway['id']}}">Yes</button>
+                    <button type="button" class="btn btn-danger delete-hub" data-id="{{gway['id']}}">Yes</button>
                   </div>
                 </div>
               </div>
@@ -306,7 +306,7 @@
       });
     }
 
-    document.querySelectorAll('#delete-hub-modal').forEach(button => {
+    document.querySelectorAll('.delete-hub-modal').forEach(button => {
       button.addEventListener('click', function(event) {
         // Prevent the default action (navigation)
         event.stopPropagation();
@@ -314,7 +314,7 @@
       });
     });
 
-    document.querySelectorAll('#delete-hub').forEach((button) => {
+    document.querySelectorAll('.delete-hub').forEach((button) => {
       button.addEventListener('click', (e) => {
         const gwayId = e.target.closest('button').dataset.id;
 
