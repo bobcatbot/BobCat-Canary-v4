@@ -1,8 +1,10 @@
 
 const guild_switcher = document.querySelector('.guild-selector')
-guild_switcher.addEventListener('click', function() {
-  guild_switcher.classList.toggle('active');
-});
+if (guild_switcher) {
+  guild_switcher.addEventListener('click', function() {
+    guild_switcher.classList.toggle('active');
+  });
+}
 
 function TooltipText(e, txt) {
   navigator.clipboard.writeText(txt);
