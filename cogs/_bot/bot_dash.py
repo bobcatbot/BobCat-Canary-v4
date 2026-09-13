@@ -1,8 +1,10 @@
 import discord
 from discord.ext import commands
-from pymongo.errors import DuplicateKeyError
 from modules import bot as v
-from modules.models import Guild, Leveling as LevelingModel
+from modules.models import (
+    Guild, LoggingEventsConfig,
+    Leveling as LevelingModel
+)
 
 def _default_dashboard() -> dict:
     """Default dashboard config for a brand new guild. Keys here must match DashConfig's fields in models.py exactly."""
@@ -44,7 +46,7 @@ def _default_dashboard() -> dict:
                     "status": False,
                     "block_invites": False,
                     "block_scam_links": False,
-                    "action": "delete",
+                    "action": "delete", # delete | warn | mute | kick | ban
                     "whitelist_channels": [],
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
@@ -53,7 +55,7 @@ def _default_dashboard() -> dict:
                     "status": False,
                     "threshold": 5,
                     "interval": 10,
-                    "action": "delete",
+                    "action": "delete", # delete | warn | mute | kick | ban
                     "whitelist_channels": [],
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
@@ -61,7 +63,7 @@ def _default_dashboard() -> dict:
                 "ghostping": {
                     "status": False,
                     "delete_window": 60,
-                    "action": "warn",
+                    "action": "warn", # delete | warn | mute | kick | ban
                     "whitelist_channels": [],
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
@@ -70,7 +72,7 @@ def _default_dashboard() -> dict:
                     "status": False,
                     "threshold": 70,
                     "min_length": 10,
-                    "action":"delete",
+                    "action":"delete", # delete | warn | mute | kick | ban
                     "whitelist_channels": [],
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
@@ -96,17 +98,7 @@ def _default_dashboard() -> dict:
             "logging": {
                 "channel": None,
                 "bots": False,
-                "events": {
-                    "ModerationKick": False, "ModerationBan": False, "ModerationUnban": False, "ModerationMute": False,
-                    "ModerationUnmute": False, "ModerationWarn": False, "ModerationUnwarn": False,
-                    "MemberJoin": False, "MemberLeave": False, "MemberUpdate": False, "MemberBan": False, "MemberUnban": False,
-                    "MessageDelete": False, "MessageEdit": False,
-                    "ModerationAntiLink": False, "ModerationAntiSpam": False, "ModerationGhostPing": False, "ModerationCaps": False,
-                    "ServerUpdate": False, "ServerInviteCreate": False, "ServerInviteDelete": False, "ServerEmojis": False,
-                    "ChannelCreate": False, "ChannelDelete": False, "ChannelUpdate": False,
-                    "RoleCreate": False, "RoleDelete": False, "RoleUpdate": False,
-                    "Verification": False,
-                },
+                "events": LoggingEventsConfig().model_dump(), # Pulled straight from LoggingEventsConfig so adding a new event key there is the only place that needs updating
             },
         },
         "leveling": {
@@ -313,16 +305,6 @@ class GuildEvents(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role: discord.Role):
         await sync_admin_roles(role.guild)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
-        if member.bot:
-            return
-
-        # Per-user data (leveling/economy/warnings) is created lazily on
-        # first use by their own cogs — nothing to pre-populate here.
-        if await Guild.get(str(member.guild.id)) is None:
-            await init_database(member.guild)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
