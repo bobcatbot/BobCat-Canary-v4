@@ -60,6 +60,59 @@ async def get_currency_icon(guild) -> str:
         print(f"Error getting currency icon for guild {guild.id}: {e}")
         return DEFAULT_CURRENCY_ICON
 
+async def get_max_gambling(guild) -> Optional[int]:
+    """Return the guild's configured max gamble amount, or None if unset/unlimited."""
+    try:
+        doc = await Guild.get(str(guild.id))
+        if doc is None:
+            return None
+        raw = doc.dashboard.economy.MaxGambling
+        if raw is None or str(raw).strip() == "":
+            return None
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+    except Exception as e:
+        print(f"Error getting max gambling for guild {guild.id}: {e}")
+        return None
+
+async def parse_and_validate_bet(guild, member, amount: str) -> Tuple[bool, Union[int, str]]:
+    """
+    Parse a bet amount (accepts 'max'/'all') and validate it against the
+    guild's MaxGambling cap and the member's wallet balance.
+
+    Used by every game that lets a member wager coins (economy gamble,
+    diceroll, guess, rps, ttt) so the cap/funds checks stay consistent.
+
+    Returns (True, bet_amount) on success, or (False, error_message) on failure.
+    """
+    max_gambling = await get_max_gambling(guild)
+    user_data = await get_user_balance(guild, member)
+    wallet = user_data.get("wallet", 0) if user_data else 0
+
+    if amount.lower() in ("max", "all"):
+        bet = wallet if max_gambling is None else min(wallet, max_gambling)
+        if bet <= 0:
+            return (False, "❌ You don't have any coins in your wallet to gamble!")
+        return (True, bet)
+
+    try:
+        bet = int(amount)
+    except ValueError:
+        return (False, "❌ Please enter a valid number or `max`.")
+
+    if bet <= 0:
+        return (False, "❌ Amount must be positive!")
+
+    if max_gambling is not None and bet > max_gambling:
+        icon = await get_currency_icon(guild)
+        return (False, f"❌ You can't gamble more than `{max_gambling}` {icon}")
+
+    if bet > wallet:
+        return (False, "❌ You don't have enough coins to gamble this amount!")
+
+    return (True, bet)
+
 async def get_user_items(guild, member) -> List[Dict[str, Any]]:
     """Return the user's inventory (bag)."""
     try:

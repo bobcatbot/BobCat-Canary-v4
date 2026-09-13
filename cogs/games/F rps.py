@@ -5,6 +5,10 @@ import asyncio
 from typing import Optional
 from datetime import datetime
 from discord.ext import commands
+from cogs.money._shop import open_account, update_bank, parse_and_validate_bet
+
+# Only the member who ran /rps places a bet - a tie refunds nothing (no
+# money ever changes hands), a win pays out the bet, a loss forfeits it.
 
 class RPSGame(commands.Cog):
     def __init__(self, client):
@@ -124,11 +128,12 @@ class RPSGame(commands.Cog):
                 await asyncio.sleep(1)
                 await self.cog._ai_move(self.ctx, self.game_data)
                 
-    @commands.slash_command(name="rps", description="Play Rock Paper Scissors with me or another user!")
+    @commands.slash_command(name="rps", description="Play Rock Paper Scissors and bet coins on the outcome")
+    @discord.option("amount", description="Bet amount", required=True)
     @discord.option("opponent", description="Challenge another user", required=False)
-    async def rps(self, ctx, opponent: Optional[discord.Member] = None):
+    async def rps(self, ctx, amount: str, opponent: Optional[discord.Member] = None):
         """Play Rock Paper Scissors with buttons!"""
-        
+
         # Check cooldown (custom implementation)
         cooldown_remaining = self.check_cooldown(ctx.author.id)
         if cooldown_remaining:
@@ -139,7 +144,7 @@ class RPSGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
         # Check if game already active in this channel
         if ctx.channel.id in self.games:
             embed = discord.Embed(
@@ -149,7 +154,7 @@ class RPSGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
         # Validate opponent
         is_multiplayer = opponent is not None
         if is_multiplayer:
@@ -169,14 +174,23 @@ class RPSGame(commands.Cog):
                 )
                 await ctx.respond(embed=embed, ephemeral=True)
                 return
-                
+
+        # Validate bet
+        await open_account(ctx.guild, ctx.author)
+        ok, result = await parse_and_validate_bet(ctx.guild, ctx.author, amount)
+        if not ok:
+            await ctx.respond(result, ephemeral=True)
+            return
+        bet = result
+
         # Apply cooldown
         self.apply_cooldown(ctx.author.id)
-                
+
         # Create game data
         game_data = {
             "mode": "multi" if is_multiplayer else "ai",
             "players": [ctx.author.id],
+            "bet": bet,
             "moves": {},
             "started": datetime.now(),
             "active": True,
@@ -185,24 +199,24 @@ class RPSGame(commands.Cog):
             "completed": False,
             "message_id": None
         }
-        
+
         if is_multiplayer:
             game_data["players"].append(opponent.id)
-            
+
         self.games[ctx.channel.id] = game_data
-        
+
         # Create embed
         if is_multiplayer:
             embed = discord.Embed(
                 title="👊 Rock Paper Scissors!",
-                description=f"**{ctx.author.display_name}** challenged **{opponent.display_name}**!\n\n"
+                description=f"**{ctx.author.display_name}** challenged **{opponent.display_name}** for **`{bet}`** coins!\n\n"
                            f"{ctx.author.display_name}, choose your move:",
                 color=discord.Color.blue()
             )
         else:
             embed = discord.Embed(
                 title="🤖 Rock Paper Scissors vs AI!",
-                description=f"**{ctx.author.display_name}**, choose your move:",
+                description=f"**{ctx.author.display_name}**, choose your move! Betting **`{bet}`** coins.",
                 color=discord.Color.blue()
             )
             
@@ -277,6 +291,8 @@ class RPSGame(commands.Cog):
         except discord.HTTPException:
             msg = None
             
+        bet = game_data["bet"]
+
         if game_data["mode"] == "ai":
             # AI mode
             player_id = game_data["players"][0]
@@ -310,17 +326,21 @@ class RPSGame(commands.Cog):
                 self.scores[player_id]["ties"] += 1
                 
             elif self.choices[player_move]["beats"] == ai_move:
+                await update_bank(ctx.guild, player, "bank", bet)
+
                 result_embed.title = "🎉 You Win!"
                 result_embed.color = discord.Color.green()
-                result_embed.description = f"{player_move.title()} beats {ai_move.title()}!"
+                result_embed.description = f"{player_move.title()} beats {ai_move.title()}!\nYou won **`{bet}`** coins!"
                 if player_id not in self.scores:
                     self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
                 self.scores[player_id]["wins"] += 1
-                
+
             else:
+                await update_bank(ctx.guild, player, "bank", -bet)
+
                 result_embed.title = "😔 You Lose!"
                 result_embed.color = discord.Color.red()
-                result_embed.description = f"{ai_move.title()} beats {player_move.title()}!"
+                result_embed.description = f"{ai_move.title()} beats {player_move.title()}!\nYou lost **`{bet}`** coins."
                 if player_id not in self.scores:
                     self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
                 self.scores[player_id]["losses"] += 1
@@ -361,19 +381,24 @@ class RPSGame(commands.Cog):
                     self.scores[pid]["ties"] += 1
                     
             elif self.choices[move1]["beats"] == move2:
+                # p1 is always the member who ran /rps and placed the bet
+                await update_bank(ctx.guild, p1, "bank", bet)
+
                 result_embed.title = f"🏆 {p1.display_name} Wins!"
                 result_embed.color = discord.Color.green()
-                result_embed.description = f"{move1.title()} beats {move2.title()}!"
+                result_embed.description = f"{move1.title()} beats {move2.title()}!\n{p1.display_name} won **`{bet}`** coins!"
                 for pid in [player1_id, player2_id]:
                     if pid not in self.scores:
                         self.scores[pid] = {"wins": 0, "losses": 0, "ties": 0}
                 self.scores[player1_id]["wins"] += 1
                 self.scores[player2_id]["losses"] += 1
-                
+
             else:
+                await update_bank(ctx.guild, p1, "bank", -bet)
+
                 result_embed.title = f"🏆 {p2.display_name} Wins!"
                 result_embed.color = discord.Color.green()
-                result_embed.description = f"{move2.title()} beats {move1.title()}!"
+                result_embed.description = f"{move2.title()} beats {move1.title()}!\n{p1.display_name} lost **`{bet}`** coins."
                 for pid in [player1_id, player2_id]:
                     if pid not in self.scores:
                         self.scores[pid] = {"wins": 0, "losses": 0, "ties": 0}

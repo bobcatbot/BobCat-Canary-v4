@@ -6,6 +6,10 @@ import math
 from typing import Optional
 from datetime import datetime
 import time
+from cogs.money._shop import open_account, update_bank, parse_and_validate_bet
+
+# Only the member who ran /ttt places a bet - a tie refunds nothing (no
+# money ever changes hands), a win pays out the bet, a loss forfeits it.
 
 class TicTacToeGame(commands.Cog):
     """Tic Tac Toe with BUTTONS!"""
@@ -169,11 +173,12 @@ class TicTacToeGame(commands.Cog):
                 await asyncio.sleep(1)
                 await self.cog._ai_move(self.ctx, self.game_data, self)
                 
-    @commands.slash_command(name="ttt", description="Play Tic Tac Toe against AI or another user.")
+    @commands.slash_command(name="ttt", description="Play Tic Tac Toe and bet coins on the outcome")
+    @discord.option("amount", description="Bet amount", required=True)
     @discord.option("opponent", description="Challenge another user", required=False)
-    async def ttt(self, ctx, opponent: Optional[discord.Member] = None):
+    async def ttt(self, ctx, amount: str, opponent: Optional[discord.Member] = None):
         """Play Tic Tac Toe with buttons!"""
-        
+
         # Check cooldown
         cooldown_remaining = self.check_cooldown(ctx.author.id)
         if cooldown_remaining:
@@ -184,7 +189,7 @@ class TicTacToeGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
         # Check if game already active in this channel
         if ctx.channel.id in self.games:
             embed = discord.Embed(
@@ -194,7 +199,7 @@ class TicTacToeGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
         # Determine game mode
         is_multiplayer = opponent is not None
         if is_multiplayer and opponent == ctx.author:
@@ -205,7 +210,7 @@ class TicTacToeGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
         if is_multiplayer and opponent.bot:
             embed = discord.Embed(
                 title="❌ Can't Play Bots!",
@@ -214,15 +219,24 @@ class TicTacToeGame(commands.Cog):
             )
             await ctx.respond(embed=embed, ephemeral=True)
             return
-            
+
+        # Validate bet
+        await open_account(ctx.guild, ctx.author)
+        ok, result = await parse_and_validate_bet(ctx.guild, ctx.author, amount)
+        if not ok:
+            await ctx.respond(result, ephemeral=True)
+            return
+        bet = result
+
         # Apply cooldown
         self.apply_cooldown(ctx.author.id)
-            
+
         # Initialize game
         game_data = {
             "board": [self.EMPTY] * 9,
             "mode": "multi" if is_multiplayer else "ai",
             "players": [ctx.author.id],
+            "bet": bet,
             "current_player": 0,
             "player_symbols": {ctx.author.id: self.PLAYER},
             "moves": 0,
@@ -244,14 +258,14 @@ class TicTacToeGame(commands.Cog):
         if is_multiplayer:
             embed = discord.Embed(
                 title="🎯 Tic Tac Toe",
-                description=f"**{ctx.author.display_name}** challenged **{opponent.display_name}**!\n\n"
+                description=f"**{ctx.author.display_name}** challenged **{opponent.display_name}** for **`{bet}`** coins!\n\n"
                            f"{ctx.author.display_name}, it's your turn!",
                 color=discord.Color.blue()
             )
         else:
             embed = discord.Embed(
                 title="🎯 Tic Tac Toe vs AI",
-                description=f"**{ctx.author.display_name}**, it's your turn!",
+                description=f"**{ctx.author.display_name}**, it's your turn! Betting **`{bet}`** coins.",
                 color=discord.Color.blue()
             )
         embed.set_footer(text=f"Game started at {datetime.now().strftime('%H:%M')}")
@@ -379,32 +393,43 @@ class TicTacToeGame(commands.Cog):
     async def _end_game(self, ctx, game_data, view):
         """End the game and update scores."""
         winner = game_data["winner"]
+        bet = game_data["bet"]
+        bettor_id = game_data["players"][0]  # the member who ran /ttt and placed the bet
         embed = discord.Embed()
-        
+
         if winner == "tie":
             embed.title = "🤝 It's a Tie!"
             embed.color = discord.Color.blue()
-            embed.description = "The game ended in a draw!"
+            embed.description = "The game ended in a draw! Your bet was refunded."
             for player_id in game_data["players"]:
                 if player_id not in self.scores:
                     self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
                 self.scores[player_id]["ties"] += 1
-                
+
         elif winner == "ai":
+            bettor = ctx.guild.get_member(bettor_id) or await self.client.fetch_user(bettor_id)
+            await update_bank(ctx.guild, bettor, "bank", -bet)
+
             embed.title = "😔 AI Wins!"
             embed.color = discord.Color.red()
-            embed.description = "The AI beat you! Better luck next time."
-            player_id = game_data["players"][0]
-            if player_id not in self.scores:
-                self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
-            self.scores[player_id]["losses"] += 1
-            
+            embed.description = f"The AI beat you! You lost **`{bet}`** coins."
+            if bettor_id not in self.scores:
+                self.scores[bettor_id] = {"wins": 0, "losses": 0, "ties": 0}
+            self.scores[bettor_id]["losses"] += 1
+
         else:
             winner_user = ctx.guild.get_member(winner) or await self.client.fetch_user(winner)
+            bettor = ctx.guild.get_member(bettor_id) or await self.client.fetch_user(bettor_id)
+            change = bet if winner == bettor_id else -bet
+            await update_bank(ctx.guild, bettor, "bank", change)
+
             embed.title = f"🏆 {winner_user.display_name} Wins!"
             embed.color = discord.Color.green()
-            embed.description = f"Congratulations {winner_user.mention}! You won!"
-            
+            if winner == bettor_id:
+                embed.description = f"Congratulations {winner_user.mention}! You won **`{bet}`** coins!"
+            else:
+                embed.description = f"Congratulations {winner_user.mention}! {bettor.display_name} lost **`{bet}`** coins."
+
             for player_id in game_data["players"]:
                 if player_id not in self.scores:
                     self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
