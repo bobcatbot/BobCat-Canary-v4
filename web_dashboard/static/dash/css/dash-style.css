@@ -1244,6 +1244,10 @@ body::-webkit-scrollbar-thumb {
   cursor: text;
 }
 
+.rich-var-field--multiline {
+  min-height: 90px;
+}
+
 .rich-var-field.is-empty {
   position: relative;
 }
@@ -1254,28 +1258,35 @@ body::-webkit-scrollbar-thumb {
   pointer-events: none;
 }
 
-.var-chip {
+/* Same look for a committed chip and the live "in progress" highlight
+   while typing `{query` — one shared rule instead of two copies. */
+.var-chip,
+.var-chip-pending {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   background: rgba(88, 101, 242, 0.18);
   color: #c9d0ff;
   border: 1px solid rgba(88, 101, 242, 0.5);
-  border-radius: 999px;
-  padding: 1px 8px 1px 6px;
+  border-radius: 8px;
+  padding: 1px 4px 1px 4px;
   font-size: 0.85em;
   font-weight: 600;
   white-space: nowrap;
   cursor: default;
 }
 
-.var-chip::before {
-  content: '';
-  display: inline-block;
-  width: 0;
-  height: 0;
-  border-top: 3px solid transparent;
-  border-bottom: 3px solid transparent;
-  border-left: 4px solid currentColor;
-  opacity: 0.7;
+/* Before anything's typed after `{`, the pill has no visible text (the
+   brace stays hidden) — give it a small deliberate width so it reads as
+   a "typing a variable…" marker instead of collapsing to a bare sliver. */
+.var-chip-pending {
+  min-width: 0.6em;
+  min-height: 1em;
+}
+
+/* The literal `{` inside a pending span stays in the DOM (so serializing
+   back to plain text still works) but is not shown — the pending highlight
+   reads as just the variable name being typed, no braces. */
+.var-chip-brace {
+  display: none;
 }

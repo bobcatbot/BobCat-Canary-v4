@@ -30,6 +30,14 @@
 
   const byTagLower = new Map(VARIABLES.map((v) => [v.tag.toLowerCase(), v]));
 
+  // A zero-width space used as a stable caret anchor inside an otherwise-
+  // empty pending span (see wrapPending). Browsers routinely normalize a
+  // genuinely empty text node away the instant typing starts, silently
+  // kicking the caret out to the wrong place — the ZWSP keeps the node
+  // "real" without being visible. Stripped everywhere real text is read.
+  const ZWSP = '\u200B';
+  const stripZWSP = (s) => s.split(ZWSP).join('');
+
   /* ---------------- shared popup ---------------- */
   const popup = document.createElement('div');
   popup.className = 'var-autocomplete';
@@ -89,7 +97,7 @@
       else if (node.classList && node.classList.contains('var-chip')) out += node.dataset.tag;
       else out += node.textContent;
     });
-    return out;
+    return stripZWSP(out);
   }
 
   function appendTextWithBreaks(root, text) {
@@ -139,6 +147,7 @@
     const root = document.createElement('div');
     root.className = original.className;
     root.classList.add('rich-var-field');
+    if (original.tagName === 'TEXTAREA') root.classList.add('rich-var-field--multiline');
     root.contentEditable = 'true';
     root.dataset.placeholder = original.placeholder || '';
     if (original.id) root.id = `${original.id}-rich`;
@@ -194,17 +203,146 @@
         if (node.nodeType === Node.TEXT_NODE) text += node.nodeValue;
         else if (node.nodeName === 'BR') text += '\n';
         else if (node.classList && node.classList.contains('var-chip')) text += node.dataset.tag;
+        else text += node.textContent; // covers a partially-cloned .var-chip-pending
       });
-      return text;
+      return stripZWSP(text);
+    }
+
+    // While `{query` is a live, still-editable trigger, wrap it in a
+    // `.var-chip-pending` span so it's highlighted the instant `{` is typed
+    // — not just once a variable is picked. Only one can be open per field.
+    // The `{` itself is a real (but visually hidden) child span, so the
+    // pending highlight reads as just the typed name, no visible braces.
+    let pendingSpan = null;
+
+    function wrapPending() {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const node = range.startContainer;
+      if (node.nodeType !== Node.TEXT_NODE) return;
+
+      const offset = range.startOffset;
+      const nodeText = node.nodeValue;
+      const braceIndex = nodeText.lastIndexOf('{', offset - 1);
+      if (braceIndex === -1) return;
+
+      const before = nodeText.slice(0, braceIndex);
+      const query = nodeText.slice(braceIndex + 1, offset);
+      const after = nodeText.slice(offset);
+
+      const span = document.createElement('span');
+      span.className = 'var-chip-pending';
+
+      const brace = document.createElement('span');
+      brace.className = 'var-chip-brace';
+      brace.contentEditable = 'false';
+      brace.textContent = '{';
+      span.appendChild(brace);
+
+      // The query text node always gets at least a ZWSP so it's never
+      // genuinely empty — an empty text node is unstable in contenteditable
+      // (browsers routinely normalize/drop it right as typing starts),
+      // which silently kicks the caret out to the wrong spot entirely.
+      const queryNode = document.createTextNode(query.length > 0 ? query : ZWSP);
+      span.appendChild(queryNode);
+
+      const parent = node.parentNode;
+      const afterNode = document.createTextNode(after);
+      parent.replaceChild(afterNode, node);
+      parent.insertBefore(span, afterNode);
+      if (before) parent.insertBefore(document.createTextNode(before), span);
+
+      const newRange = document.createRange();
+      newRange.setStart(queryNode, queryNode.length);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+
+      pendingSpan = span;
+    }
+
+    // Collapses the pending span back to a plain text node (trigger became
+    // invalid, or a variable is about to be inserted in its place) and
+    // returns that node so callers can keep working with it.
+    function flattenPending() {
+      if (!pendingSpan) return null;
+      const textNode = document.createTextNode(stripZWSP(pendingSpan.textContent));
+      if (pendingSpan.parentNode) pendingSpan.parentNode.replaceChild(textNode, pendingSpan);
+      pendingSpan = null;
+      return textNode;
+    }
+
+    function caretInsidePending() {
+      if (!pendingSpan) return false;
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return false;
+      return pendingSpan.contains(sel.getRangeAt(0).startContainer);
     }
 
     function handleTrigger() {
+      // The caret can leave a pending span without ever "finishing" it —
+      // click elsewhere and keep typing, tab away and back, etc. Clean up
+      // the abandoned span in place (never touching the *current*
+      // selection) before evaluating the caret's own trigger state, or
+      // typing somewhere else would keep flattening + reclaiming the
+      // caret back to the old spot, scrambling whatever was just typed.
+      if (pendingSpan && !caretInsidePending()) {
+        const stale = pendingSpan;
+        pendingSpan = null;
+        const textNode = document.createTextNode(stripZWSP(stale.textContent));
+        if (stale.parentNode) stale.parentNode.replaceChild(textNode, stale);
+      }
+
       const text = getCaretTextBefore();
       if (text == null) return closePopup();
       const braceIndex = text.lastIndexOf('{');
-      if (braceIndex === -1) return closePopup();
+
+      if (braceIndex === -1) {
+        if (pendingSpan) {
+          const node = flattenPending();
+          placeCaretAtEnd(node);
+        }
+        return closePopup();
+      }
+
       const query = text.slice(braceIndex + 1);
-      if (/[\s{}]/.test(query)) return closePopup();
+      if (/[\s{}]/.test(query)) {
+        // Typing (or pasting) `}` completes a manually-written tag — if it
+        // matches a known variable, promote it straight to a real chip
+        // instead of just flattening it back to plain text. A paste lands
+        // as one batched insertion with no pendingSpan built up yet, so
+        // wrap it retroactively before checking.
+        if (query.endsWith('}') && !/[\s{]/.test(query.slice(0, -1))) {
+          if (!pendingSpan) wrapPending();
+        }
+        if (pendingSpan && query.endsWith('}') && !/[\s{]/.test(query.slice(0, -1))) {
+          const known = byTagLower.get(stripZWSP(pendingSpan.textContent).toLowerCase());
+          if (known) {
+            const chip = makeChip(known.tag);
+            pendingSpan.parentNode.replaceChild(chip, pendingSpan);
+            pendingSpan = null;
+            const sel = window.getSelection();
+            const r = document.createRange();
+            r.setStartAfter(chip);
+            r.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r);
+            syncToOriginal();
+            return closePopup();
+          }
+        }
+        if (pendingSpan) {
+          const node = flattenPending();
+          placeCaretAtEnd(node);
+        }
+        return closePopup();
+      }
+
+      // Wrap immediately, even before anything's typed after `{` — the
+      // empty pending pill gets a deliberate min-width in CSS so it reads
+      // as a small marker chip, not a stray sliver.
+      if (!pendingSpan) wrapPending();
 
       const matches = VARIABLES.filter((v) =>
         v.tag.slice(1, -1).toLowerCase().includes(query.toLowerCase())
@@ -217,9 +355,72 @@
       popup.hidden = false;
     }
 
+    function placeCaretAtEnd(node) {
+      if (!node) return;
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.setStart(node, node.length != null ? node.length : 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
     root.addEventListener('input', () => {
       syncToOriginal();
       handleTrigger();
+    });
+
+    // Pasting inserts rich clipboard content (HTML) by default, not plain
+    // text, and can land anywhere in a bigger block of text — a completed
+    // `{tag}` might end up nowhere near the caret once the rest of the
+    // paste lands after it. So build the fragment ourselves: split the
+    // pasted text on every complete `{tag}`, convert known ones to real
+    // chips inline, and insert that instead of relying on the caret-
+    // adjacent trigger heuristic used for normal typing.
+    root.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (!text) return;
+
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+
+      const frag = document.createDocumentFragment();
+      const regex = /\{[^{}]+\}/g;
+      let lastIndex = 0;
+      let m;
+      let tailNode = null;
+      while ((m = regex.exec(text))) {
+        appendTextWithBreaks(frag, text.slice(lastIndex, m.index));
+        const known = byTagLower.get(m[0].toLowerCase());
+        tailNode = known ? makeChip(known.tag) : document.createTextNode(m[0]);
+        frag.appendChild(tailNode);
+        lastIndex = m.index + m[0].length;
+      }
+      appendTextWithBreaks(frag, text.slice(lastIndex));
+      if (!frag.lastChild) frag.appendChild(document.createTextNode(''));
+      tailNode = frag.lastChild;
+
+      range.insertNode(frag);
+      const newRange = document.createRange();
+      // A trailing chip is atomic — the caret sits after it as a sibling
+      // boundary. Trailing plain text needs the caret genuinely *inside*
+      // that text node, or wrapPending()'s TEXT_NODE check (run right after
+      // via handleTrigger()) sees an element boundary and silently no-ops —
+      // so a paste ending mid-trigger (e.g. "hello {ser") never highlights.
+      if (tailNode.nodeType === Node.TEXT_NODE) {
+        newRange.setStart(tailNode, tailNode.length);
+      } else {
+        newRange.setStartAfter(tailNode);
+      }
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+
+      syncToOriginal();
+      handleTrigger(); // paste can still end mid-trigger, e.g. "hello {ser"
     });
 
     root.addEventListener('keydown', (e) => {
@@ -255,21 +456,40 @@
       }
     });
 
-    root.addEventListener('blur', () => setTimeout(closePopup, 100));
+    root.addEventListener('blur', () => {
+      setTimeout(() => {
+        // Only tidy up if focus didn't move into our own popup (a click
+        // there blurs the field for a tick before selectVariable runs).
+        if (popup.hidden) flattenPending();
+        closePopup();
+      }, 100);
+    });
 
     // exposed for selectVariable()
     root._syncToOriginal = syncToOriginal;
+    root._flattenPending = flattenPending;
   }
 
   function selectVariable(v) {
     if (!state) return;
     const { root } = state;
     const sel = window.getSelection();
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer;
+
+    // Collapse the live pending highlight back to a plain text node first —
+    // it's a normal editable span, not the raw text node the swap below
+    // expects, and the caret sits at its end either way.
+    const flat = root._flattenPending();
+    let node, offset;
+    if (flat) {
+      node = flat;
+      offset = flat.length;
+    } else {
+      const range = sel.getRangeAt(0);
+      node = range.startContainer;
+      offset = range.startOffset;
+    }
 
     if (node.nodeType === Node.TEXT_NODE) {
-      const offset = range.startOffset;
       const nodeText = node.nodeValue;
       const braceIndex = nodeText.lastIndexOf('{', offset - 1);
       if (braceIndex !== -1) {
