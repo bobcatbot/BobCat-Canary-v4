@@ -1034,11 +1034,37 @@ body::-webkit-scrollbar-thumb {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  overflow-wrap: break-word;
 }
 .feature_card .title p {
   margin: 0;
   color: #9195ab;
   font-size: 14px;
+}
+
+/* On narrow screens the heading can be too long to share a row with the
+   info icon and toggle switch. Let it drop to its own full-width line,
+   with the icon and switch flowing onto a second line together instead
+   of the switch getting pushed off the edge of the card. */
+@media (max-width: 768px) {
+  .feature_card .title {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 8px;
+    column-gap: 8px;
+  }
+  /* Unwrap the heading+icon div so h2/icon/switch all flow as siblings
+     in one flex context and can be reflowed onto two lines together. */
+  .feature_card .title > div:first-child {
+    display: contents;
+  }
+  .feature_card .title h2 {
+    flex: 1 1 100%;
+  }
+  .feature_card .title .form-switch {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
 }
 
 .feature_card hr {
