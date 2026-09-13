@@ -1,0 +1,322 @@
+{% macro ruleset_column(feature, title, icon) %}
+<div class="automod-ruleset">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi {{icon}} fs-6"></i>
+    <h5 class="m-0 fs-5">{{title}}</h5>
+    <button type="button" class="btn btn-sm ruleset-gear ms-auto" data-bs-toggle="modal"
+      data-bs-target="#{{feature}}Modal" title="Configure {{title}}">
+      <i class="bi bi-gear fs-6"></i>
+    </button>
+  </div>
+  <div class="{{feature}}-combined-wrapper single mt-2">
+    <div class="select">
+      <div class="select-selected"></div>
+      <div class="select-options">
+        <div class="option" data-value="off">Disabled</div>
+        <div class="option" data-value="delete">Delete only</div>
+        <div class="option" data-value="warn">Delete & Warn</div>
+        <div class="option" data-value="mute">Delete & Mute</div>
+        <div class="option" data-value="kick">Delete & Kick</div>
+        <div class="option" data-value="ban">Delete & Ban</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro automod_common_settings(feature, title) %}
+<div class="mt-2">
+  <p class="mb-0">Private Message</p>
+  <p class="mb-1 fs-7 text-muted">Send a private message to the member when punished</p>
+  <div class="{{feature}}-dm-wrapper multi">
+    <div class="select">
+      <div class="select-selected"></div>
+      <div class="select-options">
+        <div class="option" data-value="server">Server</div>
+        <div class="option" data-value="action">Action</div>
+        <div class="option" data-value="reason">Reason</div>
+        <div class="option" data-value="moderator">Moderator</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-2">
+  <p class="mb-0">Whitelisted channels</p>
+  <p class="mb-1 fs-7 text-muted">{{title}} won't run in these channels</p>
+  <div class="{{feature}}-whitelist-channels-wrapper multiple">
+    <div class="select">
+      <div class="select-selected">Select an option</div>
+      <div class="select-options">
+        {% for channel in guild_models(guild).channels.text %}
+        <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">
+          {{channel.name}}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-2">
+  <p class="mb-0">Whitelisted roles</p>
+  <p class="mb-1 fs-7 text-muted">Members with these roles are ignored by {{title}}</p>
+  <div class="{{feature}}-whitelist-roles-wrapper multiple">
+    <div class="select">
+      <div class="select-selected">Select an option</div>
+      <div class="select-options">
+        {% for role in guild_models(guild).roles %}
+        <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}"
+          data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro automod_modal(feature, title) %}
+<div id="{{feature}}Modal" class="modal dark" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title m-0">{{title}} settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {{ caller() }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+<section class="section">
+  <div class="feature_card">
+    <div class="title d-flex justify-content-between align-items-start automod-rulesets-toggle"
+      style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#automodRulesetsBody" role="button"
+      aria-expanded="true" aria-controls="automodRulesetsBody">
+      <div>
+        <h2>AutoMod Rulesets</h2>
+        <p>The Auto-Moderator is composed of the checks below. You can enable/disable them. You can also
+          configure the actions that will be taken when those checks are triggered.</p>
+      </div>
+      <i class="bi bi-chevron-up automod-rulesets-caret"></i>
+    </div>
+
+    <hr>
+    <div class="collapse show" id="automodRulesetsBody">
+      <div class="d-flex flex-wrap gap-4 automod-rulesets-grid">
+        {{ ruleset_column('antilink', 'Anti Link', 'bi-link-45deg') }}
+        {{ ruleset_column('antispam', 'Anti Spam', 'bi-chat-square-text') }}
+        {{ ruleset_column('ghostping', 'Ghost Pings', 'bi-incognito') }}
+        {{ ruleset_column('caps', 'Excessive Caps', 'bi-megaphone') }}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% call automod_modal('antilink', 'AntiLink') %}
+<div class="d-flex justify-content-between align-items-center">
+  <p class="mb-0">Block server invites</p>
+  <div class="form-switch">
+    <input type="checkbox" id="antilink-block-invites" class="ms-0 form-check-input" role="switch"
+      name="automod-switch" data-val="{{data['automod']['antilink']['block_invites']}}">
+  </div>
+</div>
+<div class="mt-2 d-flex justify-content-between align-items-center">
+  <p class="mb-0">Block known scam/phishing links</p>
+  <div class="form-switch">
+    <input type="checkbox" id="antilink-block-scam" class="ms-0 form-check-input" role="switch" name="automod-switch"
+      data-val="{{data['automod']['antilink']['block_scam_links']}}">
+  </div>
+</div>
+{{ automod_common_settings('antilink', 'AntiLink') }}
+{% endcall %}
+
+{% call automod_modal('antispam', 'AntiSpam') %}
+<div>
+  <p class="mb-0">Message threshold</p>
+  <p class="mb-1 fs-7 text-muted">Number of messages within the interval before punishing</p>
+  <input type="number" id="antispam-threshold" class="form-control text-input" min="2" max="20"
+    value="{{data['automod']['antispam']['threshold']}}">
+</div>
+<div class="mt-2">
+  <p class="mb-0">Interval (seconds)</p>
+  <p class="mb-1 fs-7 text-muted">Time window the message threshold applies to</p>
+  <input type="number" id="antispam-interval" class="form-control text-input" min="2" max="120"
+    value="{{data['automod']['antispam']['interval']}}">
+</div>
+{{ automod_common_settings('antispam', 'AntiSpam') }}
+{% endcall %}
+
+{% call automod_modal('ghostping', 'GhostPing') %}
+<div>
+  <p class="mb-0">Delete window (seconds)</p>
+  <p class="mb-1 fs-7 text-muted">How soon after the ping the message must be deleted/edited to count as a ghost
+    ping</p>
+  <input type="number" id="ghostping-delete-window" class="form-control text-input" min="5" max="600"
+    value="{{data['automod']['ghostping']['delete_window']}}">
+</div>
+{{ automod_common_settings('ghostping', 'GhostPing') }}
+{% endcall %}
+
+{% call automod_modal('caps', 'Excessive Caps') %}
+<div>
+  <p class="mb-0">Caps threshold (%)</p>
+  <p class="mb-1 fs-7 text-muted">Percentage of letters that must be uppercase before a message is flagged</p>
+  <input type="number" id="caps-threshold" class="form-control text-input" min="10" max="100"
+    value="{{data['automod']['caps']['threshold']}}">
+</div>
+<div class="mt-2">
+  <p class="mb-0">Minimum message length</p>
+  <p class="mb-1 fs-7 text-muted">Messages shorter than this are ignored, so a short "OK" doesn't get flagged</p>
+  <input type="number" id="caps-min-length" class="form-control text-input" min="1" max="200"
+    value="{{data['automod']['caps']['min_length']}}">
+</div>
+{{ automod_common_settings('caps', 'Excessive Caps') }}
+{% endcall %}
+
+<style>
+  .automod-rulesets-caret {
+    transition: transform 0.2s ease;
+  }
+
+  .automod-rulesets-toggle[aria-expanded="false"] .automod-rulesets-caret {
+    transform: rotate(180deg);
+  }
+
+  .automod-rulesets-grid {
+    width: 100%;
+  }
+
+  .automod-ruleset {
+    flex: 1 1 220px;
+    min-width: 220px;
+  }
+
+  .ruleset-gear {
+    padding: 0 0 0 4px;
+    color: inherit;
+    opacity: 0.7;
+  }
+
+  .ruleset-gear:hover {
+    opacity: 1;
+  }
+</style>
+<script>
+  // ── Automod (AntiLink / AntiSpam / GhostPing / Excessive Caps) ────────
+  // Shared wiring for the automod features, which all share the same
+  // action / dm / whitelist_channels / whitelist_roles shape.
+  function wireAutomodSwitch(id, dbKey, saved) {
+    // `saved` may arrive as a real boolean or as a "true"/"True" string
+    // depending on how the template rendered it - normalize once so the
+    // show_toast diff (base != val) compares boolean to boolean.
+    const savedBool = saved === true || saved === "true" || saved === "True";
+    const el = document.querySelector('#' + id);
+    el.addEventListener('change', (e) => {
+      show_toast(dbKey, savedBool, e.target.checked,
+        () => { e.target.checked = savedBool; })
+    });
+  }
+
+  // The AutoMod Rulesets grid uses one combined "Disabled/Delete/Warn/Mute/
+  // Kick/Ban" dropdown per feature instead of a separate status switch +
+  // action dropdown. Picking "Disabled" writes status=false (action left
+  // untouched); picking anything else writes status=true + that action.
+  function wireAutomodCombined(feature, savedStatusRaw, savedAction) {
+    const savedStatus = savedStatusRaw === true || savedStatusRaw === "true" || savedStatusRaw === "True";
+    const initial = savedStatus ? savedAction : 'off';
+    const sel = `.${feature}-combined-wrapper.single`;
+    new Select(sel, {
+      placeholder: "Select an option",
+      type: '',
+      maxItems: 1,
+      multiple: false,
+      options: [initial]
+    });
+    document.querySelector(sel).addEventListener('select:update', function (event) {
+      const option = event.detail.selectedOptions[0] ? event.detail.selectedOptions[0] : 'off';
+      const newStatus = option !== 'off';
+      const newAction = option === 'off' ? savedAction : option;
+      const revert = modRevert(sel, initial);
+      show_toast(`moderation.automod.${feature}.status`, savedStatus, newStatus, revert);
+      show_toast(`moderation.automod.${feature}.action`, savedAction, newAction, revert);
+    });
+  }
+
+  function wireAutomodMultiSelect(feature, field, type, saved) {
+    const sel = `.${feature}-${field}-wrapper.multiple`;
+    new Select(sel, {
+      placeholder: "Select an option",
+      type: type,
+      multiple: true,
+      maxItems: 25,
+      removeBtn: true,
+      clearAll: true,
+      options: saved
+    });
+    document.querySelector(sel).addEventListener('select:update', function (event) {
+      show_toast(`moderation.automod.${feature}.${field}`, saved, event.detail.selectedOptions, modRevert(sel, saved))
+    });
+  }
+
+  function wireAutomodDm(feature, saved) {
+    const sel = `.${feature}-dm-wrapper.multi`;
+    new Select(sel, {
+      placeholder: "Select dm options",
+      type: '',
+      maxItems: 4,
+      multiple: true,
+      clearAll: true,
+      removeBtn: true,
+      options: saved
+    });
+    document.querySelector(sel).addEventListener('select:update', function (event) {
+      show_toast(`moderation.automod.${feature}.dm`, saved, event.detail.selectedOptions, modRevert(sel, saved))
+    });
+  }
+
+  function wireAutomodNumber(id, dbKey, saved) {
+    const el = document.querySelector('#' + id);
+    el.addEventListener('change', (e) => {
+      const val = parseInt(e.target.value, 10);
+      show_toast(dbKey, saved, val, () => { e.target.value = saved; })
+    });
+  }
+
+  // AntiLink
+  wireAutomodCombined('antilink', `{{data['automod']['antilink']['status'] | tojson}}`, `{{data["automod"]["antilink"]["action"]}}`);
+  wireAutomodSwitch('antilink-block-invites', 'moderation.automod.antilink.block_invites', `{{data['automod']['antilink']['block_invites'] | tojson}}`);
+  wireAutomodSwitch('antilink-block-scam', 'moderation.automod.antilink.block_scam_links', `{{data['automod']['antilink']['block_scam_links'] | tojson}}`);
+  wireAutomodDm('antilink', JSON.parse(`{{data["automod"]["antilink"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('antilink', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["antilink"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('antilink', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["antilink"]["whitelist_roles"] | tojson}}`) || []);
+
+  // AntiSpam
+  wireAutomodCombined('antispam', `{{data['automod']['antispam']['status'] | tojson}}`, `{{data["automod"]["antispam"]["action"]}}`);
+  wireAutomodNumber('antispam-threshold', 'moderation.automod.antispam.threshold', `{{data['automod']['antispam']['threshold'] | tojson}}`);
+  wireAutomodNumber('antispam-interval', 'moderation.automod.antispam.interval', `{{data['automod']['antispam']['interval'] | tojson}}`);
+  wireAutomodDm('antispam', JSON.parse(`{{data["automod"]["antispam"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('antispam', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["antispam"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('antispam', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["antispam"]["whitelist_roles"] | tojson}}`) || []);
+
+  // GhostPing
+  wireAutomodCombined('ghostping', `{{data['automod']['ghostping']['status'] | tojson}}`, `{{data["automod"]["ghostping"]["action"]}}`);
+  wireAutomodNumber('ghostping-delete-window', 'moderation.automod.ghostping.delete_window', `{{data['automod']['ghostping']['delete_window'] | tojson}}`);
+  wireAutomodDm('ghostping', JSON.parse(`{{data["automod"]["ghostping"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('ghostping', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["ghostping"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('ghostping', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["ghostping"]["whitelist_roles"] | tojson}}`) || []);
+
+  // Excessive Caps
+  wireAutomodCombined('caps', `{{data['automod']['caps']['status'] | tojson}}`, `{{data["automod"]["caps"]["action"]}}`);
+  wireAutomodNumber('caps-threshold', 'moderation.automod.caps.threshold', `{{data['automod']['caps']['threshold'] | tojson}}`);
+  wireAutomodNumber('caps-min-length', 'moderation.automod.caps.min_length', `{{data['automod']['caps']['min_length'] | tojson}}`);
+  wireAutomodDm('caps', JSON.parse(`{{data["automod"]["caps"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('caps', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["caps"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('caps', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["caps"]["whitelist_roles"] | tojson}}`) || []);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll("input[name='automod-switch']").forEach((checkbox) => {
+      checkbox.checked = checkbox.dataset.val === "True";
+    });
+  });
+</script>

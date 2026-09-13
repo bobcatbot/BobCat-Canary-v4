@@ -19,7 +19,7 @@ async def moderation(guild_id):
     config = (await Guild.get(str(guild.id))).dashboard.moderation
 
     return await render_template(
-        "dashboard/plugins/moderation.html",
+        "dashboard/plugins/moderation/index.html",
         user=current_user,
         guild=guild,
         data=config,

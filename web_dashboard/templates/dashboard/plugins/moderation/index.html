@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/Sidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'moderation') %}
+        <h1>{{plugin['title']}}</h1>
+        <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="mod-status" class="form-check-input" role="switch" name="plugin-status" checked>
+        {% else %}
+        <input type="checkbox" id="mod-status" class="form-check-input" role="switch" name="plugin-status">
+        {% endif %}
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs nav-tabs-bordered margin" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#automod">AutoMod</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#mod">Moderation</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin">Admin</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#logging">Audit Logging</button>
+      </li>
+    </ul>
+
+    <div id="automod-tab-content" class="tab-content">
+      <div id="automod" class="tab-pane pt-2 active show" role="tabpanel">
+        {% include 'dashboard/plugins/moderation/_automod.html' %}
+      </div>
+    </div>
+
+
+    <div id="mod-tab-content" class="tab-content">
+      <div id="mod" class="tab-pane pt-2" role="tabpanel">
+        {% include 'dashboard/plugins/moderation/_mod.html' %}
+      </div>
+    </div>
+
+    <div id="admin-tab-content" class="tab-content">
+      <div id="admin" class="tab-pane pt-2" role="tabpanel">
+        {% include 'dashboard/plugins/moderation/_admin.html' %}
+      </div>
+    </div>
+
+    <div id="logging-tab-content" class="tab-content">
+      <div id="logging" class="tab-pane pt-2" role="tabpanel">
+        {% include 'dashboard/plugins/moderation/_logging.html' %}
+      </div>
+    </div>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    // Restore a widget to its saved state. btn_cancel passes the live baseline;
+    // fall back to the page-load `saved` when called without one. Defined
+    // here (before any other tab's script) since it's the first thing that
+    // needs it, but it's used by every tab below too.
+    const modRevert = (sel, saved) => (live) => {
+      const v = live === undefined ? saved : live;
+      window._selects[sel].setSelectedOptions(Array.isArray(v) ? v : (v ? [v] : []));
+    };
+
+    // ── Plugin Status ────────────────────────────────────────────────────
+    document.querySelector('#mod-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "moderation.status": e.target.checked }),
+      });
+    })
+  </script>
+</body>
+</html>

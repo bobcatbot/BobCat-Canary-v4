@@ -39,6 +39,43 @@ def _default_dashboard() -> dict:
         },
         "moderation": {
             "status": False,
+            "automod": {
+                "antilink": {
+                    "status": False,
+                    "block_invites": False,
+                    "block_scam_links": False,
+                    "action": "delete",
+                    "whitelist_channels": [],
+                    "whitelist_roles": [],
+                    "dm": []  # server | action | moderator | reason
+                },
+                "antispam": {
+                    "status": False,
+                    "threshold": 5,
+                    "interval": 10,
+                    "action": "delete",
+                    "whitelist_channels": [],
+                    "whitelist_roles": [],
+                    "dm": []  # server | action | moderator | reason
+                },
+                "ghostping": {
+                    "status": False,
+                    "delete_window": 60,
+                    "action": "warn",
+                    "whitelist_channels": [],
+                    "whitelist_roles": [],
+                    "dm": []  # server | action | moderator | reason
+                },
+                "caps": {
+                    "status": False,
+                    "threshold": 70,
+                    "min_length": 10,
+                    "action":"delete",
+                    "whitelist_channels": [],
+                    "whitelist_roles": [],
+                    "dm": []  # server | action | moderator | reason
+                },
+            },
             "settings": {
                 "kick": {
                     "dm": []  # server | action | moderator | reason
@@ -64,6 +101,7 @@ def _default_dashboard() -> dict:
                     "ModerationUnmute": False, "ModerationWarn": False, "ModerationUnwarn": False,
                     "MemberJoin": False, "MemberLeave": False, "MemberUpdate": False, "MemberBan": False, "MemberUnban": False,
                     "MessageDelete": False, "MessageEdit": False,
+                    "ModerationAntiLink": False, "ModerationAntiSpam": False, "ModerationGhostPing": False, "ModerationCaps": False,
                     "ServerUpdate": False, "ServerInviteCreate": False, "ServerInviteDelete": False, "ServerEmojis": False,
                     "ChannelCreate": False, "ChannelDelete": False, "ChannelUpdate": False,
                     "RoleCreate": False, "RoleDelete": False, "RoleUpdate": False,

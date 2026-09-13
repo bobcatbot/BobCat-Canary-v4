@@ -1,0 +1,40 @@
+<section class="section">
+  <div class="feature_card">
+    <div class="title">
+      <h2>Immunity roles</h2>
+      <p>Users with one of these roles are not affected by moderation commands. The server owner, bot masters,
+        and roles with the Administrator permission are always immune.</p>
+    </div>
+    <hr>
+    <div class="immunity-roles">
+      <p class="mb-0">Roles</p>
+      <div class="immunityroles-select-wrapper multiple">
+        <div class="select">
+          <div class="select-selected">Select an option</div>
+          <div class="select-options">
+            {% for role in guild_models(guild).roles %}
+            <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}"
+              data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  const modRolesSaved = JSON.parse('{{ data.get("moderator_roles", []) | tojson }}') || [];
+  new Select('.immunityroles-select-wrapper.multiple', {
+    placeholder: "Select a role",
+    type: 'role',
+    multiple: true,
+    maxItems: 100,
+    removeBtn: true,
+    options: modRolesSaved
+  });
+  const immunityRolesWrapper = document.querySelector('.immunityroles-select-wrapper.multiple');
+  immunityRolesWrapper.addEventListener('select:update', function (event) {
+    show_toast("settings.moderator_roles", modRolesSaved, event.detail.selectedOptions,
+      modRevert('.immunityroles-select-wrapper.multiple', modRolesSaved))
+  });
+</script>

@@ -72,11 +72,11 @@ async def send_member_dm(
         pass
 
 async def audit_log(
-    ctx: commands.Context | discord.Interaction,
+    ctx: commands.Context | discord.Interaction | discord.Guild,
     event: str,
     embed: discord.Embed,
 ) -> bool:
-    guild = getattr(ctx, "guild", None)
+    guild = ctx if isinstance(ctx, discord.Guild) else getattr(ctx, "guild", None)
 
     if guild is None:
         return False
@@ -101,11 +101,11 @@ async def audit_log(
     except (TypeError, ValueError):
         return False
 
-    channel = ctx.guild.get_channel(channel_id)
+    channel = guild.get_channel(channel_id)
 
     if channel is None:
         try:
-            channel = await ctx.guild.fetch_channel(channel_id)
+            channel = await guild.fetch_channel(channel_id)
         except (
             discord.NotFound,
             discord.Forbidden,
