@@ -121,6 +121,28 @@
       </div>
     </section>
     
+    <section class="section">
+      <div class="feature_card">
+        <div class="title">
+          <h2>Commands</h2>
+          <p>Turn individual commands on or off without disabling the whole plugin.</p>
+        </div>
+
+        <hr>
+        {% for cmd in commands %}
+        <div class="d-flex justify-content-between align-items-center{% if not loop.first %} mt-2{% endif %}">
+          <div>
+            <p class="mb-0">/{{cmd.name}}</p>
+            <p class="mb-0 fs-7 text-muted">{{cmd.description}}</p>
+          </div>
+          <div class="form-switch">
+            <input type="checkbox" class="ms-0 form-check-input command-toggle" role="switch" data-command="{{cmd.name}}" {% if cmd.name not in disabled_commands %}checked{% endif %}>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
     {% include 'components/PremiumModal.html' %}
     {% include 'components/save-toast.html' %}
   </main>
@@ -218,6 +240,38 @@
 
       show_toast("birthdays.birthday_role", bdayRoleSaved, option,
         () => window._selects['.bday-role-wrapper.single'].setSelectedOptions(bdayRoleSaved ? [bdayRoleSaved] : []))
+    });
+
+    /* Per-command toggles */
+    const disabledCommandsSaved = JSON.parse(`{{ disabled_commands | tojson }}`) || [];
+    let disabledCommands = [...disabledCommandsSaved];
+
+    function syncCommandCheckboxes(list) {
+      document.querySelectorAll('.command-toggle').forEach((checkbox) => {
+        checkbox.checked = !list.includes(checkbox.dataset.command);
+      });
+    }
+
+    // Shared revert for every command switch, since they all write into the
+    // same settings.disabled_commands list - btn_cancel must restore every
+    // checkbox to the baseline, not just the one most recently touched.
+    function revertCommandToggles(baseline) {
+      const list = baseline === undefined ? disabledCommandsSaved : baseline;
+      disabledCommands = [...list];
+      syncCommandCheckboxes(disabledCommands);
+    }
+
+    document.querySelectorAll('.command-toggle').forEach((checkbox) => {
+      checkbox.addEventListener('change', (e) => {
+        const cmd = e.target.dataset.command;
+        if (e.target.checked) {
+          disabledCommands = disabledCommands.filter((c) => c !== cmd);
+        } else {
+          disabledCommands = [...new Set([...disabledCommands, cmd])];
+        }
+
+        show_toast("settings.disabled_commands", disabledCommandsSaved, disabledCommands, revertCommandToggles);
+      });
     });
   </script>
 </body>

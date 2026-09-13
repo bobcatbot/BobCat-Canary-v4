@@ -1,4 +1,5 @@
 import re
+import asyncio
 import discord
 from datetime import datetime, timezone, timedelta
 from quart import Blueprint, current_app, redirect, url_for, render_template, flash, request, session, jsonify
@@ -472,6 +473,7 @@ async def data_post(guild_id):
         'settings.admin_roles': list,
         'settings.bot_masters': list,
         'settings.moderator_roles': list,
+        'settings.disabled_commands': list,
     }
     
     ALLOWED_DASH_PREFIX = "Dash."
@@ -488,6 +490,7 @@ async def data_post(guild_id):
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
     audit_entries = []
+    needs_gated_command_resync = False
 
     for key, val in data.items():
         # ── Special case: Reset economy ──────────────────────────────────
@@ -528,6 +531,10 @@ async def data_post(guild_id):
                         current[part] = {}
                     current = current[part]
                 current[parts[-1]] = val
+
+            if key == "settings.disabled_commands":
+                needs_gated_command_resync = True
+
             audit_entries.append(f"Updated {key} = {val}")
             continue
 
@@ -557,6 +564,8 @@ async def data_post(guild_id):
         # which is how it gets turned back on.
         plugin_name = parts[0]
         is_status_toggle = len(parts) == 2 and parts[1] == 'status'
+        if is_status_toggle and v.is_gated_plugin(plugin_name):
+            needs_gated_command_resync = True
         if plugin_name in DASHBOARD_PLUGIN_KEYS and not is_status_toggle:
             plug_cfg = getattr(doc.dashboard, plugin_name, None)
             plug_status = (plug_cfg.get('status') if isinstance(plug_cfg, dict)
@@ -704,11 +713,27 @@ async def data_post(guild_id):
     doc.updated_at = discord.utils.utcnow()
     await doc.save()
 
+    if needs_gated_command_resync:
+        # Gated plugins/commands hide/show their own slash commands per
+        # guild (see modules/bot.py's gated_command/sync_gated_commands) -
+        # only one resync call needed per guild regardless of how many
+        # plugin toggles or command-level disables changed in this request,
+        # since it rechecks every gated plugin and command for this guild
+        # in one pass. Fire-and-forget: it's a live Discord API round-trip,
+        # and awaiting it here would make every such save wait on Discord
+        # before the dashboard's own save toast can resolve.
+        async def _resync():
+            try:
+                await v.sync_gated_commands(guild.id)
+            except Exception as e:
+                print(f"[ERROR] sync_gated_commands failed for guild {guild_id}: {e}")
+        asyncio.create_task(_resync())
+
     if audit_entries:
         print(f"[AUDIT] Guild {guild_id} modified by {current_user.id}: {', '.join(audit_entries)}")
-    
+
     return jsonify({
-        'status': 'success', 
+        'status': 'success',
         'message': 'Successfully updated data',
         'audit': audit_entries
     })

@@ -417,6 +417,10 @@ class SettingsConfig(DictModel):
     admin_roles: List[str] = Field(default_factory=list)
     bot_masters: List[str] = Field(default_factory=list)
     moderator_roles: List[str] = Field(default_factory=list)
+    # Individually disabled slash commands (by qualified name), independent
+    # of whichever plugin's own on/off toggle a command might also be
+    # gated by - see gated_command()/sync_gated_commands() in modules/bot.py.
+    disabled_commands: List[str] = Field(default_factory=list)
 
 # ---------------------------------------------------------
 # Dashboard Config

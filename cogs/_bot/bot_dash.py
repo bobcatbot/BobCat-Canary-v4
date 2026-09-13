@@ -280,9 +280,16 @@ class GuildEvents(commands.Cog):
         for guild in self.client.guilds:
             await sync_guild_dashboard(guild)  # creates the doc if missing, else backfills gaps
 
+        # auto_sync_commands is off (see modules/bot.py) so gated commands
+        # never get registered globally by Pycord's own on_connect sync -
+        # this is the one true startup sync, for gated AND ordinary commands
+        # alike (sync_gated_commands() ends in a plain sync_commands() call).
+        await v.sync_gated_commands()
+
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         await sync_guild_dashboard(guild)
+        await v.sync_gated_commands(guild.id)
 
         channel = self.client.get_guild(v.btz_gid).get_channel(962696085787254814)
         await channel.send(f"<:enter:1110325436501737536> Joined {guild.name} ({guild.id})")

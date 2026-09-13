@@ -8,99 +8,51 @@ COMMANDS = {
         "menu": "All of bobcats commands",
         "title": "BobCat General Commands",
         "gate": None,
-        "cmds": {
-            "/help": "The command you used to get here!",
-            "/invite": "Invite BobCat to your server",
-            "/user": "Get information about a user",
-            "/server": "Get information about a server",
-        }
+        "cmds": ["/help", "/invite", "/user", "/server"],
     },
     "Games": {
         "menu": "All of bobcats game commands",
         "title": "BobCat Game Commands",
         "gate": None,
-        "cmds": {
-            "/games": "Shows all of bobcats game commands",
-            "/8ball": "Ask a question to the magic 8ball",
-            "/coinflip": "Flips a coin",
-            "/diceroll": "Rolls a 6 sided dice",
-            "/guess": "Guess the random number between 1 and 10",
-            "/rps": "Play rock, paper, scissors",
-            "/tictactoe": "Play tic-tac-toe",
-        }
+        "cmds": ["/games", "/8ball", "/coinflip", "/diceroll", "/guess", "/rps", "/tictactoe"],
     },
     "Mod": {
         "menu": "All of bobcats moderation commands",
         "title": "BobCat Moderation Commands",
         "gate": "moderation",
-        "cmds": {
-            "/clear": "Clears messages",
-            "/kick": "Kicks a user",
-            "/ban": "Bans a user",
-            "/unban": "Unbans a user",
-            "/mute": "Mutes a user",
-            "/unmute": "Unmutes a user",
-            "/warn": "Warns a user",
-            "/unwarn": "Unwarns a user",
-            "/warnings": "Gets the warnings of a user",
-            "/slowmode": "Sets the slowmode of a channel",
-            "/lockdown add channel": "Locks a channel",
-            "/lockdown add server": "Locks the server",
-            "/lockdown remove channel": "Unlocks a channel",
-            "/lockdown remove server": "Unlocks the server",
-        }
+        "cmds": [
+            "/clear", "/kick", "/ban", "/unban", "/mute", "/unmute", "/warn", "/unwarn", "/warnings", "/slowmode",
+            "/lockdown add channel", "/lockdown add server",
+            "/lockdown remove channel", "/lockdown remove server",
+        ],
     },
     "Leveling": {
         "menu": "All of bobcats leveling commands",
         "title": "BobCat Leveling Commands",
         "gate": "leveling",
-        "cmds": {
-            "/rank": "Shows your or a member's level and XP",
-            "/leaderboard": "Shows the leaderboard",
-        }
+        "cmds": ["/rank", "/leaderboard"],
     },
     "Economy": {
         "menu": "All of bobcats economy commands",
         "title": "BobCat Economy Commands",
         "gate": "economy",
-        "cmds": {
-            "/economy shop": "Browse the shop",
-            "/economy balance": "Shows your balance",
-            "/economy work": "Earn coins",
-            "/economy withdraw": "Withdraw coins from the bank",
-            "/economy deposit": "Deposit coins to the bank",
-            "/economy buy": "Buy an item from the shop",
-            "/economy sell": "Sell an item from your inventory",
-            "/economy inventory": "Shows your inventory",
-        },
-        "staff_cmds": { # shown only to moderate_members
-            "/economy give-coins": "🔒 Give coins to a user",
-            "/economy remove-coins": "🔒 Remove coins from a user",
-        },
+        "cmds": [
+            "/economy shop", "/economy balance", "/economy work", "/economy withdraw",
+            "/economy deposit", "/economy buy", "/economy sell", "/economy inventory",
+        ],
+        "staff_cmds": ["/economy give-coins", "/economy remove-coins"],  # shown only to moderate_members
     },
     "Giveaway": {
         "menu": "All of bobcats giveaway commands",
         "title": "BobCat Giveaway Commands",
         "gate": "giveaways",
-        "cmds": {
-            "/giveaway create": "Create a giveaway",
-            "/giveaway end": "End a giveaway",
-            "/giveaway reroll": "Reroll a giveaway",
-            "/giveaway list": "List all giveaways",
-            # "/giveaway delete": "Delete a giveaway",
-        }
+        "cmds": ["/giveaway create", "/giveaway end", "/giveaway reroll", "/giveaway list"],
     },
     "Birthdays": {
         "menu": "All of bobcats birthdays commands",
         "title": "BobCat Birthdays Commands",
         "gate": "birthdays",
-        "cmds": {
-            "/birthdays": "Show all birthdays for the current month",
-            "/next-birthdays": "Shows the next 10 upcoming birthdays",
-            "/birthday": "Show yours or another member's birthday",
-            "/set-birthday": "Sets yours or another member's birthday",
-            "/remove-birthday": "Remove yours or another member's birthday",
-        }
+        "cmds": ["/birthdays", "/next-birthdays", "/birthday", "/set-birthday", "/remove-birthday"],
     }
 }
 
@@ -127,7 +79,7 @@ class BackBtn(discord.ui.Button):
 class Dropdown(discord.ui.Select):
     def __init__(self, client: discord.Bot):
         self.client: discord.Bot = client
-        self._mentions = self._build_mentions()
+        self._commands = self._build_command_index()
 
         options = [
             discord.SelectOption(label=name, description=cat["menu"])
@@ -142,9 +94,12 @@ class Dropdown(discord.ui.Select):
             custom_id="menu"
         )
 
-    def _build_mentions(self) -> dict[str, str]:
-        """{'economy shop': '</economy shop:123>'} for every registered slash command."""
-        mentions = {}
+    def _build_command_index(self) -> dict[str, discord.SlashCommand]:
+        """{'economy shop': <SlashCommand>} for every registered slash command,
+        so COMMANDS only needs to list paths - names/descriptions/mentions
+        all come straight from the real registration and can't drift out of
+        sync with it."""
+        index = {}
         for command in self.client.walk_application_commands():
             if not isinstance(command, discord.SlashCommand):
                 continue
@@ -155,19 +110,25 @@ class Dropdown(discord.ui.Select):
                 c = c.parent
             parts.reverse()
             parts.append(command.name)
-            full_name = " ".join(parts)
-            mentions[full_name] = f"</{full_name}:{command.qualified_id}>"
-        return mentions
+            index[" ".join(parts)] = command
+        return index
 
     def _mention(self, name: str) -> str:
-        return self._mentions.get(name, f"`/{name}`")
+        cmd = self._commands.get(name)
+        return f"</{name}:{cmd.qualified_id}>" if cmd else f"`/{name}`"
 
-    def _fmt(self, cmds: dict[str, str]) -> str:
-        """Format an ordered {path: description} mapping into embed lines."""
-        return "\n".join(
-            f"{self._mention(path.lstrip('/'))}{f' - {desc}' if desc else ''}"
-            for path, desc in cmds.items()
-        )
+    def _fmt(self, paths: list[str], staff_paths: frozenset[str] = frozenset()) -> str:
+        """Format a list of command paths (e.g. "/economy shop") into embed
+        lines, pulling each one's description from the live command."""
+        lines = []
+        for path in paths:
+            name = path.lstrip('/')
+            cmd = self._commands.get(name)
+            desc = cmd.description if cmd else ""
+            if name in staff_paths and desc:
+                desc = f"🔒 {desc}"
+            lines.append(f"{self._mention(name)}{f' - {desc}' if desc else ''}")
+        return "\n".join(lines)
 
     async def callback(self, interaction: discord.Interaction):
         selected = self.values[0]
@@ -186,13 +147,15 @@ class Dropdown(discord.ui.Select):
                     ephemeral=True,
                 )
 
-        cmds = dict(cat["cmds"])
+        paths = list(cat["cmds"])
+        staff_paths = frozenset()
         if "staff_cmds" in cat and interaction.user.guild_permissions.moderate_members:
-            cmds.update(cat["staff_cmds"])
+            paths += cat["staff_cmds"]
+            staff_paths = frozenset(p.lstrip('/') for p in cat["staff_cmds"])
 
         em = discord.Embed(
             title=cat["title"],
-            description=self._fmt(cmds),
+            description=self._fmt(paths, staff_paths),
             color=v.style(interaction.guild.id)
         )
         em.set_thumbnail(url=self.client.user.avatar.url)

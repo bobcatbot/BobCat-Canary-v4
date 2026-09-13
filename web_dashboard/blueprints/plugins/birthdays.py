@@ -17,11 +17,22 @@ async def birthdays(guild_id):
         return await render_template("error/404.html"), 404
 
     # Get the guild document using Beanie
-    config = (await Guild.get(str(guild.id))).dashboard.birthdays
-    
+    doc = await Guild.get(str(guild.id))
+    config = doc.dashboard.birthdays
+
+    # Pulled straight from the registered commands (see @v.gated_command in
+    # cogs/system/K birthdays.py) so the list and its descriptions can't
+    # drift out of sync with the actual commands.
+    commands = [
+        {"name": cmd.qualified_name, "description": cmd.description}
+        for cmd in v.gated_commands_for("birthdays")
+    ]
+
     return await render_template(
         "dashboard/plugins/birthdays.html",
         user=current_user,
         guild=guild,
         data=config,
+        commands=commands,
+        disabled_commands=doc.settings.disabled_commands,
     )

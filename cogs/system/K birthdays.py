@@ -200,6 +200,7 @@ class BirthdayCommands(commands.Cog):
         self.client = client
 
     @commands.slash_command(name="birthdays", description="Show all birthdays for the current month")
+    @v.gated_command("birthdays")
     async def birthdays(self, ctx: discord.ApplicationContext):
         birthdays = await get_bdays(ctx.guild.id)
         tz = v.datetimes(ctx.guild.id)
@@ -230,6 +231,7 @@ class BirthdayCommands(commands.Cog):
         await ctx.respond(embed=embed)
 
     @commands.slash_command(name="next-birthdays", description="Shows the next 10 upcoming birthdays")
+    @v.gated_command("birthdays")
     async def next_birthdays(self, ctx: discord.ApplicationContext):
         birthdays = await get_bdays(ctx.guild.id)
 
@@ -262,6 +264,7 @@ class BirthdayCommands(commands.Cog):
 
     @commands.slash_command(name="birthday", description="Show yours or another member's birthday")
     @discord.option("member", description="The member to view", required=False)
+    @v.gated_command("birthdays")
     async def view_birthday(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         member = member or ctx.author
         birthday = await Birthday.get(f"{ctx.guild.id}_{member.id}")
@@ -288,6 +291,7 @@ class BirthdayCommands(commands.Cog):
     @commands.slash_command(name="set-birthday", description="Set yours or another member's birthday")
     @discord.option("date", description="Birthday date (YYYY-MM-DD)", required=True)
     @discord.option("member", description="The member to set the birthday of", required=False)
+    @v.gated_command("birthdays")
     async def set_birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member = None):
         member = member or ctx.author
         
@@ -336,6 +340,7 @@ class BirthdayCommands(commands.Cog):
         await ctx.respond(embed=embed)
 
     @commands.slash_command(name="remove-birthday", description="Remove your birthday")
+    @v.gated_command("birthdays")
     async def remove_birthday(self, ctx: discord.ApplicationContext):
         birthday = await Birthday.get(f"{ctx.guild.id}_{ctx.author.id}")
 
