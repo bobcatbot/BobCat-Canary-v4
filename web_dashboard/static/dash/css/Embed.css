@@ -425,3 +425,48 @@
     flex: 0 0 100%;
   }
 }
+/* ===== RICH (CHIP) FIELDS — mirrors the .embed input/textarea rules
+   above for the contenteditable divs variable-chips.js swaps in ===== */
+.embed .rich-var-field {
+  width: 100%;
+  color: #fff;
+  background: none;
+}
+
+.embed .rich-var-field.is-empty::before {
+  color: #72767d;
+}
+
+.embed .author .rich-var-field {
+  font-weight: 500;
+}
+
+.embed .title .rich-var-field {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.embed .desc .rich-var-field {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  font-weight: 400;
+}
+
+.embed .foter .rich-var-field {
+  font-size: 12px;
+  color: #72767d;
+}
+
+.embed .foter .rich-var-field.is-empty::before {
+  color: #4f5257;
+}
+
+.field-name-input.rich-var-field,
+.field-value-input.rich-var-field {
+  min-height: 1em;
+}
+
+.field-name-input.rich-var-field.is-empty::before,
+.field-value-input.rich-var-field.is-empty::before {
+  color: #72767d;
+}

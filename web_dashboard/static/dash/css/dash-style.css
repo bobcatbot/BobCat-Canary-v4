@@ -1191,3 +1191,91 @@ body::-webkit-scrollbar-thumb {
   font-size: 13px;
   color: #012970;
 }
+/*--------------------------------------------------------------
+# Variable Autocomplete
+--------------------------------------------------------------*/
+.var-autocomplete {
+  position: absolute;
+  z-index: 2000;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--input-bg);
+  border: 2px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+}
+
+.var-autocomplete-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.var-autocomplete-item + .var-autocomplete-item {
+  margin-top: 2px;
+}
+
+.var-autocomplete-item.active,
+.var-autocomplete-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.var-autocomplete-item .var-tag {
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.var-autocomplete-item .var-desc {
+  color: #9195ab;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/*--------------------------------------------------------------
+# Variable Chips (rich text-input replacement)
+--------------------------------------------------------------*/
+.rich-var-field {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: text;
+}
+
+.rich-var-field.is-empty {
+  position: relative;
+}
+
+.rich-var-field.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--input-placeholder-color);
+  pointer-events: none;
+}
+
+.var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(88, 101, 242, 0.18);
+  color: #c9d0ff;
+  border: 1px solid rgba(88, 101, 242, 0.5);
+  border-radius: 999px;
+  padding: 1px 8px 1px 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.var-chip::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 4px solid currentColor;
+  opacity: 0.7;
+}

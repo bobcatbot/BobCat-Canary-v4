@@ -277,10 +277,10 @@
         fieldDataKeyPrefix: 'welcome.join.message.embed', // same as above, but you could use a different one if needed
         initial: {
           color: `{{ data['join']['message'].get('embed', {}).get('color', '') }}`,
-          author: `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-          title: `{{ data['join']['message'].get('embed', {}).get('title', '') }}`,
-          desc: `{{ data['join']['message'].get('embed', {}).get('description', '') }}`,
-          footer: `{{ data['join']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          author: `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
+          title: `{{ data['join']['message'].get('embed', {}).get('title', '') or '' }}`,
+          desc: `{{ data['join']['message'].get('embed', {}).get('description', '') or '' }}`,
+          footer: `{{ data['join']['message'].get('embed', {}).get('footer', {}).get('text', '') or '' }}`,
           fields: `{{ data['join']['message'].get('embed', {}).get('fields', []) | tojson }}`,
         }
       },
@@ -291,10 +291,10 @@
         fieldDataKeyPrefix: 'welcome.dm.message.embed',
         initial: {
           color: `{{ data['dm']['message'].get('embed', {}).get('color', '') }}`,
-          author: `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-          title: `{{ data['dm']['message'].get('embed', {}).get('title', '') }}`,
-          desc: `{{ data['dm']['message'].get('embed', {}).get('description', '') }}`,
-          footer: `{{ data['dm']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          author: `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
+          title: `{{ data['dm']['message'].get('embed', {}).get('title', '') or '' }}`,
+          desc: `{{ data['dm']['message'].get('embed', {}).get('description', '') or '' }}`,
+          footer: `{{ data['dm']['message'].get('embed', {}).get('footer', {}).get('text', '') or '' }}`,
           fields: `{{ data['dm']['message'].get('embed', {}).get('fields', []) | tojson }}`,
         }
       },
@@ -305,10 +305,10 @@
         fieldDataKeyPrefix: 'welcome.leave.message.embed',
         initial: {
           color: `{{ data['leave']['message'].get('embed', {}).get('color', '') }}`,
-          author: `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') }}`,
-          title: `{{ data['leave']['message'].get('embed', {}).get('title', '') }}`,
-          desc: `{{ data['leave']['message'].get('embed', {}).get('description', '') }}`,
-          footer: `{{ data['leave']['message'].get('embed', {}).get('footer', {}).get('text', '') }}`,
+          author: `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
+          title: `{{ data['leave']['message'].get('embed', {}).get('title', '') or '' }}`,
+          desc: `{{ data['leave']['message'].get('embed', {}).get('description', '') or '' }}`,
+          footer: `{{ data['leave']['message'].get('embed', {}).get('footer', {}).get('text', '') or '' }}`,
           fields: `{{ data['leave']['message'].get('embed', {}).get('fields', []) | tojson }}`,
         }
       },
