@@ -8,7 +8,9 @@
  * inside a Discord embed editor — author/title/description/footer and the
  * field name/value inputs (components/embed_editor.html). Embed fields are
  * dynamically added ("Add Field"), so a MutationObserver upgrades new ones
- * as they appear.
+ * as they appear. Variable list comes from variables-data.js
+ * (window.BOT_VARIABLES), shared with variable-autocomplete.js — works on
+ * every dashboard page unconditionally, no per-page opt-in needed.
  *
  * Design: the original <input>/<textarea> is kept in the DOM (hidden) as
  * the single source of truth. A contenteditable "rich" div sits in its
@@ -19,13 +21,7 @@
  * wiring) keeps working completely unchanged.
  */
 (function () {
-  const modal = document.getElementById('VariablesModal');
-  if (!modal) return;
-
-  const VARIABLES = Array.from(modal.querySelectorAll('h5')).map((h5) => {
-    const desc = h5.nextElementSibling;
-    return { tag: h5.textContent.trim(), desc: desc ? desc.textContent.trim() : '' };
-  }).filter((v) => v.tag.startsWith('{') && v.tag.endsWith('}'));
+  const VARIABLES = window.BOT_VARIABLES || [];
   if (!VARIABLES.length) return;
 
   const byTagLower = new Map(VARIABLES.map((v) => [v.tag.toLowerCase(), v]));

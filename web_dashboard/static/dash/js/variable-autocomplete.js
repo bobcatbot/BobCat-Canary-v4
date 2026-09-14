@@ -1,24 +1,14 @@
 /**
  * Variable autocomplete for message/embed text fields.
  *
- * Typing `{` inside any text input or textarea on a page that has the
- * Variables modal (components/variables.html) pops up a filterable list of
- * `{variable}` tags — pulled straight from that modal so there's a single
- * source of truth for names/descriptions. Arrow keys move the highlight,
- * Enter/Tab/click inserts the tag, Escape dismisses.
+ * Typing `{` inside any text input or textarea pops up a filterable list of
+ * `{variable}` tags — sourced from variables-data.js (window.BOT_VARIABLES),
+ * the single source of truth shared with variable-chips.js. Works on every
+ * dashboard page unconditionally; no per-page modal/opt-in needed. Arrow
+ * keys move the highlight, Enter/Tab/click inserts the tag, Escape dismisses.
  */
 (function () {
-  const modal = document.getElementById('VariablesModal');
-  if (!modal) return; // page doesn't use variables — nothing to do
-
-  const VARIABLES = Array.from(modal.querySelectorAll('h5')).map((h5) => {
-    const desc = h5.nextElementSibling;
-    return {
-      tag: h5.textContent.trim(), // e.g. "{server.name}"
-      desc: desc ? desc.textContent.trim() : '',
-    };
-  }).filter((v) => v.tag.startsWith('{') && v.tag.endsWith('}'));
-
+  const VARIABLES = window.BOT_VARIABLES || [];
   if (!VARIABLES.length) return;
 
   const popup = document.createElement('div');

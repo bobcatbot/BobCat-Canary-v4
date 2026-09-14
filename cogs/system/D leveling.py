@@ -183,21 +183,7 @@ class Leveling(commands.Cog):
         mess: str = message_config.content or '{user} just reached level {level}!'
         chan = lvl_data.channel
  
-        def replace_placeholder(match: re.Match) -> str:
-            key = match.group(1)
-            if key == 'level':
-                return str(new_lvl)
-            if '.' in key:
-                parts = key.split('.')
-                obj = message.author if parts[0] == 'user' else message.guild
-                for k in parts[1:]:
-                    obj = getattr(obj, k, f'{{{k}}}')
-                return str(obj)
-            if key == 'user':
-                return str(message.author)
-            return str(message.guild.name)
- 
-        formatted = re.sub(r'\{([\w.]+)\}', replace_placeholder, mess)
+        formatted = re.sub(r'\{([\w.]+)\}', v.replace_placeholder, mess)
         msg_text = formatted.format(server=message.guild, user=message.author, level=new_lvl)
  
         if anno == "current":

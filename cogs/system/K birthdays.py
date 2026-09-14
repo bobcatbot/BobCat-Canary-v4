@@ -120,7 +120,7 @@ class BirthdayTimers(commands.Cog):
                     message_template,
                     user=member,
                     age=age,
-                    server=guild.name
+                    server=guild
                 ))
 
                 # Send DM if enabled

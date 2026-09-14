@@ -109,12 +109,7 @@
         </div>
 
         <div class="mt-2">
-          <div class="d-flex gap-2 align-items-center mb-2">
-            <p class="mb-0">Level Up Announcement Message</p>
-            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle"></i>
-            </button>
-          </div>
+          <p class="mb-2">Level Up Announcement Message</p>
           <textarea id="LevelAnnoMsg" class="text-input" name="LevelAnnoMsg"></textarea>
           <script>document.querySelector('#LevelAnnoMsg').value = "{{data['message']['content']}}";</script>
         </div>
@@ -400,7 +395,6 @@
       </div>
     </div>
 
-    {% include 'components/variables.html' %}
     {% include 'components/PremiumModal.html' %}
     {% include 'components/save-toast.html' %}
   </main>

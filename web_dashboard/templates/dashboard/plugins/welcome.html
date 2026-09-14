@@ -36,9 +36,6 @@
         <div class="title d-flex justify-content-between align-items-center">
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a message when a user joins the server</h2>
-            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle"></i>
-            </button>
           </div>
           <div class="form-switch">
             {% if data['join']['status'] == True %}
@@ -100,9 +97,6 @@
         <div class="title d-flex justify-content-between align-items-center">
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a private message to new users</h2>
-            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle"></i>
-            </button>
           </div>
           <div class="form-switch">
             {% if data['dm']['status'] == True %}
@@ -149,9 +143,6 @@
         <div class="title d-flex justify-content-between align-items-center">
           <div class="d-flex gap-2 align-items-center">
             <h2>Send a message when a user leaves the server</h2>
-            <button class="btn btn-outline-primary btn-sm" data-bs-target="#VariablesModal" data-bs-toggle="modal">
-              <i class="bi bi-info-circle"></i>
-            </button>
           </div>
           <div class="form-switch">
             {% if data['leave']['status'] == True %}
@@ -240,7 +231,6 @@
       </div>
     </section>
 
-    {% include 'components/variables.html' %}
     {% include 'components/PremiumModal.html' %}
     {% include 'components/save-toast.html' %}
   </main>

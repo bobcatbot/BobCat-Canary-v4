@@ -22,8 +22,7 @@ class welcomeSystem(commands.Cog):
                 return v.render_placeholders(
                     value,
                     user=member,
-                    server=member.guild.name,
-                    membercount=member.guild.member_count
+                    server=member.guild
                 )
 
             if isinstance(value, dict):
@@ -57,8 +56,7 @@ class welcomeSystem(commands.Cog):
                 await channel.send(v.render_placeholders(
                     join.message.content,
                     user=member,
-                    server=member.guild.name,
-                    membercount=member.guild.member_count
+                    server=member.guild
                 ))
 
             if channel and join.message.type == "embed":
@@ -89,8 +87,7 @@ class welcomeSystem(commands.Cog):
                     await member.send(v.render_placeholders(
                         dm.message.content or '',
                         user=member,
-                        server=member.guild.name,
-                        membercount=member.guild.member_count
+                        server=member.guild
                     ))
 
                 elif dm.message.type == "embed":
@@ -126,8 +123,7 @@ class welcomeSystem(commands.Cog):
                 v.render_placeholders(
                     leave.message.content or "",
                     user=member,
-                    server=member.guild.name,
-                    membercount=member.guild.member_count,
+                    server=member.guild
                 )
             )
 
