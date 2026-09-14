@@ -1,10 +1,21 @@
+/* This file is served minified as dropdown.min.js (see dash-links.html) -
+   there is no build step, so after editing THIS file you must regenerate
+   dropdown.min.js by hand before the change takes effect on the site:
+
+     cd web_dashboard/static/dash/js
+     npx terser dropdown.js --compress --mangle --comments false -o dropdown.min.js
+     node --check dropdown.min.js
+
+   `node --check` only catches syntax errors - re-test the actual dropdowns
+   in the browser if the edit touched logic, not just comments/formatting. */
+
 // Registry of live Select instances, keyed by the selector passed to `new
 // Select(...)`. Lets callers (e.g. save-toast reverts) drive a widget without
 // having kept the constructor's return value.
 window._selects = window._selects || {};
 
-function Select(el, options={  placeholder: '', type: '', multiple: false, maxItems: 1, clearAll: false, removeBtn: false, options: []}) {
-  const selectWrapper = document.querySelector(`${el}`);
+function Select(el, options = { placeholder: '', type: '', multiple: false, maxItems: 1, clearAll: false, removeBtn: false, options: [] }) {
+  const selectWrapper = document.querySelector(el);
   const select = selectWrapper.querySelector('.select');
   const selectSelected = select.querySelector('.select-selected');
   const selectOptions = select.querySelector('.select-options');
@@ -17,12 +28,7 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
 
   // Function to get the selected options
   this.getSelectedOptions = function() {
-    var selectedOptions = []
-    for (let i = 0; i < selectedOptionsList.length; i++) {
-      var item = selectedOptionsList[i]
-      selectedOptions.push(item.id ?? item.value)
-    }
-    return selectedOptions;
+    return selectedOptionsList.map((item) => item.id ?? item.value);
   };
 
   // Replace the current selection with `values` (array of option id/value
@@ -43,7 +49,7 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
     });
     updateSelectedOptions();
   };
-  
+
   // Function to update and display selected options
   function updateSelectedOptions() {
     selectSelected.innerHTML = '';
@@ -69,13 +75,13 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
       });
     } else {
       if (selectedOptionsList.length > 0) {
-        selectSelected.classList.remove('placholder')
-        selectSelected.classList.add('chip')
+        selectSelected.classList.remove('placholder');
+        selectSelected.classList.add('chip');
         selectSelected.textContent = selectedOptionsList[0].name ?? selectedOptionsList[0].value;
         selectSelected.setAttribute('data-type', options.type);
       } else {
-        selectSelected.classList.remove('chip')
-        selectSelected.classList.remove('placholder')
+        selectSelected.classList.remove('chip');
+        selectSelected.classList.remove('placholder');
         selectSelected.textContent = options.placeholder || 'Select an option';
       }
     }
@@ -85,18 +91,12 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
       const isSelected = selectedOptionsList.some(function (selectedOption) {
         return (selectedOption.id && selectedOption.id === option.dataset.id) ||
                (selectedOption.name && selectedOption.name === option.dataset.name) ||
-               (selectedOption.value && selectedOption.value === option.dataset.value)
+               (selectedOption.value && selectedOption.value === option.dataset.value);
       });
       option.classList.toggle('selected', isSelected);
-    })
+    });
 
     // Trigger custom event when selected options are updated
-    var selectedOptions = []
-    for (let i = 0; i < selectedOptionsList.length; i++) {
-      var item = selectedOptionsList[i]
-      selectedOptions.push(item.id ?? item.value)
-    }
-    
     const event = new CustomEvent('select:update', {
       detail: {
         selectedOptions: selectedOptionsList.map((option) => option.id ?? option.value),
@@ -107,22 +107,6 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
   }
 
   // Remove selected option
-  // function removeSelectedOption(option) {
-  //   const index = selectedOptionsList.indexOf(option);
-  //   if (index > -1) {
-  //     selectedOptionsList.splice(index, 1);
-  //     selectedOptionsListVals.splice(index, 1);
-  //     updateSelectedOptions();
-  
-  //     // Remove the 'selected' class from the corresponding option in the menu
-  //     const correspondingOption = Array.from(optionsList).find(function(element) {
-  //       return element.dataset.id ?? element.dataset.value === option;
-  //     });
-  //     if (correspondingOption) {
-  //       correspondingOption.classList.remove('selected');
-  //     }
-  //   }
-  // }
   function removeSelectedOption(option) {
     selectedOptionsList = selectedOptionsList.filter(selected => selected.id !== option.id && selected.value !== option.value);
     selectedOptionsListVals = selectedOptionsListVals.filter(val => val !== (option.id ?? option.value));
@@ -135,29 +119,29 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
     selectedOptionsListVals = [];
     updateSelectedOptions();
   }
-  
+
   // Set the placeholder
-  selectSelected.classList.add('placholder')
+  selectSelected.classList.add('placholder');
   selectSelected.textContent = options.placeholder || 'Select an option';
-  
+
   // Load default values if options parameter is not an empty array
   if (Array.isArray(options.options) && options.options.length > 0) {
     options.options.forEach(function(defaultOption) {
       const option = Array.from(optionsList).find(function(element) {
         return (element.dataset.id && element.dataset.id === defaultOption) ||
-               (element.dataset.value && element.dataset.value === defaultOption)
+               (element.dataset.value && element.dataset.value === defaultOption);
       });
       if (option) {
         option.classList.add('selected');
-        selectSelected.classList.remove('placholder')
-        
-        const dictItem = { name: option.textContent, id: option.dataset.id, value: option.dataset.value};
+        selectSelected.classList.remove('placholder');
+
+        const dictItem = { name: option.textContent, id: option.dataset.id, value: option.dataset.value };
         selectedOptionsList.push(dictItem);
       }
     });
     updateSelectedOptions();
   }
-  
+
   // Toggle the select options
   select.addEventListener('click', function() {
     // Close the select menu after selecting an option
@@ -171,13 +155,13 @@ function Select(el, options={  placeholder: '', type: '', multiple: false, maxIt
   // Handle option selection
   optionsList.forEach(function(item) {
     item.addEventListener('click', function(e) {
-      if (!options.multiple || options.maxItems === 0) {
+      if (!options.multiple) {
         selectedOptionsList = []; // Clear previously selected options for single select
         selectedOptionsListVals = []; // Clear previously selected options for single select
       }
 
       // Update the selectedOptionsList based on the selected options
-      const optionItem = { name: item.textContent, id: item.dataset.id, value: item.dataset.value};
+      const optionItem = { name: item.textContent, id: item.dataset.id, value: item.dataset.value };
       if (!item.classList.contains('selected')) {
         if (options.maxItems === 0 || selectedOptionsList.length < options.maxItems) {
           selectedOptionsList.push(optionItem);

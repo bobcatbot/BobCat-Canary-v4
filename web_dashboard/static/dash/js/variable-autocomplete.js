@@ -6,6 +6,18 @@
  * the single source of truth shared with variable-chips.js. Works on every
  * dashboard page unconditionally; no per-page modal/opt-in needed. Arrow
  * keys move the highlight, Enter/Tab/click inserts the tag, Escape dismisses.
+ *
+ * This file is served minified as variable-autocomplete.min.js (see
+ * dash-links.html) - there is no build step, so after editing THIS file you
+ * must regenerate variable-autocomplete.min.js by hand before the change
+ * takes effect on the site:
+ *
+ *   cd web_dashboard/static/dash/js
+ *   npx terser variable-autocomplete.js --compress --mangle --comments false -o variable-autocomplete.min.js
+ *   node --check variable-autocomplete.min.js
+ *
+ * `node --check` only catches syntax errors - re-test in the browser if the
+ * edit touched logic, not just comments/formatting.
  */
 (function () {
   const VARIABLES = window.BOT_VARIABLES || [];

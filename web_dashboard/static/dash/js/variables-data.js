@@ -6,6 +6,17 @@
  * Keeping it as plain data here means every dashboard page gets the `{`-autocomplete/chip behavior automatically, with no per-page opt-in required.
  *
  * Keep this in sync with components/variables.html (the modal is still used elsewhere as a click-to-browse reference).
+ *
+ * This file is served minified as variables-data.min.js (see dash-links.html)
+ * - there is no build step, so after editing THIS file you must regenerate
+ * variables-data.min.js by hand before the change takes effect on the site:
+ *
+ *   cd web_dashboard/static/dash/js
+ *   npx terser variables-data.js --compress --mangle --comments false -o variables-data.min.js
+ *   node --check variables-data.min.js
+ *
+ * `node --check` only catches syntax errors - re-test in the browser if the
+ * edit touched logic, not just comments/formatting.
  */
 window.BOT_VARIABLES = [
   { tag: '{level}', desc: "The user's level (used for level up messages)" },

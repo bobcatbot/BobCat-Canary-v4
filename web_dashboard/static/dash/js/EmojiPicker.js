@@ -1,56 +1,72 @@
 /* Usage
-EmojiPicker({
-  trigger: 'button',
+new EmojiPicker({
+  trigger: 'button',       // selector for the element that opens the picker
   position: ['bottom', 'right'],
-  dir: 'directory/to/json',
-  onload: () => {},
+  plug: 'my-picker',       // optional - appended as an extra class on .emoji-picker
+  onload: () => {},        // optional - runs once, after the picker is first inserted
   emit(emoji) {
-    console.log(emoji);
+    console.log(emoji.icon);
   }
 });
 */
+
+/* This file is served minified as EmojiPicker.min.js (see dash-links.html) -
+   there is no build step, so after editing THIS file you must regenerate
+   EmojiPicker.min.js by hand before the change takes effect on the site:
+
+     cd web_dashboard/static/dash/js
+     npx terser EmojiPicker.js --compress --mangle --comments false -o EmojiPicker.min.js
+     node --check EmojiPicker.min.js
+
+   `node --check` only catches syntax errors - re-test the actual picker in
+   the browser if the edit touched logic, not just comments/formatting.
+
+   Note: this file won't shrink much further via minification - over half of
+   it is embedded SVG path data for the category-tab icons, and a JS
+   minifier can't safely touch string content. Meaningfully reducing it
+   further would mean running the SVGs through an SVG-specific optimizer
+   (e.g. SVGO) instead. */
 
 const EmojiPicker = function (options) {
   this.options = options;
 
   if (!this.options) {
-    return console.error('You must provide object as a first argument')
+    return console.error('You must provide object as a first argument');
   }
 
   this.init = () => {
     this.selectors.trigger = this.options.hasOwnProperty('trigger') ? this.options.trigger : console.error('You must proved trigger element like this - \'EmojiPicker.init({trigger: "selector"})\' ');
     this.selectors.search = '.emoji-picker-search input';
-    this.selectors.emojiContainer = '.emoji-picker-grid'
+    this.selectors.emojiContainer = '.emoji-picker-grid';
     this.emojiItems = undefined;
     this.variable.plug = this.options.plug || '';
     this.variable.emit = this.options.emit || null;
     this.variable.position = this.options.position || null;
-    this.variable.dir = '/static/Emojis.json';
     if (!this.selectors.trigger) return;
 
     this.bindEvents();
     this.variable.onload = this.options.onload || null;
-  }
+  };
 
   this.variable = {
     position: null,
-    dir: '',
-    onload: null
-  }
+    dir: '/static/Emojis.json',
+    onload: null,
+  };
 
   this.selectors = {
     emit: null,
-    trigger: null
-  }
+    trigger: null,
+  };
 
   this.bindEvents = () => {
-    var elem = document.querySelector(this.selectors.trigger)
-    
+    const elem = document.querySelector(this.selectors.trigger);
+
     document.body.addEventListener('click', this.functions.removeEmojiPicker.bind(this));
     elem.addEventListener('click', this.functions.emitEmoji.bind(this));
-    elem.addEventListener('click', this.functions.openEmojiSelector.bind(this), this.selectors.trigger);
-    elem.addEventListener('input', this.functions.search.bind(this), this.selectors.search);
-  }
+    elem.addEventListener('click', this.functions.openEmojiSelector.bind(this));
+    elem.addEventListener('input', this.functions.search.bind(this));
+  };
 
   this.functions = {
 
@@ -62,56 +78,61 @@ const EmojiPicker = function (options) {
       }
       this.emojiItems.filter(emoji => {
         if (!emoji.getAttribute('data-name').match(val)) {
-          emoji.style.display = 'none'
+          emoji.style.display = 'none';
 
           // hide the empty category
           if (emoji.closest('ul').querySelectorAll('li').length === emoji.closest('ul').querySelectorAll('li[style="display: none;"]').length) {
-            emoji.closest('.emoji-picker-category').style.display = 'none'
+            emoji.closest('.emoji-picker-category').style.display = 'none';
           }
         } else {
-          emoji.style.display = ''
-          emoji.closest('.emoji-picker-category').style.display = ''
+          emoji.style.display = '';
+          emoji.closest('.emoji-picker-category').style.display = '';
         }
-      })
+      });
 
       if (!val.length) this.emojiItems = undefined;
     },
 
-    removeEmojiPicker(e) {
-      const el = e.target;
+    // Close the picker outright - used once an emoji has actually been picked,
+    // where we always want it gone regardless of what was clicked.
+    closePicker() {
       const picker = document.querySelector('.emoji-picker');
+      if (picker) picker.remove();
+      this.emojiItems = undefined;
+    },
 
-      if (!el.closest('.emoji-picker')) picker ? picker.remove() : false;
-      this.emojiItems = undefined
+    // Click-outside handler bound on document.body - only closes when the
+    // click landed outside the picker (a click on the picker itself, e.g.
+    // picking an emoji, is handled separately by closePicker()).
+    removeEmojiPicker(e) {
+      if (!e.target.closest('.emoji-picker')) this.functions.closePicker();
     },
 
     emitEmoji(e) {
       const el = e.target;
 
-      if (el.tagName.toLowerCase() == 'a' && el.className.includes('emoji-picker-item')) {
+      if (el.tagName.toLowerCase() === 'a' && el.className.includes('emoji-picker-item')) {
         e.preventDefault();
 
-        let emoji_data = {
+        const emoji_data = {
           icon: el.getAttribute('href'),
-          name: el.getAttribute('name')
-        }
-        if (this.variable.emit)
-          this.variable.emit(emoji_data, this.triggerer)
+          name: el.getAttribute('name'),
+        };
+        if (this.variable.emit) this.variable.emit(emoji_data, this.triggerer);
 
-        this.functions.removeEmojiPicker(e);
+        this.functions.closePicker();
       }
-
     },
 
-    // Open omoji picker
+    // Open emoji picker
     openEmojiSelector(e) {
-      let el = e.target.closest(this.selectors.trigger)
+      const el = e.target.closest(this.selectors.trigger);
       if (el) {
         e.preventDefault();
 
         // Bounding rect
         // Trigger position and (trigger) sizes
-        if (typeof this.variable.emit === 'function') this.triggerer = el
+        if (typeof this.variable.emit === 'function') this.triggerer = el;
 
         // Emoji Picker Promise
         this.emojiPicker().then(emojiPicker => {
@@ -127,13 +148,12 @@ const EmojiPicker = function (options) {
             document.querySelector(this.options.trigger).insertAdjacentHTML('beforeend', emojiPicker);
             if (typeof this.variable.onload === 'function') this.variable.onload();
           }
-    
+
           const emojiPickerMain = document.querySelector('.emoji-picker');
-          const emojiFooter = emojiPickerMain.querySelector('.emoji-picker-footer');
-          const emojiBody = emojiPickerMain.querySelector('.emoji-picker-all-categories')
+          const emojiBody = emojiPickerMain.querySelector('.emoji-picker-all-categories');
 
           // Positioning emoji container
-          let positions = {
+          const positions = {
             buttonTop: el.offsetHeight,
             buttonWidth: el.offsetWidth,
             buttonFromLeft: el.getBoundingClientRect().left,
@@ -142,14 +162,14 @@ const EmojiPicker = function (options) {
             windowScrollPosition: window.pageYOffset,
             emojiHeight: emojiPickerMain.offsetHeight,
             emojiWidth: emojiPickerMain.offsetWidth,
-          }
+          };
 
-          let position = {
+          const position = {
             top: positions.buttonTop + 10,
             left: positions.buttonFromLeft - positions.emojiWidth,
             bottom: positions.buttonTop,
-            right: positions.buttonFromLeft + positions.buttonWidth
-          }
+            right: positions.buttonFromLeft + positions.buttonWidth,
+          };
 
           if (this.variable.position) {
             this.variable.position.forEach(elemPos => {
@@ -160,63 +180,56 @@ const EmojiPicker = function (options) {
               if (elemPos === 'top') {
                 emojiPickerMain.style.bottom = position[elemPos] - 5 + 'px';
               }
-
-              // else if (elemPos === 'right') {
-              //   emojiPickerMain.style.left = position[elemPos] + 8 + 'px';
-              // }
-              // else {
-              //   emojiPickerMain.style[elemPos] = position[elemPos] - 5 + 'px';
-              // }
             })
           }
-  
+
           // Add event listener on click
           document.querySelector('.emoji-picker').onclick = function(e) {
             e.preventDefault();
-  
-            let scrollTo = (element, to, duration = 100) => {
+
+            const scrollTo = (element, to, duration = 100) => {
               if (duration <= 0) return;
-              
-              var difference = to - 65 - element.scrollTop;
-              var perTick = difference / duration * 10;
-  
+
+              const difference = to - 65 - element.scrollTop;
+              const perTick = difference / duration * 10;
+
               setTimeout(function() {
                 element.scrollTop = element.scrollTop + perTick;
                 if (element.scrollTop === to) return;
                 scrollTo(element, to, duration - 10);
               }, 10);
             }
-  
+
             const el = e.target;
             const filterLlnk = el.closest('a');
-  
-            document.querySelectorAll('.emoji-picker-categories li').forEach(item => item.classList.remove('active'))
-  
+
+            document.querySelectorAll('.emoji-picker-categories li').forEach(item => item.classList.remove('active'));
+
             if (filterLlnk && filterLlnk.closest('li') && filterLlnk.closest('li').getAttribute('data-index')) {
-              let list = filterLlnk.closest('li')
+              const list = filterLlnk.closest('li');
               list.classList.add('active');
-              let listIndex = list.getAttribute('data-index');
+              const listIndex = list.getAttribute('data-index');
               scrollTo(emojiBody, emojiBody.querySelector(`#${listIndex}`).offsetTop);
             }
-  
+
           }
         })
       }
     },
   },
-    
+
     // Create emoji container / Builder engine
   this.emojiPicker = () => {
     let categoryIcons = {
       'search': `
         <svg width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 511.999 511.999">
-          <g><g> 
+          <g><g>
             <path d="M508.874,478.708L360.142,329.976c28.21-34.827,45.191-79.103,45.191-127.309c0-111.75-90.917-202.667-202.667-202.667 S0,90.917,0,202.667s90.917,202.667,202.667,202.667c48.206,0,92.482-16.982,127.309-45.191l148.732,148.732 c4.167,4.165,10.919,4.165,15.086,0l15.081-15.082C513.04,489.627,513.04,482.873,508.874,478.708z M202.667,362.667 c-88.229,0-160-71.771-160-160s71.771-160,160-160s160,71.771,160,160S290.896,362.667,202.667,362.667z"/>
           </g></g>
           <g></g><g></g><g></g><g></g>
         </svg>
       `,
-      
+
       'people': `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20">
           <path d="M0 0h24v24H0V0z" fill="none"/>
@@ -282,10 +295,9 @@ const EmojiPicker = function (options) {
           </g></g>
         </svg>
       `,
-    }
-  
-    //${categoryIcons.search}
-    let picker = `
+    };
+
+    const picker = `
       <div class="emoji-picker ${this.options.plug}">
           <div class="emoji-picker-categories">%categories%</div>
           <div>
@@ -295,33 +307,33 @@ const EmojiPicker = function (options) {
             %pickerContainer%
           </div>
       </div>`;
-  
-    let categories = '<ul>%categories%</ul>';
+
+    const categories = '<ul>%categories%</ul>';
     let categoriesInner = ``;
-    let outerUl = `<div class="emoji-picker-all-categories">%outerUL%</div>`;
+    const outerUl = `<div class="emoji-picker-all-categories">%outerUL%</div>`;
     let innerLists = ``;
-  
+
     let index = 0; // Index count
-  
+
     const fetchData = fetch(`${this.variable.dir}`)
       .then(response => response.json())
       .then(emojis => {
         for (const key in emojis) {
           if (emojis.hasOwnProperty(key)) {
             index += 1; // Index count
-  
-            let keyToId = key.split(' ').join('-').split('&').join('').toLowerCase();
-  
+
+            const keyToId = key.split(' ').join('-').split('&').join('').toLowerCase();
+
             const categories = emojis[key];
-            
-            categoriesInner += `<li class="${index === 1 ? 'active' : ''}" id="${keyToId}" data-index="${keyToId}"><a href="#${keyToId}">${categoryIcons[keyToId]}</a></li>`
-  
+
+            categoriesInner += `<li class="${index === 1 ? 'active' : ''}" id="${keyToId}" data-index="${keyToId}"><a href="#${keyToId}">${categoryIcons[keyToId]}</a></li>`;
+
             innerLists += `
               <ul class="emoji-picker-category ${index === 1 ? 'active' : ''}" id="${keyToId}" category-name="${key}">
                 <div class="emoji-picker-container-title"><div style="margin-right:5px">${categoryIcons[keyToId]}</div> ${key}</div>
                   <div class="emoji-picker-grid">
             `;
-  
+
             // Loop through emoji items
             categories.forEach(item => {
               innerLists += `
@@ -331,24 +343,24 @@ const EmojiPicker = function (options) {
                   </a>
                 </li>
               `;
-            })
-  
+            });
+
             innerLists += `
                 </div>
               </ul>
             `;
           }
         }
-        
-        let allSmiles = outerUl.replace('%outerUL%', innerLists)
-        let cats = categories.replace('%categories%', categoriesInner);
-        let pickerContainer = picker.replace('%pickerContainer%', allSmiles)
-        let data = pickerContainer.replace('%categories%', cats);
+
+        const allSmiles = outerUl.replace('%outerUL%', innerLists);
+        const cats = categories.replace('%categories%', categoriesInner);
+        const pickerContainer = picker.replace('%pickerContainer%', allSmiles);
+        const data = pickerContainer.replace('%categories%', cats);
         return data;
-      })
-  
+      });
+
     return fetchData;
-  }
-  
-  this.init()
-}
+  };
+
+  this.init();
+};

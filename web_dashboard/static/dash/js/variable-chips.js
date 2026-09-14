@@ -19,6 +19,17 @@
  * dispatching a real `input` event — so every existing script (show_toast
  * diffing, initial content, save/POST payloads, embed-editor.js field
  * wiring) keeps working completely unchanged.
+ *
+ * This file is served minified as variable-chips.min.js (see dash-links.html)
+ * - there is no build step, so after editing THIS file you must regenerate
+ * variable-chips.min.js by hand before the change takes effect on the site:
+ *
+ *   cd web_dashboard/static/dash/js
+ *   npx terser variable-chips.js --compress --mangle --comments false -o variable-chips.min.js
+ *   node --check variable-chips.min.js
+ *
+ * `node --check` only catches syntax errors - re-test in the browser if the
+ * edit touched logic, not just comments/formatting.
  */
 (function () {
   const VARIABLES = window.BOT_VARIABLES || [];

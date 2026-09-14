@@ -2,8 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
-  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
   <style>
     #sb-emoji-preview {
       display: flex;
@@ -314,7 +312,6 @@
     new EmojiPicker({
       trigger: '#edit-sb-emoji',
       position: ['bottom', 'right'],
-      dir: "{{url_for('static', filename='Emojis.json')}}",
       plug: 'sb',
       emit(emoji) {
         document.querySelector('#sb-emoji-preview').innerText = emoji.icon;

@@ -2,8 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
-  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -245,7 +243,6 @@
     new EmojiPicker({
       trigger: '#edit-icon',
       position: ['bottom', 'right'],
-      dir: "{{url_for('static', filename='Emojis.json')}}",
       plug: 'eco',
       emit(emoji) {
         editCurrencyIcon(emoji)
@@ -254,7 +251,6 @@
     new EmojiPicker({
       trigger: '#ShopItemIcon',
       position: ['bottom', 'right'],
-      dir: "{{url_for('static', filename='Emojis.json')}}",
       plug: 'shop',
       emit(emoji) {
         document.querySelector('#ShopItemIcon').innerText = emoji.icon

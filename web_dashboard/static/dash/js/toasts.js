@@ -8,9 +8,15 @@ const _reverts = {};
 // key -> value as it was at page load (or after the last successful save).
 const _baseline = {};
 
+// clear both pending-edit maps, e.g. after a save/cancel/discard
+function _resetPending() {
+  update_data = {};
+  for (const k in _reverts) delete _reverts[k];
+}
+
 function show_toast(key, oldVal, val, revert) {
-  toastWrapper = document.getElementById('save_toast')
-  toast = new bootstrap.Toast(toastWrapper)
+  toastWrapper = document.getElementById('save_toast');
+  toast = new bootstrap.Toast(toastWrapper);
 
   // Call sites pass the page-load value as `oldVal`, but after a save the
   // saved value moves on (btn_save advances _baseline). Diff against the live
@@ -18,7 +24,7 @@ function show_toast(key, oldVal, val, revert) {
   let base = (key in _baseline) ? _baseline[key] : oldVal;
 
   if (base === "True" || base === "False") {
-    base = base.toLowerCase() == "true" ? true : false
+    base = base.toLowerCase() === "true";
   }
 
   // Arrays/objects (e.g. embed fields) are never === / == equal by value in
@@ -31,16 +37,16 @@ function show_toast(key, oldVal, val, revert) {
 
   if (changed) {
     if (!(key in _baseline)) _baseline[key] = base;
-    update_data[key] = val
+    update_data[key] = val;
     if (typeof revert === 'function') _reverts[key] = revert;
-    toast.show()
+    toast.show();
   } else {
-    delete update_data[key]
-    delete _reverts[key]
+    delete update_data[key];
+    delete _reverts[key];
   }
 
-  if (Object.keys(update_data).length == 0) {
-    toast.hide()
+  if (Object.keys(update_data).length === 0) {
+    toast.hide();
   }
 }
 
@@ -50,21 +56,19 @@ function btn_cancel() {
   const unrevertable = pending.some((key) => typeof _reverts[key] !== 'function');
 
   if (unrevertable) {
-    update_data = {}
-    if (toast) toast.hide()
-    window.location.reload()
+    _resetPending();
+    if (toast) toast.hide();
+    window.location.reload();
     return;
   }
 
   pending.forEach((key) => _reverts[key](_baseline[key]));
-  update_data = {}
-  for (const k in _reverts) delete _reverts[k];
-  if (toast) toast.hide()
+  _resetPending();
+  if (toast) toast.hide();
 }
 
 // get the save button
 function btn_save(guild_id) {
-  console.log(update_data)
   fetch(`/dashboard/${guild_id}/data/post`, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -72,23 +76,22 @@ function btn_save(guild_id) {
   })
     .then(response => response.json())
     .then(data => {
-      if (data.status == 'success') {
-        toastWrapper.style.backgroundColor = "#3ba55d"
+      if (data.status === 'success') {
+        toastWrapper.style.backgroundColor = "#3ba55d";
 
         // Saved values become the new baseline so re-editing back to them
         // correctly reads as "no change".
-        Object.keys(update_data).forEach((key) => { _baseline[key] = update_data[key] });
+        Object.keys(update_data).forEach((key) => { _baseline[key] = update_data[key]; });
 
         setTimeout(() => {
           toastWrapper.classList.remove('show');
-          toastWrapper.removeAttribute("style")
-        }, 500)
+          toastWrapper.removeAttribute("style");
+        }, 500);
       } else {
-        toastWrapper.style.backgroundColor = "#f23f43"
-        console.error(data?.message)
+        toastWrapper.style.backgroundColor = "#f23f43";
+        console.error(data?.message);
       }
 
-      update_data = {}
-      for (const k in _reverts) delete _reverts[k];
-    })
+      _resetPending();
+    });
 }

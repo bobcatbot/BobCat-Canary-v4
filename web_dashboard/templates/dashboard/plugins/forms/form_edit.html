@@ -2,8 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/EmojiPicker.css') }}" rel="stylesheet">
-  <script src="{{ url_for('static', filename='dash/js/EmojiPicker.js') }}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 </head>
 <body>
@@ -321,7 +319,6 @@
     new EmojiPicker({
       trigger: '#plus-emoji',
       position: ['top', 'right'],
-      dir: "{{url_for('static', filename='Emojis.json')}}",
       plug: '',
       emit(emoji) {
         const div = document.createElement('div')

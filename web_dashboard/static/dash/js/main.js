@@ -1,29 +1,20 @@
 
-const guild_switcher = document.querySelector('.guild-selector')
+const guild_switcher = document.querySelector('.guild-selector');
 if (guild_switcher) {
   guild_switcher.addEventListener('click', function() {
     guild_switcher.classList.toggle('active');
   });
 }
 
-function TooltipText(e, txt) {
-  navigator.clipboard.writeText(txt);
-
-  e.querySelector('.tooltiptext').innerHTML = 'Copied'
-  setTimeout(() => {
-    e.querySelector('.tooltiptext').innerHTML = 'Copy'
-  }, 2000)
-}
-
 // Navbar - side menu
-var navbar_item = document.querySelectorAll('.navbar-item');
+const navbar_item = document.querySelectorAll('.navbar-item');
 
 window.addEventListener('load', function() {
-  var currentURL = window.location.pathname;
+  const currentURL = window.location.pathname;
 
   navbar_item.forEach((item) => {
-    var itemURL = item.querySelector('.navbar-link').dataset.href
-    var isActive = itemURL === currentURL;
+    const itemURL = item.querySelector('.navbar-link').dataset.href;
+    const isActive = itemURL === currentURL;
 
     item.dataset.active = isActive ? "True" : "False";
   });
@@ -31,19 +22,19 @@ window.addEventListener('load', function() {
 
 navbar_item.forEach((item) => {
   item.addEventListener('click', (e) => {
-    var currentURL = window.location.pathname;
-    var link = item.querySelector('.navbar-link')
+    const currentURL = window.location.pathname;
+    const link = item.querySelector('.navbar-link');
 
-    const isModulePrem = link.dataset.modulePremium // is the plugin premium
-    const isPremium = link.dataset.isPremium // server check - True if hasPrem else False
+    const isModulePrem = link.dataset.modulePremium; // is the plugin premium
+    const isPremium = link.dataset.isPremium; // server check - True if hasPrem else False
 
     if (isModulePrem === 'True' && isPremium === 'False') {
       const PremiumModal = new bootstrap.Modal(document.getElementById('PremiumModal'));
       PremiumModal.show();
     } else {
-      var url = link.dataset.href;
-      var isActive = url === currentURL;
-      e.target.dataset.active = isActive ? "True" : "False";
+      const url = link.dataset.href;
+      const isActive = url === currentURL;
+      item.dataset.active = isActive ? "True" : "False";
 
       document.location.href = url;
     }
@@ -359,18 +350,16 @@ function handlePremiumOnClick(event) {
   }, true);
 })();
 
-try {
-  var Switch = document.querySelector("input[role='switch'][name='plugin-status']")
-  if (Switch) {
-    Switch.addEventListener('change', (e) => {
-      // Keep the sidebar link's data-enable in sync so the disabled-plugin
-      // modal sees the fresh value without a page reload.
-      const navBarLink = document.querySelector(
-        `#sidebar-nav .navbar-link[data-href="${window.location.pathname}"]`
-      );
-      if (navBarLink) {
-        navBarLink.setAttribute('data-enable', e.target.checked ? 'True' : 'False');
-      }
-    })
-  }
-} catch (error) {}
+const pluginStatusSwitch = document.querySelector("input[role='switch'][name='plugin-status']");
+if (pluginStatusSwitch) {
+  pluginStatusSwitch.addEventListener('change', (e) => {
+    // Keep the sidebar link's data-enable in sync so the disabled-plugin
+    // modal sees the fresh value without a page reload.
+    const navBarLink = document.querySelector(
+      `#sidebar-nav .navbar-link[data-href="${window.location.pathname}"]`
+    );
+    if (navBarLink) {
+      navBarLink.setAttribute('data-enable', e.target.checked ? 'True' : 'False');
+    }
+  });
+}
