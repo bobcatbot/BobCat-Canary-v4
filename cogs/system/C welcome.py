@@ -8,14 +8,11 @@ class welcomeSystem(commands.Cog):
         self.client = client
 
     async def create_embed(self, embed_data, member):
-        color = embed_data.get("color")
-        if not color:
-            embed_data["color"] = v.style(member.guild.id)
-        else:
-            try:
-                embed_data["color"] = int(str(color).removeprefix("#"), 16)
-            except ValueError:
-                embed_data["color"] = v.style(member.guild.id)
+        # Color coercion (hex string -> int) already happens in EmbedConfig
+        # itself; only the per-guild fallback when it's unset lives here.
+        display = embed_data.model_copy(update={
+            'color': embed_data.color or v.style(member.guild.id),
+        })
 
         def render(value):
             if isinstance(value, str):
@@ -33,7 +30,7 @@ class welcomeSystem(commands.Cog):
 
             return value
 
-        return discord.Embed.from_dict(render(embed_data))
+        return display.to_embed(transform=render)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):

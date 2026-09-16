@@ -417,9 +417,11 @@ async def forms_create(guild_id):
         return jsonify({'status': 'success', 'message': f"Successfully created form {form.id}"})
 
     return await render_template(
-        "dashboard/plugins/forms/form_create.html",
+        "dashboard/plugins/forms/form_form.html",
         user=current_user,
-        guild=guild
+        guild=guild,
+        data=None,
+        is_edit=False,
     )
 
 @forms_bp.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
@@ -489,8 +491,9 @@ async def forms_edit(guild_id, form_id):
         return jsonify({'status': 'success', 'message': 'Successfully deleted form'})
 
     return await render_template(
-        "dashboard/plugins/forms/form_edit.html",
+        "dashboard/plugins/forms/form_form.html",
         user=current_user,
         guild=guild,
-        data=form_data
+        data=form_data,
+        is_edit=True,
     )

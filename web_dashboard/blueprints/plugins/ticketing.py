@@ -1,24 +1,36 @@
-import traceback
+import logging
 import discord
-import asyncio
 from bson import ObjectId
 from bson.errors import InvalidId
 from quart import Blueprint, render_template, redirect, url_for, flash, jsonify, request
 
 from modules import bot as v
-from modules.models import Guild, Ticket
+from modules.models import Guild, Ticket, TicketPanelConfig
 from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap, unflatten_keys, deep_merge
 from ...plugins import PLUGIN_LIST
 
 ticketing_bp = Blueprint('ticketing', __name__)
+logger = logging.getLogger(__name__)
 
-def _parse_embed_color(value, default=0x5865f2) -> int:
-    """Coerce a panel embed color (int, hex string, or missing) to an int."""
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.strip():
-        return int(value.strip().lstrip('#'), 16)
-    return default
+def _panel_message_embed(panel: TicketPanelConfig) -> discord.Embed:
+    """Build the live Discord embed for a panel's publish message.
+
+    An unset title/description/color falls back to a display-only default
+    here - the panel's own saved config stays blank so the dashboard editor
+    still shows an empty field rather than the placeholder text.
+    """
+    return panel.panel_message.embed.to_embed()
+
+def _panel_button_view(panel: TicketPanelConfig) -> discord.ui.View:
+    btn = panel.panel_button
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(
+        emoji=btn.emoji or None,
+        label=btn.label or 'Open Ticket',
+        style=getattr(discord.ButtonStyle, btn.style or 'blurple', discord.ButtonStyle.blurple),
+        custom_id='create_ticket'
+    ))
+    return view
 
 # ── Public transcript pages ──────────────────────────────────────────────
 @ticketing_bp.route("/t/<int:guild_id>/<ticket_id>")
@@ -103,12 +115,16 @@ async def ticketing_create(guild_id):
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
         # The form posts dotted paths (panel_button.emoji, intro_message.embed.title);
-        # the bot and edit template read the nested shape.
+        # the model and edit template expect the nested shape.
         data = unflatten_keys(data)
 
         # Validate required fields
         if not data.get('channel_id'):
             return jsonify({'status': 'error', 'message': 'Channel ID is required'}), 400
+
+        channel = guild.get_channel(int(data['channel_id']))
+        if channel is None:
+            return jsonify({'status': 'error', 'message': 'Selected channel was not found.'}), 400
 
         # Enforce the free / premium panel cap
         existing = (await Guild.get(str(guild.id))).dashboard.ticketing.panels
@@ -121,64 +137,39 @@ async def ticketing_create(guild_id):
             return jsonify({'status': 'error', 'message': msg, 'code': 'item_cap'}), 409
 
         data['id'] = v.uuid(12, strCase="upper/lower/nums")
+        # Validate through the model (not a raw dict) so the embed color
+        # validator and every field default actually run.
+        panel = TicketPanelConfig(**data)
 
-        async def create_panel():
-            try:
-                # Get the guild document
-                config = await Guild.get(str(guild.id))
-                if config is None:
-                    print(f"Guild config not found for {guild_id}")
-                    return
+        embed = _panel_message_embed(panel)
+        view = _panel_button_view(panel)
 
-                panels = config.dashboard.ticketing.panels
+        try:
+            msg = await channel.send(embed=embed, view=view)
+        except discord.HTTPException as e:
+            logger.error("Failed to send ticket panel message for guild %s: %s", guild_id, e)
+            return jsonify({'status': 'error', 'message': f'Failed to post the panel message: {e}'}), 502
+        panel.panel_message_id = str(msg.id)
 
-                # Create the Discord message
-                pm_embed = data.get('panel_message', {}).get('embed', {})
-                embed = discord.Embed(
-                    title=pm_embed.get('title', 'Support Tickets'),
-                    description=pm_embed.get('description', 'Click below to create a ticket.'),
-                    color=_parse_embed_color(pm_embed.get('color'))
-                )
-                
-                btn = data.get('panel_button', {})
-                view = discord.ui.View()
-                view.add_item(discord.ui.Button(
-                    emoji=btn.get('emoji') or None,
-                    label=btn.get('label') or 'Create Ticket',
-                    style=getattr(discord.ButtonStyle, btn.get('style') or 'blurple', discord.ButtonStyle.blurple),
-                    custom_id='create_ticket'
-                ))
-                
-                channel = guild.get_channel(int(data.get('channel_id')))
-                if channel:
-                    msg = await channel.send(embed=embed, view=view)
-                    data['panel_message_id'] = str(msg.id)
-                    print(f"Created ticket panel message for guild {guild_id}")
-                else:
-                    print(f"Channel {data.get('channel_id')} not found for guild {guild_id}")
-                    return
+        config = await Guild.get(str(guild.id))
+        if config is None:
+            return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
-                # Save to dashboard
-                panels.append(data)
-                config.dashboard.ticketing.panels = panels
-                config.updated_at = discord.utils.utcnow()
-                await config.save()
-                print(f"Saved ticket panel {data['id']} for guild {guild_id}")
-            
-            except Exception as e:
-                print(f"Error creating ticket panel for guild {guild_id}: {e}")
-                traceback.print_exc()
+        panels = config.dashboard.ticketing.panels
+        panels.append(panel)
+        config.dashboard.ticketing.panels = panels
+        config.updated_at = discord.utils.utcnow()
+        await config.save()
 
-        # Fire and forget
-        v.client.loop.create_task(create_panel())
-        
-        await flash(f"Successfully created ticket panel {data['id']}", 'success')
+        await flash(f"Successfully created ticket panel {panel.id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully created ticket'})
 
     return await render_template(
-        "dashboard/plugins/ticketing/ticketing_create.html",
+        "dashboard/plugins/ticketing/ticketing_form.html",
         user=current_user,
-        guild=guild
+        guild=guild,
+        data=TicketPanelConfig(),
+        is_edit=False,
     )
 
 
@@ -213,72 +204,51 @@ async def ticketing_edit(guild_id, ticket_id):
         # Expand dotted paths (intro_message.embed.title) to the nested shape.
         data = unflatten_keys(data)
 
-        async def edit_panel():
+        # Re-fetch to apply the edit against the latest saved state.
+        config = await Guild.get(str(guild.id))
+        if config is None:
+            return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
+
+        panels = config.dashboard.ticketing.panels
+        # Merge the update in first so a partial edit (e.g. just the intro
+        # embed title) doesn't clobber sibling keys. deep_merge recurses into
+        # the panel's own DictModel sub-fields and setattr's each leaf, so
+        # the embed color validator still runs on assignment.
+        panel = deep_merge(panels[ticket_idx], data)
+
+        panel_msg_id = panel.panel_message_id
+        channel_id = panel.channel_id
+
+        if panel_msg_id and channel_id:
+            channel = guild.get_channel(int(channel_id))
+            if channel is None:
+                return jsonify({'status': 'error', 'message': 'Panel channel was not found.'}), 400
+
+            embed = _panel_message_embed(panel)
+            view = _panel_button_view(panel)
+
             try:
-                # Get fresh config
-                config = await Guild.get(str(guild.id))
-                if config is None:
-                    return
+                msg = await channel.fetch_message(int(panel_msg_id))
+                await msg.edit(embed=embed, view=view)
+            except discord.NotFound:
+                return jsonify({'status': 'error', 'message': 'Panel message was not found; it may have been deleted on Discord.'}), 404
+            except discord.HTTPException as e:
+                logger.error("Failed to update ticket panel message for guild %s: %s", guild_id, e)
+                return jsonify({'status': 'error', 'message': f'Failed to update the panel message: {e}'}), 502
 
-                panels = config.dashboard.ticketing.panels
+        config.dashboard.ticketing.panels = panels
+        config.updated_at = discord.utils.utcnow()
+        await config.save()
 
-                # Merge the update in first so a partial edit (e.g. just the
-                # intro embed title) doesn't clobber sibling keys, then render
-                # the live panel message from the merged result.
-                panel = deep_merge(panels[ticket_idx], data)
-
-                panel_msg_id = panel.panel_message_id
-                channel_id = panel.channel_id
-
-                if panel_msg_id and channel_id:
-                    channel = guild.get_channel(int(channel_id))
-                    if channel:
-                        try:
-                            msg = await channel.fetch_message(int(panel_msg_id))
-
-                            pm_embed = panel.panel_message.embed
-                            embed = discord.Embed(
-                                title=pm_embed.title or 'Support Tickets',
-                                description=pm_embed.description or 'Click below to create a ticket.',
-                                color=_parse_embed_color(pm_embed.color)
-                            )
-
-                            btn = panel.panel_button
-                            view = discord.ui.View()
-                            view.add_item(discord.ui.Button(
-                                emoji=btn.emoji or None,
-                                label=btn.label or 'Create Ticket',
-                                style=getattr(discord.ButtonStyle, btn.style or 'blurple', discord.ButtonStyle.blurple),
-                                custom_id='create_ticket'
-                            ))
-
-                            await msg.edit(embed=embed, view=view)
-                            print(f"Updated ticket panel message for guild {guild_id}")
-                        except discord.NotFound:
-                            print(f"Ticket panel message not found for guild {guild_id}")
-                        except Exception as e:
-                            print(f"Error updating ticket panel message: {e}")
-
-                config.dashboard.ticketing.panels = panels
-                config.updated_at = discord.utils.utcnow()
-                await config.save()
-                print(f"Updated ticket panel {ticket_id} for guild {guild_id}")
-            
-            except Exception as e:
-                print(f"Error editing ticket panel for guild {guild_id}: {e}")
-                traceback.print_exc()
-
-        # Fire and forget
-        v.client.loop.create_task(edit_panel())
-        
         await flash(f"Successfully updated ticket panel {ticket_id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully updated ticket'})
 
     return await render_template(
-        "dashboard/plugins/ticketing/ticketing_edit.html",
+        "dashboard/plugins/ticketing/ticketing_form.html",
         user=current_user,
         guild=guild,
-        data=tk_data
+        data=tk_data,
+        is_edit=True,
     )
 
 
@@ -295,53 +265,28 @@ async def ticketing_delete(guild_id, ticket_id):
 
     panels = config.dashboard.ticketing.panels
     data = next((t for t in panels if t.id == ticket_id), None)
-
     if data is None:
         return jsonify({'status': 'error', 'message': 'Ticket panel not found'}), 404
 
-    async def delete_panel():
-        try:
-            # Get fresh config
-            config = await Guild.get(str(guild.id))
-            if config is None:
-                return
+    panel_msg_id = data.panel_message_id
+    channel_id = data.channel_id
 
-            panels = config.dashboard.ticketing.panels
-            data = next((t for t in panels if t.id == ticket_id), None)
+    if panel_msg_id and channel_id:
+        channel = guild.get_channel(int(channel_id))
+        if channel:
+            try:
+                msg = await channel.fetch_message(int(panel_msg_id))
+                await msg.delete()
+            except discord.NotFound:
+                pass  # Message already gone on Discord's side; still remove the panel below.
+            except discord.HTTPException as e:
+                logger.error("Failed to delete ticket panel message for guild %s: %s", guild_id, e)
+                return jsonify({'status': 'error', 'message': f'Failed to delete the panel message: {e}'}), 502
 
-            if data is None:
-                return
+    panels.pop(panels.index(data))
+    config.dashboard.ticketing.panels = panels
+    config.updated_at = discord.utils.utcnow()
+    await config.save()
 
-            # Delete the Discord message
-            panel_msg_id = data.panel_message_id
-            channel_id = data.channel_id
-            
-            if panel_msg_id and channel_id:
-                channel = guild.get_channel(int(channel_id))
-                if channel:
-                    try:
-                        msg = await channel.fetch_message(int(panel_msg_id))
-                        await msg.delete()
-                        print(f"Deleted ticket panel message for guild {guild_id}")
-                    except discord.NotFound:
-                        print(f"Ticket panel message not found for guild {guild_id}")
-                    except Exception as e:
-                        print(f"Error deleting ticket panel message: {e}")
-
-            # Remove from config
-            ticket_idx = panels.index(data)
-            panels.pop(ticket_idx)
-            config.dashboard.ticketing.panels = panels
-            config.updated_at = discord.utils.utcnow()
-            await config.save()
-            print(f"Deleted ticket panel {ticket_id} for guild {guild_id}")
-        
-        except Exception as e:
-            print(f"Error deleting ticket panel for guild {guild_id}: {e}")
-            traceback.print_exc()
-
-    # Fire and forget
-    v.client.loop.create_task(delete_panel())
-    
     await flash(f"Successfully deleted ticket panel {ticket_id}", 'success')
     return jsonify({'status': 'success', 'message': 'Successfully deleted ticket panel'})

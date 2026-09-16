@@ -119,6 +119,12 @@ def format_stat_label_filter(target):
     label = ' '.join(word.capitalize() for word in label.split())
     return label
 
+@app.template_filter('hexcolor')
+def hexcolor_filter(value, default=0x5865f2):
+    if not isinstance(value, int):
+        value = default
+    return f"#{value:06x}"
+
 # ── Context processors ────────────────────────────────────────────────────
 register_context_processors(app)
 

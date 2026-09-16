@@ -1,5 +1,4 @@
-import copy
-import traceback
+import logging
 import aiohttp
 import discord
 from quart import Blueprint, jsonify, render_template, request, session, url_for
@@ -7,10 +6,11 @@ from quart import Blueprint, jsonify, render_template, request, session, url_for
 from modules import bot as v
 from modules.models import Guild, VerificationConfig
 from cogs.mod._helpers import audit_log
-from ...utils import bearer_client, plugin_guard
+from ...utils import bearer_client, plugin_guard, unflatten_keys, deep_merge
 from ...config import OAUTH_URL, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY
 
 verification_bp = Blueprint('verification', __name__)
+logger = logging.getLogger(__name__)
 
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
@@ -56,161 +56,140 @@ async def verify_publish(guild_id):
 
     verification_config = config.dashboard.verification
 
-    async def publish():
+    # Persist the submitted embed/button into the saved message config (not
+    # just a throwaway discord.Embed) so the edit page's next load reflects
+    # what's actually published - saved now since the "already published"
+    # branch below returns early, before the save() further down would run.
+    deep_merge(verification_config.message, {'embed': data['embed'], 'btn': data.get('btn', {})})
+    config.updated_at = discord.utils.utcnow()
+    await config.save()
+
+    embed = verification_config.message.embed.to_embed()
+    btn_data = data.get('btn', {})
+
+    style_map = {
+        'secondary': discord.ButtonStyle.gray,
+        'blurple': discord.ButtonStyle.blurple,
+        'danger': discord.ButtonStyle.red,
+        'success': discord.ButtonStyle.green,
+    }
+    style = style_map.get(btn_data.get('color', 'blurple'), discord.ButtonStyle.blurple)
+
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(
+        emoji=btn_data.get('emoji') or None,
+        label=btn_data.get('title', 'Verify'),
+        style=style,
+        custom_id='Verification'
+    ))
+
+    # If already published, just edit the existing message in place.
+    if verification_config.message_published:
+        channel_id = verification_config.channel
+        message_id = verification_config.message_id
+        if channel_id and message_id:
+            channel = guild.get_channel(int(channel_id))
+            if channel:
+                try:
+                    msg = await channel.fetch_message(int(message_id))
+                    await msg.edit(embed=embed, view=view)
+                    return jsonify({'status': 'success', 'message': 'Verification message updated'})
+                except discord.NotFound:
+                    logger.info("Verification message not found for guild %s, recreating...", guild_id)
+                except discord.Forbidden:
+                    return jsonify({'status': 'error', 'message': "I don't have permission to edit that message."}), 403
+                except discord.HTTPException as e:
+                    logger.error("Error editing verification message for guild %s: %s", guild_id, e)
+                    return jsonify({'status': 'error', 'message': f'Failed to edit the verification message: {e}'}), 502
+
+    # Get or create verification role
+    role_id = verification_config.role
+    role = guild.get_role(int(role_id)) if role_id else None
+    if role is None:
         try:
-            embed = discord.Embed.from_dict(data.get('embed', {}))
-            btn_data = data.get('btn', {})
-            
-            style_map = {
-                'secondary': discord.ButtonStyle.gray,
-                'blurple': discord.ButtonStyle.blurple,
-                'danger': discord.ButtonStyle.red,
-                'success': discord.ButtonStyle.green,
-            }
-            style = style_map.get(btn_data.get('color', 'blurple'), discord.ButtonStyle.blurple)
+            role = await guild.create_role(name='Verified', reason='Enabled verification system')
+        except discord.Forbidden:
+            return jsonify({'status': 'error', 'message': "I don't have permission to create a role."}), 403
+        except discord.HTTPException as e:
+            logger.error("Error creating verification role for guild %s: %s", guild_id, e)
+            return jsonify({'status': 'error', 'message': f'Failed to create the Verified role: {e}'}), 502
+        config.dashboard.verification.role = str(role.id)
+        await config.save()
 
-            view = discord.ui.View()
-            view.add_item(discord.ui.Button(
-                emoji=btn_data.get('emoji') or None,
-                label=btn_data.get('title', 'Verify'),
-                style=style,
-                custom_id='Verification'
-            ))
-
-            # Check if already published
-            if verification_config.message_published:
-                channel_id = verification_config.channel
-                message_id = verification_config.message_id
-                if channel_id and message_id:
-                    channel = guild.get_channel(int(channel_id))
-                    if channel:
-                        try:
-                            msg = await channel.fetch_message(int(message_id))
-                            await msg.edit(embed=embed, view=view)
-                            print(f"Updated verification message for guild {guild_id}")
-                            return
-                        except discord.NotFound:
-                            print(f"Verification message not found for guild {guild_id}, recreating...")
-                        except discord.Forbidden:
-                            print(f"No permissions to edit message in guild {guild_id}")
-                            return
-                        except Exception as e:
-                            print(f"Error editing verification message: {e}")
-                            return
-
-            # Get or create verification role
-            role_id = verification_config.role
-            role = guild.get_role(int(role_id)) if role_id else None
-            if role is None:
-                try:
-                    role = await guild.create_role(
-                        name='Verified',
-                        reason='Enabled verification system'
-                    )
-                    config.dashboard.verification.role = str(role.id)
-                    await config.save()
-                    print(f"Created Verified role for guild {guild_id}")
-                except discord.Forbidden:
-                    print(f"No permissions to create role in guild {guild_id}")
-                    return
-                except Exception as e:
-                    print(f"Error creating role: {e}")
-                    return
-
-            # Get or create verification channel
-            channel_id = verification_config.channel
-            channel = guild.get_channel(int(channel_id)) if channel_id else None
-            if channel is None:
-                try:
-                    channel = await guild.create_text_channel(
-                        'verification',
-                        reason='Enabled verification system',
-                        overwrites={
-                            guild.default_role: discord.PermissionOverwrite(
-                                read_messages=True,
-                                send_messages=False,
-                                read_message_history=True
-                            ),
-                            role: discord.PermissionOverwrite(
-                                read_messages=True,
-                                send_messages=False,
-                                read_message_history=True
-                            ),
-                        }
-                    )
-                    config.dashboard.verification.channel = str(channel.id)
-                    await config.save()
-                    print(f"Created verification channel for guild {guild_id}")
-                except discord.Forbidden:
-                    print(f"No permissions to create channel in guild {guild_id}")
-                    return
-                except Exception as e:
-                    print(f"Error creating channel: {e}")
-                    return
-
-            # Set permissions
-            try:
-                await channel.set_permissions(
-                    guild.default_role,
-                    overwrite=discord.PermissionOverwrite(
+    # Get or create verification channel
+    channel_id = verification_config.channel
+    channel = guild.get_channel(int(channel_id)) if channel_id else None
+    if channel is None:
+        try:
+            channel = await guild.create_text_channel(
+                'verification',
+                reason='Enabled verification system',
+                overwrites={
+                    guild.default_role: discord.PermissionOverwrite(
                         read_messages=True,
-                        send_messages=False
-                    )
-                )
-                await channel.set_permissions(
-                    role,
-                    overwrite=discord.PermissionOverwrite(
-                        read_messages=False,
-                        send_messages=False
-                    )
-                )
-            except discord.Forbidden:
-                print(f"Could not set permissions in guild {guild_id}")
-            except Exception as e:
-                print(f"Error setting permissions: {e}")
-            
-            try:
-                await guild.default_role.edit(
-                    reason="Verification system enabled",
-                    permissions=discord.Permissions(read_messages=False)
-                )
-            except discord.Forbidden:
-                print(f"Could not edit default role in guild {guild_id}")
-            except Exception as e:
-                print(f"Error editing default role: {e}")
+                        send_messages=False,
+                        read_message_history=True
+                    ),
+                    role: discord.PermissionOverwrite(
+                        read_messages=True,
+                        send_messages=False,
+                        read_message_history=True
+                    ),
+                }
+            )
+        except discord.Forbidden:
+            return jsonify({'status': 'error', 'message': "I don't have permission to create a channel."}), 403
+        except discord.HTTPException as e:
+            logger.error("Error creating verification channel for guild %s: %s", guild_id, e)
+            return jsonify({'status': 'error', 'message': f'Failed to create the verification channel: {e}'}), 502
+        config.dashboard.verification.channel = str(channel.id)
+        await config.save()
 
-            if role.id == int(verification_config.role or 0):
-                try:
-                    await role.edit(
-                        reason="Verification system enabled",
-                        permissions=discord.Permissions(read_messages=True)
-                    )
-                except discord.Forbidden:
-                    print(f"Could not edit Verified role in guild {guild_id}")
-                except Exception as e:
-                    print(f"Error editing Verified role: {e}")
+    # Set permissions - best-effort, a Forbidden here shouldn't block publishing.
+    try:
+        await channel.set_permissions(
+            guild.default_role,
+            overwrite=discord.PermissionOverwrite(read_messages=True, send_messages=False)
+        )
+        await channel.set_permissions(
+            role,
+            overwrite=discord.PermissionOverwrite(read_messages=False, send_messages=False)
+        )
+    except discord.HTTPException as e:
+        logger.warning("Could not set channel permissions for guild %s: %s", guild_id, e)
 
-            # Send the verification message
-            try:
-                msg = await channel.send(embed=embed, view=view)
-                
-                # Save message ID and published status
-                config.dashboard.verification.message_id = str(msg.id)
-                config.dashboard.verification.message_published = True
-                config.updated_at = discord.utils.utcnow()
-                await config.save()
-                print(f"Published verification message for guild {guild_id}")
-            except discord.Forbidden:
-                print(f"No permissions to send message in guild {guild_id}")
-            except Exception as e:
-                print(f"Error sending verification message: {e}")
+    try:
+        await guild.default_role.edit(
+            reason="Verification system enabled",
+            permissions=discord.Permissions(read_messages=False)
+        )
+    except discord.HTTPException as e:
+        logger.warning("Could not edit default role for guild %s: %s", guild_id, e)
 
-        except Exception as e:
-            print(f"Error in publish task for guild {guild_id}: {e}")
-            traceback.print_exc()
+    if role.id == int(verification_config.role or 0):
+        try:
+            await role.edit(
+                reason="Verification system enabled",
+                permissions=discord.Permissions(read_messages=True)
+            )
+        except discord.HTTPException as e:
+            logger.warning("Could not edit Verified role for guild %s: %s", guild_id, e)
 
-    v.client.loop.create_task(publish())
-    return jsonify({'status': 'success', 'message': 'Publishing verification message in background...'})
+    # Send the verification message
+    try:
+        msg = await channel.send(embed=embed, view=view)
+    except discord.Forbidden:
+        return jsonify({'status': 'error', 'message': "I don't have permission to send messages in that channel."}), 403
+    except discord.HTTPException as e:
+        logger.error("Error sending verification message for guild %s: %s", guild_id, e)
+        return jsonify({'status': 'error', 'message': f'Failed to send the verification message: {e}'}), 502
+
+    config.dashboard.verification.message_id = str(msg.id)
+    config.dashboard.verification.message_published = True
+    config.updated_at = discord.utils.utcnow()
+    await config.save()
+
+    return jsonify({'status': 'success', 'message': 'Verification message published'})
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/unpublish", methods=['POST'])
@@ -226,39 +205,29 @@ async def verify_unpublish(guild_id):
         return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
     verification_config = config.dashboard.verification
+    channel_id = verification_config.channel
+    message_id = verification_config.message_id
 
-    async def unpublish():
-        try:
-            channel_id = verification_config.channel
-            message_id = verification_config.message_id
-            
-            if channel_id and message_id:
-                channel = guild.get_channel(int(channel_id))
-                if channel:
-                    try:
-                        msg = await channel.fetch_message(int(message_id))
-                        await msg.delete()
-                        print(f"Deleted verification message for guild {guild_id}")
-                    except discord.NotFound:
-                        print(f"Verification message not found for guild {guild_id}")
-                    except discord.Forbidden:
-                        print(f"No permissions to delete message in guild {guild_id}")
-                    except Exception as e:
-                        print(f"Error deleting verification message: {e}")
+    if channel_id and message_id:
+        channel = guild.get_channel(int(channel_id))
+        if channel:
+            try:
+                msg = await channel.fetch_message(int(message_id))
+                await msg.delete()
+            except discord.NotFound:
+                pass  # Message already gone on Discord's side; still clear the config below.
+            except discord.Forbidden:
+                return jsonify({'status': 'error', 'message': "I don't have permission to delete that message."}), 403
+            except discord.HTTPException as e:
+                logger.error("Error deleting verification message for guild %s: %s", guild_id, e)
+                return jsonify({'status': 'error', 'message': f'Failed to delete the verification message: {e}'}), 502
 
-            # Update dashboard
-            config.dashboard.verification.message_published = False
-            config.dashboard.verification.message_id = None
-            config.updated_at = discord.utils.utcnow()
-            await config.save()
-            print(f"Unpublished verification for guild {guild_id}")
-        
-        except Exception as e:
-            print(f"Error in unpublish task for guild {guild_id}: {e}")
-            traceback.print_exc()
+    config.dashboard.verification.message_published = False
+    config.dashboard.verification.message_id = None
+    config.updated_at = discord.utils.utcnow()
+    await config.save()
 
-    v.client.loop.create_task(unpublish())
-    return jsonify({'status': 'success', 'message': 'Unpublishing verification message in background...'})
+    return jsonify({'status': 'success', 'message': 'Verification message unpublished'})
 
 
 @verification_bp.route("/dashboard/<int:guild_id>/verification/update", methods=['POST'])
@@ -283,28 +252,12 @@ async def verify_update(guild_id):
     if not key:
         return jsonify({'status': 'error', 'message': 'No key provided'}), 400
 
-    # Handle nested keys like "message.embed.title"
-    parts = key.split('.')
-    current = config.dashboard.verification
-    
-    for part in parts[:-1]:
-        if isinstance(current, dict):
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-        else:
-            current = getattr(current, part, {})
-    
-    final = parts[-1]
-    if isinstance(current, dict):
-        current[final] = value
-    else:
-        setattr(current, final, value)
-    
+    # e.g. key="message.embed.title" -> deep_merge({"message": {"embed": {"title": value}}})
+    deep_merge(config.dashboard.verification, unflatten_keys({key: value}))
+
     config.updated_at = discord.utils.utcnow()
     await config.save()
 
-    print(f"Updated verification setting {key} for guild {guild_id}")
     return jsonify({'status': 'success', 'message': 'Successfully updated verification settings'})
 
 # ── Public captcha_web verification page ────────────────────────────────────

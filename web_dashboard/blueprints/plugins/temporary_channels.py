@@ -4,7 +4,7 @@ import asyncio
 from quart import Blueprint, request, render_template, redirect, url_for, jsonify, flash
 
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, HubConfig
 from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
@@ -148,9 +148,15 @@ async def temporary_channels_create(guild_id):
         return jsonify({'status': 'success', 'message': f"Successfully created hub {data['id']}"})
 
     return await render_template(
-        "dashboard/plugins/temporary_channels/tc_create.html",
+        "dashboard/plugins/temporary_channels/tc_form.html",
         user=current_user,
-        guild=guild
+        guild=guild,
+        data=HubConfig(
+            hub_name='Hub - Join to create',
+            name="#{index} - {username}'s Channel",
+            user_limit=5,
+        ),
+        is_edit=False,
     )
 
 
@@ -271,10 +277,11 @@ async def temporary_channels_edit(guild_id, hub_id):
         return jsonify({'status': 'success', 'message': 'Successfully updated hub'})
 
     return await render_template(
-        "dashboard/plugins/temporary_channels/tc_edit.html",
+        "dashboard/plugins/temporary_channels/tc_form.html",
         user=current_user,
         guild=guild,
-        data=hub
+        data=hub,
+        is_edit=True,
     )
 
 

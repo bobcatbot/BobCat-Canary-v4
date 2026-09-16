@@ -3,50 +3,96 @@
     - dashboard/plugins/welcome.html   (join / dm / leave — 3 instances)
     - dashboard/plugins/verification.html (1 instance)
     - dashboard/plugins/ticketing/ticketing_transcript.html (read-only, embed_preview only)
+    - dashboard/plugins/ticketing/ticketing_form.html (panel message / intro message — 2 instances)
+    - dashboard/plugins/giveaways/gway_form.html (message preview — title/fields only, no author/footer; wired up with its own page-local JS rather than embed-editor.js's show_toast-based field sync, since giveaways save through their own Save/Publish buttons and creation/edition routes, not the generic /data/post pending-changes flow)
 
   embed_color_picker(id, color, name='', css_class='coloris-embed-color')
     Swatch + text input that Coloris binds to.
 
-  embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', show_fields=True)
+  embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', color_input=True, title_disabled=False,
+               show_author=True, show_fields=True, show_footer=True)
     The author/title/description/footer block with dynamic fields support.
       - prefix: builds unique element ids, e.g. 'join-embed' -> #join-embed-title.
       - embed: dict with title / desc / author.name / footer.text / color / fields.
       - desc_element: 'input' or 'textarea'.
       - show_icons: shows placeholder avatar/footer icon divs.
       - name_prefix: optional `name=` attribute prefix.
+      - color_input: adds the standard `.text-input` class (boxed background/border,
+        hover+focus highlight - dash-main.css) to the title and description fields,
+        matching regular dashboard form inputs. False leaves them bare/borderless so
+        they blend into the embed card, like Discord's own title/description look.
       - show_fields: enable/disable the fields section.
+      - show_author / show_footer: render those rows at all (not just their icon).
+      - title_disabled: render the title input as `disabled` for a fixed, non-editable
+        preview value instead of a real field.
+    
+    Call via `{% call embed_editor(...) %}...{% endcall %}` to inject extra read-only
+    rows (e.g. computed fields) inside the embed card, after the editable fields and
+    before the footer — see gway_form.html's Hosted by/Winners/Participants block.
+    Plain `{{ embed_editor(...) }}` calls are unaffected.
 #} -->
 
 {% macro embed_color_picker(id, color, name='', css_class='coloris-embed-color') %}
 <div class="con color-picker full">
   <div class="clr-field" style="color: {{ color or '#ffffff' }};">
     <button aria-labelledby="clr-open-label"></button>
-    <input type="text" {% if name %}name="{{ name }}" {% endif %}class="{{ css_class }}" id="{{ id }}" value="{{ color or '#ffffff' }}">
+    <input 
+      type="text" 
+      id="{{ id }}" 
+      {% if name %}name="{{ name }}"{% endif %}
+      class="{{ css_class }}" 
+      value="{{ color or '#ffffff' }}"
+    >
   </div>
 </div>
 {% endmacro %}
 
-{% macro embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', show_fields=True) %}
+{% macro embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', color_input=True, show_fields=True, show_author=True, show_footer=True, title_disabled=False) %}
 <div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color', '#ffffff') }};">
   <div class="e-bdFBtt">
+    {% if show_author %}
     <div class="author">
       {% if show_icons %}<div class="icon"></div>{% endif %}
-      <input type="text" {% if name_prefix %}name="{{ name_prefix }}an" {% endif %}id="{{ prefix }}-author" placeholder="Author"
-             value="{{ embed.get('author', {}).get('name', '') or '' }}">
+      <input
+        type="text"
+        id="{{ prefix }}-author"
+        {% if name_prefix %}name="{{ name_prefix }}an"{% endif %}
+        placeholder="Author"
+        value="{{ embed.get('author', {}).get('name', '') or '' }}"
+      >
     </div>
+    {% endif %}
 
     <div class="title embedMargin-2PsaQ4">
-      <input type="text" {% if name_prefix %}name="{{ name_prefix }}t" {% endif %}id="{{ prefix }}-title" placeholder="Title"
-             value="{{ embed.get('title', '') or '' }}">
+      <input
+        type="text"
+        id="{{ prefix }}-title"
+        {% if name_prefix %}name="{{ name_prefix }}t"{% endif %}
+        class="{{ 'text-input' if color_input else '' }}"
+        placeholder="Title"
+        value="{{ embed.get('title', '') or '' }}"
+        {% if title_disabled %}disabled{% endif %}
+      >
     </div>
 
     <div class="desc embedMargin-2PsaQ4">
       {% if desc_element == 'textarea' %}
-      <textarea {% if name_prefix %}name="{{ name_prefix }}d" {% endif %} id="{{ prefix }}-desc" placeholder="Description"
-                oninput="autoGrowEmbedDesc(this)">{{ embed.get('description', '') or '' }}</textarea>
+      <textarea
+        id="{{ prefix }}-desc"
+        {% if name_prefix %}name="{{ name_prefix }}d"{% endif %}
+        class="{{ 'text-input' if color_input else '' }}"
+        oninput="autoGrowEmbedDesc(this)"
+        placeholder="Description"
+      >{{ embed.get('description', '') or '' }}</textarea>
       {% else %}
-      <input type="text" {% if name_prefix %}name="{{ name_prefix }}d" {% endif %} id="{{ prefix }}-desc" placeholder="Description"
-             value="{{ embed.get('description', '') or '' }}">
+      <input
+        type="text"
+        id="{{ prefix }}-desc"
+        {% if name_prefix %}name="{{ name_prefix }}d"{% endif %}
+        class="{{ 'text-input' if color_input else '' }}"
+        value="{{ embed.get('description', '') or '' }}"
+        placeholder="Description"
+      >
       {% endif %}
     </div>
 
@@ -58,28 +104,34 @@
         <div class="field-wrapper" data-index="{{ loop.index0 }}">
           <div class="field {% if field.inline %}inline{% endif %}">
             <div class="field-name">
-              <input type="text" 
-                     class="field-name-input" 
-                     placeholder="Field name"
-                     value="{{ field.name or '' }}"
-                     data-prefix="{{ prefix }}"
-                     data-index="{{ loop.index0 }}">
+              <input
+                type="text"
+                class="field-name-input"
+                placeholder="Field name"
+                value="{{ field.name or '' }}"
+                data-prefix="{{ prefix }}"
+                data-index="{{ loop.index0 }}"
+              >
             </div>
             <div class="field-value">
-              <input type="text" 
-                     class="field-value-input" 
-                     placeholder="Field value"
-                     value="{{ field.value or '' }}"
-                     data-prefix="{{ prefix }}"
-                     data-index="{{ loop.index0 }}">
+              <input
+                type="text"
+                class="field-value-input"
+                placeholder="Field value"
+                value="{{ field.value or '' }}"
+                data-prefix="{{ prefix }}"
+                data-index="{{ loop.index0 }}"
+              >
             </div>
             <div class="field-controls">
               <label class="inline-label">
-                <input type="checkbox" 
-                       class="field-inline-checkbox" 
-                       {% if field.inline %}checked{% endif %}
-                       data-prefix="{{ prefix }}"
-                       data-index="{{ loop.index0 }}">
+                <input
+                  type="checkbox"
+                  class="field-inline-checkbox"
+                  {% if field.inline %}checked{% endif %}
+                  data-prefix="{{ prefix }}"
+                  data-index="{{ loop.index0 }}"
+                >
                 Inline
               </label>
               <button type="button" class="remove-field-btn" data-prefix="{{ prefix }}" data-index="{{ loop.index0 }}">
@@ -96,11 +148,20 @@
     </div>
     {% endif %}
 
+    {% if caller is defined %}{{ caller() }}{% endif %}
+
+    {% if show_footer %}
     <div class="foter">
       {% if show_icons %}<div class="icon"></div>{% endif %}
-      <input type="text" {% if name_prefix %}name="{{ name_prefix }}ft" {% endif %}id="{{ prefix }}-footer" placeholder="Footer"
-             value="{{ embed.get('footer', {}).get('text', '') or '' }}">
+      <input
+        type="text"
+        id="{{ prefix }}-footer"
+        {% if name_prefix %}name="{{ name_prefix }}ft"{% endif %}
+        placeholder="Footer"
+        value="{{ embed.get('footer', {}).get('text', '') or '' }}"
+      >
     </div>
+    {% endif %}
   </div>
 </div>
 {% endmacro %}

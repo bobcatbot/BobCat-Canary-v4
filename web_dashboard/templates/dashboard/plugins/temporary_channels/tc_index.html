@@ -116,10 +116,9 @@
               <div class="d-flex gap-2">
                 <button
                   type="button"
-                  class="btn btn-danger"
-                  id="delete-hub-modal"
+                  class="btn btn-danger delete-hub-modal"
                   data-bs-toggle="modal"
-                  data-bs-target="#DeleteModal"
+                  data-bs-target="#DeleteModal-{{hub['id']}}"
                 >
                   <i class="bi bi-trash-fill"></i>
                 </button>
@@ -127,12 +126,15 @@
             </div>
           </a>
 
-          <!-- DeleteModal -->
-          <div class="modal fade dark" id="DeleteModal" tabindex="-1" aria-labelledby="DeleteModalLabel" aria-hidden="true">
+          <!-- DeleteModal - id/data-bs-target must be per-hub: a shared literal
+               id here would mean data-bs-target always resolves (via
+               querySelector) to the FIRST modal in the DOM, deleting the
+               wrong hub regardless of which card's trash icon was clicked. -->
+          <div class="modal fade dark" id="DeleteModal-{{hub['id']}}" tabindex="-1" aria-labelledby="DeleteModalLabel-{{hub['id']}}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="DeleteModalLabel">Do you really want to delete this?</h5>
+                  <h5 class="modal-title" id="DeleteModalLabel-{{hub['id']}}">Do you really want to delete this?</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -140,7 +142,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger" id="delete-hub" data-id="{{hub['id']}}">Yes</button>
+                  <button type="button" class="btn btn-danger delete-hub" data-id="{{hub['id']}}">Yes</button>
                 </div>
               </div>
             </div>
@@ -195,7 +197,7 @@
       });
     }
 
-    document.querySelectorAll('#delete-hub-modal').forEach(button => {
+    document.querySelectorAll('.delete-hub-modal').forEach(button => {
       button.addEventListener('click', function(event) {
         // Prevent the default action (navigation)
         event.stopPropagation();
@@ -204,7 +206,7 @@
     });
 
 
-    document.querySelectorAll('#delete-hub').forEach((button) => {
+    document.querySelectorAll('.delete-hub').forEach((button) => {
       button.addEventListener('click', (e) => {
         const hubId = e.target.closest('button').dataset.id;
 

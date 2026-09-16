@@ -147,6 +147,11 @@
   function upgrade(original) {
     if (original.dataset.chipUpgraded) return;
     if (original instanceof HTMLInputElement && original.type !== 'text') return;
+    // Disabled/readonly fields are static examples (e.g. the giveaway
+    // message preview's title/desc, which reuse the .embed wrapper classes
+    // purely for styling) - never meant to be interactive, so leave them as
+    // plain text instead of swapping in the editable chip UI.
+    if (original.disabled || original.readOnly) return;
     original.dataset.chipUpgraded = '1';
 
     const multiline = original.tagName === 'TEXTAREA';

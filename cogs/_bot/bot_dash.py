@@ -253,10 +253,10 @@ async def sync_guild_dashboard(guild: discord.Guild) -> None:
         await init_database(guild)
         return
 
-    dash = raw.get("Dash", {})
+    dash = raw.get("dashboard", {})
     added = _deep_fill_gaps(dash, _default_dashboard())
     if added:
-        await collection.update_one({"_id": str(guild.id)}, {"$set": {"Dash": dash}})
+        await collection.update_one({"_id": str(guild.id)}, {"$set": {"dashboard": dash}})
         print(f"Backfilled dashboard fields for guild {guild.id}: {', '.join(added)}")
 
 async def sync_admin_roles(guild: discord.Guild) -> None:

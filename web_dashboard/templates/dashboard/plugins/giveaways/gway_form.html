@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
 
-  <!-- Popperjs -->
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-  <!-- Tempus Dominus JavaScript -->
-  <script src="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/js/tempus-dominus.min.js" crossorigin="anonymous"></script>
-  <!-- Tempus Dominus Styles -->
+  <!-- Tempus Dominus -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/css/tempus-dominus.min.css" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/js/tempus-dominus.min.js" crossorigin="anonymous"></script>
+  
+  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
+  {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -17,20 +19,23 @@
   {% include 'components/Sidebar.html' %}
 
   {% set plugin = get_plugin(guild, 'giveaway') %}
-  
+  {% set is_draft = (not is_edit) or (data.status == 'Draft') %}
+
   <!-- ======= Main ======= -->
   <main id="main" class="main">
     <div class="pagetitle plugin">
       <div>
-        <h1 class="em-title">Edit giveaway{% if data.status == 'Draft' %} <span class="badge bg-secondary align-middle">Draft</span>{% endif %}</h1>
+        <h1 class="em-title">{{ 'Edit giveaway' if is_edit else 'Create new giveaway' }}{% if is_edit and data.status == 'Draft' %}<span class="badge bg-secondary align-middle">Draft</span>{% endif %}</h1>
       </div>
 
       <div class="buttons">
+        {% if is_edit %}
         <button type="button" id="delete" class="btn btn-danger"><i class="bi bi-trash  mr-1"></i> Delete</button>
+        {% endif %}
         <button type="button" id="discard-btn" class="btn btn-secondary">Discard</button>
-        <button type="button" id="save-btn" class="btn {% if data.status == 'Draft' %}btn-secondary{% else %}btn-blurple{% endif %}">Save</button>
-        {% if data.status == 'Draft' %}
-        <button type="button" id="publish-btn" class="btn btn-blurple">Publish</button>
+        <button type="button" id="save-btn" class="btn {{ 'btn-secondary' if is_draft else 'btn-blurple' }}">Save</button>
+        {% if is_draft %}
+        <button type="button" id="publish-btn" class="btn btn-blurple" {% if not is_edit %}disabled{% endif %}>Publish</button>
         {% endif %}
       </div>
     </div>
@@ -41,12 +46,12 @@
           <h2>Manage</h2>
         </div>
         <hr>
-        
+
         <div class="mb-2 em-name">
           <label for="gwayname-name">Giveaway name <req style="color: red;">*</req></label><br>
-          <input type="text" id="gwayname-name" class="text-input" value="{{data.name}}" />
+          <input type="text" id="gwayname-name" class="text-input" value="{{ data.name or 'New Giveaway' }}" />
         </div>
-        
+
         <div class="mb-0">
           <p class="mb-1">Channel <req style="color: red;">*</req></p>
           <div class="gway-chan-select-wrapper single">
@@ -62,7 +67,7 @@
         </div>
       </div>
     </section>
-    
+
     <section class="section">
       <div class="feature_card">
         <div class="title">
@@ -73,23 +78,23 @@
         <div class="mt-0">
           <label for="gway-prize">Prize <req style="color: red;">*</req></label><br>
           <p class="mb-1 fs-7 text-muted">What are the members winning?</p>
-          <input type="text" id="gway-prize" class="text-input" value="{{data.prize}}" />
+          <input type="text" id="gway-prize" class="text-input" value="{{ data.prize or '' }}" />
         </div>
 
         <div class="mt-2">
           <label for="gway-winners">Number of Winners <req style="color: red;">*</req></label><br>
           <p class="mb-1 fs-7 text-muted">How many members will win?</p>
-          <input type="text" id="gway-winners" class="text-input" value="{{data.winner_count}}" />
+          <input type="text" id="gway-winners" class="text-input" value="{{ data.winner_count or '' }}" />
         </div>
 
         <div class="mt-2">
           <p class="mb-1 fs-7">End time <req style="color: red;">*</req></p>
-          
+
           <div class="container m-0" style="max-width: var(--input-width);">
             <div class="row">
               <div class="form-group p-0">
                 <div class="input-group date" id="datetimepicker1" data-target-input="nearest">
-                  <input type="text" name="datetime-picker1" class="form-control datetimepicker-input text-input" data-target="#datetimepicker1" />
+                  <input type="text" name="datetime-picker1" class="form-control datetimepicker-input text-input" data-target="#datetimepicker1"/>
                   <div class="input-group-append" data-target="#datetimepicker1" data-toggle="datetimepicker">
                     <div class="input-group-text"><i class="bi bi-calendar"></i></div>
                   </div>
@@ -100,14 +105,14 @@
         </div>
 
         <div class="mt-3">
-          <p class="mb-1 fs-6">Additional settings</p>
+          <p class="mb-1 fs-7">Additional settings</p>
           <div class="form-switch ps-0 user-select-none ">
             <input class="form-check-input ms-0 " type="checkbox" id="gway-givexp" {% if data.give_xp.enabled %}checked{% endif %} />
             <label class="form-check-label" for="gway-givexp">Give xp to winners</label>
 
             <div class="gway-givexp-amount d-none">
               <label for="gway-givexp-amount">Amount of XP</label><br>
-              <input type="text" id="gway-givexp-amount" class="text-input" value="{{data.give_xp.amount}}">
+              <input type="text" id="gway-givexp-amount" class="text-input" value="{{ data.give_xp.amount or '' }}">
             </div>
           </div>
           <div class="form-switch ps-0 user-select-none mt-1">
@@ -116,7 +121,7 @@
 
             <div class="gway-givecoins-amount d-none">
               <label for="gway-givecoins-amount">Amount of coins</label><br>
-              <input type="text" id="gway-givecoins-amount" class="text-input" value="{{data.give_coins.amount}}">
+              <input type="text" id="gway-givecoins-amount" class="text-input" value="{{ data.give_coins.amount or '' }}">
             </div>
           </div>
         </div>
@@ -129,46 +134,56 @@
           <h2>Message</h2>
         </div>
         <hr>
-        <div class="embed">
-          <div class="e-bdFBtt">
-            <div class="title embedMargin-2PsaQ4">
-              <input type="text" id="gway_embed_title" class="input" placeholder="Title" value="🎉 [prize] 🎉" disabled>
+        
+        <div class="d-flex gap-2 mb-3">
+          {{ embed_color_picker('gway-embed-color', data.embed_color|hexcolor, css_class='gway-embed-color coloris') }}
+          {% call embed_editor('gway-embed', {
+              'color': data.embed_color|hexcolor,
+              'title': '🎉 {prize} 🎉',
+              'description': data.embed_desc or '',
+            },
+            desc_element='textarea',
+            show_icons=False,
+            show_author=False,
+            show_footer=False,
+            show_fields=False,
+            color_input=True,
+            title_disabled=True,
+          ) %}
+          <div class="fields mt-2">
+            <div class="field">
+              <div class="field-name">Hosted by</div>
+              <div class="field-value">{{user.username}}</div>
             </div>
-            <div class="desc embedMargin-2PsaQ4">
-              <textarea type="text" id="gway_embed_desc" class="input" placeholder="Description">{{data.embed_desc}}</textarea>
+            <div class="field">
+              <div class="field-name">Winners</div>
+              <div class="field-value">0</div>
             </div>
-
-            <div class="fields">
-              <div class="field">
-                <div class="name">End</div>
-                <div class="value">date</div>
-              </div>
-              <div class="field">
-                <div class="name">Hosted by</div>
-                <div class="value">user</div>
-              </div>
-              <div class="field">
-                <div class="name">Winners</div>
-                <div class="value">0</div>
-              </div>
-              <div class="field">
-                <div class="name">Participants</div>
-                <div class="value">0</div>
-              </div>
+            <div class="field">
+              <div class="field-name">Participants</div>
+              <div class="field-value">0</div>
             </div>
           </div>
+          {% endcall %}
         </div>
+        <p class="mb-1 fs-7 text-muted mt-1">The title is fixed and the fields below are always included.</p>
       </div>
     </section>
   </main>
 
   <script>
+    // Values are JSON-encoded then re-parsed (rather than emitted as bare
+    // JS literals) so a raw Jinja tag never lands where JS syntax is
+    // expected - editors/linters parse this file as plain JS otherwise and
+    // choke on an unquoted tag.
+    const isEdit = JSON.parse('{{ is_edit | tojson }}');
+
     new Select('.gway-chan-select-wrapper.single', {
       placeholder: "Select a channel",
       type: 'channel',
       multiple: false,
       maxItems: 1,
-      options: ['{{data["channel_id"]}}']
+      options: JSON.parse('{{ ([data.channel_id] if (is_edit and data.channel_id) else []) | tojson }}')
     })
 
     const DateTimePicker = new tempusDominus.TempusDominus(document.getElementById('datetimepicker1'), {
@@ -179,7 +194,41 @@
       }
     });
 
-    const save_data = {}
+    // Embed color
+    Coloris({
+      el: '.gway-embed-color',
+      theme: 'large',
+      themeMode: 'dark',
+      format: 'hex',
+      formatToggle: false,
+      closeButton: true,
+      defaultColor: '#5865f2',
+      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
+    });
+
+    // Create needs to know when every required field has been filled in
+    // (to enable the Publish button); edit only ever sends a partial diff
+    // of whatever the user actually touched, so it doesn't track this.
+    var required_fields = ['name', 'channel_id', 'prize', 'winners', 'time.epoch'];
+    const save_data = isEdit ? {} : new Proxy({}, {
+      set(target, key, value) {
+        target[key] = value;
+        checkIfDataUpdated();
+        return true;
+      }
+    });
+
+    function checkIfDataUpdated() {
+      const allFieldsExist = required_fields.every(field => save_data[field]);
+      const publishBtn = document.querySelector('#publish-btn');
+      if (publishBtn) publishBtn.disabled = !allFieldsExist;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isEdit) {
+        save_data['name'] = document.querySelector('#gwayname-name').value;
+      }
+    })
 
     document.querySelector('#discard-btn').addEventListener('click', (e) => {
       if (Object.keys(save_data).length > 0) {
@@ -193,10 +242,10 @@
     })
 
     document.querySelector('#save-btn').addEventListener('click', (e) => {
-      fetch("edition", {
+      fetch(isEdit ? "edition" : "creation", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ ...save_data }),
+        body: JSON.stringify(isEdit ? { ...save_data } : { ...save_data, button: 'save' }),
       })
         .then(res => res.json())
         .then(data => {
@@ -206,38 +255,41 @@
         })
     })
 
-    document.querySelector('#delete').addEventListener('click', (e) => {
-      if (!confirm("Delete this giveaway? This cannot be undone.")) return;
-      fetch("delete", {
-        method: "DELETE",
-        headers: {"Content-Type": "application/json"},
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status == 'success') {
-            window.location.href = '/dashboard/{{guild.id}}/giveaways'
-          } else {
-            alert(data.message || 'Failed to delete')
-          }
-        })
-    })
-
-    const publishBtn = document.querySelector('#publish-btn');
-    if (publishBtn) {
-      publishBtn.addEventListener('click', (e) => {
-        publishBtn.disabled = true;
-        // pending edits ride along with the publish request
-        fetch("publish", {
-          method: "POST",
+    if (isEdit) {
+      document.querySelector('#delete').addEventListener('click', (e) => {
+        if (!confirm("Delete this giveaway? This cannot be undone.")) return;
+        fetch("delete", {
+          method: "DELETE",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ ...save_data }),
         })
           .then(res => res.json())
           .then(data => {
             if (data.status == 'success') {
               window.location.href = '/dashboard/{{guild.id}}/giveaways'
             } else {
-              publishBtn.disabled = false;
+              alert(data.message || 'Failed to delete')
+            }
+          })
+      })
+    }
+
+    const publishBtn = document.querySelector('#publish-btn');
+    if (publishBtn) {
+      publishBtn.addEventListener('click', (e) => {
+        if (!isEdit && !required_fields.every(field => save_data[field])) return;
+
+        if (isEdit) publishBtn.disabled = true;
+        fetch(isEdit ? "publish" : "creation", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(isEdit ? { ...save_data } : { ...save_data, button: 'publish' }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status == 'success') {
+              window.location.href = '/dashboard/{{guild.id}}/giveaways'
+            } else {
+              if (isEdit) publishBtn.disabled = false;
               alert(data.message || 'Failed to publish')
             }
           })
@@ -273,14 +325,19 @@
 
     // Time
     const gwayDateInput = document.querySelector('#datetimepicker1').querySelector('input');
+
     document.addEventListener('DOMContentLoaded', (e) => {
-      var datetime = new Intl.DateTimeFormat('en-US', { 
-        day: '2-digit', month: '2-digit', year: '2-digit', 
-        hour: '2-digit', minute: '2-digit', hour12: false 
-      }).format(new Date('{{data["end_epoch"]}}' * 1000))
+      if (!isEdit) return;
+
+      const endEpoch = JSON.parse('{{ (data.end_epoch or 0) | tojson }}');
+      var datetime = new Intl.DateTimeFormat('en-US', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).format(new Date(endEpoch * 1000))
 
       gwayDateInput.value = datetime
     })
+
     gwayDateInput.addEventListener('change', (e) => {
       // console.log(DateTimePicker.viewDate)
       function toTimestamp(dateString) {
@@ -289,9 +346,9 @@
       }
 
       function formatDateTime(date) {
-        return new Intl.DateTimeFormat('en-US', { 
-          day: '2-digit', month: '2-digit', year: '2-digit', 
-          hour: '2-digit', minute: '2-digit', hour12: false 
+        return new Intl.DateTimeFormat('en-US', {
+          day: '2-digit', month: '2-digit', year: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
@@ -302,7 +359,7 @@
     // GiveEXP
     const giveExpInput = document.querySelector('#gway-givexp');
     const giveExpAmount = document.querySelector('.gway-givexp-amount');
-    
+
     document.addEventListener('DOMContentLoaded', (e) => {
       giveExpAmount.classList.toggle('d-none', !giveExpInput.checked)
     })
@@ -319,7 +376,7 @@
     // GiveCoins
     const giveCoinsInput = document.querySelector('#gway-givecoins');
     const giveCoinsAmount = document.querySelector('.gway-givecoins-amount');
-    
+
     document.addEventListener('DOMContentLoaded', (e) => {
       giveCoinsAmount.classList.toggle('d-none', !giveCoinsInput.checked)
     })
@@ -333,11 +390,30 @@
       save_data['give_coins.amount'] = e.target.value
     })
 
-    /* Embeds */
-    const embedDesc = document.querySelector('#gway_embed_desc');
+    /* Embed message */
+    // The textarea grows to fit its content via an inline oninput= handler
+    // in the embed_editor macro itself, which needs this in global scope.
+    // Duplicated here (rather than pulled from embed-editor.js) so this page
+    // stays fully self-contained - see the fields block below for why.
+    function autoGrowEmbedDesc(el) {
+      el.style.height = "5px";
+      el.style.height = (el.scrollHeight + 2) + "px";
+    }
+
+    const embedDesc = document.querySelector('#gway-embed-desc');
+    autoGrowEmbedDesc(embedDesc);
     embedDesc.addEventListener('input', (e) => {
       save_data['embed.desc'] = e.target.value
     })
+
+    const gwayEmbedColor = document.querySelector('.gway-embed-color');
+    const gwayEmbed = document.querySelector('[data-prefix="gway-embed"]');
+    gwayEmbedColor.addEventListener('change', (e) => {
+      const value = e.target.value;
+      gwayEmbed.style.borderLeftColor = value;
+      save_data['embed.color'] = parseInt(value.replace('#', ''), 16);
+    })
+
   </script>
 
   <style>
@@ -346,7 +422,7 @@
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
-      
+
       padding: 3px 6px;
       font-size: 23px!important;
     }

@@ -1,3 +1,4 @@
+import discord
 from bson import ObjectId
 from beanie import Document
 from pydantic import ConfigDict, Field, BaseModel, field_validator
@@ -61,12 +62,42 @@ class EmbedFooterConfig(DictModel):
     text: Optional[str] = None
 
 class EmbedConfig(DictModel):
+    model_config = ConfigDict(extra="allow", validate_assignment=True)
+
     color: Optional[Any] = None
     title: Optional[str] = None
     description: Optional[str] = None
     author: EmbedAuthorConfig = Field(default_factory=EmbedAuthorConfig)
     footer: EmbedFooterConfig = Field(default_factory=EmbedFooterConfig)
     fields: List[EmbedFieldConfig] = Field(default_factory=list)
+
+    @field_validator('color', mode='before')
+    @classmethod
+    def _coerce_color(cls, v):
+        """Dashboard color pickers hand back a hex string ("#5865f2" or "5865f2");
+        Discord embeds and the DB store an int. Coerce here so every writer -
+        dashboard routes, the bot itself - can just assign either shape."""
+        if isinstance(v, str) and v.strip():
+            return int(v.strip().lstrip('#'), 16)
+        return v
+
+    def to_embed(self, transform=None) -> discord.Embed:
+        """Build a live discord.Embed from this config.
+
+        Must dump with exclude_none - discord.Embed.from_dict expects an
+        unset color/title/etc. to be an ABSENT key (as in a real Discord API
+        payload), not an explicit `null`; passing `color: None` through
+        raises `TypeError: Expected int parameter, received NoneType`.
+
+        `transform`, if given, runs on the dumped dict before it becomes an
+        embed - e.g. recursively substituting {user}/{server} placeholders
+        (welcome/goodbye messages) without every caller re-implementing its
+        own dump-then-from_dict dance.
+        """
+        data = self.model_dump(exclude_none=True)
+        if transform is not None:
+            data = transform(data)
+        return discord.Embed.from_dict(data)
 
 # ---------------------------------------------------------
 # Welcome plugin
@@ -279,6 +310,17 @@ class TemporaryChannelsConfig(DictModel):
 class TicketMessageConfig(DictModel):
     embed: EmbedConfig = Field(default_factory=EmbedConfig)
 
+def _default_panel_message() -> TicketMessageConfig:
+    return TicketMessageConfig(embed=EmbedConfig(
+        title="Ticket Tool",
+        description="Welcome to our tickets channel. If you have any questions or inquiries, please click on the Open ticket button below to contact the staff!",
+    ))
+
+def _default_intro_message() -> TicketMessageConfig:
+    return TicketMessageConfig(embed=EmbedConfig(
+        description="Your ticket has been created.\nPlease provide any additional info you deem relevant to help us answer faster.",
+    ))
+
 class PanelButtonConfig(DictModel):
     emoji: Optional[str] = None
     label: Optional[str] = None
@@ -291,8 +333,8 @@ class TicketPanelConfig(DictModel):
     category_open: Optional[str] = None
     category_claimed: Optional[str] = None
     category_closed: Optional[str] = None
-    intro_message: TicketMessageConfig = Field(default_factory=TicketMessageConfig)
-    panel_message: TicketMessageConfig = Field(default_factory=TicketMessageConfig)
+    intro_message: TicketMessageConfig = Field(default_factory=_default_intro_message)
+    panel_message: TicketMessageConfig = Field(default_factory=_default_panel_message)
     panel_message_id: Optional[str] = None
     panel_button: PanelButtonConfig = Field(default_factory=PanelButtonConfig)
     manager_roles: List[str] = Field(default_factory=list)
@@ -454,7 +496,7 @@ class Guild(Document):
     id: str = Field(alias="_id")  # Guild ID
     premium: PremiumConfig = Field(default_factory=PremiumConfig)
     settings: SettingsConfig = Field(default_factory=SettingsConfig)
-    dashboard: DashConfig = Field(default_factory=DashConfig, alias="Dash")
+    dashboard: DashConfig = Field(default_factory=DashConfig)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -549,6 +591,8 @@ class Giveaway(Document):
     author_id: str
     embed_title: str
     embed_desc: str
+    embed_color: int = 0x5865f2
+    embed_fields: List[EmbedFieldConfig] = Field(default_factory=list)
     end_epoch: float
     end_timestamp: str
     winner_count: int = 1

@@ -30,7 +30,7 @@
           {% for question in data['questions'] %}
           <div class="question">
             <div class="title_desc">
-              <h4>{{question.title}}</h4>
+              <h4>{{question.title}} {% if question.required %}<span class="text-danger">*</span>{% endif %}</h4>
               {% if question.description %}
               <p>{{question.description}}</p>
               {% endif %}
@@ -92,7 +92,11 @@
 
     submitBtn.addEventListener('click', (e) => {
       // Get all answers
-      const answerInputs = document.querySelectorAll('[id^="AnswerInput-"]')
+      // Scoped to textarea/input (not [id^=] alone) so the variable-chips
+      // "-rich" contenteditable overlay that dash-links.html injects next
+      // to each field isn't picked up too - it has no .value and its id
+      // also starts with "AnswerInput-".
+      const answerInputs = document.querySelectorAll('textarea[id^="AnswerInput-"], input[id^="AnswerInput-"]')
       const answers = []
       
       for (let i = 0; i < answerInputs.length; i++) {
@@ -139,8 +143,9 @@
     })
 
     newSubBtn.addEventListener('click', () => {
-      // Clear all inputs
-      document.querySelectorAll('[id^="AnswerInput-"]').forEach(input => {
+      // Clear all inputs (see the submit handler above for why this is
+      // scoped past the "-rich" overlay elements)
+      document.querySelectorAll('textarea[id^="AnswerInput-"], input[id^="AnswerInput-"]').forEach(input => {
         input.value = ''
       })
       formSection.style.display = 'block'
