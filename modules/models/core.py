@@ -56,9 +56,17 @@ class EmbedFieldConfig(DictModel):
 
 class EmbedAuthorConfig(DictModel):
     name: Optional[str] = None
+    icon_url: Optional[str] = None
 
 class EmbedFooterConfig(DictModel):
     text: Optional[str] = None
+    icon_url: Optional[str] = None
+
+class EmbedImageConfig(DictModel):
+    url: Optional[str] = None
+
+class EmbedThumbnailConfig(DictModel):
+    url: Optional[str] = None
 
 class EmbedConfig(DictModel):
     model_config = ConfigDict(extra="allow", validate_assignment=True)
@@ -68,6 +76,8 @@ class EmbedConfig(DictModel):
     description: Optional[str] = None
     author: EmbedAuthorConfig = Field(default_factory=EmbedAuthorConfig)
     footer: EmbedFooterConfig = Field(default_factory=EmbedFooterConfig)
+    image: EmbedImageConfig = Field(default_factory=EmbedImageConfig)
+    thumbnail: EmbedThumbnailConfig = Field(default_factory=EmbedThumbnailConfig)
     fields: List[EmbedFieldConfig] = Field(default_factory=list)
 
     @field_validator('color', mode='before')

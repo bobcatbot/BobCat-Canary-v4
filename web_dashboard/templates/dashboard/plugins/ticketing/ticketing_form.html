@@ -2,11 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
-
-  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
   {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
@@ -119,7 +114,7 @@
 
         <div class="d-flex gap-2 mb-3">
           {{ embed_color_picker('pm-embed-color', data.panel_message.embed.color|hexcolor, css_class='pm-embed-color coloris') }}
-          {{ embed_editor('pm-embed', data.panel_message.embed.model_dump(), desc_element='textarea', show_icons=True, show_fields=True) }}
+          {{ embed_editor('pm-embed', data.panel_message.embed.model_dump(), desc_element='textarea', show_icons=True, color_input=True) }}
         </div>
       </div>
     </section>
@@ -235,7 +230,7 @@
 
         <div class="d-flex gap-2 mb-3">
           {{ embed_color_picker('im-embed-color', data.intro_message.embed.color|hexcolor, css_class='im-embed-color coloris') }}
-          {{ embed_editor('im-embed', data.intro_message.embed.model_dump(), desc_element='textarea', show_icons=True, show_fields=False) }}
+          {{ embed_editor('im-embed', data.intro_message.embed.model_dump(), desc_element='textarea', color_input=True, show_icons=True) }}
         </div>
       </div>
     </section>
@@ -559,13 +554,21 @@
       ticket_data['panel_message.embed.description'] = value;
     })
 
-    PmEmbedAuthor.addEventListener('input', (e) => {
-      ticket_data['panel_message.embed.author.name'] = e.target.value;
-    })
-
-    PmEmbedFooter.addEventListener('input', (e) => {
-      ticket_data['panel_message.embed.footer.text'] = e.target.value;
-    })
+    // Image/thumbnail/icon uploads - this page builds its own ticket_data
+    // payload instead of using initEmbedEditor()'s show_toast flow, so these
+    // report through a callback rather than a pending-change key.
+    wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="author-icon"]'), '{{ guild.id }}', (url) => {
+      ticket_data['panel_message.embed.author.icon_url'] = url;
+    });
+    wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="footer-icon"]'), '{{ guild.id }}', (url) => {
+      ticket_data['panel_message.embed.footer.icon_url'] = url;
+    });
+    wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="image"]'), '{{ guild.id }}', (url) => {
+      ticket_data['panel_message.embed.image.url'] = url;
+    });
+    wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="thumbnail"]'), '{{ guild.id }}', (url) => {
+      ticket_data['panel_message.embed.thumbnail.url'] = url;
+    });
 
     /* Panel Button */
     const btnPreview = document.querySelector('#btn-preview');
@@ -699,8 +702,6 @@
     const ImEmbedColor = document.querySelector('.im-embed-color');
     const ImEmbedTitle = ImEmbed.querySelector('#im-embed-title');
     const ImEmbedDesc = ImEmbed.querySelector('#im-embed-desc');
-    const ImEmbedAuthor = ImEmbed.querySelector('#im-embed-author');
-    const ImEmbedFooter = ImEmbed.querySelector('#im-embed-footer');
 
     document.addEventListener('DOMContentLoaded', () => {
       const imMessageColor = '{{ data.intro_message.embed.color|hexcolor }}';
@@ -734,13 +735,14 @@
       ticket_data['intro_message.embed.description'] = value;
     })
 
-    ImEmbedAuthor.addEventListener('input', (e) => {
-      ticket_data['intro_message.embed.author.name'] = e.target.value;
-    })
-
-    ImEmbedFooter.addEventListener('input', (e) => {
-      ticket_data['intro_message.embed.footer.text'] = e.target.value;
-    })
+    // Image/thumbnail uploads - no author/footer icon roles here since this
+    // instance is show_author=False, show_footer=False.
+    wireEmbedUploadCustom(ImEmbed.querySelector('[data-upload-role="image"]'), '{{ guild.id }}', (url) => {
+      ticket_data['intro_message.embed.image.url'] = url;
+    });
+    wireEmbedUploadCustom(ImEmbed.querySelector('[data-upload-role="thumbnail"]'), '{{ guild.id }}', (url) => {
+      ticket_data['intro_message.embed.thumbnail.url'] = url;
+    });
 
     /* Ticket Transcript */
     // Channel

@@ -66,26 +66,41 @@ class Ticket(Document):
     creator: Dict[str, Any] = Field(default_factory=dict)
     panel_id: Optional[str] = None
     status: str = "open"
-    claimed_by: Optional[str] = None
     claimed: Dict[str, Any] = Field(default_factory=lambda: {
         "status": False,
-        "user": "",
+        "user": {
+            "id": "",
+            "username": "",
+            "avatar": "",
+        },
         "updated_at": "",
     })
     closed: Dict[str, Any] = Field(default_factory=lambda: {
         "status": False,
         "reason": "",
-        "user": "",
+        "user": {
+            "id": "",
+            "username": "",
+            "avatar": "",
+        },
         "updated_at": "",
     })
     reopened: Dict[str, Any] = Field(default_factory=lambda: {
         "status": False,
-        "user": "",
+        "user": {
+            "id": "",
+            "username": "",
+            "avatar": "",
+        },
         "updated_at": "",
     })
     deleted: Dict[str, Any] = Field(default_factory=lambda: {
         "status": False,
-        "user": "",
+        "user": {
+            "id": "",
+            "username": "",
+            "avatar": "",
+        },
         "updated_at": "",
     })
     transcript: List[Dict[str, Any]] = Field(default_factory=list)

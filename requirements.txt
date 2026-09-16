@@ -17,6 +17,7 @@ beanie
 zenora
 requests
 stripe
+cloudinary
 
 # REPLACED Flask with Quart
 quart

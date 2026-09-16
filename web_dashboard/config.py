@@ -31,3 +31,9 @@ stripe_config = {
   "SECRET_KEY": os.getenv('STRIPE_SECRET_KEY'),
   "WH_KEY": os.getenv('STRIPE_WH_KEY')
 }
+
+cloudinary_config = {
+  "cloud_name": os.getenv('CLOUDINARY_CLOUD_NAME'),
+  "api_key": os.getenv('CLOUDINARY_API_KEY'),
+  "api_secret": os.getenv('CLOUDINARY_API_SECRET'),
+}

@@ -7,10 +7,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/css/tempus-dominus.min.css" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/js/tempus-dominus.min.js" crossorigin="anonymous"></script>
   
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
   {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>

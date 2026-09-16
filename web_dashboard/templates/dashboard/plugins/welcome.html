@@ -2,10 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css" />
-  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
   {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
@@ -81,8 +77,8 @@
 
               <div id="join-embed-pane" class="tab-pane {{'active show' if data['join']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  {{ embed_color_picker('join-embed-color', data['join']['message'].get('embed', {}).get('color', '#ffffff'), name='join_embed_color') }}
-                  {{ embed_editor('join-embed', data['join']['message'].get('embed', {}), name_prefix='join_embed', show_fields=True) }}
+                  {{ embed_color_picker('join-embed-color', data['join']['message'].get('embed', {}).get('color')|hexcolor, name='join_embed_color') }}
+                  {{ embed_editor('join-embed', data['join']['message'].get('embed', {}), name_prefix='join_embed', desc_element='textarea', show_icons=True, color_input=False, show_fields=True, show_author=True, show_footer=True) }}
                 </div>
               </div>
             </div>
@@ -128,8 +124,8 @@
 
               <div id="dm-embed-pane" class="tab-pane {{'active show' if data['dm']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  {{ embed_color_picker('dm-embed-color', data['dm']['message'].get('embed', {}).get('color', '#ffffff'), name='dm_embed_color') }}
-                  {{ embed_editor('dm-embed', data['dm']['message'].get('embed', {}), name_prefix='dm_embed', show_fields=True) }}
+                  {{ embed_color_picker('dm-embed-color', data['dm']['message'].get('embed', {}).get('color')|hexcolor, name='dm_embed_color') }}
+                  {{ embed_editor('dm-embed', data['dm']['message'].get('embed', {}), name_prefix='dm_embed', desc_element='textarea', show_icons=True, color_input=False, show_fields=True, show_author=True, show_footer=True) }}
                 </div>
               </div>
             </div>
@@ -186,8 +182,8 @@
 
               <div id="leave-embed-pane" class="tab-pane {{'active show' if data['leave']['message']['type'] == 'embed' else ''}}" role="tabpanel">
                 <div class="d-flex gap-2">
-                  {{ embed_color_picker('leave-embed-color', data['leave']['message'].get('embed', {}).get('color', '#ffffff'), name='leave_embed_color') }}
-                  {{ embed_editor('leave-embed', data['leave']['message'].get('embed', {}), name_prefix='leave_embed', show_fields=True) }}
+                  {{ embed_color_picker('leave-embed-color', data['leave']['message'].get('embed', {}).get('color')|hexcolor, name='leave_embed_color') }}
+                  {{ embed_editor('leave-embed', data['leave']['message'].get('embed', {}), name_prefix='leave_embed', desc_element='textarea', show_icons=True, color_input=False, show_fields=True, show_author=True, show_footer=True) }}
                 </div>
               </div>
             </div>

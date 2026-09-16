@@ -10,6 +10,7 @@ from ..config import INVITE_URL, REDIRECT_URI
 from ..consts import langs, premium_faqs, premium_types, tz, RESERVED_SLUGS
 from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap
 from ..plugins import PLUGIN_LIST
+from ..uploads import upload_embed_image, UploadError
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -712,3 +713,43 @@ async def data_post(guild_id):
         'message': 'Successfully updated data',
         'audit': audit_entries
     })
+
+
+@dashboard_bp.route("/dashboard/<int:guild_id>/upload-image", methods=["POST"])
+async def embed_upload_image(guild_id):
+    """
+    Uploads an embed image/thumbnail/icon to Cloudinary and returns its URL.
+    The caller still has to save that URL onto the guild doc via /data/post -
+    this route only handles turning a file into a hosted URL.
+    """
+    if 'token' not in session:
+        return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
+    guild = v.client.get_guild(guild_id)
+    if guild is None:
+        return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
+
+    try:
+        current_user = bearer_client().get_current_user()
+    except Exception:
+        return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
+    has_permission, permission_level = await _check_guild_permission(guild, current_user.id)
+    if not has_permission:
+        return jsonify({
+            'status': 'error',
+            'message': f'Permission denied: {permission_level}'
+        }), 403
+
+    files = await request.files
+    file_storage = files.get('image')
+
+    try:
+        url = await upload_embed_image(file_storage, guild_id)
+    except UploadError as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+    except Exception as e:
+        print(f"[embed_upload_image] Cloudinary upload failed for guild {guild_id}: {e}")
+        return jsonify({'status': 'error', 'message': 'Upload failed. Try again.'}), 502
+
+    return jsonify({'status': 'success', 'url': url})

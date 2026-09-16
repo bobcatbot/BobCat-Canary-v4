@@ -2,11 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  <link href="{{ url_for('static', filename='dash/css/Embed.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
-
-  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-  <script src="{{ url_for('static', filename='dash/js/embed-editor.js') }}"></script>
   {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
@@ -41,7 +36,7 @@
 
         <hr>
         <div class="d-flex gap-2">
-          {{ embed_color_picker('verify-embed-color', data.get('message', {}).get('embed', {}).get('color', '#ffffff'), name='verify_embed_color') }}
+          {{ embed_color_picker('verify-embed-color', data.get('message', {}).get('embed', {}).get('color')|hexcolor, name='verify_embed_color') }}
 
           <div class="w-100">
             {{ embed_editor('verify-embed', data.get('message', {}).get('embed', {}), desc_element='textarea', show_icons=True, name_prefix='verify_embed', show_fields=False) }}
@@ -410,9 +405,17 @@
             "description": document.getElementById('verify-embed-desc').value,
             "author": {
               "name": document.getElementById('verify-embed-author').value,
+              "icon_url": _bgUrl(document.querySelector('.embed[data-prefix="verify-embed"] [data-upload-role="author-icon"]')),
             },
             "footer": {
               "text": document.getElementById('verify-embed-footer').value,
+              "icon_url": _bgUrl(document.querySelector('.embed[data-prefix="verify-embed"] [data-upload-role="footer-icon"]')),
+            },
+            "image": {
+              "url": _bgUrl(document.querySelector('.embed[data-prefix="verify-embed"] [data-upload-role="image"]')),
+            },
+            "thumbnail": {
+              "url": _bgUrl(document.querySelector('.embed[data-prefix="verify-embed"] [data-upload-role="thumbnail"]')),
             },
             "fields": fieldsContainer ? getFieldsData(fieldsContainer) : [],
           },
@@ -526,6 +529,7 @@
 
     document.addEventListener('DOMContentLoaded', (e) => {
       var value = "{{data['message']['btn']['color']}}"
+      if (!data[value]) return;
 
       btnPreview.classList.forEach(cls => {
         if (cls.startsWith('btn-')) {

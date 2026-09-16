@@ -61,7 +61,16 @@ async def get_ticket_transcript(ticket: Ticket) -> list[dict]:
 # ── Shared state-transition helpers ─────────────────────────────────────
 
 def _status_entry(user_id, reason: str | None = None) -> dict:
-    entry = {"status": True, "user": user_id, "updated_at": f"{datetime.now()}"}
+    user = v.client.get_user(int(user_id))
+    entry = {
+        "status": True,
+        "user": {
+            "id": str(user_id),
+            "name": user.display_name if user else str(user_id),
+            "avatar": user.display_avatar.url if user else None,
+        },
+        "updated_at": f"{datetime.now()}",
+    }
     if reason is not None:
         entry["reason"] = reason
     return entry
@@ -144,7 +153,7 @@ async def generate_transcript_data(ticket: Ticket, messages: list[dict], guild: 
         if entry and entry.get('status'):
             transcript_em.add_field(
                 name=field_name,
-                value=f"<@{entry.get('user', '')}> {format_time(entry.get('updated_at', ''))}",
+                value=f"<@{entry.get('user', {}).get('id', '')}> {format_time(entry.get('updated_at', ''))}",
                 inline=False
             )
 
@@ -198,12 +207,12 @@ async def send_transcript(ticket: Ticket, guild: discord.Guild, panel: TicketPan
     if panel.transcript_channel:
         log_channel = guild.get_channel(int(panel.transcript_channel))
         if log_channel:
-            file = await asyncio.to_thread(create_transcript_file, transcript_data['text'], str(ticket.id)[:8])
+            file = await asyncio.to_thread(create_transcript_file, transcript_data['text'], str(ticket.id))
             await log_channel.send(file=file, embed=transcript_data['embed'], view=transcript_view)
 
     if panel.transcript_dm:
         try:
-            file = await asyncio.to_thread(create_transcript_file, transcript_data['text'], str(ticket.id)[:8])
+            file = await asyncio.to_thread(create_transcript_file, transcript_data['text'], str(ticket.id))
             await creator.send(file=file, embed=transcript_data['embed'], view=transcript_view)
         except discord.HTTPException:
             pass
@@ -281,7 +290,6 @@ class TicketControls(discord.ui.View):
         move_to = await _move_to_category(interaction.channel, panel.category_claimed, interaction.guild)
 
         ticket.claimed = _status_entry(interaction.user.id)
-        ticket.claimed_by = str(interaction.user.id)
         await ticket.save()
 
         embed = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, you claimed the ticket{move_to}")
@@ -460,6 +468,30 @@ class Ticketing(commands.Cog):
         create_em.add_field(name=f"Ticket #{ticket_number}", value=f"{channel.mention}", inline=False)
         await interaction.response.send_message(embed=create_em, ephemeral=True)
 
+        # Insert the Ticket doc BEFORE sending the intro message below - the
+        # on_message transcript listener looks the ticket up by channel, and
+        # if that gateway event is processed before this insert lands, the
+        # lookup finds nothing and silently drops the bot's own intro
+        # message from the transcript. message_id is filled in once we have
+        # it, right after the send.
+        ticket = Ticket(
+            id=v.uuid(12, strCase="upper/lower/nums"),
+            guild_id=str(interaction.guild.id),
+            channel_id=str(channel.id),
+            message_id="",
+            creator_id=str(interaction.user.id),
+            creator={
+                "name": interaction.user.name,
+                "avatar": interaction.user.display_avatar.url,
+            },
+            panel_id=str(panel.id),
+            claimed={"status": False, "user": "", "updated_at": ""},
+            closed={"status": False, "reason": "", "user": "", "updated_at": ""},
+            reopened={"status": False, "user": "", "updated_at": ""},
+            deleted={"status": False, "user": "", "updated_at": ""},
+        )
+        await ticket.insert()
+
         embed = panel.intro_message.embed.to_embed()
         # Ping the creator (and, in a thread, the manager roles so they get pulled in).
         content = interaction.user.mention
@@ -471,22 +503,8 @@ class Ticketing(commands.Cog):
         if panel.pin_intro and not threading_mode:
             await msg.pin()
 
-        await Ticket(
-            id=v.uuid(12, strCase="upper/lower/nums"),
-            guild_id=str(interaction.guild.id),
-            channel_id=str(channel.id),
-            message_id=str(msg.id),
-            creator_id=str(interaction.user.id),
-            creator={
-                "name": interaction.user.name,
-                "avatar": interaction.user.display_avatar.url,
-            },
-            panel_id=str(panel.id),
-            claimed={"status": False, "user": "", "updated_at": ""},
-            closed={"status": False, "reason": "", "user": "", "updated_at": ""},
-            reopened={"status": False, "user": "", "updated_at": ""},
-            deleted={"status": False, "user": "", "updated_at": ""},
-        ).insert()
+        ticket.message_id = str(msg.id)
+        await ticket.save()
 
     async def _create_thread_ticket(self, interaction: discord.Interaction, panel: TicketPanelConfig, ticket_name: str, manager_roles: list[discord.Role]):
         # Private threads are available to every guild and, unlike public
@@ -535,7 +553,11 @@ class Ticketing(commands.Cog):
     # ── Ticketing Transcript Listeners ──────────────────────────────────────────
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.type != discord.MessageType.default:
+        # pins_add must stay allowed through here - the pins_add-specific
+        # content below (the "X pinned a message" notice) is otherwise dead
+        # code, since every such message would already have been filtered
+        # out above.
+        if message.type not in (discord.MessageType.default, discord.MessageType.pins_add):
             return
         if message.guild is None:
             return

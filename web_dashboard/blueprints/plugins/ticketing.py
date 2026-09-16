@@ -37,6 +37,7 @@ def _panel_button_view(panel: TicketPanelConfig) -> discord.ui.View:
 @ticketing_bp.route("/t/<int:guild_id>/<ticket_id>")
 @login_required
 async def ticketing_transcript(guild_id, ticket_id):
+    current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return redirect(url_for('web.index'))
@@ -64,18 +65,21 @@ async def ticketing_transcript(guild_id, ticket_id):
         await flash('Ticket not found', 'error')
         return redirect(url_for('web.index'))
 
-    closed_by_user = None
-    if ticket.closed and ticket.closed.get('user'):
-        closed_by_user = v.client.get_user(int(ticket.closed['user']))
+    panel = None
+    if ticket.panel_id:
+        config = await Guild.get(str(guild.id))
+        if config is not None:
+            panel = next((p for p in config.dashboard.ticketing.panels if p.id == ticket.panel_id), None)
 
     messages = await get_ticket_transcript(ticket)
 
     return await render_template(
         "dashboard/plugins/ticketing/ticketing_transcript.html",
         guild=guild,
+        user=current_user,
         data=ticket,
+        panel=panel,
         messages=messages,
-        closed_by=closed_by_user,
     )
 
 

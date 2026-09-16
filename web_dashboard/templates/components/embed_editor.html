@@ -47,12 +47,14 @@
 </div>
 {% endmacro %}
 
-{% macro embed_editor(prefix, embed, desc_element='input', show_icons=False, name_prefix='', color_input=True, show_fields=True, show_author=True, show_footer=True, title_disabled=False) %}
-<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color', '#ffffff') }};">
+{% macro embed_editor(prefix, embed, desc_element='input', name_prefix='', title_disabled=False, show_icons=False, color_input=True, show_fields=True, show_author=True, show_footer=True) %}
+<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color')|hexcolor }};">
   <div class="e-bdFBtt">
     {% if show_author %}
     <div class="author">
-      {% if show_icons %}<div class="icon"></div>{% endif %}
+      {% if show_icons %}
+      <div class="icon" data-upload-role="author-icon" {% if embed.get('author', {}).get('icon_url') %}style="background-image: url('{{ embed.author.icon_url }}');"{% endif %}></div>
+      {% endif %}
       <input
         type="text"
         id="{{ prefix }}-author"
@@ -96,7 +98,7 @@
       {% endif %}
     </div>
 
-    {# Fields Section - Clean Discord style #}
+    <!-- Fields Section - Clean Discord style -->
     {% if show_fields %}
     <div class="fields-container" id="{{ prefix }}-fields-container">
       <div class="fields" id="{{ prefix }}-fields">
@@ -149,10 +151,19 @@
     {% endif %}
 
     {% if caller is defined %}{{ caller() }}{% endif %}
+    <!-- End Fields Section -->
+
+    {% if show_icons %}
+    <div class="embed-img">
+      <div class="image" data-upload-role="image" {% if embed.get('image', {}).get('url') %}style="background-image: url('{{ embed.image.url }}');"{% endif %}></div>
+    </div>
+    {% endif %}
 
     {% if show_footer %}
     <div class="foter">
-      {% if show_icons %}<div class="icon"></div>{% endif %}
+      {% if show_icons %}
+      <div class="icon" data-upload-role="footer-icon" {% if embed.get('footer', {}).get('icon_url') %}style="background-image: url('{{ embed.footer.icon_url }}');"{% endif %}></div>
+      {% endif %}
       <input
         type="text"
         id="{{ prefix }}-footer"
@@ -163,11 +174,14 @@
     </div>
     {% endif %}
   </div>
+  {% if show_icons %}
+  <div class="embed-thumb" data-upload-role="thumbnail" {% if embed.get('thumbnail', {}).get('url') %}style="background-image: url('{{ embed.thumbnail.url }}');"{% endif %}></div>
+  {% endif %}
 </div>
 {% endmacro %}
 
 {% macro embed_preview(embed) %}
-<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color', '#ffffff') }};">
+<div class="embed" data-prefix="{{ prefix }}" style="border-left-color: {{ embed.get('color')|hexcolor }};">
   <div class="e-bdFBtt">
     {% if embed.get('author', {}).get('name') %}
     <div class="author">

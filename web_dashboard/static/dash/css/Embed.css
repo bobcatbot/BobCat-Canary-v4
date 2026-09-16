@@ -3,6 +3,61 @@
   margin-top: 8px;
 }
 
+/* ===== UPLOADABLE IMAGE SLOTS (author/footer icon, image, thumbnail) ===== */
+.embed [data-upload-role] {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.embed [data-upload-role].uploadable {
+  cursor: pointer;
+}
+
+.embed [data-upload-role].uploading {
+  opacity: 0.5;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.embed [data-upload-role] .remove-upload-btn {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: inherit;
+  background: rgba(255, 107, 134, 0.4);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.embed [data-upload-role] .remove-upload-btn i {
+  font-weight: 600;
+}
+
+/* Icon size scaled per slot - the × needs to read clearly on a 26px author
+   icon without swallowing a 200px image box, so this is sized per role
+   rather than one fixed size for every container. */
+.embed .embed-thumb .remove-upload-btn {
+  font-size: 64px;
+}
+
+.embed .embed-img .image .remove-upload-btn {
+  font-size: 128px;
+}
+
+.embed [data-upload-role].has-image:hover .remove-upload-btn {
+  display: flex;
+}
+
 .embed input,
 .embed textarea {
   width: 100%;
@@ -11,8 +66,8 @@
   border: none;
 }
 
-.embed input.input,
-.embed textarea.input {
+.embed input.text-input,
+.embed textarea.text-input {
   color: var(--text-color);
   background: var(--input-bg);
   padding: 6px 12px;
@@ -37,7 +92,7 @@
   font-family: Roboto, sans-serif;
   font-size: 14px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: space-between;
   width: 100%;
   max-width: 520px;
@@ -65,20 +120,13 @@
   flex-shrink: 0;
   object-fit: contain;
   margin-left: 15px;
-  background-color: black;
+  border: 3px dashed var(--input-bg);
+  transition: border-color 0.15s ease;
   position: relative;
 }
 
-.embed .embed-thumb::before {
-  content: '';
-  position: relative;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: block;
-  width: 70px;
-  height: 70px;
-  border: 2px dashed darkblue;
+.embed .embed-thumb:hover {
+  border-color: var(--blurple);
 }
 
 .embed .embed-thumb img {
@@ -109,7 +157,12 @@
   height: 24px;
   margin-right: 8px;
   border-radius: 50%;
-  /* background-color: black; */
+  border: 2px dashed var(--input-bg);
+  transition: border-color 0.15s ease;
+}
+
+.embed .author .icon:hover {
+  border-color: var(--blurple);
 }
 
 .embed .author input {
@@ -125,6 +178,15 @@
 .embed .title {
   font-size: 16px;
   font-weight: 600;
+}
+
+/* embed_preview (read-only) wraps title/desc text in a plain <p>, unlike
+   embed_editor's <input>/<textarea> - Bootstrap's reboot gives every <p> a
+   1rem bottom margin that nothing here overrode, adding a stray gap before
+   whatever comes next (fields, or the embed's own bottom edge). */
+.embed .title p,
+.embed .desc p {
+  margin: 0;
 }
 
 .embed .title a {
@@ -149,6 +211,14 @@
   font-weight: 400;
 }
 
+/* variable-chips.js upgrades the description textarea into a
+   .rich-var-field--multiline div (dash-style.css: min-height: 90px) - too
+   tall for the embed card, which should hug its content like Discord's own
+   description does. */
+.embed .desc .rich-var-field--multiline {
+  min-height: 0;
+}
+
 .embed .desc input,
 .embed .desc textarea {
   font-size: 0.875rem;
@@ -164,29 +234,29 @@
 }
 
 /* ===== FIELDS ===== */
+/* Matches real Discord embeds: no divider lines between fields and no
+   per-field padding - spacing comes from a single margin-top on the
+   fields container (only when something actually precedes it, e.g. a
+   title/description) plus a consistent row/column gap between fields. */
 .embed .fields {
   display: flex;
   flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.embed .fields:not(:first-child) {
   margin-top: 8px;
-  gap: 8px;
 }
 
 .embed .field {
   flex: 0 0 auto;
   min-width: 100%;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.embed .field:last-child {
-  border-bottom: none;
 }
 
 .embed .field.inline {
   flex: 1;
   min-width: 135px;
-  max-width: calc(50% - 4px);
-  border-bottom: none;
+  max-width: calc(50% - 8px);
 }
 
 .embed .field .field-name {
@@ -357,7 +427,13 @@
 
 .embed .embed-img .image {
   height: 200px;
-  background-color: #000;
+  border: 3px dashed var(--input-bg);
+  border-radius: 4px;
+  transition: border-color 0.15s ease;
+}
+
+.embed .embed-img .image:hover {
+  border-color: var(--blurple);
 }
 
 .embed .embed-img .img {
@@ -369,7 +445,7 @@
   display: block;
   width: 97%;
   height: 190px;
-  border: 2px dashed darkblue;
+  border: 3px dashed var(--input-bg);
   border-radius: 4px;
 }
 
@@ -396,7 +472,12 @@
   height: 24px;
   object-fit: contain;
   border-radius: 50%;
-  /* background-color: #000; */
+  border: 1px dashed var(--input-bg);
+  transition: border-color 0.15s ease;
+}
+
+.embed .foter .icon:hover {
+  border-color: var(--blurple);
 }
 
 .embed .foter input {

@@ -10,6 +10,117 @@ function autoGrowEmbedDesc(el) {
   el.style.height = (el.scrollHeight + 2) + "px";
 }
 
+// Discord's own embed field names - kept 1:1 so the uploaded URL lands on the
+// same path the bot already reads when it builds the embed.
+const UPLOAD_ROLE_KEY = {
+  'author-icon': 'author.icon_url',
+  'footer-icon': 'footer.icon_url',
+  'image': 'image.url',
+  'thumbnail': 'thumbnail.url',
+};
+
+function _bgUrl(el) {
+  const match = /url\((['"]?)(.*?)\1\)/.exec(el.style.backgroundImage || '');
+  return match ? match[2] : '';
+}
+
+function _setImage(el, url) {
+  el.style.backgroundImage = url ? `url('${url}')` : '';
+  el.classList.toggle('has-image', !!url);
+}
+
+async function _doEmbedUpload(file, guildId) {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const res = await fetch(`/dashboard/${guildId}/upload-image`, {
+    method: 'POST',
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok || data.status !== 'success') {
+    throw new Error(data.message || 'Upload failed.');
+  }
+  return data.url;
+}
+
+// Shared click -> file picker -> upload -> preview plumbing for the
+// author/footer icon, image, and thumbnail placeholders rendered by
+// embed_editor() when show_icons=True. `onChanged(url)` is how the caller
+// finds out about both an upload (non-empty url) and a removal (url === '')
+// - e.g. queue it into show_toast's pending-changes flow, or (for pages like
+// ticketing_form.html that build and POST their own save payload instead)
+// stash it directly into that payload.
+function _wireEmbedUploadEl(el, guildId, onChanged) {
+  if (!guildId) return;
+
+  _setImage(el, _bgUrl(el)); // sync has-image with whatever was server-rendered
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/png,image/jpeg,image/gif,image/webp';
+  fileInput.style.display = 'none';
+  el.appendChild(fileInput);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'remove-upload-btn';
+  removeBtn.title = 'Remove image';
+  removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+  el.appendChild(removeBtn);
+
+  el.classList.add('uploadable');
+  el.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('click', (e) => e.stopPropagation());
+
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _setImage(el, '');
+    onChanged('');
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    el.classList.add('uploading');
+    try {
+      const url = await _doEmbedUpload(file, guildId);
+      _setImage(el, url);
+      onChanged(url);
+    } catch (err) {
+      alert(err.message || 'Upload failed. Try again.');
+    } finally {
+      el.classList.remove('uploading');
+      fileInput.value = '';
+    }
+  });
+}
+
+// For embed_editor() instances driven by initEmbedEditor() - queues the
+// uploaded URL through the normal show_toast pending-changes flow (same as
+// every other embed field) rather than saving it immediately.
+function wireEmbedUpload(el, dataKeyPrefix, guildId) {
+  const keySuffix = UPLOAD_ROLE_KEY[el.dataset.uploadRole];
+  if (!keySuffix) return;
+
+  const key = `${dataKeyPrefix}.${keySuffix}`;
+  const initialUrl = _bgUrl(el);
+
+  _wireEmbedUploadEl(el, guildId, (url) => {
+    show_toast(key, initialUrl, url, () => _setImage(el, initialUrl));
+  });
+}
+
+// For pages that don't use initEmbedEditor()'s show_toast pending-changes
+// flow at all (e.g. ticketing_form.html, which builds one `ticket_data`
+// object and POSTs it on Save). `onUploaded(url)` is called with just the
+// URL - the caller decides where it goes.
+function wireEmbedUploadCustom(el, guildId, onUploaded) {
+  if (!el) return;
+  _wireEmbedUploadEl(el, guildId, onUploaded);
+}
+
 function initEmbedEditor(instances) {
   // Store instances globally for field operations
   window._embedInstances = instances;
@@ -35,10 +146,18 @@ function initEmbedEditor(instances) {
       });
     };
 
+    console.log("wireEmbedEditor");
     bind(`${prefix}-author`, `${dataKeyPrefix}.author.name`, initial.author);
     bind(`${prefix}-title`, `${dataKeyPrefix}.title`, initial.title);
     bind(`${prefix}-desc`, `${dataKeyPrefix}.description`, initial.desc);
     bind(`${prefix}-footer`, `${dataKeyPrefix}.footer.text`, initial.footer);
+
+    // Image/thumbnail/icon uploads (only present when show_icons=True).
+    console.log("wireEmbedUpload");
+    const guildId = document.getElementById('save_toast_wrapper')?.dataset.guildId;
+    document
+      .querySelectorAll(`.embed[data-prefix="${prefix}"] [data-upload-role]`)
+      .forEach((el) => wireEmbedUpload(el, dataKeyPrefix, guildId));
 
     // Color picker
     const colorEl = document.getElementById(colorId);
