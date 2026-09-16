@@ -28,7 +28,7 @@
     </div>
     
     <div id="transcript-messsages">
-      {% for message in data['transcript'] %}
+      {% for message in messages %}
       <div class="profile">
         <div class="profile-image">
           <img src="{{message['user']['avatar']}}" alt="Profile Image">
@@ -84,7 +84,7 @@
     </div>
 
     <div class="transcript-end">
-      <p class="transcript-count">{{ data['transcript'] | length }} Messages</p>
+      <p class="transcript-count">{{ messages | length }} Messages</p>
     </div>
   </main>
 

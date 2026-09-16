@@ -6,6 +6,7 @@ from quart import Blueprint, render_template, redirect, url_for, flash, jsonify,
 
 from modules import bot as v
 from modules.models import Guild, Ticket, TicketPanelConfig
+from cogs.system.G_ticketing import get_ticket_transcript
 from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap, unflatten_keys, deep_merge
 from ...plugins import PLUGIN_LIST
 
@@ -67,10 +68,13 @@ async def ticketing_transcript(guild_id, ticket_id):
     if ticket.closed and ticket.closed.get('user'):
         closed_by_user = v.client.get_user(int(ticket.closed['user']))
 
+    messages = await get_ticket_transcript(ticket)
+
     return await render_template(
         "dashboard/plugins/ticketing/ticketing_transcript.html",
         guild=guild,
         data=ticket,
+        messages=messages,
         closed_by=closed_by_user,
     )
 

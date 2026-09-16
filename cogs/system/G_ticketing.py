@@ -1,10 +1,11 @@
 import discord
 import asyncio
 import io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
+from pymongo.errors import DuplicateKeyError
 from modules import bot as v
-from modules.models import Guild, Ticket, TicketingConfig, TicketPanelConfig
+from modules.models import Guild, Ticket, TicketingConfig, TicketMessage, TicketPanelConfig
 
 AUTO_CLOSE_TIMEOUT = 86400  # 24 hours
 
@@ -30,6 +31,32 @@ async def get_ticket_and_panel(guild: discord.Guild, channel_id: int) -> tuple[T
         return None, None
     panel = next((p for p in panels if p.id == ticket.panel_id), None)
     return ticket, panel
+
+async def get_ticket_transcript(ticket: Ticket) -> list[dict]:
+    """Return a ticket's transcript as normalized dicts.
+
+    Reads the per-message `TicketMessage` collection when present, falling
+    back to the legacy embedded `Ticket.transcript` list for tickets created
+    before that collection existed.
+    """
+    records = await TicketMessage.find(TicketMessage.ticket_id == str(ticket.id)).sort("+created_at").to_list()
+    if records:
+        return [{
+            "id": m.id,
+            "user": m.user,
+            "content": m.content,
+            "embeds": m.embeds,
+            "attachments": m.attachments,
+            "pin": m.pin,
+            "deleted": m.deleted,
+            "edited": m.edited,
+            "timestamp": {
+                "created": m.created_at.isoformat(),
+                "formatted": m.created_at.strftime("%d/%m/%Y %H:%M:%S"),
+            },
+            "channel": {"id": m.channel_id},
+        } for m in records]
+    return ticket.transcript
 
 # ── Shared state-transition helpers ─────────────────────────────────────
 
@@ -79,12 +106,12 @@ async def _refresh_ticket_message(channel, ticket: Ticket, view: discord.ui.View
 
 # ── Transcript generation ───────────────────────────────────────────────
 
-async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator: discord.Member, panel: TicketPanelConfig) -> dict:
+async def generate_transcript_data(ticket: Ticket, messages: list[dict], guild: discord.Guild, creator: discord.Member, panel: TicketPanelConfig) -> dict:
     """Generate transcript data (CPU-bound work)."""
     ticket_id = str(ticket.id)
     short_id = ticket_id[:8]
     user_message_count = {}
-    for msg in ticket.transcript:
+    for msg in messages:
         user_id = msg['user']['id']
         if msg['user']['bot']:
             continue
@@ -128,7 +155,7 @@ async def generate_transcript_data(ticket: Ticket, guild: discord.Guild, creator
     # Build text transcript
     transcript_text = f"Ticket #{short_id} - {guild.name}\n"
     transcript_text += "=" * 50 + "\n\n"
-    for msg in ticket.transcript:
+    for msg in messages:
         timestamp = msg.get('timestamp', {}).get('formatted', 'Unknown')
         author = msg.get('user', {}).get('name', 'Unknown')
         content = msg.get('content', '')
@@ -162,7 +189,8 @@ def create_transcript_file(text: str, ticket_id: str) -> discord.File:
 async def send_transcript(ticket: Ticket, guild: discord.Guild, panel: TicketPanelConfig, channel: discord.abc.Messageable):
     """Build the transcript and deliver it to the panel's log channel / creator's DMs, per panel settings."""
     creator: discord.Member = await guild.fetch_member(int(ticket.creator_id))
-    transcript_data = await generate_transcript_data(ticket, guild, creator, panel)
+    messages = await get_ticket_transcript(ticket)
+    transcript_data = await generate_transcript_data(ticket, messages, guild, creator, panel)
 
     transcript_view = discord.ui.View()
     transcript_view.add_item(discord.ui.Button(label="Transcript", url=transcript_data['url'], style=discord.ButtonStyle.url))
@@ -536,32 +564,27 @@ class Ticketing(commands.Cog):
             for role in message.role_mentions:
                 msg_content = msg_content.replace(f"<@&{role.id}>", f"@{role.name}")
 
-            new_entry = {
-                "id": str(message.id),
-                "user": {
-                    "id": str(message.author.id),
-                    "name": message.author.display_name,
-                    "avatar": message.author.avatar.url if message.author.avatar else message.author.default_avatar.url,
-                    "color": int(message.author.color),
-                    "bot": message.author.bot
-                },
-                "content": msg_content,
-                "embeds": [embed.to_dict() for embed in message.embeds] if message.embeds else [],
-                "attachments": [a.url for a in message.attachments] if message.attachments else [],
-                "pin": message.type == discord.MessageType.pins_add,
-                "timestamp": {
-                    "created": f"{message.created_at}",
-                    "formatted": message.created_at.strftime("%d/%m/%Y %H:%M:%S"),
-                },
-                "channel": {
-                    "id": str(message.channel.id),
-                    "name": message.channel.name,
-                    "catagory": message.channel.category.name if message.channel.category else None
-                }
-            }
-
-            ticket.transcript.append(new_entry)
-            await ticket.save()
+            try:
+                await TicketMessage(
+                    id=str(message.id),
+                    ticket_id=str(ticket.id),
+                    guild_id=str(message.guild.id),
+                    channel_id=str(message.channel.id),
+                    user={
+                        "id": str(message.author.id),
+                        "name": message.author.display_name,
+                        "avatar": message.author.avatar.url if message.author.avatar else message.author.default_avatar.url,
+                        "color": int(message.author.color),
+                        "bot": message.author.bot
+                    },
+                    content=msg_content,
+                    embeds=[embed.to_dict() for embed in message.embeds] if message.embeds else [],
+                    attachments=[a.url for a in message.attachments] if message.attachments else [],
+                    pin=message.type == discord.MessageType.pins_add,
+                    created_at=message.created_at,
+                ).insert()
+            except DuplicateKeyError:
+                pass
 
         except AttributeError:
             return
@@ -584,13 +607,54 @@ class Ticketing(commands.Cog):
             if not ticket:
                 return
 
-            transcript = ticket.transcript
-            updated_transcript = [msg for msg in transcript if str(msg['id']) != str(message.id)]
-
-            if len(updated_transcript) != len(transcript):
-                ticket.transcript = updated_transcript
-                await ticket.save()
+            # Mark the message deleted rather than dropping it, so the
+            # transcript keeps a full record instead of silently losing
+            # history when a message is removed from the channel.
+            entry = await TicketMessage.get(str(message.id))
+            if entry and entry.ticket_id == str(ticket.id):
+                entry.deleted = True
+                entry.deleted_at = datetime.now(timezone.utc)
+                await entry.save()
         except AttributeError:
+            return
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message):
+        if after.type != discord.MessageType.default:
+            return
+        if after.guild is None:
+            return
+        if before.content == after.content:
+            # Discord also fires this for embed-only updates (e.g. link
+            # unfurls), which aren't a real content edit.
+            return
+
+        try:
+            panels = (await get_ticketing(after.guild)).panels
+            tickets = await get_guild_tickets(after.guild)
+            if not tickets or not panels:
+                return
+
+            ticket = await get_channel_ticket(after.guild, after.channel.id)
+            if not ticket:
+                return
+
+            msg_content = after.content
+            for user in after.mentions:
+                msg_content = msg_content.replace(f"<@{user.id}>", f"@{user.name}")
+            for role in after.role_mentions:
+                msg_content = msg_content.replace(f"<@&{role.id}>", f"@{role.name}")
+
+            entry = await TicketMessage.get(str(after.id))
+            if entry and entry.ticket_id == str(ticket.id):
+                entry.content = msg_content
+                entry.embeds = [embed.to_dict() for embed in after.embeds] if after.embeds else []
+                entry.edited = True
+                entry.edited_at = datetime.now(timezone.utc)
+                await entry.save()
+        except AttributeError:
+            return
+        except discord.errors.NotFound:
             return
 
     # ── Ticket Commands ──────────────────────────────────────────
