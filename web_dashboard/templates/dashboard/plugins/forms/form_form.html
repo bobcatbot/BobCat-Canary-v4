@@ -77,17 +77,30 @@
                 <select id="question-type" class="select width" data-index="{{ loop.index }}">
                   <option value="paragraph">Paragraph</option>
                   <option value="short">Short</option>
+                  <option value="multiple_choice">Multiple Choice</option>
+                  <option value="checkboxes">Checkboxes</option>
+                  <option value="dropdown">Dropdown</option>
+                  <option value="number">Number</option>
                 </select>
               </div>
               <div>
                 <input type="text" id="q-desc" class="text-input" style="--input-width: 100%;" placeholder="Description (optional)" value='{{question.description}}'/>
               </div>
-              <div id="AnswerInput">
-                {% if question.type == "paragraph" %}
-                <textarea class="text-input" placeholder="Answer!" style="--input-width: 100%;" disabled></textarea>
-                {% elif question.type == "short" %}
-                <input class="text-input" placeholder="Answer!" style="--input-width: 100%;" disabled />
-                {% endif %}
+              <div id="AnswerInput"></div>
+
+              <div class="options-editor {{ 'd-none' if question.type not in ('multiple_choice', 'checkboxes', 'dropdown') else '' }}">
+                <div class="options-list d-flex flex-column gap-2 mb-2">
+                  {% for opt in question.options|default([]) %}
+                  <div class="option-chip d-flex align-items-center justify-content-between">
+                    <span class="option-text">{{opt}}</span>
+                    <button type="button" class="btn btn-link remove-option-btn"><i class="bi bi-x"></i></button>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="d-flex gap-2">
+                  <input type="text" class="text-input option-input" style="--input-width: 100%;" placeholder="Add an option" />
+                  <button type="button" class="btn btn-secondary add-option-btn">Add</button>
+                </div>
               </div>
 
               <div class="controls">
@@ -268,16 +281,6 @@
         </a>
       </div>
     </section>
-
-    <div class="toast-container position-fixed p-3 bottom-0 start-50 translate-middle-x">
-      <div id="toast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-          <div class="toast-body">
-          </div>
-          <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-      </div>
-    </div>
     {% endif %}
 
   </main>
@@ -427,6 +430,80 @@
     }
     deleteEmoji()
 
+    const CHOICE_TYPES = ['multiple_choice', 'checkboxes', 'dropdown']
+
+    function escapeHtml(str) {
+      const div = document.createElement('div')
+      div.innerText = str
+      return div.innerHTML
+    }
+
+    function getOptionsFromLi(li) {
+      return Array.from(li.querySelectorAll('.options-list .option-text')).map(el => el.innerText)
+    }
+
+    function wireOptionRemove(chip, li) {
+      chip.querySelector('.remove-option-btn').addEventListener('click', () => {
+        chip.remove()
+        renderAnswerPreview(li)
+      })
+    }
+
+    function addOptionChip(li, text) {
+      const list = li.querySelector('.options-list')
+      const chip = document.createElement('div')
+      chip.className = 'option-chip d-flex align-items-center justify-content-between'
+      chip.innerHTML = `
+        <span class="option-text">${escapeHtml(text)}</span>
+        <button type="button" class="btn btn-link remove-option-btn"><i class="bi bi-x"></i></button>
+      `
+      list.appendChild(chip)
+      wireOptionRemove(chip, li)
+    }
+
+    function wireOptionsEditor(li) {
+      li.querySelectorAll('.option-chip').forEach((chip) => wireOptionRemove(chip, li))
+
+      const addBtn = li.querySelector('.add-option-btn')
+      const input = li.querySelector('.option-input')
+
+      addBtn.addEventListener('click', () => {
+        const val = input.value.trim()
+        if (!val) return
+        addOptionChip(li, val)
+        input.value = ''
+        renderAnswerPreview(li)
+      })
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          addBtn.click()
+        }
+      })
+    }
+
+    function renderAnswerPreview(li) {
+      const type = li.querySelector('#question-type').value
+      const answerInput = li.querySelector('#AnswerInput')
+      const optionsEditor = li.querySelector('.options-editor')
+      const isChoice = CHOICE_TYPES.includes(type)
+
+      optionsEditor.classList.toggle('d-none', !isChoice)
+
+      if (type === 'paragraph') {
+        answerInput.innerHTML = `<textarea class="text-input" placeholder="Answer!" style="--input-width: 100%;" disabled></textarea>`
+      } else if (type === 'short') {
+        answerInput.innerHTML = `<input class="text-input" placeholder="Answer!" style="--input-width: 100%;" disabled />`
+      } else if (type === 'number') {
+        answerInput.innerHTML = `<input type="number" class="text-input" placeholder="0" style="--input-width: 100%;" disabled />`
+      } else if (isChoice) {
+        // The options-editor list below is itself the preview here - no
+        // need to duplicate it as a second, disabled list of the same
+        // choices.
+        answerInput.innerHTML = ''
+      }
+    }
+
     const title = document.querySelector('.page-title')
     const emName = document.querySelector('#form-name')
 
@@ -443,6 +520,11 @@
           // Optional: reorder questions array
         },
       });
+
+      document.querySelectorAll('.question').forEach((li) => {
+        wireOptionsEditor(li)
+        renderAnswerPreview(li)
+      })
 
       // reactions-toggle
       var reactionsToggle = document.querySelector('#reactions-toggle')
@@ -509,12 +591,16 @@
       const li = `
         <li class="question ${index}">
           <i id="reorder-grab" class="bi bi-grip-vertical"></i>
-          <div class="d-flex flex-column gap-2 w-100">
-            <div class="d-flex gap-2">
+          <div class="d-flex flex-column gap-2 w-100" style="--componet-max-width: 900px;max-width: var(--componet-max-width);">
+            <div class="d-grid d-md-flex gap-2">
               <input type="text" id="q-title" class="text-input" style="--input-width: 100%;" placeholder="Question" value="Question ${index}">
-              <select id="question-type" class="select" style="--select-width: 20%;" data-index="${index}">
+              <select id="question-type" class="select width" data-index="${index}">
                 <option value="paragraph" selected>Paragraph</option>
                 <option value="short">Short</option>
+                <option value="multiple_choice">Multiple Choice</option>
+                <option value="checkboxes">Checkboxes</option>
+                <option value="dropdown">Dropdown</option>
+                <option value="number">Number</option>
               </select>
             </div>
             <div>
@@ -522,6 +608,14 @@
             </div>
             <div id="AnswerInput">
               <textarea class="text-input" placeholder="Answer!" style="--input-width: 100%;" disabled></textarea>
+            </div>
+
+            <div class="options-editor d-none">
+              <div class="options-list d-flex flex-column gap-2 mb-2"></div>
+              <div class="d-flex gap-2">
+                <input type="text" class="text-input option-input" style="--input-width: 100%;" placeholder="Add an option" />
+                <button type="button" class="btn btn-secondary add-option-btn">Add</button>
+              </div>
             </div>
 
             <div class="controls">
@@ -539,8 +633,11 @@
       `
       list.insertAdjacentHTML("beforeend", li)
 
+      const newLi = list.lastElementChild
+      wireOptionsEditor(newLi)
+      renderAnswerPreview(newLi)
+
       deleteQuestionBtn();
-      changeSelectType();
     });
 
     function deleteQuestionBtn() {
@@ -567,29 +664,15 @@
     }
     deleteQuestionBtn();
 
-    function changeSelectType() {
-      document.querySelectorAll('#question-type').forEach((typeSelect) => {
-        const newSelect = typeSelect.cloneNode(true)
-        typeSelect.parentNode.replaceChild(newSelect, typeSelect)
-
-        newSelect.addEventListener('change', (e) => {
-          const selectedType = newSelect.value;
-          const answerInput = newSelect.closest('li').querySelector('#AnswerInput');
-
-          if (selectedType === 'paragraph') {
-            answerInput.innerHTML = `
-              <textarea class="text-input paragraph-answer" style="--input-width: 100%;" placeholder="Answer!" disabled></textarea>
-            `;
-          }
-          if (selectedType === 'short') {
-            answerInput.innerHTML = `
-              <input type="text" class="text-input" style="--input-width: 100%;" placeholder="Answer!" disabled />
-            `;
-          }
-        });
-      })
-    }
-    changeSelectType();
+    // Delegated so newly added questions are covered automatically, and so
+    // it never has to clone/replace existing selects (which would lose
+    // their current value - only the HTML `selected` attribute survives a
+    // clone, not a value set later via JS or user interaction).
+    document.getElementById('question-list').addEventListener('change', (e) => {
+      if (e.target.id === 'question-type') {
+        renderAnswerPreview(e.target.closest('li'));
+      }
+    });
 
     // Set the correct type for each server-rendered select using its data attribute
     document.querySelectorAll('.question').forEach(function(questionLi) {
@@ -663,13 +746,20 @@
 
       for (let i = 0; i < questionList.length; i++) {
         var question = questionList[i]
+        var qType = question.querySelector("#question-type").value
 
-        questions.push({
+        var q = {
           "title": question.querySelector("#q-title").value || `Question ${i + 1}`,
           "description": question.querySelector("#q-desc").value || "",
-          "type": question.querySelector("#question-type").value,
+          "type": qType,
           "required": question.querySelector("#required").checked
-        })
+        }
+
+        if (CHOICE_TYPES.includes(qType)) {
+          q.options = getOptionsFromLi(question)
+        }
+
+        questions.push(q)
       }
       save_data.questions = questions
       save_data.name = document.querySelector('#form-name').value || 'Untitled Form'
@@ -709,15 +799,7 @@
         .then(res => res.json())
         .then(data => {
           if (data.status == 'success') {
-            if (isEdit) {
-              var toast = document.querySelector('#toast')
-              var bsToast = new bootstrap.Toast(toast)
-
-              toast.querySelector('.toast-body').innerText = data.message
-              bsToast.show()
-            } else {
-              window.location.href = '/dashboard/{{guild.id}}/forms'
-            }
+            window.location.href = '/dashboard/{{guild.id}}/forms'
           } else {
             alert('Error saving form: ' + data.message)
           }
@@ -893,6 +975,33 @@
       display: flex;
       font-size: 18px;
       color: #fff;
+    }
+
+    .choice-option {
+      gap: 0.5rem;
+      padding: 4px 0;
+    }
+    .choice-option input {
+      margin: 0;
+    }
+    .choice-option label {
+      margin: 0;
+    }
+
+    .options-editor {
+      margin-top: 8px;
+    }
+    .option-chip {
+      background: #2d3343;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    .option-chip .option-text {
+      word-break: break-word;
+    }
+    .option-chip .remove-option-btn {
+      color: #fff;
+      padding: 0 0 0 8px;
     }
   </style>
 </body>

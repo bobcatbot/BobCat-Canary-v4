@@ -143,10 +143,10 @@
             html += `</div><hr>`
             
             if (data.data.answers && data.data.answers.length > 0) {
-              data.data.answers.forEach((item, index) => {
+              data.data.answers.forEach((item) => {
                 html += `
                   <div class="answer-item mb-3">
-                    <h6>${index + 1}. ${item.question}</h6>
+                    <h6>${item.question}</h6>
                     <p class="bg-dark p-2 rounded">${item.answer || 'No response'}</p>
                   </div>
                 `

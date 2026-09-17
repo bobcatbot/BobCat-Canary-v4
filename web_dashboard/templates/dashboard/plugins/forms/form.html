@@ -28,7 +28,8 @@
 
         <form id="form-submission">
           {% for question in data['questions'] %}
-          <div class="question">
+          {% set q_idx = loop.index0 %}
+          <div class="question" data-index="{{q_idx}}" data-type="{{question.type}}" data-required="{{ 'true' if question.required else 'false' }}">
             <div class="title_desc">
               <h4>{{question.title}} {% if question.required %}<span class="text-danger">*</span>{% endif %}</h4>
               {% if question.description %}
@@ -37,9 +38,36 @@
             </div>
             <div class="answer">
               {% if question.type == "paragraph" %}
-              <textarea id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %}></textarea>
+              <textarea id="AnswerInput-{{q_idx}}" class="text text-input no-var-chips" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %}></textarea>
               {% elif question.type == "short" %}
-              <input id="AnswerInput-{{loop.index0}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %} />
+              <input id="AnswerInput-{{q_idx}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %} />
+              {% elif question.type == "number" %}
+              <input type="number" id="AnswerInput-{{q_idx}}" class="text text-input" placeholder="Answer here..." style="--input-width: 100%;" {% if question.required %}required{% endif %} />
+              {% elif question.type == "dropdown" %}
+              <select id="AnswerInput-{{q_idx}}" class="select" style="--select-width: 100%;" {% if question.required %}required{% endif %}>
+                <option value="" disabled selected>Select an option</option>
+                {% for opt in question.options|default([]) %}
+                <option value="{{opt}}">{{opt}}</option>
+                {% endfor %}
+              </select>
+              {% elif question.type == "multiple_choice" %}
+              <div class="choice-group">
+                {% for opt in question.options|default([]) %}
+                <div class="d-flex align-items-center choice-option">
+                  <input type="radio" id="AnswerInput-{{q_idx}}-{{loop.index0}}" name="AnswerInput-{{q_idx}}" value="{{opt}}" {% if question.required %}required{% endif %} />
+                  <label for="AnswerInput-{{q_idx}}-{{loop.index0}}">{{opt}}</label>
+                </div>
+                {% endfor %}
+              </div>
+              {% elif question.type == "checkboxes" %}
+              <div class="choice-group">
+                {% for opt in question.options|default([]) %}
+                <div class="d-flex align-items-center choice-option">
+                  <input type="checkbox" id="AnswerInput-{{q_idx}}-{{loop.index0}}" name="AnswerInput-{{q_idx}}" value="{{opt}}" />
+                  <label for="AnswerInput-{{q_idx}}-{{loop.index0}}">{{opt}}</label>
+                </div>
+                {% endfor %}
+              </div>
               {% endif %}
             </div>
           </div>
@@ -90,25 +118,49 @@
       return code
     }
 
-    submitBtn.addEventListener('click', (e) => {
-      // Get all answers
-      // Scoped to textarea/input (not [id^=] alone) so the variable-chips
-      // "-rich" contenteditable overlay that dash-links.html injects next
-      // to each field isn't picked up too - it has no .value and its id
-      // also starts with "AnswerInput-".
-      const answerInputs = document.querySelectorAll('textarea[id^="AnswerInput-"], input[id^="AnswerInput-"]')
+    function collectAnswers() {
+      const questionDivs = document.querySelectorAll('.question[data-index]')
       const answers = []
-      
-      for (let i = 0; i < answerInputs.length; i++) {
-        const value = answerInputs[i].value.trim()
-        // Check if required and empty
-        if (answerInputs[i].hasAttribute('required') && !value) {
-          alert(`Please answer question ${i + 1}`)
-          answerInputs[i].focus()
-          return
+
+      for (let i = 0; i < questionDivs.length; i++) {
+        const qDiv = questionDivs[i]
+        const idx = qDiv.dataset.index
+        const type = qDiv.dataset.type
+        const required = qDiv.dataset.required === 'true'
+        let value
+
+        if (type === 'multiple_choice') {
+          const checked = qDiv.querySelector(`input[name="AnswerInput-${idx}"]:checked`)
+          value = checked ? checked.value : ''
+        } else if (type === 'checkboxes') {
+          const checked = qDiv.querySelectorAll(`input[name="AnswerInput-${idx}"]:checked`)
+          value = Array.from(checked).map(c => c.value)
+        } else {
+          // Scoped to textarea/input/select by exact id (not [id^=] alone) so
+          // the variable-chips "-rich" contenteditable overlay that
+          // dash-links.html injects next to each field isn't picked up too -
+          // it has no .value and its id also starts with "AnswerInput-".
+          const input = qDiv.querySelector(`textarea[id="AnswerInput-${idx}"], input[id="AnswerInput-${idx}"], select[id="AnswerInput-${idx}"]`)
+          value = input ? input.value.trim() : ''
         }
+
+        const isEmpty = Array.isArray(value) ? value.length === 0 : !value
+        if (required && isEmpty) {
+          alert(`Please answer question ${i + 1}`)
+          const focusTarget = qDiv.querySelector(`#AnswerInput-${idx}, input[name="AnswerInput-${idx}"]`)
+          if (focusTarget) focusTarget.focus()
+          return null
+        }
+
         answers.push(value)
       }
+
+      return answers
+    }
+
+    submitBtn.addEventListener('click', (e) => {
+      const answers = collectAnswers()
+      if (answers === null) return
 
       const response = {
         id: generateCode(8),
@@ -145,8 +197,11 @@
     newSubBtn.addEventListener('click', () => {
       // Clear all inputs (see the submit handler above for why this is
       // scoped past the "-rich" overlay elements)
-      document.querySelectorAll('textarea[id^="AnswerInput-"], input[id^="AnswerInput-"]').forEach(input => {
+      document.querySelectorAll('textarea[id^="AnswerInput-"], input[id^="AnswerInput-"]:not([type=radio]):not([type=checkbox]), select[id^="AnswerInput-"]').forEach(input => {
         input.value = ''
+      })
+      document.querySelectorAll('input[id^="AnswerInput-"][type=radio], input[id^="AnswerInput-"][type=checkbox]').forEach(input => {
+        input.checked = false
       })
       formSection.style.display = 'block'
       successSection.style.display = 'none'
@@ -202,6 +257,23 @@
 
     .question .answer {
       margin-top: 4px;
+    }
+
+    .choice-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .choice-option {
+      gap: 0.5rem;
+    }
+    .choice-option input {
+      margin: 0;
+      cursor: pointer;
+    }
+    .choice-option label {
+      margin: 0;
+      cursor: pointer;
     }
   </style>
 </body>

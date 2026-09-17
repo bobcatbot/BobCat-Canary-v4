@@ -6,11 +6,35 @@ from quart import Blueprint, flash, jsonify, redirect, render_template, request,
 
 from modules import bot as v
 from modules.models import Guild, Form, FormResponse
-from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap
+from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap, deep_merge
 from ...plugins import PLUGIN_LIST
 
 forms_bp = Blueprint('forms', __name__)
 
+def check_permissions(current_user, guild, form_data, allow_viewer=False):
+    """(can_access, can_manage, error_response, status_code) for a user's access to
+    a form's submissions. can_manage is admin/manager only; can_access also allows
+    the viewer role when allow_viewer=True (the submissions list page)."""
+    member = guild.get_member(current_user.id)
+    is_admin = (
+        guild.owner_id == current_user.id or
+        member.guild_permissions.administrator or
+        member.guild_permissions.manage_guild
+    )
+
+    def has_role(role_ids):
+        if not (role_ids and member):
+            return False
+        for role_id in role_ids:
+            role = guild.get_role(int(role_id))
+            if role and role in member.roles:
+                return True
+        return False
+
+    can_manage = is_admin or has_role(form_data.settings.get('submission_managers', []))
+    can_access = can_manage or (allow_viewer and has_role(form_data.settings.get('submission_viewers', [])))
+
+    return can_access, can_manage, jsonify({'status': 'error', 'message': 'Permission denied'}), 403
 
 # ── Public form submission pages ──────────────────────────────────────────────
 @forms_bp.route("/form/<int:guild_id>/<form_id>", methods=['GET', 'POST'])
@@ -74,6 +98,8 @@ async def form(guild_id, form_id):
                         # Use question title as field name, not label
                         for idx, question in enumerate(form_data.questions):
                             answer = response.answers[idx] if idx < len(response.answers) else 'N/A'
+                            if isinstance(answer, list):
+                                answer = ', '.join(str(a) for a in answer)
                             embed.add_field(
                                 name=question.get('title', f'Question {idx+1}'),
                                 value=answer if answer else 'No response',
@@ -99,7 +125,9 @@ async def form(guild_id, form_id):
                         # Start a thread
                         if form_data.settings.get('options', {}).get('thread', False):
                             try:
-                                await msg.create_thread(name=f"Form response #{response.id}")
+                                await msg.create_thread(
+                                    name=f"Form response #{response.id}",
+                                )
                                 print(f"Created thread for form submission message for form {form_id}")
                             except Exception as e:
                                 print(f"Failed to create thread: {e}")
@@ -141,37 +169,8 @@ async def form_submissions(guild_id, form_id):
         await flash('Form not found', 'error')
         return redirect(url_for('web.index'))
 
-    # Check if user has permission to view submissions
-    # Check if user is guild owner, admin, or has manage_guild permission
-    member = guild.get_member(current_user.id)
-    is_admin = (
-        guild.owner_id == current_user.id or
-        member.guild_permissions.administrator or
-        member.guild_permissions.manage_guild
-    )
-    
-    # Check if user has manager role
-    is_manager = False
-    manager_roles = form_data.settings.get('submission_managers', [])
-    if manager_roles and member:
-        for role_id in manager_roles:
-            role = guild.get_role(int(role_id))
-            if role and role in member.roles:
-                is_manager = True
-                break
-    
-    # Check if user has viewer role
-    is_viewer = False
-    viewer_roles = form_data.settings.get('submission_viewers', [])
-    if viewer_roles and member:
-        for role_id in viewer_roles:
-            role = guild.get_role(int(role_id))
-            if role and role in member.roles:
-                is_viewer = True
-                break
-    
-    can_view = is_admin or is_manager or is_viewer
-    
+    can_view, can_manage, _, _ = check_permissions(current_user, guild, form_data, allow_viewer=True)
+
     if not can_view:
         await flash('You do not have permission to view submissions', 'error')
         return redirect(url_for('web.index'))
@@ -192,7 +191,7 @@ async def form_submissions(guild_id, form_id):
         guild=guild,
         form=form_data,
         submissions=submissions,
-        can_manage=is_admin or is_manager
+        can_manage=can_manage
     )
 
 @forms_bp.route("/form/<int:guild_id>/<form_id>/submissions/<submission_id>", methods=['GET'])
@@ -211,25 +210,9 @@ async def form_submission_detail(guild_id, form_id, submission_id):
     if form_data is None:
         return jsonify({'status': 'error', 'message': 'Form not found'}), 404
 
-    # Check permissions
-    member = guild.get_member(current_user.id)
-    is_admin = (
-        guild.owner_id == current_user.id or
-        member.guild_permissions.administrator or
-        member.guild_permissions.manage_guild
-    )
-    
-    is_manager = False
-    manager_roles = form_data.settings.get('submission_managers', [])
-    if manager_roles and member:
-        for role_id in manager_roles:
-            role = guild.get_role(int(role_id))
-            if role and role in member.roles:
-                is_manager = True
-                break
-    
-    if not (is_admin or is_manager):
-        return jsonify({'status': 'error', 'message': 'Permission denied'}), 403
+    perms, _, message, error_code = check_permissions(current_user, guild, form_data, allow_viewer=True)
+    if not perms:
+        return message, error_code
 
     # Get the submission - query using both formats
     submission = None
@@ -260,6 +243,8 @@ async def form_submission_detail(guild_id, form_id, submission_id):
     formatted_answers = []
     for idx, question in enumerate(form_data.questions):
         answer = submission.answers[idx] if idx < len(submission.answers) else 'No response'
+        if isinstance(answer, list):
+            answer = ', '.join(str(a) for a in answer) if answer else ''
         formatted_answers.append({
             'question': question.get('title', f'Question {idx+1}'),
             'answer': answer if answer else 'No response'
@@ -292,28 +277,11 @@ async def form_submission_delete(guild_id, form_id, submission_id):
     if form_data is None:
         return jsonify({'status': 'error', 'message': 'Form not found'}), 404
 
-    # Check permissions
-    member = guild.get_member(current_user.id)
-    is_admin = (
-        guild.owner_id == current_user.id or
-        member.guild_permissions.administrator or
-        member.guild_permissions.manage_guild
-    )
-    
-    is_manager = False
-    manager_roles = form_data.settings.get('submission_managers', [])
-    if manager_roles and member:
-        for role_id in manager_roles:
-            role = guild.get_role(int(role_id))
-            if role and role in member.roles:
-                is_manager = True
-                break
-    
-    if not (is_admin or is_manager):
-        return jsonify({'status': 'error', 'message': 'Permission denied'}), 403
+    perms, _, message, error_code = check_permissions(current_user, guild, form_data)
+    if not perms:
+        return message, error_code
 
     # Get the submission
-    from bson import ObjectId
     submission = None
     
     # Try as ObjectId first
@@ -447,47 +415,25 @@ async def forms_edit(guild_id, form_id):
         if not data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-        # Handle each field explicitly
-        if 'name' in data:
-            form_data.name = data['name']
-        if 'description' in data:
-            form_data.description = data['description']
-        if 'questions' in data:
-            form_data.questions = data['questions']
-        if 'status' in data:
-            form_data.status = data['status']
-        
-        # Handle settings separately
-        if 'settings' in data:
-            settings = data['settings']
-            
-            # Top-level settings
-            if 'submission_channel' in settings:
-                form_data.settings['submission_channel'] = settings['submission_channel']
-            if 'submission_viewers' in settings:
-                form_data.settings['submission_viewers'] = settings['submission_viewers']
-            if 'submission_managers' in settings:
-                form_data.settings['submission_managers'] = settings['submission_managers']
-            
-            # Handle options
-            if 'options' in settings:
-                if 'thread' in settings['options']:
-                    form_data.settings['options']['thread'] = settings['options']['thread']
-                if 'mentions' in settings['options']:
-                    form_data.settings['options']['mentions'] = settings['options']['mentions']
-                if 'reactions' in settings['options']:
-                    if 'status' in settings['options']['reactions']:
-                        form_data.settings['options']['reactions']['status'] = settings['options']['reactions']['status']
-                    if 'emojis' in settings['options']['reactions']:
-                        form_data.settings['options']['reactions']['emojis'] = settings['options']['reactions']['emojis']
+        settings_patch = data.pop('settings', None)
+        for key, value in data.items():
+            if key in ('id', 'guild_id'):
+                continue
+            if hasattr(form_data, key):
+                setattr(form_data, key, value)
+
+        if settings_patch:
+            deep_merge(form_data.settings, settings_patch)
         
         await form_data.save()
         print(f"Updated form {form_id} for guild {guild_id}")
+        await flash(f"Successfully updated form {form_id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully updated form'})
 
     if request.method == 'DELETE':
         await form_data.delete()
         print(f"Deleted form {form_id} for guild {guild_id}")
+        await flash(f"Successfully deleted form {form_id}", 'success')
         return jsonify({'status': 'success', 'message': 'Successfully deleted form'})
 
     return await render_template(

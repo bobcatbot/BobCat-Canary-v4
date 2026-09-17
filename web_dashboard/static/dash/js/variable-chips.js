@@ -147,6 +147,11 @@
   function upgrade(original) {
     if (original.dataset.chipUpgraded) return;
     if (original instanceof HTMLInputElement && original.type !== 'text') return;
+    // Opt-out for fields where `{variable}` tags are just literal user
+    // content, not template placeholders - e.g. a form respondent's answer
+    // on the public form-fill page (web_dashboard/templates/dashboard/
+    // plugins/forms/form.html).
+    if (original.classList.contains('no-var-chips')) return;
     // Disabled/readonly fields are static examples (e.g. the giveaway
     // message preview's title/desc, which reuse the .embed wrapper classes
     // purely for styling) - never meant to be interactive, so leave them as
