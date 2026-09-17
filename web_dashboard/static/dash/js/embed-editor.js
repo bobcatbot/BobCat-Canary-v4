@@ -146,14 +146,12 @@ function initEmbedEditor(instances) {
       });
     };
 
-    console.log("wireEmbedEditor");
     bind(`${prefix}-author`, `${dataKeyPrefix}.author.name`, initial.author);
     bind(`${prefix}-title`, `${dataKeyPrefix}.title`, initial.title);
     bind(`${prefix}-desc`, `${dataKeyPrefix}.description`, initial.desc);
     bind(`${prefix}-footer`, `${dataKeyPrefix}.footer.text`, initial.footer);
 
     // Image/thumbnail/icon uploads (only present when show_icons=True).
-    console.log("wireEmbedUpload");
     const guildId = document.getElementById('save_toast_wrapper')?.dataset.guildId;
     document
       .querySelectorAll(`.embed[data-prefix="${prefix}"] [data-upload-role]`)
@@ -199,7 +197,7 @@ function initEmbedEditor(instances) {
 
   // Coloris pick event
   document.addEventListener('coloris:pick', (event) => {
-    const input = event.target;
+    const input = event.detail.currentEl;
     if (!input || !input.classList || !input.classList.contains('coloris-embed-color')) return;
 
     const { prefix, key, initial } = input.dataset;

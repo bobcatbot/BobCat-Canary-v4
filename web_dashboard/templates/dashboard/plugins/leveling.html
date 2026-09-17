@@ -125,20 +125,10 @@
         </div>
         
         <hr>
-        <!-- Static Live Card Preview -->
-        <svg viewBox="0 0 483 161" xmlns="http://www.w3.org/2000/svg" style="max-width: 483px;">
-          <image id="RankCardImg" xlink:href="{{ url_for('leveling.lvl_card_image', filename=data['card']) }}" x="0" y="0" width="100%" height="161px" preserveAspectRatio="xMidYMid slice" />
-          <image xlink:href="{{user.avatar_url}}" x="0.7%" y="7%" width="20%" />
-          <text x="22%" y="13%" fill="#fff" font-size="32" dominant-baseline="hanging">{{user.username}}</text>
-          <rect x="22%" y="34%" width="240px" height="2" fill="#fff" />
-          <text x="22%" y="53%" fill="#fff" class="mb-0">Level</text>
-          <text x="30.5%" y="53%" fill="#fff" class="mb-0">1</text>
-          <text x="34.4%" y="53%" fill="#fff" class="mb-0">XP</text>
-          <text x="39.5%" y="53%" fill="#fff" class="mb-0">1 / 40</text>
-          <rect id="SvgBarBg" x="3%" y="77%" width="76%" height="20px" rx="10" ry="10" fill="#ffffff" />
-          <rect id="SvgBarFill" x="3%" y="77%" width="25%" height="20px" rx="10" ry="10" fill="#5865F2" />
-        </svg>
-        
+        {% set current_card = (server_cards['all'] | selectattr('card', 'equalto', data['card']) | first) %}
+        <!-- Live Card Preview (built by buildRankCardMock in JS, same renderer as the modal preview) -->
+        <div id="RankCardTop" class="rank-card-mock" style="max-width: 465px;"></div>
+
         <div>
           <button class="mt-2 btn btn-blurple" data-bs-toggle="modal" data-bs-target="#ServerCard">Edit server card</button>
           
@@ -151,50 +141,22 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                  <div class="position-relative">
-                    <img id="RankCardPrev" src="{{ url_for('leveling.lvl_card_image', filename=data['card']) }}" style="max-width: 465px; border-radius: 8px;">
-                    <img src="{{user.avatar_url}}" style="position: absolute; top: 12px; left: 12px; max-width: 100px; border-radius: 100%;">
-                    <p class="mb-0" style="position: absolute; top: 10px; left: 125px; font-size: 32px; margin: 0; color: #fff;">{{user.username}}</p>
-                    <div class="d-flex gap-1" style="position: absolute; top: 50px; left: 130px; color: #fff;">
-                      <p class="mb-0">Level 1</p>
-                    </div>
-                    <div class="d-flex gap-1" style="position: absolute; top: 50px; left: 210px; color: #fff;">
-                      <p class="mb-0">XP 1 / 40</p>
-                    </div>
-                    <div id="ModalBarBg" style="position: absolute; bottom: 14px; left: 20px; width: 350px; height: 20px; background: #ffffff; border-radius: 20px; max-width: 425px;">
-                      <div id="ModalBarFill" style="width: 35%; height: 100%; background: #5865F2; border-radius: 20px;"></div>
-                    </div>
-                  </div>
-                  
+                  <div id="RankCardModalPreview" class="rank-card-mock" style="max-width: 465px;"></div>
+
+                  {% macro rank_card_data(img) %} data-card="{{img.card}}" data-url="{{img.url}}" data-fill="{{img.bar_fill}}" data-bg="{{img.bar_bg}}" {% endmacro %}
                   <div class="mt-3">
                     <p class="m-0 mb-1 fw-bold">Solid Colors</p>
                     <div class="d-flex flex-wrap color-wrapper" style="gap: 6px;">
                       {% for img in server_cards['default'] %}
-                      <input 
-                        type="radio" 
-                        class="rank-color-card" 
-                        name="rank-color-card" 
-                        style="--color: {{img.bar_fill}}" 
-                        data-card="{{img.card}}"
-                        data-fill="{{img.bar_fill}}"
-                        data-bg="{{img.bar_bg}}"
-                      >
+                      <input type="radio" class="rank-color-card" name="rank-color-card" style="--color: {{img.bar_fill}}" {{ rank_card_data(img) }}>
                       {% endfor %}
                     </div>
                   </div>
-
                   <div class="mt-3">
                     <p class="m-0 mb-1 fw-bold">Picture Backgrounds</p>
                     <div class="d-flex flex-wrap" style="gap: 6px; max-height: 290px; overflow-y: auto;">
                       {% for img in server_cards['cards'] %}
-                      <img 
-                        class="rank-img-card" 
-                        src="{{ url_for('leveling.lvl_card_image', filename=img.card) }}" 
-                        data-card="{{img.card}}"
-                        data-fill="{{img.bar_fill}}"
-                        data-bg="{{img.bar_bg}}"
-                        style="width: 140px; cursor: pointer;"
-                      >
+                      <img class="rank-img-card" src="{{img.url}}" style="width: 140px; cursor: pointer;" {{ rank_card_data(img) }}>
                       {% endfor %}
                     </div>
                   </div>
@@ -509,7 +471,21 @@
       show_toast("leveling.message.content", annoMsgSaved, e.target.value, () => { e.target.value = annoMsgSaved; });
     });
 
-    /* Server Rank Card Selector & Live Preview */
+    /* Rank Cards */
+    function buildRankCardMock(container, { url, fill, bg }) {
+      const PREVIEW_USER = { avatar: "{{user.avatar_url}}", name: "{{user.username}}" };
+      container.style.backgroundImage = `url(${url})`;
+      container.innerHTML = `
+        <img class="rcm-avatar" src="${PREVIEW_USER.avatar}">
+        <div class="rcm-name">${PREVIEW_USER.name}</div>
+        <div class="rcm-divider"></div>
+        <div class="rcm-stats">Level 1&nbsp;&nbsp;XP 1 / 40</div>
+        <div class="rcm-bar-bg" style="background:${bg || '#FFFFFF'};">
+          <div class="rcm-bar-fill" style="background:${fill || '#5865F2'};"></div>
+        </div>
+      `;
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.rank-color-card, .rank-img-card').forEach((card) => {
         if (card.dataset.card === "{{data['card']}}") {
@@ -517,6 +493,10 @@
           card.classList.add('selected');
         }
       });
+
+      const topCfg = { url: "{{ current_card.url }}", fill: "{{ current_card.bar_fill }}", bg: "{{ current_card.bar_bg }}" };
+      buildRankCardMock(document.querySelector('#RankCardTop'), topCfg);
+      buildRankCardMock(document.querySelector('#RankCardModalPreview'), topCfg);
     });
 
     document.querySelectorAll('.rank-color-card, .rank-img-card').forEach((card) => {
@@ -530,14 +510,11 @@
         if (target.type === 'radio') target.checked = true;
         target.classList.add('selected');
 
-        const cardName = target.dataset.card;
-        const fill = target.dataset.fill || '#5865F2';
-        const bg = target.dataset.bg || '#FFFFFF';
-
-        // Update Modal Preview
-        document.querySelector('#RankCardPrev').src = `/lvl-cards/image/${cardName}`;
-        document.querySelector('#ModalBarFill').style.background = fill;
-        document.querySelector('#ModalBarBg').style.background = bg;
+        buildRankCardMock(document.querySelector('#RankCardModalPreview'), {
+          url: target.dataset.url,
+          fill: target.dataset.fill,
+          bg: target.dataset.bg,
+        });
       });
     });
 
@@ -545,19 +522,16 @@
       const selected = document.querySelector('.rank-color-card.selected, .rank-img-card.selected');
       if (!selected) return;
 
-      const card = selected.dataset.card;
-      const fill = selected.dataset.fill || '#5865F2';
-      const bg = selected.dataset.bg || '#FFFFFF';
-
-      // Update Page Static SVG Preview
-      document.querySelector('#RankCardImg').setAttributeNS('http://www.w3.org/1999/xlink', 'href', `/lvl-cards/image/${card}`);
-      document.querySelector('#SvgBarFill').setAttribute('fill', fill);
-      document.querySelector('#SvgBarBg').setAttribute('fill', bg);
+      buildRankCardMock(document.querySelector('#RankCardTop'), {
+        url: selected.dataset.url,
+        fill: selected.dataset.fill,
+        bg: selected.dataset.bg,
+      });
 
       fetch("/dashboard/{{guild.id}}/data/post", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ "leveling.card": card }),
+        body: JSON.stringify({ "leveling.card": selected.dataset.card }),
       });
     });
 
@@ -705,6 +679,65 @@
   <style>
     :root {
       --color: #ffffff;
+    }
+
+    /* Rank card mock — proportions match D_leveling.py's actual 900x300 render exactly,
+       expressed as % of the container so the same markup looks identical at any size. */
+    .rank-card-mock {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 900 / 300;
+      background-size: cover;
+      background-position: center;
+      border-radius: 8px;
+      overflow: hidden;
+      container-type: inline-size;
+    }
+    .rcm-avatar {
+      position: absolute;
+      left: 3.33%;
+      top: 10%;
+      width: 16.67%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .rcm-name {
+      position: absolute;
+      left: 22.22%;
+      top: 13.33%;
+      font-size: 4.44cqw;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .rcm-divider {
+      position: absolute;
+      left: 22.22%;
+      top: 33.33%;
+      width: 44.44%;
+      height: 2px;
+      background: #fff;
+    }
+    .rcm-stats {
+      position: absolute;
+      left: 22.22%;
+      top: 43.33%;
+      font-size: 3.33cqw;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .rcm-bar-bg {
+      position: absolute;
+      left: 4.11%;
+      top: 73.33%;
+      width: 91.78%;
+      height: 13.33%;
+      border-radius: 999px;
+    }
+    .rcm-bar-fill {
+      width: 40%;
+      height: 100%;
+      border-radius: 999px;
     }
 
     .rank-img-card {

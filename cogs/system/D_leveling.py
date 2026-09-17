@@ -12,35 +12,28 @@ from modules import bot as v
 from modules.models import Guild, Leveling as LevelingModel
 from cogs.money._shop import open_account, update_bank
 
-CARDS_URL = "images/lvl-cards"
 FALLBACK_CARD = "blurple-rank.png"
 
-mongo_cdn_client = pymongo.MongoClient(v.mongo_cdn)
-mongoRankCards = mongo_cdn_client['RankCards']['Cards']
-
-# In-Memory Cache for Rank Cards to prevent blocking MongoDB queries on every command
-CARD_CACHE: dict[str, dict] = {}
+mongoRankCards = pymongo.MongoClient(v.mongoURI_db)['RankCards']['Cards']
 
 def xp_for_level(lvl: int) -> int:
     """XP required to complete a given level (scales with level)."""
     return 5 * (lvl ** 2) + 50 * lvl + 100
 
-def get_level_card_config(configured_card: str) -> dict:
-    if configured_card in CARD_CACHE:
-        return CARD_CACHE[configured_card]
-
+async def get_level_card_config(configured_card: str) -> dict:
     document = mongoRankCards.find_one({"card": configured_card})
 
     if document is None:
         document = mongoRankCards.find_one({"card": FALLBACK_CARD})
 
-    card_data = {
-        **document,
-        "background": f"{CARDS_URL}/{document['card']}",
-    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(document["url"]) as resp:
+            background_bytes = await resp.read()
 
-    CARD_CACHE[configured_card] = card_data
-    return card_data
+    return {
+        **document,
+        "background": background_bytes,
+    }
 
 class Leveling(commands.Cog):
     def __init__(self, client: commands.Bot):
@@ -67,19 +60,18 @@ class Leveling(commands.Cog):
  
     def render_rank_card_sync(
         self,
-        avatar_bytes: bytes, 
-        member_name: str, 
-        lvl: int, 
-        exp: int, 
-        next_lvl_xp: int, 
+        avatar_url: str,
+        member_name: str,
+        lvl: int,
+        exp: int,
+        next_lvl_xp: int,
         card_cfg: dict
     ) -> io.BytesIO:
         """CPU-bound PIL operations run in a thread pool."""
         background = Editor(card_cfg["background"])
-        
-        # Avatar rendering - now receiving bytes directly
-        _profile = load_image(avatar_bytes)
-        profile = Editor(_profile).resize((150, 150)).circle_image()
+
+        # easy_pil's load_image fetches from a URL and converts to RGBA itself
+        profile = Editor(load_image(avatar_url)).resize((150, 150)).circle_image()
         background.paste(profile, (30, 30))
 
         # Member rendering
@@ -90,8 +82,8 @@ class Leveling(commands.Cog):
         # Progress Bar rendering
         bar_y = 220
         bar_h = 40
-        indent = card_cfg["bar_indent_left"]
-        width = card_cfg["bar_width"]
+        indent = 37
+        width = 826
         
         background.rectangle((indent, bar_y), width=width, height=bar_h, fill=card_cfg["bar_bg"], radius=20)
 
@@ -252,26 +244,15 @@ class Leveling(commands.Cog):
         next_lvl_xp = xp_for_level(lvl)
         
         configured_card = lvl_data.card or FALLBACK_CARD
-        card_cfg = get_level_card_config(configured_card)
+        card_cfg = await get_level_card_config(configured_card)
 
-        # ── FIX: Download avatar as bytes ──────────────────────────────────
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(member.avatar.url) as resp:
-                    if resp.status != 200:
-                        # Fallback to default avatar
-                        avatar_bytes = await member.default_avatar.read()
-                    else:
-                        avatar_bytes = await resp.read()
-        except Exception:
-            # Fallback to default avatar on any error
-            avatar_bytes = await member.default_avatar.read()
+        avatar_url = str(member.avatar.url) if member.avatar else str(member.default_avatar.url)
 
         # Execute heavy PIL rendering inside a thread to avoid blocking the asyncio event loop
         img_bytes = await asyncio.to_thread(
             self.render_rank_card_sync,
-            avatar_bytes,  # ✅ Now passing bytes!
-            str(member),
+            avatar_url,
+            str(member.name),
             lvl,
             exp,
             next_lvl_xp,

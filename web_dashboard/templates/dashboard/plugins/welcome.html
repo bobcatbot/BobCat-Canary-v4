@@ -262,7 +262,7 @@
         dataKeyPrefix: 'welcome.join.message.embed',
         fieldDataKeyPrefix: 'welcome.join.message.embed', // same as above, but you could use a different one if needed
         initial: {
-          color: `{{ data['join']['message'].get('embed', {}).get('color', '') }}`,
+          color: `{{ data['join']['message'].get('embed', {}).get('color') | hexcolor }}`,
           author: `{{ data['join']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
           title: `{{ data['join']['message'].get('embed', {}).get('title', '') or '' }}`,
           desc: `{{ data['join']['message'].get('embed', {}).get('description', '') or '' }}`,
@@ -276,7 +276,7 @@
         dataKeyPrefix: 'welcome.dm.message.embed',
         fieldDataKeyPrefix: 'welcome.dm.message.embed',
         initial: {
-          color: `{{ data['dm']['message'].get('embed', {}).get('color', '') }}`,
+          color: `{{ data['dm']['message'].get('embed', {}).get('color') | hexcolor }}`,
           author: `{{ data['dm']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
           title: `{{ data['dm']['message'].get('embed', {}).get('title', '') or '' }}`,
           desc: `{{ data['dm']['message'].get('embed', {}).get('description', '') or '' }}`,
@@ -290,7 +290,7 @@
         dataKeyPrefix: 'welcome.leave.message.embed',
         fieldDataKeyPrefix: 'welcome.leave.message.embed',
         initial: {
-          color: `{{ data['leave']['message'].get('embed', {}).get('color', '') }}`,
+          color: `{{ data['leave']['message'].get('embed', {}).get('color') | hexcolor }}`,
           author: `{{ data['leave']['message'].get('embed', {}).get('author', {}).get('name', '') or '' }}`,
           title: `{{ data['leave']['message'].get('embed', {}).get('title', '') or '' }}`,
           desc: `{{ data['leave']['message'].get('embed', {}).get('description', '') or '' }}`,

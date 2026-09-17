@@ -1,0 +1,155 @@
+<html lang="en">
+<head>
+  {% include 'include/links.html' %}
+</head>
+<body>
+  <section class="info-cards pt-4">
+    <div class="container">
+      <div class="row justify-center">
+        <div class="col-md-8">
+
+          <div class="feature_card">
+            <div class="title">
+              <h2>Add Rank Card</h2>
+              <p>Upload a background and pick colors — the bot draws the bar at a fixed spot on every card, so that's all that's needed.</p>
+            </div>
+            <hr>
+
+            {% if error %}
+            <div class="alert" style="background:#ED4245; color:#fff; padding:10px 14px; border-radius:8px; margin-bottom:14px;">{{error}}</div>
+            {% endif %}
+
+            <form method="POST" enctype="multipart/form-data" class="d-flex flex-column gap-2">
+              <div>
+                <label class="fw-bold">Background image</label><br>
+                <input type="file" name="image" id="ImageInput" accept="image/png,image/jpeg,image/gif,image/webp" required>
+                <p class="mb-0 mt-1" style="font-size: 12px; color:#9195ab;">Should be 900&times;300 to line up with the existing set.</p>
+              </div>
+
+              <!-- Live preview: same renderer as the guild dashboard's card picker -->
+              <div id="CardPreview" class="rank-card-mock" style="max-width: 465px; margin-top: 8px; display: none;"></div>
+
+              <div class="mt-2">
+                <label class="fw-bold">Card key (unique, e.g. cyan-rank.png)</label><br>
+                <input type="text" name="card" class="text-input" required>
+              </div>
+
+              <div class="mt-2">
+                <label class="fw-bold">Display name</label><br>
+                <input type="text" name="card_name" class="text-input" required>
+              </div>
+
+              <div class="mt-2">
+                <label class="fw-bold">Theme</label><br>
+                <select name="theme" id="ThemeSelect" class="text-input">
+                  {% for theme in theme_defaults %}
+                  <option value="{{theme}}">{{theme}}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mt-2 d-flex gap-2">
+                <div>
+                  <label class="fw-bold">Bar fill color</label><br>
+                  <input type="color" name="bar_fill" id="BarFillInput" value="#5865F2" required>
+                </div>
+                <div>
+                  <label class="fw-bold">Bar background color</label><br>
+                  <input type="color" name="bar_bg" id="BarBgInput">
+                </div>
+              </div>
+
+              <button type="submit" class="mt-3 btn btn-blurple">Upload &amp; Add Card</button>
+            </form>
+          </div>
+
+          <div class="feature_card mt-3">
+            <div class="title">
+              <h2>Existing Cards ({{cards|length}})</h2>
+            </div>
+            <hr>
+            <div class="d-flex flex-wrap" style="gap: 10px;">
+              {% for c in cards %}
+              <div style="width: 160px;">
+                <img src="{{c.url}}" style="width: 160px; border-radius: 8px; display:block;">
+                <p class="mb-0 mt-1" style="font-size: 13px;">{{c.card_name}}</p>
+                <p class="mb-0" style="font-size: 11px; color:#9195ab;">{{c.card}} &middot; {{c.theme}}</p>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const THEME_DEFAULTS = JSON.parse('{{ theme_defaults | tojson }}');
+
+    const imageInput = document.querySelector('#ImageInput');
+    const preview = document.querySelector('#CardPreview');
+    const themeSelect = document.querySelector('#ThemeSelect');
+    const fillInput = document.querySelector('#BarFillInput');
+    const bgInput = document.querySelector('#BarBgInput');
+
+    let previewUrl = null;
+
+    function render() {
+      if (!previewUrl) return;
+      preview.style.backgroundImage = `url(${previewUrl})`;
+      preview.innerHTML = `
+        <div class="rcm-bar-bg" style="background:${bgInput.value};">
+          <div class="rcm-bar-fill" style="background:${fillInput.value};"></div>
+        </div>
+      `;
+    }
+
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      previewUrl = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      render();
+    });
+
+    function applyThemeDefaults() {
+      const d = THEME_DEFAULTS[themeSelect.value];
+      if (!d) return;
+      bgInput.value = d.bar_bg;
+      render();
+    }
+    themeSelect.addEventListener('change', applyThemeDefaults);
+    applyThemeDefaults();
+
+    fillInput.addEventListener('input', render);
+    bgInput.addEventListener('input', render);
+  </script>
+
+  <style>
+    /* Same rank-card-mock proportions as the guild dashboard's leveling.html preview,
+       trimmed to just the bar since this page has no avatar/name to preview against. */
+    .rank-card-mock {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 900 / 300;
+      background: #111 center/cover no-repeat;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .rcm-bar-bg {
+      position: absolute;
+      left: 4.11%;
+      top: 73.33%;
+      width: 91.78%;
+      height: 13.33%;
+      border-radius: 999px;
+    }
+    .rcm-bar-fill {
+      width: 40%;
+      height: 100%;
+      border-radius: 999px;
+    }
+  </style>
+</body>
+</html>

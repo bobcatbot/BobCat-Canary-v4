@@ -261,7 +261,7 @@
         dataKeyPrefix: 'verification.message.embed',
         fieldDataKeyPrefix: 'verification.message.embed',
         initial: {
-          color: `{{ data.get('message', {}).get('embed', {}).get('color', '') }}`,
+          color: `{{ data.get('message', {}).get('embed', {}).get('color')|hexcolor }}`,
           author: `{{ data.get('message', {}).get('embed', {}).get('author', {}).get('name', '') or '' }}`,
           title: `{{ data.get('message', {}).get('embed', {}).get('title', '') or '' }}`,
           desc: `{{ data.get('message', {}).get('embed', {}).get('description', '') or '' }}`,
