@@ -4,7 +4,7 @@
     - dashboard/plugins/verification.html (1 instance)
     - dashboard/plugins/ticketing/ticketing_transcript.html (read-only, embed_preview only)
     - dashboard/plugins/ticketing/ticketing_form.html (panel message / intro message — 2 instances)
-    - dashboard/plugins/giveaways/gway_form.html (message preview — title/fields only, no author/footer; wired up with its own page-local JS rather than embed-editor.js's show_toast-based field sync, since giveaways save through their own Save/Publish buttons and creation/edition routes, not the generic /data/post pending-changes flow)
+    - dashboard/plugins/giveaways/gway_form.html (message preview — title/fields only, no author/footer; uses initEmbedEditor()'s `onChange` hook to write into its own save_data object instead of the show_toast pending-changes flow, since giveaways save through their own Save/Publish buttons and creation/edition routes, not the generic /data/post flow)
 
   embed_color_picker(id, color, name='', css_class='coloris-embed-color')
     Swatch + text input that Coloris binds to.

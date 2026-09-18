@@ -121,6 +121,16 @@ function wireEmbedUploadCustom(el, guildId, onUploaded) {
   _wireEmbedUploadEl(el, guildId, onUploaded);
 }
 
+// Instance configs may pass `onChange(key, oldVal, newVal, revert)` to opt
+// out of the show_toast pending-changes flow (e.g. a page that POSTs one
+// bulk object on Save instead of saving field-by-field). Every call site
+// below must go through this, never `show_toast` directly, or a page that
+// passed `onChange` silently falls back to the toast flow for that field.
+function _emit(prefix, key, oldVal, newVal, revert) {
+  const instance = window._embedInstances?.find((i) => i.prefix === prefix);
+  (instance?.onChange || show_toast)(key, oldVal, newVal, revert);
+}
+
 function initEmbedEditor(instances) {
   // Store instances globally for field operations
   window._embedInstances = instances;
@@ -142,7 +152,7 @@ function initEmbedEditor(instances) {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('input', (e) => {
-        show_toast(key, initialVal, e.target.value, () => { el.value = initialVal == null ? '' : initialVal; });
+        _emit(prefix, key, initialVal, e.target.value, () => { el.value = initialVal == null ? '' : initialVal; });
       });
     };
 
@@ -204,7 +214,7 @@ function initEmbedEditor(instances) {
     const embedEl = document.querySelector(`.embed[data-prefix="${prefix}"]`);
     if (embedEl) embedEl.style.borderLeftColor = event.detail.color;
 
-    show_toast(key, initial, event.detail.color, () => {
+    _emit(prefix, key, initial, event.detail.color, () => {
       input.value = initial == null ? '' : initial;
       if (embedEl) embedEl.style.borderLeftColor = initial;
     });
@@ -314,7 +324,8 @@ function saveFieldsArray(container, dataKeyPrefix) {
   const oldFieldsJson = JSON.parse(oldFields).map(normalizeField);
   const prefix = container.id.replace(/-fields$/, '');
 
-  show_toast(
+  _emit(
+    prefix,
     `${dataKeyPrefix}.fields`,
     oldFieldsJson,
     newFields,

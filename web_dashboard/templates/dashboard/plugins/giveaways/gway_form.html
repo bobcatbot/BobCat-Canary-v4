@@ -132,19 +132,14 @@
         <hr>
         
         <div class="d-flex gap-2 mb-3">
-          {{ embed_color_picker('gway-embed-color', data.embed_color|hexcolor, css_class='gway-embed-color coloris') }}
+          {{ embed_color_picker('gway-embed-color', data.embed_color | hexcolor, css_class='gway-embed-color coloris') }}
           {% call embed_editor('gway-embed', {
               'color': data.embed_color|hexcolor,
               'title': '🎉 {prize} 🎉',
               'description': data.embed_desc or '',
             },
             desc_element='textarea',
-            show_icons=False,
-            show_author=False,
-            show_footer=False,
-            show_fields=False,
-            color_input=True,
-            title_disabled=True,
+            show_icons=False, show_author=False, show_footer=False, show_fields=False, color_input=True, title_disabled=True,
           ) %}
           <div class="fields mt-2">
             <div class="field">
@@ -188,18 +183,6 @@
           type: 'icons', time: "bi bi-watch", date: "bi bi-calendar", up: "bi bi-arrow-up", down: "bi bi-arrow-down", previous: 'bi bi-chevron-left', next: 'bi bi-chevron-right', today: 'bi bi-calendar-check-o', clear: 'bi bi-trash', close: 'bi bi-times'
         },
       }
-    });
-
-    // Embed color
-    Coloris({
-      el: '.gway-embed-color',
-      theme: 'large',
-      themeMode: 'dark',
-      format: 'hex',
-      formatToggle: false,
-      closeButton: true,
-      defaultColor: '#5865f2',
-      swatches: ['#5865f2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#FFFFFF', '#000000']
     });
 
     // Create needs to know when every required field has been filled in
@@ -387,28 +370,21 @@
     })
 
     /* Embed message */
-    // The textarea grows to fit its content via an inline oninput= handler
-    // in the embed_editor macro itself, which needs this in global scope.
-    // Duplicated here (rather than pulled from embed-editor.js) so this page
-    // stays fully self-contained - see the fields block below for why.
-    function autoGrowEmbedDesc(el) {
-      el.style.height = "5px";
-      el.style.height = (el.scrollHeight + 2) + "px";
-    }
+    autoGrowEmbedDesc(document.getElementById('gway-embed-desc'));
 
-    const embedDesc = document.querySelector('#gway-embed-desc');
-    autoGrowEmbedDesc(embedDesc);
-    embedDesc.addEventListener('input', (e) => {
-      save_data['embed.desc'] = e.target.value
-    })
-
-    const gwayEmbedColor = document.querySelector('.gway-embed-color');
-    const gwayEmbed = document.querySelector('[data-prefix="gway-embed"]');
-    gwayEmbedColor.addEventListener('change', (e) => {
-      const value = e.target.value;
-      gwayEmbed.style.borderLeftColor = value;
-      save_data['embed.color'] = parseInt(value.replace('#', ''), 16);
-    })
+    initEmbedEditor([{
+      prefix: 'gway-embed',
+      colorId: 'gway-embed-color',
+      dataKeyPrefix: 'embed',
+      initial: {
+        color: `{{ data.embed_color|hexcolor }}`,
+        desc: `{{ (data.embed_desc or '') | tojson }}`,
+      },
+      // Publish/Save build one save_data object POSTed on submit (see
+      // required_fields above) rather than initEmbedEditor's default
+      // show_toast pending-changes flow, so route field changes there instead.
+      onChange: (key, oldVal, newVal) => { save_data[key] = newVal; },
+    }]);
 
   </script>
 
