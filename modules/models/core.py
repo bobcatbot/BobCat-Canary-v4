@@ -1,5 +1,6 @@
 import discord
 from beanie import Document
+from pymongo import IndexModel, ASCENDING, DESCENDING
 from pydantic import ConfigDict, Field, BaseModel, field_validator
 from datetime import datetime, timezone
 from typing import Optional, List, Any
@@ -201,6 +202,12 @@ class Guild(Document):
 class Notification(Document):
     class Settings:
         name = "notifications"
+        indexes = [
+            # the dashboard always reads one guild's notifications newest-first
+            IndexModel([("guild_id", ASCENDING), ("created_at", DESCENDING)]),
+            # Mongo deletes notifications 60 days after created_at
+            IndexModel([("created_at", ASCENDING)], expireAfterSeconds=60 * 24 * 60 * 60),
+        ]
 
     guild_id: str
     notification_id: str
@@ -214,6 +221,18 @@ class Notification(Document):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
+class Maintenance(Document):
+    """Single-doc switch for dashboard maintenance mode (see web_dashboard/maintenance.py)."""
+
+    class Settings:
+        name = "maintenance"
+
+    id: str = Field(alias="_id")
+    enabled: bool = False
+    eta: Optional[str] = None  # free text shown on the maintenance page, e.g. "18:30 UTC"
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StripeEvent(Document):
     """Record of a processed Stripe webhook event, used for idempotency."""

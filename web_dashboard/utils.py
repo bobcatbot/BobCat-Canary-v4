@@ -1,3 +1,4 @@
+import json
 import discord
 from functools import wraps
 from quart import session, request, render_template, url_for, redirect, jsonify, flash, g
@@ -43,6 +44,24 @@ def login_required(f):
         if 'token' not in session:
             session['redirect'] = request.url
             return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+        return await f(*args, **kwargs)
+    return decorated_function
+
+
+# The people `/dev` commands trust; also who may open the site-wide /admin pages
+DEV_IDS = {int(dev["id"]) for dev in json.load(open("modules/devs.json"))["team"]}
+
+
+def dev_required(f):
+    """Site-wide admin routes (not guild-scoped): login, then a devs.json member.
+    Anyone else gets the plain 404 page so the route's existence isn't advertised."""
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        if 'token' not in session:
+            session['redirect'] = request.url
+            return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+        if (session.get("user") or {}).get("id") not in DEV_IDS:
+            return await render_template("error/404.html"), 404
         return await f(*args, **kwargs)
     return decorated_function
 
@@ -164,19 +183,81 @@ def deep_merge(base, incoming: dict):
             base[key] = value
     return base
 
-# ── Plugin-route authorization guard ─────────────────────────────────────────
+# ── Guild-route authorization guards ─────────────────────────────────────────
+async def _guild_checks(guild_id):
+    """Shared first half of every guild-route guard: authenticated -> guild is
+    known -> caller has guild permission.
+
+    Returns (guild, None) to carry on, or (None, response) to send straight
+    back. The failure format is inferred from the method: JSON + HTTP status
+    for writes, an HTML login page / 404 / redirect-with-flash for reads.
+    """
+    is_write = request.method not in ('GET', 'HEAD', 'OPTIONS')
+
+    async def login_page():
+        session['redirect'] = request.url
+        return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
+
+    if 'token' not in session:
+        if is_write:
+            return None, (jsonify({'status': 'error', 'message': 'Not authenticated'}), 401)
+        return None, await login_page()
+
+    guild = v.client.get_guild(guild_id)
+    if guild is None:
+        if is_write:
+            return None, (jsonify({'status': 'error', 'message': 'Guild not found'}), 404)
+        return None, (await render_template("error/404.html"), 404)
+
+    # The bot's in the guild but there's no config doc yet (never set
+    # up, or a doc that was deleted) - create it now so every route
+    # behind this guard (not just the dashboard home page) has a real
+    # doc to work with, whether reached via "Setup" or a direct link.
+    if await Guild.get(str(guild.id)) is None:
+        await sync_guild_dashboard(guild)
+
+    try:
+        user = bearer_client().get_current_user()
+    except Exception:
+        if is_write:
+            return None, (jsonify({'status': 'error', 'message': 'Not authenticated'}), 401)
+        return None, await login_page()
+
+    allowed, level = await check_guild_permission(guild, user.id)
+    if not allowed:
+        if is_write:
+            return None, (jsonify({'status': 'error', 'message': f'Permission denied: {level}'}), 403)
+        await flash(f"You don't have permission to manage this server ({level})", "danger")
+        return None, redirect(url_for('dashboard.guilds'))
+
+    return guild, None
+
+
+def guild_guard(f):
+    """Guard for guild routes that aren't tied to a plugin (notifications, ...):
+    the shared chain above, without the premium / plugin-status steps."""
+    @wraps(f)
+    async def wrapper(*args, **kwargs):
+        guild_id = kwargs.get('guild_id') or (args[0] if args else None)
+        _, error = await _guild_checks(guild_id)
+        if error:
+            return error
+        return await f(*args, **kwargs)
+    return wrapper
+
+
 def plugin_guard(plugin_key, *, require_enabled=True):
-    """Guard for every dashboard guild route - page, action, or combined.
+    """Guard for every plugin's dashboard guild route - page, action, or combined.
 
     Same chain for all requests: authenticated -> guild is known -> caller has
-    guild permission -> guild has premium for the module. For *write* requests
-    (method not in GET/HEAD/OPTIONS) it also enforces the plugin's main status
-    toggle when `require_enabled` is True.
+    guild permission (see `_guild_checks`) -> guild has premium for the module.
+    For *write* requests (method not in GET/HEAD/OPTIONS) it also enforces the
+    plugin's main status toggle when `require_enabled` is True.
 
     Failure response format is inferred from the method: JSON + HTTP status for
-    writes, an HTML login page / 404 / redirect-with-flash for reads. So the
-    same decorator serves page routes, JSON action routes, and combined
-    GET/POST routes with no inline checks.
+    writes, an HTML page / redirect-with-flash for reads. So the same decorator
+    serves page routes, JSON action routes, and combined GET/POST routes with
+    no inline checks.
 
     `plugin_key` is the PLUGIN_LIST key ('giveaway', 'stats', ...), not the
     db_key used on DashConfig.
@@ -187,41 +268,9 @@ def plugin_guard(plugin_key, *, require_enabled=True):
             guild_id = kwargs.get('guild_id') or (args[0] if args else None)
             is_write = request.method not in ('GET', 'HEAD', 'OPTIONS')
 
-            async def login_page():
-                session['redirect'] = request.url
-                return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
-
-            if 'token' not in session:
-                if is_write:
-                    return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
-                return await login_page()
-
-            guild = v.client.get_guild(guild_id)
-            if guild is None:
-                if is_write:
-                    return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
-                return await render_template("error/404.html"), 404
-
-            # The bot's in the guild but there's no config doc yet (never set
-            # up, or a doc that was deleted) - create it now so every route
-            # behind this guard (not just the dashboard home page) has a real
-            # doc to work with, whether reached via "Setup" or a direct link.
-            if await Guild.get(str(guild.id)) is None:
-                await sync_guild_dashboard(guild)
-
-            try:
-                user = bearer_client().get_current_user()
-            except Exception:
-                if is_write:
-                    return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
-                return await login_page()
-
-            allowed, level = await check_guild_permission(guild, user.id)
-            if not allowed:
-                if is_write:
-                    return jsonify({'status': 'error', 'message': f'Permission denied: {level}'}), 403
-                await flash(f"You don't have permission to manage this server ({level})", "danger")
-                return redirect(url_for('dashboard.guilds'))
+            guild, error = await _guild_checks(guild_id)
+            if error:
+                return error
 
             try:
                 await premium_module(guild, plugin_key)

@@ -175,7 +175,7 @@ class Leveling(commands.Cog):
         mess: str = message_config.content or '{user} just reached level {level}!'
         chan = lvl_data.channel
  
-        formatted = re.sub(r'\{([\w.]+)\}', v.replace_placeholder, mess)
+        formatted = re.sub(r'\{([\w.]+)\}', v.replace_placeholders, mess)
         msg_text = formatted.format(server=message.guild, user=message.author, level=new_lvl)
  
         if anno == "current":

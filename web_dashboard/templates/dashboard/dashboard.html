@@ -6,42 +6,27 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle">
       <h1>Plugins</h1>
     </div>
 
     <!-- ── Overview ────────────────────────────────────────── -->
     <div class="overview">
-      <h4 class="title">DETAILS</h4>
-      <div class="info">
-        <div class="d-flex gap-2">
-          <img src="{{guild.icon.url}}" alt="" style="width: 52px;height: 52px;border-radius: 50%;">
-
-          <div>
-            <h2>{{guild.name}}</h2>
-            <p>{{guild.id}}</p>
-          </div>
-          
-          <div class="d-flex gap-1">
-            {% if guild_models(guild).isPremium == True %}
-            <div class="tooltipp">
-              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="rgb(var(--premium-gold))" class="bi bi-star-fill" viewBox="0 0 16 16">
-                <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
-              </svg>
-              <span class="tooltiptext">Premium</span>
-            </div>
-            {% endif %}
-          </div>
+      <div class="dash-hero">
+        <div class="dash-hero-content">
+          <!-- <span class="dash-hero-eyebrow">Dashboard</span> -->
+          <h1 class="dash-hero-title">{{guild.name}}</h1>
+          <p class="dash-hero-text">{{guild.id}}</p>
         </div>
-        
-        <div class="overview-col">
-          <i class="bi bi-people-fill"></i>
-          <span style="font-size: 1.125rem;/*18px*/ font-weight: 700;">{{guild.member_count}}</span>
-          Members
+        <div class="dash-hero-stats">
+          <div class="dash-hero-stat">
+            <span class="dash-hero-stat-value">{{guild.member_count}}</span>
+            <span class="dash-hero-stat-label">Members</span>
+          </div>
         </div>
       </div>
     </div>
@@ -50,7 +35,7 @@
     {% macro plugin_card(plugin, guild) %}
     <a
       class="plugin"
-      data-href="{{guild.id}}/{{plugin.url}}"
+      href="{{guild.id}}/{{plugin.url}}"
       data-premium="{{plugin.premium | lower}}"
       data-server-premium="{{guild_models(guild).isPremium | lower}}"
       data-key="{{plugin.db_key}}"
@@ -58,11 +43,9 @@
       data-plugin-name="{{plugin.title}}"
       onclick="handlePremiumOnClick(event)"
     >
-      <div class="card">
-        <div class="d-flex justify-content-between">
-          <div class="card-logo">
-            <span class="material-icons">{{plugin.icon}}</span>
-          </div>
+      <div class="dash-kpi kpi-info">
+        <div class="dash-kpi-top">
+          <span class="dash-kpi-icon material-icons">{{plugin.icon}}</span>
           <div class="d-flex gap-1">
             {% if plugin.badge == 'new'  %} {% include 'components/badges/new.html' %}
             {% elif plugin.badge == 'beta' %} {% include 'components/badges/beta.html' %}
@@ -72,75 +55,24 @@
             {% endif %}
           </div>
         </div>
-        <div class="card-body d-flex flex-column">
-          <h5 class="card-title">{{plugin.title}}</h5>
-          <p class="card-text">{{plugin.description}}</p>
-          <div style="margin-top: auto; width: max-content;">
-            {% if plugin.status %}
-            <span class="btn btn-blurple"><i class="bi bi-check2-square"></i> Active</span>
-            {% else %}
-            <span class="btn btn-secondary"><i class="bi bi-plus"></i> Enable</span>
-            {% endif %}
-          </div>
+        <div class="dash-kpi-value">{{plugin.title}}</div>
+        <div class="dash-kpi-label">{{plugin.description}}</div>
+        <div class="dash-kpi-spark">
+          {% if plugin.status %}
+          <span class="btn btn-blurple"><i class="bi bi-check2-square"></i> Active</span>
+          {% else %}
+          <span class="btn btn-secondary"><i class="bi bi-plus"></i> Enable</span>
+          {% endif %}
         </div>
       </div>
     </a>
     {% endmacro %}
 
-    <section class="section">
-      <ul class="nav nav-tabs nav-tabs-bordered">
-        <li class="nav-item">
-          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview">All Plugins</button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#server-management">Server Management</button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#utilities">Utilities</button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#games-fun">Games & Fun</button>
-        </li>
-      </ul>
-      <div class="tab-content pt-2">
-        <div id="overview" class="tab-pane fade active show" role="tabpanel">
-          <div class="grid">
-            {% for item, plugin in plugins(guild) %}
-            {{ plugin_card(plugin, guild) }}
-            {% endfor %}
-          </div>
-        </div>
-
-        <div id="server-management" class="tab-pane fade pt-3"  role="tabpanel">
-          <div class="grid">
-            {% for item, plugin in plugins(guild) %}
-            {% if plugin.category == 'management' %}
-            {{ plugin_card(plugin, guild) }}
-            {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-
-        <div id="utilities" class="tab-pane fade pt-3" role="tabpanel">
-          <div class="grid">
-            {% for item, plugin in plugins(guild) %}
-            {% if plugin.category == 'utilities' %}
-            {{ plugin_card(plugin, guild) }}
-            {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-
-        <div id="games-fun" class="tab-pane fade pt-3" role="tabpanel">
-          <div class="grid">
-            {% for item, plugin in plugins(guild) %}
-            {% if plugin.category == 'fun' %}
-            {{ plugin_card(plugin, guild) }}
-            {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-
+    <section class="">
+      <div class="dash-kpi-grid">
+        {% for item, plugin in plugins(guild) %}
+        {{ plugin_card(plugin, guild) }}
+        {% endfor %}
       </div>
     </section>
 

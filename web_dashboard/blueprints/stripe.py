@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pymongo.errors import DuplicateKeyError
 from quart import Blueprint, current_app, jsonify, request, session, url_for
 
-from ..consts import premium_types
+from ..consts import premium_plans
 from ..utils import bearer_client, check_guild_permission, login_required
 
 from modules import bot as v
@@ -202,12 +202,12 @@ async def _handle_checkout_completed(session):
         except Exception as e:
             print(f"Error retrieving subscription: {e}")
 
-    if not plan or plan not in premium_types:
+    if not plan or plan not in premium_plans:
         try:
             line_items = stripe.checkout.Session.list_line_items(session.id, limit=1)
             if line_items['data']:
                 description = line_items['data'][0].get('description') or ''
-                for key in premium_types:
+                for key in premium_plans:
                     if key.lower() in description.lower():
                         plan = key
                         break
@@ -297,7 +297,7 @@ async def _handle_invoice_paid(invoice):
         subscription = stripe.Subscription.retrieve(subscription_id)
         items = subscription['items']['data']
         plan = (items[0]['price'].get('nickname') or '').lower() if items else doc.premium.plan
-        if plan and plan not in premium_types:
+        if plan and plan not in premium_plans:
             plan = doc.premium.plan or 'basic'
 
         period_end = subscription.current_period_end
@@ -342,7 +342,7 @@ async def _handle_invoice_payment_failed(invoice):
 @login_required
 async def stripe_pay(guild_id, type):
     """Create a Stripe checkout session for premium purchase (Embedded modal method)."""
-    if type not in premium_types:
+    if type not in premium_plans:
         return jsonify({'error': 'Unknown premium plan'}), 400
 
     guild, doc, error = await _authorize_billing(guild_id)
@@ -356,10 +356,10 @@ async def stripe_pay(guild_id, type):
         customer_id = _resolve_customer(doc, current_user)
         return stripe.checkout.Session.create(
             line_items=[{
-                'price': premium_types[type]['price_id'],
+                'price': premium_plans[type]['price_id'],
                 'quantity': 1
             }],
-            mode=premium_types[type]['mode'],
+            mode=premium_plans[type]['mode'],
             customer=customer_id,
             ui_mode='elements',
             return_url=return_url + '?session_id={CHECKOUT_SESSION_ID}',
@@ -412,6 +412,34 @@ async def stripe_portal(guild_id):
         return jsonify({'error': str(e)}), 502
 
     return jsonify({'url': portal.url}), 200
+
+
+@stripe_bp.route('/<int:guild_id>/stripe/cancel', methods=['POST'])
+@login_required
+async def stripe_cancel(guild_id):
+    """Cancel the guild's subscription, immediately (what the premium page's confirm box promises).
+
+    Only Stripe's `subscription.deleted` webhook clears the premium doc, same as a
+    cancel from the billing portal - this route just tells Stripe to cancel.
+    """
+    guild, doc, error = await _authorize_billing(guild_id)
+    if error:
+        return jsonify(error[0]), error[1]
+
+    premium = doc.premium
+    plan = premium_plans.get(premium.plan or '')
+    # Gifts have no Stripe customer and a lifetime plan is a one-off payment: neither has a subscription
+    if not premium.customer or not premium.id or not plan or plan['mode'] != 'subscription':
+        return jsonify({'error': 'This guild has no subscription to cancel'}), 400
+
+    try:
+        await asyncio.to_thread(stripe.Subscription.cancel, premium.id)
+    except stripe.error.StripeError as e:
+        print(f"Failed to cancel subscription for guild {guild_id}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 502
+
+    return jsonify({'status': 'success'}), 200
 
 
 @stripe_bp.route('/webhook/stripe', methods=['POST'])

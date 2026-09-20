@@ -6,10 +6,10 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         {% with plugin = get_plugin(guild, 'moderation') %}
@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <ul class="nav nav-tabs nav-tabs-bordered margin" role="tablist">
+    <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#automod">AutoMod</button>
       </li>

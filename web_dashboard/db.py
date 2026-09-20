@@ -30,6 +30,22 @@ async def get_premium_config(guild) -> dict | None:
     doc = await get_guild(guild)
     return doc.premium if doc else None
 
-async def get_notifications(guild) -> list[Notification]:
+async def get_bell_notifications(guild, limit: int = 5) -> dict:
+    """What the navbar bell shows: the `limit` newest unread notifications and
+    the guild's total unread count. Fetches just `limit` docs and uses count()
+    for the total, since the backlog can be large. Shared by the bell's server
+    render and its poll endpoint."""
     guild_id = _guild_id(guild)
-    return await Notification.find(Notification.guild_id == guild_id).to_list()
+    # Two queries on purpose: sort()/limit() mutate a query, and count() would
+    # then honour the limit and cap the total at `limit`.
+    def unread():
+        return Notification.find(Notification.guild_id == guild_id, Notification.read == False)
+
+    docs = await unread().sort([(Notification.created_at, -1)]).limit(limit).to_list()
+    return {
+        'unread': [
+            {'id': n.notification_id, 'type': n.type, 'title': n.title, 'description': n.description}
+            for n in docs
+        ],
+        'unread_count': await unread().count(),
+    }

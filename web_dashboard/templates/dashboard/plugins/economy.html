@@ -6,10 +6,10 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         <h1>Economy</h1>
@@ -24,74 +24,82 @@
       </div>
     </div>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Customize your currency</h2>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Customize your currency</h2>
         </div>
         
         <hr>
-        <div class="d-flex" style="gap: 10px">
-          <div class="img-icon">
-            {{data['icon']}}
-          </div>
-          <div class="d-flex flex-column">
-            <label for="coin-name" style="margin-bottom: 8px;">Currency name</label>
-            <input type="text" class="text-input" id="coin-name" name="coin-name" placeholder="BobCat Coin" value="BobCat Coin">
-            <button id="edit-icon" type="button" class="btn btn-blurple" style="position: relative;margin-top: 15px;" trigger>Edit currency Icon</button>
+        <div class="card-body">
+          <div class="d-flex" style="gap: 10px">
+            <div class="img-icon">
+              {{data['icon']}}
+            </div>
+            <div class="d-flex flex-column">
+              <label for="coin-name" style="margin-bottom: 8px;">Currency name</label>
+              <input type="text" class="text-input" id="coin-name" name="coin-name" placeholder="BobCat Coin" value="BobCat Coin">
+              <button id="edit-icon" type="button" class="btn btn-blurple" style="position: relative;margin-top: 15px;" trigger>Edit currency Icon</button>
+            </div>
           </div>
         </div>
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card">
+    <section class="sectionn">
+      <div class="card">
         {% set at_cap = data['num_items'] >= shop_cap %}
         {% set shop_cap_msg = "You've reached your limit of " ~ shop_cap ~ " shop items." ~ ("" if not is_premium else " Upgrade to premium for up to " ~ shop_cap_premium ~ ".") %}
-        <div class="title d-flex justify-content-between align-items-center">
-          <h2 class="d-flex gap-1 align-items-center">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title d-flex gap-1 align-items-center">
             Items
-            <span class="badge rounded-pill text-bg-primary">Limited</span>
+            <span class="badge rounded-pill badge-limited">Limited</span>
           </h2>
           <span id="shop-count" data-cap="{{ shop_cap }}">{{ data['num_items'] }} / {{ shop_cap }}</span>
         </div>
 
-        <hr>
-        <div id="ShopItems" class="d-flex flex-wrap gap-2">
-          <span class="tooltipp">
-            <div id="CreateShopItem" class="shop-item icon{% if at_cap %} at-cap{% endif %}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40px" height="40px" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
-                <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
-              </svg>
+        <hr style="margin-top: var(--spacing-md);">
+        <div class="card-body">
+          <div id="ShopItems" class="d-flex flex-wrap gap-2">
+            <span class="tooltipp">
+              <div id="CreateShopItem" class="shop-item icon{% if at_cap %} at-cap{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40px" height="40px" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
+                </svg>
+              </div>
+              <span class="tooltiptext" id="shop-cap-tip"{% if not at_cap %} hidden{% endif %}>{{ shop_cap_msg }}</span>
+            </span>
+            {% for item in data.shop %}
+            <div
+              class="position-relative shop-item shop-item-editable"
+              data-idx="{{ loop.index0 }}"
+              data-name="{{ item.name }}"
+              data-price="{{ item.price }}"
+              data-icon="{{ item.icon }}"
+              data-description="{{ item.description }}"
+              data-type="{{ item.get('type', 'string') }}"
+              data-max-limit="{{ item.max_limit }}"
+            >
+              <button
+                type="button"
+                class="position-absolute delete-shop-item"
+                aria-label="Delete item"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+              <div class="info d-flex justify-content-between position-absolute top-0">
+                <p class="item-name m-0" style="width: 59%;overflow: hidden;text-overflow: ellipsis;">{{ item.name }}</p>
+                <p class="item-max m-0">Max {{ item.max_limit }}</p>
+              </div>
+              <div class="item-icon d-flex justify-content-center align-items-center h-100">
+                {{ item.icon }}
+              </div>
+              <div class="info d-flex justify-content-center position-absolute bottom-0">
+                <p class="item-price m-0">{{ item.price }} {{ data.icon }}</p>
+              </div>
             </div>
-            <span class="tooltiptext" id="shop-cap-tip"{% if not at_cap %} hidden{% endif %}>{{ shop_cap_msg }}</span>
-          </span>
-
-          {% for item in data.shop %}
-          <div 
-            class="position-relative shop-item shop-item-editable"
-            data-idx="{{ loop.index0 }}"
-            data-name="{{ item.name }}"
-            data-price="{{ item.price }}"
-            data-icon="{{ item.icon }}"
-            data-description="{{ item.description }}"
-            data-type="{{ item.get('type', 'string') }}"
-            data-max-limit="{{ item.max_limit }}"
-          >
-            <button type="button" class="btn-close btn-close-white position-absolute delete-shop-item"
-                    style="top: 4px; right: 4px; z-index: 3;" aria-label="Delete item"></button>
-            <div class="info d-flex justify-content-between position-absolute top-0">
-              <p class="item-name m-0" style="width: 59%;overflow: hidden;text-overflow: ellipsis;">{{ item.name }}</p>
-              <p class="item-max m-0">Max {{ item.max_limit }}</p>
-            </div>
-            <div class="item-icon d-flex justify-content-center align-items-center h-100">
-              {{ item.icon }}
-            </div>
-            <div class="info d-flex justify-content-center position-absolute bottom-0">
-              <p class="item-price m-0">{{ item.price }} {{ data.icon }}</p>
-            </div>
+            {% endfor %}
           </div>
-          {% endfor %}
         </div>
 
         <div class="modal dark fade" id="CreateItem" aria-labelledby="CreateItemLabel">
@@ -143,40 +151,47 @@
       </div>
     </section>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Restrictions</h2>
-          <p>Handle game restrictions for all games in one place</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Restrictions</h2>
+            <p class="dash-card-subtitle">Handle game restrictions for all games in one place</p>
+          </div>
         </div>
         
         <hr>
-        <div style="width: min(450px, 100%);">
+        <div class="card-body">
           <div class="mb-3">
             <label for="MaxGambling" style="margin-bottom: 4px;">Max Gambling</label><br>
-            <input type="text" class="text-input" id="MaxGambling" name="maxgamble" placeholder="{{data['MaxGambling']}}" value="{{data['MaxGambling']}}" />
+            <input type="number" class="text-input" id="MaxGambling" name="maxgamble" placeholder="{{data['MaxGambling']}}" value="{{data['MaxGambling']}}" />
           </div>
           <div>
             <label for="MaxPayment" style="margin-bottom: 4px;">Max Payment</label><br>
-            <input type="text" class="text-input" id="MaxPayment" name="maxpay" placeholder="{{data['MaxPayment']}}" value="{{data['MaxPayment']}}" />
+            <input type="number" class="text-input" id="MaxPayment" name="maxpay" placeholder="{{data['MaxPayment']}}" value="{{data['MaxPayment']}}" />
             <p class="m-0" id="error" style="display: none;margin-top: 3px;"></p>
           </div>
         </div>
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card" style="border: 2px solid #dc3545">
-        <div class="title">
-          <h2>Reset economy</h2>
-          <p>This will remove all the coins or shop items from your users</p>
+    <section class="sectionn">
+      <div class="card" style="border: 2px solid #dc3545">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Reset economy</h2>
+            <p class="dash-card-subtitle">This will remove all the coins or shop items from your users</p>
+          </div>
         </div>
         
         <hr>
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ResetEconomyCoins" style="margin-top: 15px;">Rest economy coins</button>
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ResetEconomyShop" style="margin-top: 15px;">Rest economy shop</button>
+        <div class="card-body">
+          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ResetEconomyCoins" style="margin-top: 15px;">Rest economy coins</button>
+          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ResetEconomyShop" style="margin-top: 15px;">Rest economy shop</button>
+        </div>
       </div>
-      <div class="modal fade" id="ResetEconomyCoins">
+     
+      <div id="ResetEconomyCoins" class="modal fade">
         <div class="modal-dialog modal-dark">
           <div class="modal-content">
             <div class="modal-header">
@@ -192,7 +207,7 @@
           </div>
         </div>
       </div>
-      <div class="modal fade" id="ResetEconomyShop">
+      <div id="ResetEconomyShop" class="modal fade">
         <div class="modal-dialog modal-dark">
           <div class="modal-content">
             <div class="modal-header">
@@ -215,7 +230,7 @@
            data-idx="" data-name="" data-price="" data-icon=""
            data-description="" data-type="string" data-max-limit="">
         <button type="button" class="btn-close btn-close-white position-absolute delete-shop-item"
-                style="top: 4px; right: 4px; z-index: 3;" aria-label="Delete item"></button>
+                aria-label="Delete item"></button>
         <div class="info d-flex justify-content-between position-absolute top-0">
           <p class="item-name m-0" style="width: 65%;overflow: hidden;text-overflow: ellipsis;"></p>
           <p class="item-max m-0"></p>
@@ -240,18 +255,21 @@
   </main>
 
   <script>
+    const guildEmojisJson = JSON.parse(`{{ {'name': guild.name, 'icon': guild.icon.url if guild.icon else '', 'emojis': []} | tojson }}`);
     new EmojiPicker({
       trigger: '#edit-icon',
       position: ['bottom', 'right'],
       plug: 'eco',
+      guild: guildEmojisJson,
       emit(emoji) {
         editCurrencyIcon(emoji)
       }
     });
     new EmojiPicker({
       trigger: '#ShopItemIcon',
-      position: ['bottom', 'right'],
+      position: ['bottom', 'left'],
       plug: 'shop',
+      guild: guildEmojisJson,
       emit(emoji) {
         document.querySelector('#ShopItemIcon').innerText = emoji.icon
       }
@@ -565,8 +583,14 @@
       width: 128px;
       height: 128px;
       font-size: 30px;
-      background: var(--color-primary);
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
       border-radius: 12px;
+    }
+
+    .badge-limited {
+      background: var(--accent-color);
+      color: #fff;
     }
 
     .shop-item {
@@ -575,15 +599,37 @@
       align-items: center;
       min-width: 150px;
       height: 160px;
-      background: var(--color-card-1);
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
     }
+    .shop-item .item-name { color: var(--heading-color); }
+    .shop-item .item-max { color: var(--muted-color); }
+    .shop-item .item-price { color: var(--default-color); }
     #shop-count {
       font-size: 13px;
       padding: 4px 14px;
       border-radius: 20px;
-      background: var(--color-secondary-3);
-      color: var(--text-color);
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      color: var(--muted-color);
       font-weight: 500;
+    }
+    /* the "+" card */
+    #CreateShopItem {
+      background: transparent;
+      border: 1px dashed var(--border-color-dark);
+      cursor: pointer;
+    }
+    #CreateShopItem svg {
+      color: var(--accent-color);
+      fill: currentColor;
+    }
+    #CreateShopItem:not(.at-cap):hover {
+      background: color-mix(in srgb, var(--accent-color), transparent 88%);
+      border-color: var(--accent-color);
     }
     /* at the cap: dim the "+" card and let hover reach .tooltipp */
     #CreateShopItem.at-cap {
@@ -600,15 +646,34 @@
       padding: 0 8px;
       width: 100%;
       height: 1.5rem;
-      background-color: var(--color-card-2);
+      background-color: var(--table-hover-bg);
     }
     .shop-item-editable {
       cursor: pointer;
     }
+    .shop-item-editable:hover {
+      border-color: var(--accent-color);
+      transform: translateY(-2px);
+    }
     .shop-item-editable .delete-shop-item {
       opacity: 0;
-      transition: opacity .15s ease;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      background-color: rgba(255, 107, 134, 0.4);
+      backdrop-filter: blur(3px);
+      transition: opacity .15s ease, background-color .15s ease;
     }
+
+    .shop-item-editable .delete-shop-item i {
+      font-size: 26px;
+    }
+
     .shop-item-editable:hover .delete-shop-item {
       opacity: 1;
     }

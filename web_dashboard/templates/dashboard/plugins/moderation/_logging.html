@@ -1,13 +1,17 @@
-<section class="section">
-  <div class="feature_card">
-    <div class="title">
-      <h2>Audit Logging</h2>
-      <p>You can set logging channel and events that will be sent to specific channel. Don't miss anything
-        happening in your server, when you are not around!</p>
+<section class="sectionn">
+  <div class="card">
+    <div class="dash-card-header">
+      <div>
+        <h2 class="dash-card-title">Audit Logging</h2>
+        <p class="dash-card-subtitle">
+          You can set logging channel and events that will be sent to specific channel. 
+          Don't miss anything  happening in your server, when you are not around!
+        </p>
+      </div>
     </div>
 
     <hr>
-    <div>
+    <div class="card-body">
       <p class="mb-0">Logging channel</p>
       <div class="log-chan-wrapper single">
         <div class="select">
@@ -20,90 +24,97 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <div>
-      <h2 class="m-0 mt-3 mb-2 fs-5">Events</h2>
-      {% macro event_switch(id, label, title=None) %}
-      <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
-        <input type="checkbox" id="{{id}}" class="ms-0 form-check-input" role="switch" name="log-event-switch"
-          data-val="{{logging['events'][id]}}">
-        {% if title %}<span title="{{title}}">{{label}}</span>{% else %}{{label}}{% endif %}
-      </div>
-      {% endmacro %}
-      <div class="d-flex flex-wrap al-events-gap">
-        <div class="mod">
-          <h5 class="m-0 fs-6">Moderation</h5>
-          {{ event_switch('ModerationBan', 'Moderation ban') }}
-          {{ event_switch('ModerationUnban', 'Moderation unbaned') }}
-          {{ event_switch('ModerationKick', 'Moderation kick') }}
-          {{ event_switch('ModerationMute', 'Moderation muted') }}
-          {{ event_switch('ModerationUnmute', 'Moderation unmuted') }}
-          {{ event_switch('ModerationWarn', 'Moderation warned') }}
-          {{ event_switch('ModerationUnwarn', 'Moderation unwarned') }}
-          {{ event_switch('ModerationAntiLink', 'AntiLink triggered') }}
-          {{ event_switch('ModerationAntiSpam', 'AntiSpam triggered') }}
-          {{ event_switch('ModerationGhostPing', 'GhostPing caught') }}
-          {{ event_switch('ModerationCaps', 'Excessive Caps triggered') }}
+      <div>
+        <h2 class="m-0 mt-3 mb-2 fs-5">Events</h2>
+        {% macro event_switch(id, label, title=None) %}
+        <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+          <input type="checkbox" id="{{id}}" class="ms-0 form-check-input" role="switch" name="log-event-switch"
+            data-val="{{logging['events'][id]}}">
+          {% if title %}<span title="{{title}}">{{label}}</span>{% else %}{{label}}{% endif %}
         </div>
-
-        <div class="systems">
-          <h5 class="m-0 fs-6">Systems</h5>
-          {{ event_switch('Verification', 'Verification') }}
-        </div>
-
-        <div class="member">
-          <h5 class="m-0 fs-6">Member</h5>
-          {{ event_switch('MemberJoin', 'Member join') }}
-          {{ event_switch('MemberLeave', 'Member leave') }}
-          {{ event_switch('MemberUpdate', 'Member Updated', title='Edit: Nickname') }}
-          {{ event_switch('MemberBan', 'Member baned') }}
-          {{ event_switch('MemberUnban', 'Member unbaned') }}
-        </div>
-
-        <div class="messages">
-          <h5 class="m-0 fs-6">Message</h5>
-          {{ event_switch('MessageEdit', 'Message edit') }}
-          {{ event_switch('MessageDelete', 'Message delete') }}
-        </div>
-
-        <div class="server">
-          <h5 class="m-0 fs-6">Server</h5>
-          {{ event_switch('ServerUpdate', 'Server Updated', title='Edit: Icon, Name, Afk, Verification') }}
-          {{ event_switch('ServerEmojis', 'Emojis updated') }}
-          {{ event_switch('ServerInviteCreate', 'Server invite created') }}
-          {{ event_switch('ServerInviteDelete', 'Server invite deleted') }}
-        </div>
-
-        <div class="roles">
-          <h5 class="m-0 fs-6">Roles</h5>
-          {{ event_switch('RoleUpdate', 'Roles updated', title='Edit: Name, Color, Hoist, Mentionable') }}
-          {{ event_switch('RoleCreate', 'Roles created') }}
-          {{ event_switch('RoleDelete', 'Roles deleted') }}
-        </div>
-
-        <div class="channel">
-          <h5 class="m-0 fs-6">Channel</h5>
-          {{ event_switch('ChannelUpdate', 'Channel updated', title='Edit: Name, Topic, Category, Slowmode') }}
-          {{ event_switch('ChannelCreate', 'Channel created') }}
-          {{ event_switch('ChannelDelete', 'Channel deleted') }}
+        {% endmacro %}
+        <div class="d-flex flex-wrap al-events-gap">
+          <div class="mod">
+            <h5 class="m-0 fs-6">Moderation</h5>
+            {{ event_switch('ModerationBan', 'Moderation ban') }}
+            {{ event_switch('ModerationUnban', 'Moderation unbaned') }}
+            {{ event_switch('ModerationKick', 'Moderation kick') }}
+            {{ event_switch('ModerationMute', 'Moderation muted') }}
+            {{ event_switch('ModerationUnmute', 'Moderation unmuted') }}
+            {{ event_switch('ModerationWarn', 'Moderation warned') }}
+            {{ event_switch('ModerationUnwarn', 'Moderation unwarned') }}
+            {{ event_switch('ModerationAntiLink', 'AntiLink triggered') }}
+            {{ event_switch('ModerationAntiSpam', 'AntiSpam triggered') }}
+            {{ event_switch('ModerationGhostPing', 'GhostPing caught') }}
+            {{ event_switch('ModerationCaps', 'Excessive Caps triggered') }}
+          </div>
+  
+          <div class="systems">
+            <h5 class="m-0 fs-6">Systems</h5>
+            {{ event_switch('Verification', 'Verification') }}
+          </div>
+  
+          <div class="member">
+            <h5 class="m-0 fs-6">Member</h5>
+            {{ event_switch('MemberJoin', 'Member join') }}
+            {{ event_switch('MemberLeave', 'Member leave') }}
+            {{ event_switch('MemberUpdate', 'Member Updated', title='Edit: Nickname') }}
+            {{ event_switch('MemberBan', 'Member baned') }}
+            {{ event_switch('MemberUnban', 'Member unbaned') }}
+          </div>
+  
+          <div class="messages">
+            <h5 class="m-0 fs-6">Message</h5>
+            {{ event_switch('MessageEdit', 'Message edit') }}
+            {{ event_switch('MessageDelete', 'Message delete') }}
+          </div>
+  
+          <div class="server">
+            <h5 class="m-0 fs-6">Server</h5>
+            {{ event_switch('ServerUpdate', 'Server Updated', title='Edit: Icon, Name, Afk, Verification') }}
+            {{ event_switch('ServerEmojis', 'Emojis updated') }}
+            {{ event_switch('ServerInviteCreate', 'Server invite created') }}
+            {{ event_switch('ServerInviteDelete', 'Server invite deleted') }}
+          </div>
+  
+          <div class="roles">
+            <h5 class="m-0 fs-6">Roles</h5>
+            {{ event_switch('RoleUpdate', 'Roles updated', title='Edit: Name, Color, Hoist, Mentionable') }}
+            {{ event_switch('RoleCreate', 'Roles created') }}
+            {{ event_switch('RoleDelete', 'Roles deleted') }}
+          </div>
+  
+          <div class="channel">
+            <h5 class="m-0 fs-6">Channel</h5>
+            {{ event_switch('ChannelUpdate', 'Channel updated', title='Edit: Name, Topic, Category, Slowmode') }}
+            {{ event_switch('ChannelCreate', 'Channel created') }}
+            {{ event_switch('ChannelDelete', 'Channel deleted') }}
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section">
-  <div class="feature_card">
-    <div class="title">
-      <h2>Additional settings</h2>
+<section class="sectionn">
+  <div class="card">
+    <div class="dash-card-header">
+      <h2 class="dash-card-title">Additional settings</h2>
     </div>
 
     <hr>
-    <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
-      <input type="checkbox" id="Bots" class="ms-0 form-check-input" role="switch"
-        data-val="{{data['logging']['bots']}}">
-      Don't log actions made by bots
+    <div class="card-body">
+      <div class="d-flex gap-2 align-items-end ps-0 user-select-none form-switch">
+        <input
+          type="checkbox"
+          id="Bots"
+          class="ms-0 form-check-input"
+          role="switch"
+          data-val="{{data['logging']['bots']}}"
+        >
+        Don't log actions made by bots
+      </div>
     </div>
   </div>
 </section>

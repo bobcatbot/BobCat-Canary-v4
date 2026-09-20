@@ -2,41 +2,25 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-body position-relative">
-        <div class="position-absolute" style="top: var(--bs-modal-padding); right: var(--bs-modal-padding);">
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
+        <button type="button" class="btn-close pm-close" data-bs-dismiss="modal" aria-label="Close"></button>
 
-        <div class="d-flex flex-row main-content">
-          <div class="d-none d-md-block bg-img"></div>
-          
-          <div class="content w-100 d-flex flex-column justify-content-center">
-            <h5 class="m-0">
-              You discovered a <span style="color: #5865f2">Premium</span> feature!
-            </h5>
-            <h5 class="m-0">
+        <div class="pm-layout">
+          <div class="pm-img d-none d-md-block"></div>
+
+          <div class="pm-content">
+            <h5 class="pm-title">
+              You discovered a <span class="pm-accent">Premium</span> feature!
               Upgrade to unlock it.
             </h5>
 
-            <ul style="list-style: none;padding-left: 0;margin-top: 0.9rem;margin-bottom: 1rem;">
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Access to everything
-              </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Early access
-              </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Fully refundable for 7 days
-              </li>
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                Cancel anytime
-              </li>
+            <ul class="pm-list">
+              <li><i class="bi bi-check-circle-fill"></i> Access to everything</li>
+              <li><i class="bi bi-check-circle-fill"></i> Early access</li>
+              <li><i class="bi bi-check-circle-fill"></i> Fully refundable for 7 days</li>
+              <li><i class="bi bi-check-circle-fill"></i> Cancel anytime</li>
             </ul>
 
-            <div class="buttons">
+            <div class="pm-buttons">
               <a href="/dashboard/{{guild.id}}/premium" class="btn btn-premium">Upgrade</a>
               <button class="btn" style="--bs-btn-color: #fff" data-bs-dismiss="modal">Not now</button>
             </div>
@@ -46,48 +30,73 @@
     </div>
   </div>
   <style>
-    #PremiumModal.modal.dark .btn-close {
-      background-size: 50%;
-      padding: 4px;
-      background: 
-        transparent 
-        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23FFF'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e") 
-        center/1em 
-        auto 
-        no-repeat !important
+    /* Class names are pm-* on purpose: this component is included on many pages,
+       and generic names (.icon, .content, .main-content) collide with theirs. */
+    /* ta-main.css sizes dialogs with its own max-width (not --bs-modal-width) */
+    #PremiumModal .modal-dialog {
+      max-width: 760px;
     }
 
-    .bg-img {
-      height: 320px;
-      width: 450px;
-      margin-right: 16px;
-      
-      background-image: url('/static/img/bobcat1.png');
-      background-size: cover;
-      background-repeat: no-repeat;
-      border-radius: 8px;
+    #PremiumModal .pm-close {
+      position: absolute;
+      top: var(--bs-modal-padding);
+      right: var(--bs-modal-padding);
+      z-index: 2;
+      opacity: 0.8;
     }
+    #PremiumModal .pm-close:hover { opacity: 1; }
 
-    .icon {
+    #PremiumModal .pm-layout {
       display: flex;
-      font-size: 36px;
-      color: green;
+      align-items: stretch;
+      gap: 24px;
     }
 
-    @media (min-width: 768px) {
-      #PremiumModal .modal-dialog {
-        --bs-modal-width: 70%;
-      }
+    #PremiumModal .pm-img {
+      flex: 0 0 43%;
+      min-height: 300px;
+      background: url('/static/img/bobcat-blob-plain.png') center / cover no-repeat;
     }
-    @media (min-width: 1024px) {
-      #PremiumModal .modal-dialog {
-        --bs-modal-width: 60%;
-      }
+
+    #PremiumModal .pm-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-right: 28px; /* keeps text clear of the close button */
     }
-    @media (min-width: 1440px) {
-      #PremiumModal .modal-dialog {
-        --bs-modal-width: 50%;
-      }
+
+    #PremiumModal .pm-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    #PremiumModal .pm-accent { color: var(--accent-color, #5865f2); }
+
+    #PremiumModal .pm-list {
+      list-style: none;
+      padding: 0;
+      margin: 1.1rem 0 1.4rem;
+    }
+    #PremiumModal .pm-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.3rem 0;
+      font-size: 0.9rem;
+    }
+    #PremiumModal .pm-list i {
+      flex-shrink: 0;
+      font-size: 1.05rem;
+      color: var(--accent-color, #5865f2);
+    }
+
+    #PremiumModal .pm-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 </div>

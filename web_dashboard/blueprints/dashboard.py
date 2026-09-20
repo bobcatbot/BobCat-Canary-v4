@@ -7,8 +7,9 @@ from modules import bot as v
 from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig
 from cogs._bot.bot_dash import sync_guild_dashboard
 from ..config import INVITE_URL, REDIRECT_URI
-from ..consts import langs, premium_faqs, premium_types, tz, RESERVED_SLUGS
-from ..utils import bearer_client, check_guild_permission as _check_guild_permission, login_required, is_premium, plugin_item_cap
+from ..db import get_bell_notifications
+from ..consts import langs, premium_faqs, premium_plans, tz, RESERVED_SLUGS
+from ..utils import bearer_client, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
 from ..plugins import PLUGIN_LIST
 from ..uploads import upload_embed_image, UploadError
 
@@ -67,6 +68,16 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
     eligible.sort(key=lambda x: (perm_order.get(x['perm'], 99), x['name']))
     return eligible
 
+def _is_owner_or_admin(guild, user_id) -> bool:
+    """The test a transfer target has to pass: the user owns the guild or has
+    Discord Administrator there. Shared by the transfer picker and the route so
+    the modal never offers a server the route will refuse."""
+    if guild.owner_id == user_id:
+        return True
+    member = guild.get_member(user_id)
+    return bool(member and member.guild_permissions.administrator)
+
+
 @dashboard_bp.route("/dashboard")
 @login_required
 async def guilds():
@@ -121,7 +132,7 @@ async def dashboard_home(guild_id):
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/settings")
-@login_required
+@guild_guard
 async def settings(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
@@ -134,32 +145,15 @@ async def settings(guild_id):
 
 
 # ── Premium ───────────────────────────────────────────────────────────────────
-@dashboard_bp.route("/dashboard/<int:guild_id>/premium", methods=["GET", "POST"])
-@login_required
+@dashboard_bp.route("/dashboard/<int:guild_id>/premium")
+@guild_guard
 async def premium(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
     config = await Guild.get(str(guild.id))
     prem_data = config.premium if config else PremiumConfig()
 
-    # ✅ Build dynamic plans list with all needed data
-    plans = []
-    for plan_key, plan_data in premium_types.items():
-        plans.append({
-            'key': plan_key,
-            'name': plan_key.title(),  # Monthly, Yearly, Lifetime
-            'price': plan_data.get('price', '$0.00'),
-            'mode': plan_data.get('mode', 'subscription'),
-            'price_id': plan_data.get('price_id'),
-            'features': plan_data.get('features', [
-                "Access to our premium plugins & features",
-                "Early access"
-            ]),
-        })
-
-    # ✅ Get Stripe publishable key from config
-    stripe_public_key = current_app.config.get('STRIPE_PUBLIC_KEY', '')
-
+    # No premium yet: the plans / checkout page (index.html builds the cards from `plans`)
     if not prem_data.status:
         return await render_template(
             "dashboard/premium/index.html",
@@ -167,151 +161,93 @@ async def premium(guild_id):
             guild=guild,
             data=prem_data,
             faqs=premium_faqs,
-            types=premium_types,
-            plans=plans,
-            stripe_public_key=stripe_public_key
+            plans=premium_plans,
+            stripe_public_key=current_app.config.get('STRIPE_PUBLIC_KEY', '')
         )
 
-    # Get the user who purchased premium
+    # Who paid for it (for a gift: who gave it)
     user = None
-    user_id = prem_data.user_id
-    if user_id:
+    if prem_data.user_id:
         try:
-            user = v.client.get_user(int(user_id))
+            user = v.client.get_user(int(prem_data.user_id))
         except (ValueError, TypeError):
             pass
 
-    # ✅ Get all guilds the user owns or has admin in
-    user_guilds = await get_user_eligible_guilds(current_user=current_user, exclude_guild_id=guild_id)
+    # Only the owner can transfer (transfer_premium_execute enforces it), so only they need the picker: servers the bot is in, the user owns / is Administrator of, and that don't already have premium (the route refuses those too)
+    is_owner = guild.owner_id == current_user.id
+    user_guilds = []
+    if is_owner:
+        eligible = await get_user_eligible_guilds(current_user=current_user, exclude_guild_id=guild_id)
+        candidates = [
+            g for g in eligible
+            if (bot_guild := v.client.get_guild(g['id'])) and _is_owner_or_admin(bot_guild, current_user.id)
+        ]
+        target_docs = {
+            d.id: d for d in
+            await Guild.find({"_id": {"$in": [str(g['id']) for g in candidates]}}).to_list()
+        }
+        user_guilds = [
+            g for g in candidates
+            if (d := target_docs.get(str(g['id']))) and not d.premium.status
+        ]
 
-    # ✅ Get the expiry date - try period_end first, then code_expiry
-    expiry_date = None
-    
-    # Try period_end (from Stripe)
-    if prem_data.period_end:
-        expiry_date = prem_data.period_end
-    # Try code_expiry (from dev command)
-    elif prem_data.code_expiry:
-        expiry_date = prem_data.code_expiry
-    # Fallback: calculate from subscribed_at
-    elif prem_data.subscribed_at and prem_data.plan:
-        subscribed_at = prem_data.subscribed_at
-        plan = prem_data.plan
-        
-        if isinstance(subscribed_at, datetime):
-            if plan == 'trial':
-                expiry_date = subscribed_at + timedelta(days=30)
-            elif plan in ('monthly', 'month'):
-                expiry_date = subscribed_at + timedelta(days=30)
-            elif plan in ('yearly', 'year'):
-                expiry_date = subscribed_at + timedelta(days=365)
+    # When it ends: Stripe writes period_end, the dev command writes code_expiry, and anything else falls back to subscribed_at plus the plan's length
+    plan = prem_data.plan
+    is_trial = plan == 'trial'
+    expiry = prem_data.period_end or prem_data.code_expiry
+    if not expiry and prem_data.subscribed_at:
+        plan_days = {'trial': 30, 'monthly': 30, 'month': 30, 'yearly': 365, 'year': 365}.get(plan)
+        if plan_days:
+            expiry = prem_data.subscribed_at + timedelta(days=plan_days)
 
-    # ✅ Calculate days remaining
-    next_bill_date = None
-    days_countdown = "0"
-    next_bill_formatted = "Never"
+    next_bill = "Never"
+    countdown = "0"
     is_expired = False
-    is_trial = prem_data.plan == 'trial'
-    
-    if expiry_date:
-        # Convert to datetime if needed
-        if isinstance(expiry_date, (int, float)):
-            next_bill_date = datetime.fromtimestamp(expiry_date)
-        elif isinstance(expiry_date, str):
-            try:
-                next_bill_date = datetime.fromisoformat(expiry_date)
-            except ValueError:
-                pass
-        elif isinstance(expiry_date, datetime):
-            next_bill_date = expiry_date
-        
-        if next_bill_date:
-            # Make sure timezone is set
-            if not next_bill_date.tzinfo:
-                next_bill_date = next_bill_date.replace(tzinfo=timezone.utc)
-            
-            now = datetime.now(timezone.utc)
-            days_remaining = (next_bill_date - now).days
-            
-            if days_remaining < 0:
-                days_countdown = "0"
-                next_bill_formatted = "Expired"
-                is_expired = True
-                # Auto-deactivate if expired
-                if prem_data.active:
-                    prem_data.active = False
-                    prem_data.status = False
-                    await config.save()
-            elif days_remaining == 0:
-                days_countdown = "0"
-                next_bill_formatted = "Today"
-            else:
-                days_countdown = str(days_remaining)
-                next_bill_formatted = next_bill_date.strftime("%d %B %Y")
 
-    # ✅ For trials with no expiry, show "Trial (No expiry)" or "Never"
-    if is_trial and not expiry_date:
-        next_bill_formatted = "Trial (No expiry)"
+    if expiry:
+        if not expiry.tzinfo:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        days_remaining = (expiry - datetime.now(timezone.utc)).days
 
-    # Build data for template
+        if days_remaining < 0:
+            next_bill = "Expired"
+            is_expired = True
+            # Switch it off the first time anyone notices (this GET writes)
+            if prem_data.active:
+                prem_data.active = False
+                prem_data.status = False
+                await config.save()
+        elif days_remaining == 0:
+            next_bill = "Today"
+        else:
+            countdown = str(days_remaining)
+            next_bill = expiry.strftime("%d %B %Y")
+    elif is_trial:
+        next_bill = "Trial (No expiry)"
+
     data = {
-        'next_bill': next_bill_formatted,
-        'countdown': days_countdown,
+        **prem_data,
+        'next_bill': next_bill,
+        'countdown': countdown,
         'is_expired': is_expired,
         'is_trial': is_trial,
-        'is_lifetime': prem_data.plan == 'lifetime',
-        'plan': prem_data.plan,
+        'is_lifetime': plan == 'lifetime',
+        'is_gifted': not prem_data.customer,
+        'plan': plan,
         'user': {
             'avatar': user.avatar.url if user and hasattr(user, 'avatar') else '',
             'name': user.name if user else 'Unknown',
         },
     }
-    # Merge with existing premium data
-    data = {**prem_data, **data}
 
     return await render_template(
         "dashboard/premium/manage.html",
         user=current_user,
         guild=guild,
         data=data,
-        types=premium_types,
-        user_guilds=user_guilds
-    )
-
-@dashboard_bp.route("/dashboard/<int:guild_id>/premium/transfer", methods=["GET"])
-@login_required
-async def transfer_premium_page(guild_id):
-    """Show the premium transfer page."""
-    current_user = bearer_client().get_current_user()
-    guild = v.client.get_guild(guild_id)
-    
-    if not guild:
-        await flash("Guild not found", "danger")
-        return redirect(url_for('dashboard.dashboard_home'))
-    
-    # Check if user has permission (guild owner)
-    if guild.owner_id != current_user.id:
-        await flash("Only the guild owner can transfer premium", "danger")
-        return redirect(url_for('dashboard.premium', guild_id=guild_id))
-    
-    doc = await Guild.get(str(guild_id))
-    if not doc or not doc.premium.status:
-        await flash("This guild doesn't have premium", "warning")
-        return redirect(url_for('dashboard.premium', guild_id=guild_id))
-    
-    # Get all guilds the user owns where they have admin
-    user_guilds = []
-    for g in v.client.guilds:
-        if g.owner_id == current_user.id or g.get_member(current_user.id).guild_permissions.administrator:
-            if g.id != guild_id:  # Exclude current guild
-                user_guilds.append(g)
-    
-    return await render_template(
-        "dashboard/premium/transfer.html",
-        user=current_user,
-        guild=guild,
-        data=doc.premium,
-        user_guilds=user_guilds
+        plans=premium_plans,
+        user_guilds=user_guilds,
+        is_owner=is_owner
     )
 
 @dashboard_bp.route("/dashboard/<int:guild_id>/premium/transfer", methods=["POST"])
@@ -328,7 +264,11 @@ async def transfer_premium_execute(guild_id):
     doc = await Guild.get(str(guild_id))
     if not doc or not doc.premium.status:
         return jsonify({'error': 'This guild does not have premium'}), 404
-    
+
+    # Every Stripe purchase records a customer; `/dev premium add` gifts never do
+    if not doc.premium.customer:
+        return jsonify({'error': "Gifted premium can't be transferred"}), 403
+
     data = await request.get_json()
     target_guild_id = data.get('target_guild_id')
     
@@ -340,10 +280,8 @@ async def transfer_premium_execute(guild_id):
         return jsonify({'error': 'Target guild not found'}), 404
     
     # Check if user owns/has admin in target guild
-    if target_guild.owner_id != current_user.id:
-        target_member = target_guild.get_member(current_user.id)
-        if not target_member or not target_member.guild_permissions.administrator:
-            return jsonify({'error': 'You need Administrator permissions in the target guild'}), 403
+    if not _is_owner_or_admin(target_guild, current_user.id):
+        return jsonify({'error': 'You need Administrator permissions in the target guild'}), 403
     
     target_doc = await Guild.get(str(target_guild_id))
     if not target_doc:
@@ -389,52 +327,71 @@ async def transfer_premium_execute(guild_id):
     
     return jsonify({'status': 'success', 'message': 'Premium transferred successfully'}), 200
 
+
 # ── Notifications ─────────────────────────────────────────────────────────────
-@dashboard_bp.route("/dashboard/<int:guild_id>/notifications", methods=["GET", "POST"])
-@login_required
+def _iso_utc(dt: datetime) -> str:
+    """ISO-8601 in UTC with an explicit offset, so the browser converts it to
+    the viewer's local time. Mongo can hand back naive datetimes; those are UTC."""
+    dt = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    return dt.isoformat()
+
+@dashboard_bp.route("/dashboard/<int:guild_id>/notifications", methods=["GET", "POST", "DELETE"])
+@guild_guard
 async def notifications(guild_id):
     current_user = bearer_client().get_current_user()
     guild = v.client.get_guild(guild_id)
-    
-    all_notifs = await Notification.find(Notification.guild_id == str(guild.id)).to_list()
+    guild_id_str = str(guild.id)
+
+    def guild_notifs():
+        # fresh query per use: Beanie's sort()/find() mutate the query object
+        return Notification.find(Notification.guild_id == guild_id_str)
+
+    if request.method == 'DELETE':
+        res = await request.get_json()
+        await guild_notifs().find(Notification.notification_id == res['id']).delete()
+        return jsonify({'status': 'success', 'message': 'Successfully deleted notification'})
 
     if request.method == 'POST':
         res = await request.get_json()
-        notif = next((n for n in all_notifs if n.notification_id == res['id']), None)
-        if notif:
-            res.pop('id')
-            for key, val in res.items():
-                setattr(notif, key, val)
+        if res.get('mark_all_read'):
+            await guild_notifs().find(Notification.read == False).update({"$set": {"read": True}})
+        else:
+            notif = await guild_notifs().find(Notification.notification_id == res['id']).first_or_none()
+            if notif is None:
+                return jsonify({'status': 'error', 'message': 'Notification not found'}), 404
+            notif.read = bool(res['read'])
             await notif.save()
         return jsonify({'status': 'success', 'message': 'Successfully updated notifications'})
 
-    notifications_by_date = {}
-    for notification in all_notifs:
-        date = notification.created_at.strftime('%Y-%m-%d')
-        notifications_by_date.setdefault(date, []).append({
-            'id': notification.notification_id,
-            'type': notification.type,
-            'title': notification.title,
-            'description': notification.description,
-            'fix': notification.fix,
-            'link': notification.link,
-            'user': notification.user,
-            'read': notification.read,
-            'created_at': {
-                'date': notification.created_at.strftime('%Y-%m-%d'),
-                'time': notification.created_at.strftime('%H:%M:%S'),
-            }
-        })
-        notifications_by_date[date].sort(key=lambda x: x['created_at']['time'], reverse=True)
-    notifications_by_date = dict(reversed(list(notifications_by_date.items())))
+    # Newest first; the page groups them into days in the viewer's timezone.
+    all_notifs = await guild_notifs().sort([(Notification.created_at, -1)]).to_list()
+    data = [
+        {
+            'id': n.notification_id,
+            'type': n.type,
+            'title': n.title,
+            'description': n.description,
+            'fix': n.fix,
+            'link': n.link,
+            'user': n.user,
+            'read': n.read,
+            'created_at': _iso_utc(n.created_at),
+        }
+        for n in all_notifs
+    ]
 
     return await render_template(
         "dashboard/notifications.html",
-        user=current_user, guild=guild, config=all_notifs, data=notifications_by_date
+        user=current_user, guild=guild, data=data
     )
 
+@dashboard_bp.route("/dashboard/<int:guild_id>/notifications/unread")
+@guild_guard
+async def notifications_unread(guild_id):
+    """JSON for the navbar bell's poll: newest unread + total unread count."""
+    return jsonify(await get_bell_notifications(guild_id))
 
-# ── Data post (catch-all config update) ──────────────────────────────────────
+
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
 async def data_post(guild_id):
     """

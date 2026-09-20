@@ -7,7 +7,7 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   <!-- ======= Main ======= -->
   <main id="main" class="main">
@@ -368,50 +368,7 @@
         save_data.settings.options.reactions.emojis.push(emoji.icon)
         deleteEmoji()
       },
-      onload() {
-        var emojiPickerUL = document.querySelector('.emoji-picker-categories ul')
-        var li = document.createElement('li')
-        li.setAttribute('class', '')
-        li.setAttribute('id', 'server')
-        li.setAttribute('data-index', 'server')
-        li.innerHTML = '<a href="server"><img src="{{guild.icon.url}}" title="{{guild.name}}" width="20" height="20"></a>'
-        emojiPickerUL.appendChild(li)
-
-        var emojiPicker_emojisAllCategories = document.querySelector('.emoji-picker-all-categories')
-
-        var ul = document.createElement('ul')
-        ul.setAttribute('id', 'server')
-        ul.setAttribute('class', 'emoji-picker-category')
-
-        var title = document.createElement('div')
-        title.setAttribute('class', 'emoji-picker-container-title')
-        title.innerHTML = `<div style="margin-right:5px"><img src="{{guild.icon.url}}" width="20" height="20"></div> {{guild.name}}`
-        ul.appendChild(title)
-
-        var emojiGrid = document.createElement('div')
-        emojiGrid.setAttribute('class', 'emoji-picker-grid')
-        ul.appendChild(emojiGrid)
-
-        const guildEmojis = JSON.parse('{{guild_models(guild).emojis | tojson}}')
-
-        guildEmojis.forEach((emoji) => {
-          var emojii = document.createElement('li')
-          emojii.setAttribute('data-name', `${emoji.name}`)
-
-          const emojiElement = document.createElement('a');
-          emojiElement.className = 'emoji-picker-item';
-          emojiElement.href = `<:${emoji.name}:${emoji.id}>`;
-          emojiElement.title = emoji.name;
-          emojiElement.dataset.name = emoji.name;
-
-          emojiElement.innerHTML = `<img src="${emoji.url}" alt="${emoji.name}" width="34" height="34">`;
-
-          emojii.appendChild(emojiElement)
-          emojiGrid.appendChild(emojii);
-        })
-
-        emojiPicker_emojisAllCategories.appendChild(ul)
-      },
+      guild: {{ {'name': guild.name, 'icon': guild.icon.url if guild.icon else '', 'emojis': guild_models(guild).emojis} | tojson }},
     });
 
     function deleteEmoji() {

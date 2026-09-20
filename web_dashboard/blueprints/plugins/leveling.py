@@ -1,4 +1,3 @@
-import json
 import discord
 import pymongo
 from quart import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
@@ -7,7 +6,7 @@ from modules import bot as v
 from modules.models import Guild, Leveling
 from ...config import mongoURI_db
 from ...uploads import UploadError, upload_rank_card_image
-from ...utils import bearer_client, check_guild_permission, plugin_guard, is_premium
+from ...utils import bearer_client, check_guild_permission, dev_required, plugin_guard, is_premium
 
 leveling_bp = Blueprint('leveling', __name__)
 
@@ -200,18 +199,8 @@ async def levelling(guild_id):
 THEME_DEFAULTS = { "brand": {"bar_bg": "#FFFFFF"}, "pic": {"bar_bg": "#484B4E"} }
 
 @leveling_bp.route("/admin/rank-cards", methods=["GET", "POST"])
+@dev_required
 async def admin_rank_cards():
-    # Site-wide admin page (not guild-scoped) — gated to modules/devs.json's team,
-    # checked inline here rather than a shared decorator since this is the only route that needs it.
-    if 'token' not in session:
-        session['redirect'] = request.url
-        return await render_template("login.html", logInWithDiscord=url_for('auth.login'))
-
-    current_user = bearer_client().get_current_user()
-    dev_ids = {str(dev['id']) for dev in json.load(open("modules/devs.json"))['team']}
-    if str(current_user.id) not in dev_ids:
-        return await render_template("error/404.html"), 404
-
     error = None
 
     if request.method == "POST":

@@ -6,79 +6,86 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
-  <main id="main" class="main">
+  <main id="main" class="main main-content">
     <div class="pagetitle">
       <h1>Premium</h1>
       <p>Manage your premium subscription</p>
     </div>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Subscription</h2>
+    <section class="sectionn mb-3">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Subscription</h2>
         </div>
         <hr>
 
-        <div class="plan-info">
-          <h2 class="plan-title m-0">
-            <span class="text-capitalize">{{data.plan}}</span> plan
-            {% if data.is_trial %}
-            <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7rem;">TRIAL</span>
+        <div class="card-body">
+          <div class="plan-info">
+            <h2 class="plan-title m-0">
+              <span class="text-capitalize">{{data.plan}}</span> plan
+              {% if data.is_gifted %}
+              <span class="badge bg-success ms-2" style="font-size: 0.7rem;"><i class="bi bi-gift-fill"></i> GIFTED</span>
+              {% endif %}
+              {% if data.is_trial %}
+              <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7rem;">TRIAL</span>
+              {% endif %}
+              {% if data.is_expired %}
+              <span class="badge bg-danger ms-2" style="font-size: 0.7rem;">EXPIRED</span>
+              {% endif %}
+            </h2>
+            {% if data.is_gifted and not data.is_trial %}
+            <p class="text-muted">Gifted &mdash; no payment required</p>
+            {% elif data.plan == 'monthly' %}
+            <p class="text-muted">{{plans['monthly']['price']}} / month</p>
+            {% elif data.plan == 'yearly' %}
+            <p class="text-muted">{{plans['yearly']['price']}} / year</p>
+            {% elif data.plan == 'lifetime' %}
+            <p class="text-muted">{{plans['lifetime']['price']}} / one time payment</p>
+            {% elif data.plan == 'trial' %}
+            <p class="text-muted">Free trial</p>
             {% endif %}
-            {% if data.is_expired %}
-            <span class="badge bg-danger ms-2" style="font-size: 0.7rem;">EXPIRED</span>
-            {% endif %}
-          </h2>
-          {% if data.plan == 'monthly' %}
-          <p class="text-muted">{{types['monthly']['price']}} / month</p>
-          {% elif data.plan == 'yearly' %}
-          <p class="text-muted">{{types['yearly']['price']}} / year</p>
-          {% elif data.plan == 'lifetime' %}
-          <p class="text-muted">{{types['lifetime']['price']}} / one time payment</p>
-          {% elif data.plan == 'trial' %}
-          <p class="text-muted">Free trial</p>
-          {% endif %}
-        </div>
-        
-        <div class="info">
-          <div class="field">
-            <h6 class="title">Next payment</h6>
-            <p>{{data.next_bill}} {% if data.countdown != '0' and data.countdown != 'Never' %}(in {{data.countdown}} days){% endif %}</p>
           </div>
-          <div class="field">
-            <h6 class="title">Amount</h6>
-            <p>{% if data.plan == 'trial' %}Free{% else %}{{types[data.plan]['price']}}{% endif %}</p>
-          </div>
-          <div class="field">
-            <h6 class="title">Paid by</h6>
-            <div class="d-flex align-items-center">
-              <img src="{{data.user.avatar}}" class="me-1" style="width: 32px;height: 32px;border-radius: 100%;" alt="Paid user avatar">
-              <p class="m-0">{{data.user.name}}</p>
+          
+          <div class="sub-info">
+            <div class="field">
+              <h6 class="title">{% if data.is_gifted %}Expires{% else %}Next payment{% endif %}</h6>
+              <p>{{data.next_bill}} {% if data.countdown != '0' and data.countdown != 'Never' %}(in {{data.countdown}} days){% endif %}</p>
             </div>
+            <div class="field">
+              <h6 class="title">Amount</h6>
+              <p>{% if data.plan == 'trial' or data.is_gifted %}Free{% else %}{{plans[data.plan]['price']}}{% endif %}</p>
+            </div>
+            <div class="field">
+              <h6 class="title">{% if data.is_gifted %}Gifted by{% else %}Paid by{% endif %}</h6>
+              <div class="d-flex align-items-center">
+                <img src="{{data.user.avatar}}" class="me-1" style="width: 32px;height: 32px;border-radius: 100%;" alt="{% if data.is_gifted %}Gifted by{% else %}Paid by{% endif %} avatar">
+                <p class="m-0">{{data.user.name}}</p>
+              </div>
+            </div>
+            <div class="field">
+              <h6 class="title">Guild ID</h6>
+              <p>{{guild.id}}</p>
+            </div>
+            <div class="field">
+              <h6 class="title">Guild Name</h6>
+              <p>{{guild.name}}</p>
+            </div>
+            {% if data.is_trial and data.code_expiry %}
+            <div class="field">
+              <h6 class="title">Trial expires</h6>
+              <p>{{data.next_bill}}</p>
+            </div>
+            {% endif %}
           </div>
-          <div class="field">
-            <h6 class="title">Guild ID</h6>
-            <p>{{guild.id}}</p>
-          </div>
-          <div class="field">
-            <h6 class="title">Guild Name</h6>
-            <p>{{guild.name}}</p>
-          </div>
-          {% if data.is_trial and data.code_expiry %}
-          <div class="field">
-            <h6 class="title">Trial expires</h6>
-            <p>{{data.next_bill}}</p>
-          </div>
-          {% endif %}
         </div>
       </div>
     </section>
 
     <!-- Manage Subscription In Stripe Portal -->
     {% if data.customer and not data.is_trial %}
-    <div class="manage-sub-wrapper">
+    <div class="manage-sub-wrapper mb-2">
       <button id="manage-sub" class="alert alert-custom d-flex justify-content-between" role="alert">
         <span>
           Manage your subscription
@@ -89,9 +96,9 @@
     {% endif %}
 
     <!-- Transfer Button -->
-    {% if data.status and not data.is_expired and not data.is_trial %}
-    <div class="transfer-wrapper mt-2">
-      <button id="openTransferModal" class="alert alert-custom-transfer d-flex justify-content-between" role="alert" data-bs-toggle="modal" data-bs-target="#transferModal">
+    {% if data.status and is_owner and not data.is_expired and not data.is_trial and not data.is_gifted %}
+    <div class="transfer-wrapper mb-2">
+      <button id="openTransferModal" class="alert alert-custom d-flex justify-content-between" role="alert" data-bs-toggle="modal" data-bs-target="#transferModal">
         <span>
           <i class="bi bi-arrow-left-right me-2"></i>
           Transfer premium to another server
@@ -103,12 +110,12 @@
 
     <!-- Cancel button -->
     {% if data.status and not data.is_expired and not data.is_trial and not data.is_lifetime %}
-    <div class="cancel-wrapper mt-2">
-      <button id="cancel-sub" class="alert alert-custom-danger d-flex justify-content-between" role="alert">
+    <div class="cancel-wrapper">
+      <button id="cancel-sub" class="alert alert-custom d-flex justify-content-between" role="alert">
         <span>
           Cancel subscription
         </span>
-        <i class="bi bi-x-circle"></i>
+        <i class="bi bi-chevron-right"></i>
       </button>
     </div>
     {% endif %}
@@ -153,7 +160,7 @@
                     <option value="" disabled>No eligible servers found</option>
                   {% endif %}
                 </select>
-                <div class="form-text">Only servers where you have Administrator permissions are shown.</div>
+                <div class="form-text">Only servers the bot is in, where you have Administrator permissions and that don't have premium yet are shown.</div>
               </div>
 
               <div class="mb-3">
@@ -166,7 +173,7 @@
               </div>
 
               <!-- Transfer Details Preview -->
-              <div id="transferPreview" class="info mt-3" style="display: none;">
+              <div id="transferPreview" class="sub-info mt-3" style="display: none;">
                 <h6 class="mb-2">Transfer Details:</h6>
                 <div class="field">
                   <h6 class="title">From</h6>
@@ -245,6 +252,70 @@
         }
       });
     }
+
+    // ── Transfer premium ──
+    const transferModal = document.querySelector('#transferModal');
+    const transferForm = document.querySelector('#transferForm');
+    const transferSelect = document.querySelector('#transferGuildSelect');
+    const confirmNameInput = document.querySelector('#confirmServerName');
+    const targetNameDisplay = document.querySelector('#targetServerNameDisplay');
+    const transferPreview = document.querySelector('#transferPreview');
+    const confirmTransferBtn = document.querySelector('#confirmTransferBtn');
+
+    function selectedTarget() {
+      const option = transferSelect.selectedOptions[0];
+      return option && option.value ? { id: option.value, name: option.dataset.name } : null;
+    }
+
+    // Everything hangs off two inputs (the server, the typed name), so one function redraws the lot
+    function updateTransferForm() {
+      const target = selectedTarget();
+
+      confirmNameInput.disabled = !target;
+      transferPreview.style.display = target ? 'block' : 'none';
+      targetNameDisplay.textContent = target ? target.name : '(select a server first)';
+      if (target) {
+        document.querySelector('#previewTargetName').textContent = target.name;
+        document.querySelector('#previewTargetId').textContent = target.id;
+      }
+
+      // The label says "exactly", so an exact match (bar stray spaces) is what unlocks the button
+      confirmTransferBtn.disabled = !target || confirmNameInput.value.trim() !== target.name.trim();
+    }
+
+    transferSelect.addEventListener('change', () => {
+      confirmNameInput.value = '';
+      updateTransferForm();
+    });
+    confirmNameInput.addEventListener('input', updateTransferForm);
+    transferModal.addEventListener('hidden.bs.modal', () => {
+      transferForm.reset();
+      updateTransferForm();
+    });
+
+    confirmTransferBtn.addEventListener('click', async () => {
+      const target = selectedTarget();
+      if (!target) return;
+
+      confirmTransferBtn.disabled = true; // no double submits
+      try {
+        const res = await fetch(`/dashboard/{{guild.id}}/premium/transfer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_guild_id: target.id }),
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          location.reload(); // this server has no premium now, so the page swaps to the plans view
+          return;
+        }
+        alert('Error transferring premium: ' + (data.error || 'Unknown error'));
+      } catch (err) {
+        console.error('Error transferring:', err);
+        alert('Error transferring premium');
+      }
+      updateTransferForm();
+    });
   </script>
 
   <style>
@@ -253,43 +324,30 @@
       font-weight: 700;
     }
 
-    .info {
-      background-color: var(--color-secondary-4);
+    .sub-info {
+      background-color: var(--background-color);
       padding: 8px;
-      border-radius: 8px;
+      border-radius: 2px;
     }
     
-    .info .field {
+    .sub-info .field {
       display: flex;
       gap: 8px;
       align-items: end;
       margin-top: 8px;
     }
-    .info .field:first-child {
+    .sub-info .field:first-child {
       margin-top: 0;
     }
     
-    .info .field .title {
+    .sub-info .field .title {
       margin: 0;
       color: #6c757d;
       font-size: 1rem;
       font-weight: 600;
     }
-    .info .field p {
+    .sub-info .field p {
       margin: 0;
-    }
-
-    /* ✅ YOUR ORIGINAL BEAUTIFUL MANAGE BUTTON - No transform */
-    .manage-sub-wrapper {
-      padding: 3px;
-      margin: 10px 25px 15px 25px;
-      background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
-      border-radius: 0.375rem;
-      transition: all 0.2s ease;
-    }
-    .manage-sub-wrapper:hover {
-      box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
-      /* No transform! */
     }
 
     .alert-custom {
@@ -300,18 +358,36 @@
       border: none;
       cursor: pointer;
       transition: all 0.2s ease;
+      color: white;
     }
     .alert-custom:hover {
       opacity: 0.9;
       /* No transform! */
     }
 
+    .plan-info .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* ✅ BEAUTIFUL MANAGE BUTTON - No transform */
+    .manage-sub-wrapper {
+      padding: 3px;
+      background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
+      border-radius: calc(var(--radius-md) + 3px); /* inner .alert radius + wrapper padding */
+      transition: all 0.2s ease;
+    }
+    .manage-sub-wrapper:hover {
+      box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+      /* No transform! */
+    }
+    
     /* Cancel button (matching style but red) */
     .cancel-wrapper {
       padding: 3px;
-      margin: 0 25px 15px 25px;
       background: linear-gradient(90deg, #dc3545 0%, #ff6b6b 100%);
-      border-radius: 0.375rem;
+      border-radius: calc(var(--radius-md) + 3px); /* inner .alert radius + wrapper padding */
       transition: all 0.2s ease;
     }
     .cancel-wrapper:hover {
@@ -322,49 +398,12 @@
     /* Transfer button */
     .transfer-wrapper {
       padding: 3px;
-      margin: 0 25px 15px 25px;
       background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
-      border-radius: 0.375rem;
+      border-radius: calc(var(--radius-md) + 3px); /* inner .alert radius + wrapper padding */
       transition: all 0.2s ease;
     }
     .transfer-wrapper:hover {
       box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
-    }
-
-    .alert-custom-transfer {
-      --bs-alert-color: #fff;
-      --bs-alert-bg: #17181e;
-      width: 100%;
-      margin-bottom: 0;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-decoration: none;
-      color: white;
-    }
-    .alert-custom-transfer:hover {
-      opacity: 0.9;
-      color: white;
-    }
-
-    .alert-custom-danger {
-      --bs-alert-color: #fff;
-      --bs-alert-bg: #17181e;
-      width: 100%;
-      margin-bottom: 0;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .alert-custom-danger:hover {
-      opacity: 0.9;
-      /* No transform! */
-    }
-
-    .badge {
-      font-size: 0.7rem;
-      padding: 2px 8px;
-      border-radius: 4px;
     }
   </style>
 

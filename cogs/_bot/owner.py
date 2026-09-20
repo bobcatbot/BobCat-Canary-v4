@@ -6,6 +6,7 @@ import time, asyncio, humanize, datetime
 from discord.ext import commands, pages
 from modules import bot as v
 from modules.models import Guild, PremiumConfig
+from web_dashboard.maintenance import set_state as set_maintenance
 
 TRIAL_DAYS = {
     "1 Month": 31,
@@ -30,40 +31,6 @@ class Owner(commands.Cog):
 
     dev_command = discord.SlashCommandGroup(name="dev", description="Developer only commands", guild_ids=v.guild_ids, checks=[is_dev().predicate])
     
-    @dev_command.command(name="guilds", description="Gets all the guilds the bot is in")
-    async def guilds(self, ctx):
-        embed1 = discord.Embed(
-            colour=0xed5757, 
-            title="⌛ Getting all the Guilds",
-            timestamp=discord.utils.utcnow()
-        )
-        msg: discord.Interaction = await ctx.respond(embed=embed1)
-
-        emby = discord.Embed(title=f"{v.client.user.name}'s Guilds", colour=0x5865f2)
-        for guild in v.client.guilds[:20]:
-            emby.add_field(name=guild.name, value=guild.id, inline=False)
-        emby.set_footer(text=f"{len(v.client.guilds)} guilds joined")
-
-        await msg.edit(embed=emby)
-
-    @dev_command.command(name="guild", description="Gets a guilds info")
-    async def guild(self, ctx, guild: str):
-        server = self.client.get_guild(int(guild))
-        if not server:
-            return await ctx.respond("Guild not found")
-        
-        members = server.members
-        human_members = [m for m in members if not m.bot]
-        bot_members = [m for m in members if m.bot]
-        
-        embed = discord.Embed(title=f"Guild Information: {server.name}", colour=0x5865f2)
-        embed.add_field(name="Server ID", value=f"```{server.id}```", inline=False)
-        embed.add_field(name="Server Owner", value=f"```{server.owner}```", inline=False)
-        embed.add_field(name="Server Members", value=f"```{len(human_members)}```", inline=False)
-        embed.add_field(name="Server Bot Count", value=f"```{len(bot_members)}```", inline=False)
-        embed.set_footer(text=f"{len(self.client.guilds)} guilds joined")
-        await ctx.respond(embed=embed)
-    
     @dev_command.command(name="ping", description="Gets the currant ping of the bot")
     async def ping(self, ctx):
         ws_ping = f'{(self.client.latency * 1000):.0f}'
@@ -83,27 +50,6 @@ class Owner(commands.Cog):
             )
         )
         await ctx.respond(embed=embedCMD)
-    
-    @dev_command.command(name="reload", description="Reloads all the cogs")
-    async def _reboot(self, ctx):
-        rl_ac = discord.Embed(title="Reloading all cogs", colour=0xed5757)
-        msg = await ctx.respond(embed=rl_ac)
-
-        try:
-            for foldername in os.listdir('./cogs'):
-                if foldername == "__pycache__":
-                    continue
-                for filename in os.listdir(f"./cogs/{foldername}"):
-                    if filename.endswith('.py'):
-                        self.client.reload_extension(f'cogs.{foldername}.{filename[:-3]}')
-        except Exception as e:
-            emError = discord.Embed(title="❎ Reload Failed!", colour=0xed5757)
-            emError.add_field(name=f"Failed to reload: `{filename}`", value=f"{e}")
-            return await msg.edit(embed=emError)
-
-        await asyncio.sleep(1)
-        rl_com = discord.Embed(title="✅ Reload Complete!", colour=0x57f287)
-        await msg.edit(embed=rl_com)
 
     @dev_command.command(name="uptime", description="Gets the bots uptime")
     async def uptime(self, ctx):
@@ -113,7 +59,7 @@ class Owner(commands.Cog):
             description=self.get_bot_uptime()
         )
         await ctx.respond(embed=embed)
-        
+    
     @dev_command.command(name="speedtest", description="Runs a speedtest")
     async def speedtest(self, ctx: discord.ApplicationContext):
         await ctx.defer()
@@ -136,74 +82,37 @@ class Owner(commands.Cog):
         embed.add_field(name="Upload", value=f"{up / 1024 / 1024:.2f} Mbps", inline=True)
         await ctx.respond(embed=embed)
 
-    ## Status ##
-    status = dev_command.create_subgroup(name="status", description="Bots status")
+    @dev_command.command(name="reload", description="Reloads all the cogs")
+    async def _reboot(self, ctx):
+        rl_ac = discord.Embed(title="Reloading all cogs", colour=0xed5757)
+        msg = await ctx.respond(embed=rl_ac)
 
-    @status.command(name="list", description="Lists all the status' in the bot")
-    async def _list(self, ctx):
-        with open("modules/status.json", "r") as f:
-            statuses = json.load(f)
-        
-        my_pages = []
-        for idx, status in enumerate(statuses["status"], 1):
-            em = discord.Embed(
-                color=v.blurple,
-                title=f"Status {idx}",
-                description=f"{status['name']}"
-            )
-            em.add_field(name="Type", value=f"{status['type']}", inline=False)
-            em.add_field(name="ID", value=f"{status['id']}", inline=False)
-            my_pages.append(pages.Page(embeds=[em]))
+        try:
+            for foldername in os.listdir('./cogs'):
+                if foldername == "__pycache__":
+                    continue
+                for filename in os.listdir(f"./cogs/{foldername}"):
+                    if filename.endswith('.py'):
+                        self.client.reload_extension(f'cogs.{foldername}.{filename[:-3]}')
+        except Exception as e:
+            emError = discord.Embed(title="❎ Reload Failed!", colour=0xed5757)
+            emError.add_field(name=f"Failed to reload: `{filename}`", value=f"{e}")
+            return await msg.edit(embed=emError)
 
-        page_buttons = [
-            pages.PaginatorButton("first", label="<<-", style=discord.ButtonStyle.gray),
-            pages.PaginatorButton("prev", label="<-", style=discord.ButtonStyle.gray),
-            pages.PaginatorButton("next", label="->", style=discord.ButtonStyle.gray),
-            pages.PaginatorButton("last", label="->>", style=discord.ButtonStyle.gray),
-        ]
-        paginator = pages.Paginator(
-            pages=my_pages, custom_buttons=page_buttons,
-            show_disabled=True, show_indicator=False, use_default_buttons=False, loop_pages=True,
-        )
-        await paginator.respond(ctx.interaction, ephemeral=False)
-    
-    types = ["Watching", "Listening", "Playing", "Streaming", "Competing"]
-    @status.command(name="add", description="Adds a status to the bot")
-    @discord.option("name", description="The name to add", required=True)
-    @discord.option("type", description="The type of name", required=True, choices=types)
-    async def _add(self, ctx, name, type):
-        _id = v.uuid(8, strCase="upper/lower/nums/special")
+        await asyncio.sleep(1)
+        rl_com = discord.Embed(title="✅ Reload Complete!", colour=0x57f287)
+        await msg.edit(embed=rl_com)
 
-        with open("modules/status.json", "r") as f:
-            status = json.load(f)
-        status["status"].append({
-            "id": _id,
-            "name": name,
-            "type": type
-        })
-        with open("modules/status.json", "w") as f:
-            json.dump(status, f, indent=2)
+    @dev_command.command(name="maintenance", description="Turns dashboard maintenance mode on or off")
+    @discord.option("enabled", bool, description="On shows everyone but the devs the maintenance page", required=True)
+    @discord.option("eta", str, description='Shown on the page, e.g. "18:30 UTC" (optional)', required=False)
+    async def maintenance(self, ctx: discord.ApplicationContext, enabled: bool, eta: str = None):
+        await set_maintenance(enabled, eta if enabled else None, ctx.author.id)
 
         emb = discord.Embed(
-            color=v.success,
-            title="Added new status to the status loop",
-            description=f"> **Name:** {name} \n> **Type:** {type} \n> **ID:** {_id}"
-        )
-        await ctx.respond(embed=emb)
-
-    @status.command(name="remove", description="Removes a status from the bot")
-    @discord.option("id", description="The id of the status to remove", required=True)
-    async def _remove(self, ctx, id):
-        with open("modules/status.json", "r") as f:
-            status = json.load(f)
-        status["status"].remove(next(x for x in status["status"] if x["id"] == id))
-        with open("modules/status.json", "w") as f:
-            json.dump(status, f, indent=2)
-
-        emb = discord.Embed(
-            color=v.success,
-            title="Removed status from the status loop",
-            description=f"> **ID:** {id}"
+            color=v.success if not enabled else 0xed5757,
+            title=f"Maintenance mode {'enabled' if enabled else 'disabled'}",
+            description=f"> **ETA:** {eta}" if enabled and eta else None,
         )
         await ctx.respond(embed=emb)
 
@@ -248,8 +157,6 @@ class Owner(commands.Cog):
                 f"> **Guild:** {guild.name}"
                 f"\n> **Code:** {premium['id']}"
                 f"\n> **Plan:** {premium['plan']}"
-                if plan == "lifetime" else
-                f"\n> **Plan:** {premium['plan']} for {trail_length}"
                 f"\n> **Expires:** {period_end.strftime('%Y-%m-%d %H:%M:%S') if period_end else 'Never'}"
             )
         )

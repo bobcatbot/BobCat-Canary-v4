@@ -6,10 +6,10 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         {% with plugin = get_plugin(guild, 'birthdays') %}
@@ -26,15 +26,17 @@
       </div>
     </div>
 
-    <section class="section">
-      <div class="feature_card join">
-        <div class="title">
-          <h2>Birthday Message</h2>
-          <p>BobCat can remember users' birthdays and wish them a happy one in a specific channel.</p>
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Birthday Message</h2>
+            <p class="dash-card-subtitle">BobCat can remember users' birthdays and wish them a happy one in a specific channel.</p>
+          </div>
         </div>
         
         <hr>
-        <div>
+        <div class="card-body">
           <p class="mb-0">Happy Birthday Channel</p>
           <p class="mb-1 fs-7 text-muted">Choose the channel for the messages to be sent in.</p>
           <div class="bday-chan-wrapper single">
@@ -47,73 +49,77 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="mt-2">
-          <p class="mb-0">Happy Birthday Wishing Hour</p>
-          <p class="mb-1 fs-7 text-muted">Change the hour at which the birthday messages should be sent with respect to the timezone of your server.</p>
-          <div class="bday-hour-wrapper single">
-            <div class="select">
-              <div class="select-selected">Select an option</div>
-              <div class="select-options">
-                <div class="option" data-value="0">00:00 - 12am</div>
-                <div class="option" data-value="1">01:00 - 1am</div>
-                <div class="option" data-value="2">02:00 - 2am</div>
-                <div class="option" data-value="3">03:00 - 3am</div>
-                <div class="option" data-value="4">04:00 - 4am</div>
-                <div class="option" data-value="5">05:00 - 5am</div>
-                <div class="option" data-value="6">06:00 - 6am</div>
-                <div class="option" data-value="7">07:00 - 7am</div>
-                <div class="option" data-value="8">08:00 - 8am</div>
-                <div class="option" data-value="9">09:00 - 9am</div>
-                <div class="option" data-value="10">10:00 - 10am</div>
-                <div class="option" data-value="11">11:00 - 11am</div>
-                <div class="option" data-value="12">12:00 - 12pm</div>
-                <div class="option" data-value="13">13:00 - 1pm</div>
-                <div class="option" data-value="14">14:00 - 2pm</div>
-                <div class="option" data-value="15">15:00 - 3pm</div>
-                <div class="option" data-value="16">16:00 - 4pm</div>
-                <div class="option" data-value="17">17:00 - 5pm</div>
-                <div class="option" data-value="18">18:00 - 6pm</div>
-                <div class="option" data-value="19">19:00 - 7pm</div>
-                <div class="option" data-value="20">20:00 - 8pm</div>
-                <div class="option" data-value="21">21:00 - 9pm</div>
-                <div class="option" data-value="22">22:00 - 10pm</div>
-                <div class="option" data-value="23">23:00 - 11pm</div>
+          
+          <div class="mt-3">
+            <p class="mb-0">Happy Birthday Wishing Hour</p>
+            <p class="mb-1 fs-7 text-muted">Change the hour at which the birthday messages should be sent with respect to the timezone of your server.</p>
+            <div class="bday-hour-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  <div class="option" data-value="0">00:00 - 12am</div>
+                  <div class="option" data-value="1">01:00 - 1am</div>
+                  <div class="option" data-value="2">02:00 - 2am</div>
+                  <div class="option" data-value="3">03:00 - 3am</div>
+                  <div class="option" data-value="4">04:00 - 4am</div>
+                  <div class="option" data-value="5">05:00 - 5am</div>
+                  <div class="option" data-value="6">06:00 - 6am</div>
+                  <div class="option" data-value="7">07:00 - 7am</div>
+                  <div class="option" data-value="8">08:00 - 8am</div>
+                  <div class="option" data-value="9">09:00 - 9am</div>
+                  <div class="option" data-value="10">10:00 - 10am</div>
+                  <div class="option" data-value="11">11:00 - 11am</div>
+                  <div class="option" data-value="12">12:00 - 12pm</div>
+                  <div class="option" data-value="13">13:00 - 1pm</div>
+                  <div class="option" data-value="14">14:00 - 2pm</div>
+                  <div class="option" data-value="15">15:00 - 3pm</div>
+                  <div class="option" data-value="16">16:00 - 4pm</div>
+                  <div class="option" data-value="17">17:00 - 5pm</div>
+                  <div class="option" data-value="18">18:00 - 6pm</div>
+                  <div class="option" data-value="19">19:00 - 7pm</div>
+                  <div class="option" data-value="20">20:00 - 8pm</div>
+                  <div class="option" data-value="21">21:00 - 9pm</div>
+                  <div class="option" data-value="22">22:00 - 10pm</div>
+                  <div class="option" data-value="23">23:00 - 11pm</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div>
-          <div class="mt-2">
-            <p class="mb-0">Happy Birthday Message</p>
-            <p class="mb-1 fs-7 text-muted">Send a message to the user when on their sepcial day</p>
   
-            <textarea id="b-msg" class="text-input"></textarea>
-            <script>
-              document.getElementById("b-msg").value = JSON.parse(`{{ data["message"] | tojson }}`)
-            </script>
+          <div>
+            <div class="mt-3">
+              <p class="mb-0">Happy Birthday Message</p>
+              <p class="mb-1 fs-7 text-muted">Send a message to the user when on their sepcial day</p>
+    
+              <textarea id="b-msg" class="text-input"></textarea>
+              <script>
+                document.getElementById("b-msg").value = JSON.parse(`{{ data["message"] | tojson }}`)
+              </script>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="feature_card join">
-        <div class="title">
-          <h2>Birthday Role</h2>
-          <p>Give a role to members celebrating their birthday.</p>
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Birthday Role</h2>
+            <p class="dash-card-subtitle">Give a role to members celebrating their birthday.</p>
+          </div>
         </div>
         
         <hr>
-        <div class="bday-role-wrapper single">
-          <div class="select">
-            <div class="select-selected">Select an option</div>
-            <div class="select-options">
-              {% for role in guild_models(guild).roles %}
-              <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
-              {% endfor %}
+        <div class="card-body">
+          <div class="bday-role-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for role in guild_models(guild).roles %}
+                <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                {% endfor %}
+              </div>
             </div>
           </div>
         </div>

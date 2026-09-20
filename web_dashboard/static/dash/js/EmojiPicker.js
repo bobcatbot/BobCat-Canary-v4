@@ -1,31 +1,20 @@
 /* Usage
 new EmojiPicker({
   trigger: 'button',       // selector for the element that opens the picker
-  position: ['bottom', 'right'],
+  position: ['bottom'],    // 'top' or 'bottom' - preferred side; flips if it does not fit
   plug: 'my-picker',       // optional - appended as an extra class on .emoji-picker
-  onload: () => {},        // optional - runs once, after the picker is first inserted
+  onload: () => {},        // optional - runs each time the picker is inserted
+  guild:                   // optional - adds the server's custom emojis as the first category
+    JSON.parse(`{{ {'name': guild.name, 'icon': guild.icon.url if guild.icon else '', 'emojis': guild_models(guild).emojis} | tojson }}`),
   emit(emoji) {
-    console.log(emoji.icon);
+    console.log(emoji.icon, emoji.name); // custom emoji: icon is '<:name:id>' ('<a:name:id>' if animated), plus emoji.url
   }
 });
+
+The picker is appended to <body> and positioned with position: fixed, so it is
+never clipped by a parent's overflow. It is loaded straight from this file
+(see dash-links.html) - EmojiPicker.min.js is not referenced anywhere.
 */
-
-/* This file is served minified as EmojiPicker.min.js (see dash-links.html) -
-   there is no build step, so after editing THIS file you must regenerate
-   EmojiPicker.min.js by hand before the change takes effect on the site:
-
-     cd web_dashboard/static/dash/js
-     npx terser EmojiPicker.js --compress --mangle --comments false -o EmojiPicker.min.js
-     node --check EmojiPicker.min.js
-
-   `node --check` only catches syntax errors - re-test the actual picker in
-   the browser if the edit touched logic, not just comments/formatting.
-
-   Note: this file won't shrink much further via minification - over half of
-   it is embedded SVG path data for the category-tab icons, and a JS
-   minifier can't safely touch string content. Meaningfully reducing it
-   further would mean running the SVGs through an SVG-specific optimizer
-   (e.g. SVGO) instead. */
 
 const EmojiPicker = function (options) {
   this.options = options;
@@ -33,193 +22,167 @@ const EmojiPicker = function (options) {
   if (!this.options) {
     return console.error('You must provide object as a first argument');
   }
-
-  this.init = () => {
-    this.selectors.trigger = this.options.hasOwnProperty('trigger') ? this.options.trigger : console.error('You must proved trigger element like this - \'EmojiPicker.init({trigger: "selector"})\' ');
-    this.selectors.search = '.emoji-picker-search input';
-    this.selectors.emojiContainer = '.emoji-picker-grid';
-    this.emojiItems = undefined;
-    this.variable.plug = this.options.plug || '';
-    this.variable.emit = this.options.emit || null;
-    this.variable.position = this.options.position || null;
-    if (!this.selectors.trigger) return;
-
-    this.bindEvents();
-    this.variable.onload = this.options.onload || null;
-  };
+  if (!this.options.trigger) {
+    return console.error('You must proved trigger element like this - \'new EmojiPicker({trigger: "selector"})\' ');
+  }
 
   this.variable = {
-    position: null,
     dir: '/static/Emojis.json',
-    onload: null,
+    plug: this.options.plug || '',
+    emit: this.options.emit || null,
+    onload: this.options.onload || null,
+    position: this.options.position || [],
   };
 
-  this.selectors = {
-    emit: null,
-    trigger: null,
-  };
+  this.picker = null;    // the open picker element, if any
+  this.triggerer = null; // the trigger element
+  this.cache = null;     // promise of the built picker HTML (fetched once)
 
-  this.bindEvents = () => {
-    const elem = document.querySelector(this.selectors.trigger);
+  this.init = () => {
+    this.triggerer = document.querySelector(this.options.trigger);
+    if (!this.triggerer) return;
 
-    document.body.addEventListener('click', this.functions.removeEmojiPicker.bind(this));
-    elem.addEventListener('click', this.functions.emitEmoji.bind(this));
-    elem.addEventListener('click', this.functions.openEmojiSelector.bind(this));
-    elem.addEventListener('input', this.functions.search.bind(this));
+    this.triggerer.addEventListener('click', this.functions.onTriggerClick);
+    document.addEventListener('click', this.functions.onOutsideClick);
+    document.addEventListener('keydown', this.functions.onKeydown);
   };
 
   this.functions = {
 
-    // Search
-    search(e) {
-      const val = e.target.value;
-      if (!Array.isArray(this.emojiItems)) {
-        this.emojiItems = Array.from(e.target.closest('.emoji-picker').querySelectorAll('.emoji-picker-all-categories li'));
-      }
-      this.emojiItems.filter(emoji => {
-        if (!emoji.getAttribute('data-name').match(val)) {
-          emoji.style.display = 'none';
+    onTriggerClick: (e) => {
+      e.preventDefault();
+      if (this.picker) return this.functions.closePicker();
+      this.functions.openPicker();
+    },
 
-          // hide the empty category
-          if (emoji.closest('ul').querySelectorAll('li').length === emoji.closest('ul').querySelectorAll('li[style="display: none;"]').length) {
-            emoji.closest('.emoji-picker-category').style.display = 'none';
-          }
-        } else {
-          emoji.style.display = '';
-          emoji.closest('.emoji-picker-category').style.display = '';
+    onOutsideClick: (e) => {
+      if (!this.picker) return;
+      if (this.picker.contains(e.target) || this.triggerer.contains(e.target)) return;
+      this.functions.closePicker();
+    },
+
+    onKeydown: (e) => {
+      if (e.key === 'Escape' && this.picker) this.functions.closePicker();
+    },
+
+    // Emoji pick + category tab clicks
+    onPickerClick: (e) => {
+      const item = e.target.closest('.emoji-picker-item');
+      if (item) {
+        e.preventDefault();
+        if (this.variable.emit) {
+          const img = item.querySelector('img');
+          this.variable.emit({ icon: item.getAttribute('href'), name: item.dataset.name, url: img ? img.src : undefined }, this.triggerer);
         }
+        return this.functions.closePicker();
+      }
+
+      const tab = e.target.closest('.emoji-picker-categories li');
+      if (tab) {
+        e.preventDefault();
+        const body = this.picker.querySelector('.emoji-picker-all-categories');
+        const category = Array.from(body.querySelectorAll('.emoji-picker-category')).find(c => c.id === tab.dataset.index);
+        if (category) {
+          // Jump instantly (a smooth scroll drifts as skipped categories render and
+          // replace their estimated heights), then re-apply once layout has settled.
+          const go = () => { body.scrollTop = category.offsetTop; };
+          go();
+          requestAnimationFrame(go);
+        }
+      }
+    },
+
+    // Case-insensitive substring search over emoji names (built-in + guild emojis)
+    onSearch: (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      const body = this.picker.querySelector('.emoji-picker-all-categories');
+      let found = 0;
+
+      body.querySelectorAll('.emoji-picker-category').forEach(category => {
+        let visible = 0;
+        category.querySelectorAll('.emoji-picker-grid > li').forEach(li => {
+          const show = !query || (li.dataset.name || '').toLowerCase().includes(query);
+          li.classList.toggle('is-hidden', !show);
+          if (show) visible++;
+        });
+        category.classList.toggle('is-hidden', !!query && !visible);
+        found += visible;
       });
 
-      if (!val.length) this.emojiItems = undefined;
+      body.querySelector('.emoji-picker-empty').classList.toggle('is-hidden', found > 0);
+      body.scrollTop = 0;
     },
 
-    // Close the picker outright - used once an emoji has actually been picked,
-    // where we always want it gone regardless of what was clicked.
-    closePicker() {
-      const picker = document.querySelector('.emoji-picker');
-      if (picker) picker.remove();
-      this.emojiItems = undefined;
+    // Highlight the tab of whichever category is currently at the top
+    onBodyScroll: () => {
+      const body = this.picker.querySelector('.emoji-picker-all-categories');
+      const categories = Array.from(body.querySelectorAll('.emoji-picker-category:not(.is-hidden)'));
+      if (!categories.length) return;
+
+      let current = categories[0];
+      categories.forEach(c => { if (c.offsetTop <= body.scrollTop + 8) current = c; });
+      if (body.scrollTop + body.clientHeight >= body.scrollHeight - 2) current = categories[categories.length - 1];
+
+      this.picker.querySelectorAll('.emoji-picker-categories li').forEach(li => {
+        li.classList.toggle('active', li.dataset.index === current.id);
+      });
     },
 
-    // Click-outside handler bound on document.body - only closes when the
-    // click landed outside the picker (a click on the picker itself, e.g.
-    // picking an emoji, is handled separately by closePicker()).
-    removeEmojiPicker(e) {
-      if (!e.target.closest('.emoji-picker')) this.functions.closePicker();
+    // Fixed-position the picker against the trigger, flipping/clamping to stay in the viewport
+    positionPicker: (e) => {
+      if (!this.picker) return;
+      if (e && e.target instanceof Node && this.picker.contains(e.target)) return; // picker's own scroll
+
+      const gap = 6, margin = 8;
+      const t = this.triggerer.getBoundingClientRect();
+      const w = this.picker.offsetWidth, h = this.picker.offsetHeight;
+      const above = t.top - margin, below = window.innerHeight - t.bottom - margin;
+      const fits = (space) => space >= h + gap;
+
+      const up = this.variable.position.includes('top')
+        ? fits(above) || (!fits(below) && above > below)
+        : !fits(below) && (fits(above) || above > below);
+
+      const top = up ? t.top - gap - h : t.bottom + gap;
+      const clamp = (v, max) => Math.max(margin, Math.min(v, max));
+      this.picker.style.top = clamp(top, window.innerHeight - h - margin) + 'px';
+      this.picker.style.left = clamp(t.left, window.innerWidth - w - margin) + 'px';
     },
 
-    emitEmoji(e) {
-      const el = e.target;
+    openPicker: () => {
+      this.emojiPicker().then(html => {
+        if (this.picker) return; // opened by a faster click while the fetch was pending
 
-      if (el.tagName.toLowerCase() === 'a' && el.className.includes('emoji-picker-item')) {
-        e.preventDefault();
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.picker = document.body.lastElementChild;
 
-        const emoji_data = {
-          icon: el.getAttribute('href'),
-          name: el.getAttribute('name'),
-        };
-        if (this.variable.emit) this.variable.emit(emoji_data, this.triggerer);
+        this.picker.addEventListener('click', this.functions.onPickerClick);
+        this.picker.addEventListener('input', this.functions.onSearch);
+        this.picker.querySelector('.emoji-picker-all-categories').addEventListener('scroll', this.functions.onBodyScroll, { passive: true });
+        window.addEventListener('resize', this.functions.positionPicker);
+        window.addEventListener('scroll', this.functions.positionPicker, true);
 
-        this.functions.closePicker();
-      }
+        if (typeof this.variable.onload === 'function') this.variable.onload();
+
+        this.functions.positionPicker();
+        this.functions.onBodyScroll();
+        this.picker.querySelector('.emoji-picker-search input').focus({ preventScroll: true });
+      }).catch(err => console.error('EmojiPicker: could not load emojis', err));
     },
 
-    // Open emoji picker
-    openEmojiSelector(e) {
-      const el = e.target.closest(this.selectors.trigger);
-      if (el) {
-        e.preventDefault();
-
-        // Bounding rect
-        // Trigger position and (trigger) sizes
-        if (typeof this.variable.emit === 'function') this.triggerer = el;
-
-        // Emoji Picker Promise
-        this.emojiPicker().then(emojiPicker => {
-
-          // Check if trigger has 'position: relative;' or 'position-relative' class
-          if (window.getComputedStyle(el).position !== 'relative' && !el.classList.contains('position-relative')) {
-            el.style.position = 'relative';
-          }
-
-          // Insert picker
-          if (!document.querySelector('.emoji-picker')) {
-            // onload callback
-            document.querySelector(this.options.trigger).insertAdjacentHTML('beforeend', emojiPicker);
-            if (typeof this.variable.onload === 'function') this.variable.onload();
-          }
-
-          const emojiPickerMain = document.querySelector('.emoji-picker');
-          const emojiBody = emojiPickerMain.querySelector('.emoji-picker-all-categories');
-
-          // Positioning emoji container
-          const positions = {
-            buttonTop: el.offsetHeight,
-            buttonWidth: el.offsetWidth,
-            buttonFromLeft: el.getBoundingClientRect().left,
-            bodyHeight: document.body.offsetHeight,
-            bodyWidth: document.body.offsetWidth,
-            windowScrollPosition: window.pageYOffset,
-            emojiHeight: emojiPickerMain.offsetHeight,
-            emojiWidth: emojiPickerMain.offsetWidth,
-          };
-
-          const position = {
-            top: positions.buttonTop + 10,
-            left: positions.buttonFromLeft - positions.emojiWidth,
-            bottom: positions.buttonTop,
-            right: positions.buttonFromLeft + positions.buttonWidth,
-          };
-
-          if (this.variable.position) {
-            this.variable.position.forEach(elemPos => {
-
-              if (elemPos === 'bottom') {
-                emojiPickerMain.style.top = position[elemPos] + 5 + 'px';
-              }
-              if (elemPos === 'top') {
-                emojiPickerMain.style.bottom = position[elemPos] - 5 + 'px';
-              }
-            })
-          }
-
-          // Add event listener on click
-          document.querySelector('.emoji-picker').onclick = function(e) {
-            e.preventDefault();
-
-            const scrollTo = (element, to, duration = 100) => {
-              if (duration <= 0) return;
-
-              const difference = to - 65 - element.scrollTop;
-              const perTick = difference / duration * 10;
-
-              setTimeout(function() {
-                element.scrollTop = element.scrollTop + perTick;
-                if (element.scrollTop === to) return;
-                scrollTo(element, to, duration - 10);
-              }, 10);
-            }
-
-            const el = e.target;
-            const filterLlnk = el.closest('a');
-
-            document.querySelectorAll('.emoji-picker-categories li').forEach(item => item.classList.remove('active'));
-
-            if (filterLlnk && filterLlnk.closest('li') && filterLlnk.closest('li').getAttribute('data-index')) {
-              const list = filterLlnk.closest('li');
-              list.classList.add('active');
-              const listIndex = list.getAttribute('data-index');
-              scrollTo(emojiBody, emojiBody.querySelector(`#${listIndex}`).offsetTop);
-            }
-
-          }
-        })
-      }
+    closePicker: () => {
+      if (!this.picker) return;
+      window.removeEventListener('resize', this.functions.positionPicker);
+      window.removeEventListener('scroll', this.functions.positionPicker, true);
+      this.picker.remove();
+      this.picker = null;
     },
-  },
+  };
 
-    // Create emoji container / Builder engine
+  // Builds the picker HTML (fetched + cached on first open)
   this.emojiPicker = () => {
+    if (this.cache) return this.cache;
+
     let categoryIcons = {
       'search': `
         <svg width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 511.999 511.999">
@@ -297,69 +260,64 @@ const EmojiPicker = function (options) {
       `,
     };
 
-    const picker = `
-      <div class="emoji-picker ${this.options.plug}">
-          <div class="emoji-picker-categories">%categories%</div>
-          <div>
-            <div class="emoji-picker-search">
-              <input placeholder="Search emoji" />
-            </div>
-            %pickerContainer%
-          </div>
-      </div>`;
-
-    const categories = '<ul>%categories%</ul>';
-    let categoriesInner = ``;
-    const outerUl = `<div class="emoji-picker-all-categories">%outerUL%</div>`;
-    let innerLists = ``;
-
-    let index = 0; // Index count
-
-    const fetchData = fetch(`${this.variable.dir}`)
+    this.cache = fetch(this.variable.dir)
       .then(response => response.json())
       .then(emojis => {
-        for (const key in emojis) {
-          if (emojis.hasOwnProperty(key)) {
-            index += 1; // Index count
+        const esc = (str) => String(str).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+        let tabs = '';
+        let lists = '';
 
-            const keyToId = key.split(' ').join('-').split('&').join('').toLowerCase();
+        // Adds one category (tab + section). `items` are { emoji, name, html } - html is what's shown in the cell.
+        const addCategory = (id, title, icon, items, emptyText) => {
+          tabs += `<li class="${tabs ? '' : 'active'}" data-index="${id}"><a href="#${id}" title="${esc(title)}">${icon}</a></li>`;
 
-            const categories = emojis[key];
+          lists += `
+            <ul class="emoji-picker-category" id="${id}" category-name="${esc(title)}" style="contain-intrinsic-size: auto ${Math.ceil(items.length / 8) * 42 + 40}px">
+              <div class="emoji-picker-container-title"><div>${icon}</div> ${esc(title)}</div>
+              ${items.length ? '' : `<div class="emoji-picker-category-empty">${esc(emptyText)}</div>`}
+              <div class="emoji-picker-grid">
+                ${items.map(item => `
+                <li data-name="${esc(item.name)}">
+                  <a class="emoji-picker-item" href="${esc(item.emoji)}" title="${esc(item.name)}" data-name="${esc(item.name)}">${item.html}</a>
+                </li>`).join('')}
+              </div>
+            </ul>`;
+        };
 
-            categoriesInner += `<li class="${index === 1 ? 'active' : ''}" id="${keyToId}" data-index="${keyToId}"><a href="#${keyToId}">${categoryIcons[keyToId]}</a></li>`;
-
-            innerLists += `
-              <ul class="emoji-picker-category ${index === 1 ? 'active' : ''}" id="${keyToId}" category-name="${key}">
-                <div class="emoji-picker-container-title"><div style="margin-right:5px">${categoryIcons[keyToId]}</div> ${key}</div>
-                  <div class="emoji-picker-grid">
-            `;
-
-            // Loop through emoji items
-            categories.forEach(item => {
-              innerLists += `
-                <li data-name="${item.name}">
-                  <a class="emoji-picker-item" href="${item.emoji}" title="${item.name}" data-name="${item.name}" data-code="${item.code}">
-                    ${item.emoji}
-                  </a>
-                </li>
-              `;
-            });
-
-            innerLists += `
-                </div>
-              </ul>
-            `;
-          }
+        // Server's custom emojis go first (shown with an empty message if it has none)
+        const guild = this.options.guild;
+        if (guild) {
+          const icon = guild.icon ? `<img src="${esc(guild.icon)}" alt="">` : `<b>${esc(guild.name[0])}</b>`;
+          addCategory('server', guild.name, icon, (guild.emojis || []).map(e => ({
+            emoji: `<${e.animated ? 'a' : ''}:${e.name}:${e.id}>`,
+            name: e.name,
+            html: `<img src="${esc(e.url)}" alt="${esc(e.name)}" loading="lazy">`,
+          })), 'No emojis found');
         }
 
-        const allSmiles = outerUl.replace('%outerUL%', innerLists);
-        const cats = categories.replace('%categories%', categoriesInner);
-        const pickerContainer = picker.replace('%pickerContainer%', allSmiles);
-        const data = pickerContainer.replace('%categories%', cats);
-        return data;
+        Object.keys(emojis).forEach((key) => {
+          const id = key.split(' ').join('-').split('&').join('').toLowerCase();
+          addCategory(id, key, categoryIcons[id] || '', emojis[key].map(item => ({ ...item, html: item.emoji })));
+        });
+
+        return `
+          <div class="emoji-picker ${this.variable.plug}" role="dialog" aria-label="Emoji picker">
+            <div class="emoji-picker-search">
+              <input type="text" placeholder="Search emoji" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="emoji-picker-categories"><ul>${tabs}</ul></div>
+            <div class="emoji-picker-all-categories">
+              ${lists}
+              <div class="emoji-picker-empty is-hidden">No emojis found</div>
+            </div>
+          </div>`;
+      })
+      .catch(err => {
+        this.cache = null; // let the next open retry
+        throw err;
       });
 
-    return fetchData;
+    return this.cache;
   };
 
   this.init();

@@ -12,13 +12,13 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   {% set plugin = get_plugin(guild, 'giveaway') %}
   {% set is_draft = (not is_edit) or (data.status == 'Draft') %}
 
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         <h1 class="em-title">{{ 'Edit giveaway' if is_edit else 'Create new giveaway' }}{% if is_edit and data.status == 'Draft' %}<span class="badge bg-secondary align-middle">Draft</span>{% endif %}</h1>
@@ -28,7 +28,7 @@
         {% if is_edit %}
         <button type="button" id="delete" class="btn btn-danger"><i class="bi bi-trash  mr-1"></i> Delete</button>
         {% endif %}
-        <button type="button" id="discard-btn" class="btn btn-secondary">Discard</button>
+        <button type="button" id="discard-btn" class="btn btn-danger">Discard</button>
         <button type="button" id="save-btn" class="btn {{ 'btn-secondary' if is_draft else 'btn-blurple' }}">Save</button>
         {% if is_draft %}
         <button type="button" id="publish-btn" class="btn btn-blurple" {% if not is_edit %}disabled{% endif %}>Publish</button>
@@ -36,128 +36,124 @@
       </div>
     </div>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Manage</h2>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Manage</h2>
         </div>
         <hr>
 
-        <div class="mb-2 em-name">
-          <label for="gwayname-name">Giveaway name <req style="color: red;">*</req></label><br>
-          <input type="text" id="gwayname-name" class="text-input" value="{{ data.name or 'New Giveaway' }}" />
-        </div>
-
-        <div class="mb-0">
-          <p class="mb-1">Channel <req style="color: red;">*</req></p>
-          <div class="gway-chan-select-wrapper single">
-            <div class="select">
-              <div class="select-selected">Select an option</div>
-              <div class="select-options">
-                {% for channel in guild_models(guild).channels.text %}
-                <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}" data-can-send="{{channel.can_send}}">{{channel.name}}</div>
-                {% endfor %}
-              </div>
-            </div>
+        <div class="card-body">
+          <div class="mb-2 em-name">
+            <label for="gwayname-name">Giveaway name <req style="color: red;">*</req></label><br>
+            <input type="text" id="gwayname-name" class="text-input" value="{{ data.name or 'New Giveaway' }}" />
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Settings</h2>
-        </div>
-        <hr>
-
-        <div class="mt-0">
-          <label for="gway-prize">Prize <req style="color: red;">*</req></label><br>
-          <p class="mb-1 fs-7 text-muted">What are the members winning?</p>
-          <input type="text" id="gway-prize" class="text-input" value="{{ data.prize or '' }}" />
-        </div>
-
-        <div class="mt-2">
-          <label for="gway-winners">Number of Winners <req style="color: red;">*</req></label><br>
-          <p class="mb-1 fs-7 text-muted">How many members will win?</p>
-          <input type="text" id="gway-winners" class="text-input" value="{{ data.winner_count or '' }}" />
-        </div>
-
-        <div class="mt-2">
-          <p class="mb-1 fs-7">End time <req style="color: red;">*</req></p>
-
-          <div class="container m-0" style="max-width: var(--input-width);">
-            <div class="row">
-              <div class="form-group p-0">
-                <div class="input-group date" id="datetimepicker1" data-target-input="nearest">
-                  <input type="text" name="datetime-picker1" class="form-control datetimepicker-input text-input" data-target="#datetimepicker1"/>
-                  <div class="input-group-append" data-target="#datetimepicker1" data-toggle="datetimepicker">
-                    <div class="input-group-text"><i class="bi bi-calendar"></i></div>
-                  </div>
+          <div class="mb-0">
+            <p class="mb-1">Channel <req style="color: red;">*</req></p>
+            <div class="gway-chan-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}" data-can-send="{{channel.can_send}}">{{channel.name}}</div>
+                  {% endfor %}
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="mt-3">
-          <p class="mb-1 fs-7">Additional settings</p>
-          <div class="form-switch ps-0 user-select-none ">
-            <input class="form-check-input ms-0 " type="checkbox" id="gway-givexp" {% if data.give_xp.enabled %}checked{% endif %} />
-            <label class="form-check-label" for="gway-givexp">Give xp to winners</label>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Settings</h2>
+        </div>
+        <hr>
 
-            <div class="gway-givexp-amount d-none">
-              <label for="gway-givexp-amount">Amount of XP</label><br>
-              <input type="text" id="gway-givexp-amount" class="text-input" value="{{ data.give_xp.amount or '' }}">
+        <div class="card-body">
+          <div class="mt-0">
+            <label for="gway-prize">Prize <req style="color: red;">*</req></label><br>
+            <p class="mb-1 fs-7 text-muted">What are the members winning?</p>
+            <input type="text" id="gway-prize" class="text-input" value="{{ data.prize or '' }}" />
+          </div>
+
+          <div class="mt-2">
+            <label for="gway-winners">Number of Winners <req style="color: red;">*</req></label><br>
+            <p class="mb-1 fs-7 text-muted">How many members will win?</p>
+            <input type="text" id="gway-winners" class="text-input" value="{{ data.winner_count or '' }}" />
+          </div>
+
+          <div class="mt-2">
+            <p class="mb-1 fs-7">End time <req style="color: red;">*</req></p>
+            <div class="input-group date" id="datetimepicker1" data-target-input="nearest" style="max-width: var(--input-width);">
+              <input type="text" name="datetime-picker1" class="form-control datetimepicker-input text-input" data-target="#datetimepicker1"/>
+              <div class="input-group-append" data-target="#datetimepicker1" data-toggle="datetimepicker">
+                <div class="input-group-text"><i class="bi bi-calendar"></i></div>
+              </div>
             </div>
           </div>
-          <div class="form-switch ps-0 user-select-none mt-1">
-            <input class="form-check-input ms-0 " type="checkbox" id="gway-givecoins" {% if data.give_coins.enabled %}checked{% endif %} />
-            <label class="form-check-label" for="gway-givecoins">Give coins to winners</label>
 
-            <div class="gway-givecoins-amount d-none">
-              <label for="gway-givecoins-amount">Amount of coins</label><br>
-              <input type="text" id="gway-givecoins-amount" class="text-input" value="{{ data.give_coins.amount or '' }}">
+          <div class="mt-3">
+            <p class="mb-1 fs-7">Additional settings</p>
+            <div class="form-switch ps-0 user-select-none ">
+              <input class="form-check-input ms-0 " type="checkbox" id="gway-givexp" {% if data.give_xp.enabled %}checked{% endif %} />
+              <label class="form-check-label" for="gway-givexp">Give xp to winners</label>
+              <div class="gway-givexp-amount d-none">
+                <label for="gway-givexp-amount">Amount of XP</label><br>
+                <input type="text" id="gway-givexp-amount" class="text-input" value="{{ data.give_xp.amount or '' }}">
+              </div>
+            </div>
+            <div class="form-switch ps-0 user-select-none mt-1">
+              <input class="form-check-input ms-0 " type="checkbox" id="gway-givecoins" {% if data.give_coins.enabled %}checked{% endif %} />
+              <label class="form-check-label" for="gway-givecoins">Give coins to winners</label>
+              <div class="gway-givecoins-amount d-none">
+                <label for="gway-givecoins-amount">Amount of coins</label><br>
+                <input type="text" id="gway-givecoins-amount" class="text-input" value="{{ data.give_coins.amount or '' }}">
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Message</h2>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Message</h2>
         </div>
         <hr>
         
-        <div class="d-flex gap-2 mb-3">
-          {{ embed_color_picker('gway-embed-color', data.embed_color | hexcolor, css_class='gway-embed-color coloris') }}
-          {% call embed_editor('gway-embed', {
-              'color': data.embed_color|hexcolor,
-              'title': '🎉 {prize} 🎉',
-              'description': data.embed_desc or '',
-            },
-            desc_element='textarea',
-            show_icons=False, show_author=False, show_footer=False, show_fields=False, color_input=True, title_disabled=True,
-          ) %}
-          <div class="fields mt-2">
-            <div class="field">
-              <div class="field-name">Hosted by</div>
-              <div class="field-value">{{user.username}}</div>
+        <div class="card-body">
+          <div class="d-flex gap-2 mb-3">
+            {{ embed_color_picker('gway-embed-color', data.embed_color | hexcolor, css_class='gway-embed-color coloris') }}
+            {% call embed_editor('gway-embed', {
+                'color': data.embed_color|hexcolor,
+                'title': '🎉 {prize} 🎉',
+                'description': data.embed_desc or '',
+              },
+              desc_element='textarea',
+              show_icons=False, show_author=False, show_footer=False, show_fields=False, color_input=True, title_disabled=True,
+            ) %}
+            <div class="fields mt-2">
+              <div class="field">
+                <div class="field-name">Hosted by</div>
+                <div class="field-value">{{user.username}}</div>
+              </div>
+              <div class="field">
+                <div class="field-name">Winners</div>
+                <div class="field-value">0</div>
+              </div>
+              <div class="field">
+                <div class="field-name">Participants</div>
+                <div class="field-value">0</div>
+              </div>
             </div>
-            <div class="field">
-              <div class="field-name">Winners</div>
-              <div class="field-value">0</div>
-            </div>
-            <div class="field">
-              <div class="field-name">Participants</div>
-              <div class="field-value">0</div>
-            </div>
+            {% endcall %}
           </div>
-          {% endcall %}
+          <p class="mb-1 fs-7 text-muted mt-1">The title is fixed and the fields below are always included.</p>
         </div>
-        <p class="mb-1 fs-7 text-muted mt-1">The title is fixed and the fields below are always included.</p>
       </div>
     </section>
   </main>

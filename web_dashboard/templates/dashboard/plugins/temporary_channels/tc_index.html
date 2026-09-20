@@ -6,12 +6,12 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   {% set plugin = get_plugin(guild, 'temporary_channels') %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         <div>
@@ -30,125 +30,125 @@
 
     {% set at_cap = data['hubs'] | length >= item_cap %}
     {% set cap_msg = "You've reached your limit of " ~ item_cap ~ " hubs." ~ ("" if is_premium else " Upgrade to premium for up to " ~ item_cap_premium ~ ".") %}
-    <section class="section">
-      <div class="feature_card">
+    <section class="sectionn">
+      <div class="card">
         <span class="tooltipp" style="display:block">
-          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="temporary-channels/creation"{% endif %} id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
-            <h2>New hub</h2>
-            <div>
+          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="temporary-channels/creation"{% endif %} id="create-hub-btn">
+            <div class="dash-card-header">
+              <h2 class="dash-card-title">New hub</h2>
               <i class="bi bi-plus-lg"></i>
             </div>
-          </div></a>
+          </a>
           <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
         </span>
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="title">
-            <h2>Your Hubs</h2>
-          </div>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Your Hubs</h2>
 
           <span id="item-count" data-cap="{{ item_cap }}">{{ data['hubs'] | length }} / {{ item_cap }}</span>
         </div>
         <hr>
         
-        {% if data['hubs'] == [] %}
-        <div class="d-flex flex-column justify-content-center align-items-center user-select-none py-4">
-          <svg class="tc-empty-art" width="420" height="220" viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No temporary voice channels yet">
-            <!-- backdrop -->
-            <circle cx="210" cy="170" r="140" fill="#5865f2" opacity="0.06"/>
-            <circle cx="210" cy="170" r="140" stroke="#3f3d56" stroke-opacity="0.12" stroke-width="2"/>
-            <ellipse cx="210" cy="272" rx="126" ry="13" fill="#3f3d56" opacity="0.08"/>
-            <!-- floating accents -->
-            <rect x="52" y="70" width="12" height="12" rx="3" fill="#5865f2" transform="rotate(20 58 76)"/>
-            <circle cx="364" cy="170" r="6" fill="none" stroke="#5865f2" stroke-width="3"/>
-            <path d="M64 236h14M71 229v14" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="350" cy="250" r="4" fill="#3f3d56" opacity="0.35"/>
-            <!-- panel behind -->
-            <rect x="112" y="78" width="210" height="140" rx="14" fill="#4b52c9" opacity="0.45" transform="rotate(5 217 148)"/>
-            <!-- channel list panel -->
-            <g transform="rotate(-3 210 167)">
-              <rect x="96" y="92" width="228" height="150" rx="16" fill="#5865f2"/>
-              <!-- row 1 -->
-              <path d="M120 112h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.9"/>
-              <path d="M143 108a12 12 0 0 1 0 16" stroke="#ffffff" stroke-opacity="0.9" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-              <rect x="160" y="110" width="128" height="10" rx="5" fill="#ffffff" opacity="0.9"/>
-              <!-- row 2 -->
-              <path d="M120 148h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.55"/>
-              <rect x="160" y="146" width="96" height="10" rx="5" fill="#ffffff" opacity="0.55"/>
-              <!-- row 3 -->
-              <path d="M120 184h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.4"/>
-              <rect x="160" y="182" width="112" height="10" rx="5" fill="#ffffff" opacity="0.4"/>
-            </g>
-            <!-- hero speaker badge -->
-            <circle cx="300" cy="104" r="34" fill="#ffffff"/>
-            <path d="M286 104h9l14-11v22l-14-11h-9z" fill="#5865f2"/>
-            <path d="M316 92a17 17 0 0 1 0 24" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-            <path d="M324 84a30 30 0 0 1 0 40" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.55"/>
-            <!-- temporary clock badge -->
-            <circle cx="298" cy="230" r="19" fill="#ffffff"/>
-            <path d="M298 230v-11M298 230h9" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
-          </svg>
-          <p class="m-0 mt-3 fs-4">You dont have hubs created yet.</p>
-        </div>
-        {% endif %}
-        
-        {% if data['hubs'] != [] %}
-        <div class="search-container">
-          <i class="bi bi-search"></i>
-          <input
-            type="text"
-            name="search"
-            id="search"
-            placeholder="Search..."
-          />
-        </div>
-        <hr>
-        {% endif %}
-        {% for hub in data['hubs'] %}
-        <div class="card">
-          <a href="temporary-channels/{{hub['id']}}/edition" class="card-link" >
-            <div class="title d-flex justify-content-between align-items-center">
-              <h5>{{hub['hub_name']}}</h5>
-              <div class="d-flex gap-2">
-                <button
-                  type="button"
-                  class="btn btn-danger delete-hub-modal"
-                  data-bs-toggle="modal"
-                  data-bs-target="#DeleteModal-{{hub['id']}}"
-                >
-                  <i class="bi bi-trash-fill"></i>
-                </button>
+        <div class="card-body">
+          {% if data['hubs'] == [] %}
+          <div class="d-flex flex-column justify-content-center align-items-center user-select-none py-4">
+            <svg class="tc-empty-art" width="420" height="220" viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No temporary voice channels yet">
+              <!-- backdrop -->
+              <circle cx="210" cy="170" r="140" fill="#5865f2" opacity="0.06"/>
+              <circle cx="210" cy="170" r="140" stroke="#3f3d56" stroke-opacity="0.12" stroke-width="2"/>
+              <ellipse cx="210" cy="272" rx="126" ry="13" fill="#3f3d56" opacity="0.08"/>
+              <!-- floating accents -->
+              <rect x="52" y="70" width="12" height="12" rx="3" fill="#5865f2" transform="rotate(20 58 76)"/>
+              <circle cx="364" cy="170" r="6" fill="none" stroke="#5865f2" stroke-width="3"/>
+              <path d="M64 236h14M71 229v14" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="350" cy="250" r="4" fill="#3f3d56" opacity="0.35"/>
+              <!-- panel behind -->
+              <rect x="112" y="78" width="210" height="140" rx="14" fill="#4b52c9" opacity="0.45" transform="rotate(5 217 148)"/>
+              <!-- channel list panel -->
+              <g transform="rotate(-3 210 167)">
+                <rect x="96" y="92" width="228" height="150" rx="16" fill="#5865f2"/>
+                <!-- row 1 -->
+                <path d="M120 112h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.9"/>
+                <path d="M143 108a12 12 0 0 1 0 16" stroke="#ffffff" stroke-opacity="0.9" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <rect x="160" y="110" width="128" height="10" rx="5" fill="#ffffff" opacity="0.9"/>
+                <!-- row 2 -->
+                <path d="M120 148h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.55"/>
+                <rect x="160" y="146" width="96" height="10" rx="5" fill="#ffffff" opacity="0.55"/>
+                <!-- row 3 -->
+                <path d="M120 184h7l11-9v30l-11-9h-7z" fill="#ffffff" opacity="0.4"/>
+                <rect x="160" y="182" width="112" height="10" rx="5" fill="#ffffff" opacity="0.4"/>
+              </g>
+              <!-- hero speaker badge -->
+              <circle cx="300" cy="104" r="34" fill="#ffffff"/>
+              <path d="M286 104h9l14-11v22l-14-11h-9z" fill="#5865f2"/>
+              <path d="M316 92a17 17 0 0 1 0 24" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+              <path d="M324 84a30 30 0 0 1 0 40" stroke="#5865f2" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.55"/>
+              <!-- temporary clock badge -->
+              <circle cx="298" cy="230" r="19" fill="#ffffff"/>
+              <path d="M298 230v-11M298 230h9" stroke="#5865f2" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <p class="m-0 mt-3 fs-4">You dont have hubs created yet.</p>
+          </div>
+          {% endif %}
+          
+          {% if data['hubs'] != [] %}
+          <div class="search-container">
+            <i class="bi bi-search"></i>
+            <input
+              type="text"
+              name="search"
+              id="search"
+              placeholder="Search..."
+            />
+          </div>
+          <hr>
+          {% endif %}
+          {% for hub in data['hubs'] %}
+          <div class="hub-card">
+            <a href="temporary-channels/{{hub['id']}}/edition" class="card-link" >
+              <div class="title d-flex justify-content-between align-items-center">
+                <h5>{{hub['hub_name']}}</h5>
+                <div class="d-flex gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-icon btn-outline-danger delete-hub-modal"
+                    data-bs-toggle="modal"
+                    data-bs-target="#DeleteModal-{{hub['id']}}"
+                  >
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </div>
               </div>
-            </div>
-          </a>
-
-          <!-- DeleteModal - id/data-bs-target must be per-hub: a shared literal
-               id here would mean data-bs-target always resolves (via
-               querySelector) to the FIRST modal in the DOM, deleting the
-               wrong hub regardless of which card's trash icon was clicked. -->
-          <div class="modal fade dark" id="DeleteModal-{{hub['id']}}" tabindex="-1" aria-labelledby="DeleteModalLabel-{{hub['id']}}" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="DeleteModalLabel-{{hub['id']}}">Do you really want to delete this?</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  This action is irreversible. If you change your mind later, you will have to create it again from scratch.
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger delete-hub" data-id="{{hub['id']}}">Yes</button>
+            </a>
+            
+            <!-- DeleteModal - id/data-bs-target must be per-hub: a shared literal
+                 id here would mean data-bs-target always resolves (via
+                 querySelector) to the FIRST modal in the DOM, deleting the
+                 wrong hub regardless of which card's trash icon was clicked. -->
+            <div class="modal fade dark" id="DeleteModal-{{hub['id']}}" tabindex="-1" aria-labelledby="DeleteModalLabel-{{hub['id']}}" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="DeleteModalLabel-{{hub['id']}}">Do you really want to delete this?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    This action is irreversible. If you change your mind later, you will have to create it again from scratch.
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger delete-hub" data-id="{{hub['id']}}">Yes</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          {% endfor %}
         </div>
-        {% endfor %}
       </div>
     </section>
 
@@ -189,8 +189,7 @@
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         const search = e.target.value.toLowerCase();
-        const cards = document.querySelectorAll('.card');
-        cards.forEach((card) => {
+        document.querySelectorAll('.hub-card').forEach((card) => {
           const title = card.querySelector('.title h5').textContent.toLowerCase();
           card.style.display = title.includes(search) ? 'block' : 'none';
         });
@@ -232,8 +231,9 @@
       font-size: 13px;
       padding: 4px 14px;
       border-radius: 20px;
-      background: var(--color-secondary-3);
-      color: var(--text-color);
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      color: var(--muted-color);
       font-weight: 500;
     }
     #create-hub-btn.at-cap { opacity: .4; pointer-events: none; }
@@ -262,37 +262,28 @@
       outline: none;
     }
 
-    .card {
-      --bs-card-bg: rgb(23, 24, 30);
-      --bs-card-border-color: rgb(23, 24, 30);
-
+    .hub-card {
+      margin-bottom: 8px;
       padding: 13px;
-      margin-bottom: 4px;
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      transition: border-color var(--transition-fast);
     }
-    .card:last-child {
+    .hub-card:hover {
+      border-color: var(--accent-color);
+    }
+    .hub-card:last-child {
       margin-bottom: 0;
     }
-
-    .card .title h5 {
+    .hub-card .card-link {
+      color: var(--default-color);
+    }
+    .hub-card .title h5 {
       margin: 0;
-      color: var(--text-color);
-      font-weight: 700;
-      font-size: 16px;
-    }
-    .card .title p {
-      display: -webkit-box;
-      -webkit-line-clamp: 4;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      line-clamp: 4;
-    }
-    
-    .card .controls {
-      margin-bottom: 0;
-      display: flex;
-      gap: 5px;
-      flex-direction: row;
-      flex-wrap: wrap;
+      color: var(--heading-color);
+      font-weight: 600;
+      font-size: 1rem;
     }
   </style>
 </body>

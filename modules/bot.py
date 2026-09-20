@@ -136,27 +136,13 @@ def uuid(length: int = 8, strCase: Literal[ "upper/lower/nums/special"] = "upper
 
 async def push_notification(
     guild: Union[int, discord.Guild],
-    kind: Literal["info", "error"],
+    kind: Literal["info", "warning", "error"],
     title: str,
     description: Optional[str] = None,
     fix: Optional[str] = None,
     link: Optional[str] = None,
 ) -> None:
     guild_id = str(getattr(guild, "id", guild))
-
-    details = description
-
-    if kind == "error" and fix:
-        details = (
-            f"{description or ''}\n\n"
-            f"Suggested fix: {fix}"
-        ).strip()
-
-    elif kind == "info" and link:
-        details = (
-            f"{description or ''}\n\n"
-            f"{link}"
-        ).strip()
 
     await Notification(
         guild_id=guild_id,

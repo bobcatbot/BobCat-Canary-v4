@@ -1,8 +1,14 @@
+:root {
+  --select-width: var(--componet-max-width);
+  --select-bg: var(--component-bg);
+  --select-placeholder-color: var(--component-placeholder);
+}
+
 .select {
   --bg-color: var(--select-bg);
-  --chip-bg: rgb(242 244 251 / 20%);
+  --chip-bg: color-mix(in srgb, var(--accent-color) 20%, transparent);
   --chip-bg-hover: #677BC4;
-  --option-bg-hover: var(--color-secondary);
+  --option-bg-hover: var(--table-hover-bg);
   --placeholder: var(--select-placeholder-color);
 }
 
@@ -16,8 +22,8 @@
   position: relative;
   padding: 10px;
   width: min(var(--select-width), 100%);
-  color: var(--text-color);
-  background-color: var(--bg-color);
+  color: var(--default-color);
+  background-color: var(--input-bg);
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
@@ -49,7 +55,7 @@
   display: flex;
   align-items: center;
   padding: 2px 4px;
-  color: var(--text-color);
+  color: var(--default-color);
   background-color: var(--chip-bg);
   border-radius: 8px;
   font-size: 0.875rem; /* 14px */
@@ -83,7 +89,9 @@
   right: 0;
   z-index: 1;
   max-height: 200px;
-  background-color: var(--bg-color);
+  background-color: var(--input-bg);
+  border: 1px solid transparent;
+  box-shadow: var(--card-shadow);
   overflow-y: auto;
   border-radius: 4px;
 }
@@ -96,11 +104,11 @@
   background: transparent;
 }
 .select-options::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--border-color-dark);
   border-radius: 25px;
 }
 .select-options::-webkit-scrollbar-thumb:hover {
-  background: #646161;
+  background: var(--muted-color);
 }
 
 .select-options.active {
@@ -149,13 +157,13 @@
 
 /* Defualt Select Menu */
 select.select {
-  border: 2px solid var(--bg-color);
+  border: 2px solid var(--input-border);
 }
 select.select:hover {
-  border: 2px solid #5865f2;
+  border: 2px solid var(--input-focus-border);
 }
 select.select:focus-visible {
   outline: none;
-  border: 2px solid #5865f2;
-  box-shadow: 0px 0px 0px 5px rgb(88 101 242 / .3);
+  border: 2px solid var(--input-focus-border);
+  box-shadow: 0px 0px 0px 5px var(--input-focus-ring);
 }

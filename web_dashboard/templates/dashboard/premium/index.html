@@ -7,110 +7,123 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
-  <main id="main" class="main content">
-    <div class="pagetitle" style="padding: 0!important;margin-bottom: 25px;">
-      <h1>Take your server to the next level</h1>
-      <p>Unlock everything BobCat has to offer and get the most out your server!</p>
-    </div>
- 
-    <div class="grid">
-      {% for plan in plans %}
-      <div class="card-wrapper" data-plan="{{plan.key}}">
-        <div class="card">
-          <div class="card-body">
-            <div class="card-title d-flex align-items-center justify-content-start gap-2">
-              <input type="radio" id="radio-{{plan.key}}" style="height: 16px;width: 16px;vertical-align: middle;" 
-                     {% if loop.first %}checked{% endif %}>
-              <h5>{{plan.name}}</h5>
+  <main id="main" class="main main-content">
+    <div class="page-pricing">
+
+      <!-- Pricing Hero -->
+      <div class="pricing-hero">
+        <span class="pricing-eyebrow"><i class="bi bi-stars"></i> Premium</span>
+        <h1 class="pricing-hero-title">Take your server to the next level</h1>
+        <p class="pricing-hero-sub">Unlock everything BobCat has to offer and get the most out your server!</p>
+      </div>
+
+      <!-- Plan Cards -->
+      <div class="row g-4 align-items-stretch plans-row">
+        {% set plan_icons = {'monthly': 'bi-calendar3', 'yearly': 'bi-star', 'lifetime': 'bi-infinity'} %}
+        {% for key, plan in plans.items() | sort(attribute='1.order') %}
+        {% set name = key | title %}
+        {% set featured = key == 'lifetime' %}
+        <div class="col-lg-4">
+          <div class="plan-card {% if featured %}plan-card-featured{% endif %}">
+            {% if featured %}<span class="plan-popular-chip">Best Value</span>{% endif %}
+            <div class="plan-icon"><i class="bi {{ plan_icons.get(key, 'bi-star') }}"></i></div>
+            <h3 class="plan-name">{{name}}</h3>
+            <div class="plan-price">
+              <span class="plan-currency">$</span>
+              <span class="plan-amount">{{plan.price}}</span>
+              <span class="plan-period">
+                {% if plan.mode == 'payment' %}one time
+                {% elif key == 'yearly' %}/year
+                {% else %}/month{% endif %}
+              </span>
             </div>
-  
-            <div class="mt-3">
-              <h3 class="m-0 fw-bold">${{plan.price}}</h3>
-              <p class="text-muted">
-                {% if plan.mode == 'subscription' %}
-                  per month
-                {% elif plan.mode == 'payment' %}
-                  one time payment
-                {% else %}
-                  {{plan.mode}}
-                {% endif %}
-              </p>
-            </div>
-            
-            <ul style="list-style: none;padding-left: 0;margin-top: 4px;margin-bottom: 4px;">
+            <ul class="plan-features">
               {% for feature in plan.features %}
-              <li class="d-flex align-items-center">
-                <i class="bi bi-check icon"></i>
-                {{feature}}
-              </li>
+              <li><i class="bi bi-check-circle-fill"></i> {{feature}}</li>
               {% endfor %}
             </ul>
+            <button type="button" class="plan-cta {% if featured %}plan-cta-gradient{% else %}plan-cta-ghost{% endif %}"
+                    data-plan="{{key}}" data-price="${{plan.price}}">
+              Get {{name}} <i class="bi bi-arrow-right"></i>
+            </button>
           </div>
         </div>
-      </div>
-      {% endfor %}
-    </div>
- 
-    <div class="prem-btns d-flex gap-2 justify-content-center mt-3">
-      <button id="buy-now-btn" class="btn btn-premium">Continue to payment</button>
-    </div>
-
-    <section class="plans-compare pt-5">
-      <div class="section-title">
-        <h3 class="fw-bold">Free vs Premium</h3>
-        <p class="text-muted m-0">Every paid plan unlocks the same features - pick the billing that suits you.</p>
-      </div>
-
-      {% set compare_categories = [
-        ('Server Management', 'management'),
-        ('Utilities', 'utilities'),
-        ('Games & Fun', 'fun'),
-      ] %}
-
-      <div class="compare-table mt-3">
-        <div class="compare-row compare-head">
-          <span class="compare-feature">Plugin</span>
-          <span class="compare-cell">Free</span>
-          <span class="compare-cell compare-prem">Premium</span>
-        </div>
-
-        {% for cat_title, cat in compare_categories %}
-        <div class="compare-row compare-group"><span>{{ cat_title }}</span></div>
-        {% for key, plugin in plugins(guild) %}
-        {% if plugin.category == cat %}
-        {% set has_cap = plugin.max is defined %}
-        <div class="compare-row">
-          <span class="compare-feature">
-            <span class="material-icons">{{ plugin.icon }}</span>
-            {{ plugin.title }}
-          </span>
-          <span class="compare-cell">
-            {% if plugin.premium and has_cap %}<span class="compare-num compare-no">0</span>
-            {% elif plugin.premium %}<i class="bi bi-x-lg compare-no"></i>
-            {% elif has_cap %}<span class="compare-num">{{ plugin.max }}</span>
-            {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
-          </span>
-          <span class="compare-cell compare-prem">
-            {% if has_cap %}<span class="compare-num">{{ plugin.max_premium }}</span>
-            {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
-          </span>
-        </div>
-        {% endif %}
-        {% endfor %}
         {% endfor %}
       </div>
-    </section>
 
-    <section id="faq" class="pt-5">
-      <div class="section-title">
-        <h3 class="fw-bold">Frequently asked questions</h3>
+      <!-- Free vs Premium -->
+      <div class="compare-card">
+        <div class="compare-card-header">
+          <h2>Free vs Premium</h2>
+          <p>Every paid plan unlocks the same features - pick the billing that suits you.</p>
+        </div>
+
+        {% set compare_categories = [
+          ('Server Management', 'management'),
+          ('Utilities', 'utilities'),
+          ('Games & Fun', 'fun'),
+        ] %}
+
+        <div class="table-responsive">
+          <table class="table align-middle compare-table mb-0">
+            <thead>
+              <tr>
+                <th class="compare-feature-col">Plugin</th>
+                <th class="text-center">Free</th>
+                <th class="text-center col-featured">Premium</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cat_title, cat in compare_categories %}
+              <tr class="compare-group"><td colspan="3">{{ cat_title }}</td></tr>
+              {% for key, plugin in plugins(guild) %}
+              {% if plugin.category == cat %}
+              {% set has_cap = plugin.max is defined %}
+              <tr>
+                <td class="compare-feature">
+                  <span class="material-icons">{{ plugin.icon }}</span>
+                  {{ plugin.title }}
+                </td>
+                <td class="text-center">
+                  {% if plugin.premium and has_cap %}<span class="compare-num compare-no">0</span>
+                  {% elif plugin.premium %}<i class="bi bi-x-lg compare-no"></i>
+                  {% elif has_cap %}<span class="compare-num">{{ plugin.max }}</span>
+                  {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
+                </td>
+                <td class="text-center col-featured">
+                  {% if has_cap %}<span class="compare-num">{{ plugin.max_premium }}</span>
+                  {% else %}<i class="bi bi-check-lg compare-yes"></i>{% endif %}
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-      
-      <div id="accordion" class="accordion mt-2">
+
+      <!-- FAQ -->
+      <div class="pricing-faq">
+        <h2 class="pricing-section-title">Frequently asked questions</h2>
+        <div class="row g-4">
+          {% for faq in faqs %}
+          <div class="col-md-6">
+            <div class="faq-tile">
+              <div class="faq-tile-icon"><i class="bi bi-question-circle"></i></div>
+              <div>
+                <h3>{{faq.title}}</h3>
+                <p>{{faq.desc}}</p>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
-    </section>
+
+    </div>
 
     <!-- Custom Checkout Modal -->
     <div class="modal dark checkout-modal" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true" data-bs-backdrop="static">
@@ -169,40 +182,6 @@
   
   <script src="https://js.stripe.com/clover/stripe.js"></script>
   <script>
-    const cards = document.querySelectorAll('.card')
-    cards.forEach((card) => {
-      var inputRadio = card.querySelector('[id^="radio"]')
-      if (inputRadio.checked) {
-        card.closest('.card-wrapper').classList.add('active');
-      }
-      
-      card.addEventListener('click', (e) => {
-        var inputRadio = card.querySelector('[id^="radio"]')
- 
-        // set the previous card back to default
-        cards.forEach((item) => {
-          var input = item.querySelector('[id^="radio"]');
-          if (input.checked) {
-            input.checked = false;
-            item.closest('.card-wrapper').classList.remove('active');
-          }
-        });
- 
-        inputRadio.checked = !inputRadio.checked;
-        card.closest('.card-wrapper').classList.add('active');
-      })
-    })
- 
-    const radios = document.querySelectorAll('[id^="radio"]')
-    radios.forEach((radio) => {
-      if (radio.checked) {
-        radio.checked = true;
- 
-        const card = radio.closest('.card');
-        card.closest('.card-wrapper').classList.add('active');
-      }
-    })
- 
     // Buy Now Button - Custom Checkout (Payment Element in our own modal layout)
     let checkoutInstance = null;
     let checkoutActions = null;
@@ -230,33 +209,21 @@
       return checkoutModal;
     }
  
-    document.querySelector('#buy-now-btn').addEventListener('click', async function() {
+    document.querySelectorAll('.plan-cta[data-plan]').forEach((buyBtn) => buyBtn.addEventListener('click', async function() {
+      const originalHTML = this.innerHTML;
       this.disabled = true;
       this.innerHTML = `
         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
         Loading checkout...
       `;
       this.classList.add('opacity-75');
- 
+
       try {
-        const radios = document.querySelectorAll('[id^="radio"]');
-        let selectedPlan = null;
-        let selectedCard = null;
- 
-        radios.forEach((radio) => {
-          if (radio.checked) {
-            selectedPlan = radio.id.split('-')[1];
-            selectedCard = radio.closest('.card');
-          }
-        });
- 
-        if (!selectedPlan) {
-          throw new Error('Please select a plan');
-        }
- 
+        const selectedPlan = this.dataset.plan;
+
         // Fill in the order summary from the plan card that's already on the page
-        const planName = selectedCard.querySelector('h5').textContent.trim();
-        const planPrice = selectedCard.querySelector('h3').textContent.trim();
+        const planName = this.closest('.plan-card').querySelector('.plan-name').textContent.trim();
+        const planPrice = this.dataset.price;
         document.querySelector('#checkout-plan-name').textContent = planName;
         document.querySelector('#checkout-plan-price').textContent = planPrice;
         document.querySelector('#checkout-subtotal').textContent = planPrice;
@@ -336,10 +303,10 @@
         alert('Something went wrong: ' + error.message);
       } finally {
         this.disabled = false;
-        this.innerHTML = 'Continue to payment';
+        this.innerHTML = originalHTML;
         this.classList.remove('opacity-75');
       }
-    });
+    }));
  
     async function handleConfirmResult(result, busyButton, busyLabel) {
       const errorsEl = document.querySelector('#checkout-errors');
@@ -376,88 +343,9 @@
       }
     });
 
- 
-    // FAQ
-    const faqs = JSON.parse('{{faqs | tojson}}')
-    for (let i = 0; i < faqs.length; i++) {
-      const accordion_item = document.createElement("div");
-      accordion_item.classList = "accordion-item";
- 
-      const accordion_header = document.createElement("h2");
-      accordion_header.classList = "accordion-header";
- 
-      const accordion_button = document.createElement("button");
-      accordion_button.type = "button";
-      accordion_button.classList = "accordion-button collapsed";
-      accordion_button.setAttribute("data-bs-toggle", "collapse");
-      accordion_button.setAttribute("data-bs-target", `#item-${i}`);
- 
-      accordion_button.innerText = `${faqs[i].title}`;
-      accordion_header.appendChild(accordion_button);
-      accordion_item.appendChild(accordion_header);
- 
-      const accordion_collapse = document.createElement("div");
-      accordion_collapse.id = `item-${i}`;
-      accordion_collapse.classList = "accordion-collapse collapse";
- 
-      const accordion_body = document.createElement("div");
-      accordion_body.classList = "accordion-body";
-      accordion_body.innerText = `${faqs[i].desc}`;
- 
-      accordion_collapse.appendChild(accordion_body);
-      accordion_item.appendChild(accordion_collapse);
- 
-      document.querySelector("#accordion").appendChild(accordion_item);
-    }
   </script>
 
   <style>
-    .pagetitle h1 {
-      font-size: 32px;
-      font-weight: 700;
-    }
-    .pagetitle p {
-      margin: 0;
-    }
-    
-    .grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(1, minmax(0, 1fr))!important;
-    }
-    @media (min-width: 768px) {
-      .grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr))!important;
-      }
-    }
-
-    .icon {
-      display: flex;
-      padding-right: 4px;
-      font-size: 24px;
-      color: green;
-    }
-
-    .card-wrapper {
-      padding: 2px;
-      border-radius: 0.375rem;
-    }
-    .card-wrapper.active {
-      background: linear-gradient(90deg, var(--premium) 0%, var(--premium-light) 100%);
-    }
-    
-    .card {
-      --bs-card-color: var(--text-color);
-      --bs-card-bg: var(--color-secondary-4);
-    }
-    
-    .card-title {
-      display: flex;
-    }
-    .card-title h5 {
-      margin: 0;
-    }
-
     .btn-premium:disabled {
       opacity: 0.7;
       cursor: not-allowed;
@@ -472,35 +360,6 @@
 
     .opacity-75 {
       opacity: 0.75;
-    }
-
-    .accordion {
-      --bs-accordion-color: var(--text-color);
-      --bs-accordion-bg: var(--color-secondary-4);
-      --bs-accordion-btn-bg: var(--color-secondary-4);
-      --bs-accordion-btn-color: var(--text-color);
-
-      --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-      --bs-accordion-btn-active-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e")
-    }
-    
-    .accordion-item {
-      border: 0;
-      border-top: 2px solid #ebeef4 !important;
-    }
-    .accordion-item:first-of-type {
-      border: 0;
-      border-top: 0px !important;
-    }
-
-    .accordion-button:focus {
-      outline: 0;
-      box-shadow: none;
-    }
-    .accordion-button:not(.collapsed) {
-      color: var(--text-color);
-      background-color: var(--color-secondary-4);
-      box-shadow: none;
     }
 
     /* ── Custom Checkout Modal ── */
@@ -651,69 +510,24 @@
       min-height: 18px;
     }
 
-    /* ── Free vs Premium comparison ─────────────────────────────── */
-    .plans-compare .section-title h3 { margin-bottom: 4px; }
-
-    .compare-table {
-      border: 1px solid var(--color-card-2);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .compare-row {
-      display: grid;
-      grid-template-columns: 1fr 90px 90px;
-      align-items: center;
-      padding: 12px 16px;
-      border-top: 1px solid var(--color-card-2);
-    }
-    .compare-row:first-child { border-top: none; }
-
-    .compare-head {
-      background: var(--color-card-1);
-      font-size: 12px;
+    /* ── Free vs Premium comparison (extends .page-pricing .compare-table) ── */
+    .page-pricing .compare-table .compare-group td {
+      padding-block: 0.5rem;
+      background: var(--table-header-bg);
+      font-size: 0.75rem;
       font-weight: 700;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      letter-spacing: .04em;
-      color: var(--text-muted);
+      color: var(--muted-color);
     }
-    .compare-group {
-      background: var(--color-card-1);
-      grid-template-columns: 1fr;
-      padding: 8px 16px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: var(--text-muted);
-    }
-
-    .compare-feature {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 500;
-      color: var(--text-color);
-    }
-    .compare-feature .material-icons {
+    .page-pricing .compare-table .compare-feature .material-icons {
+      margin-right: 0.5rem;
       font-size: 20px;
-      color: var(--text-muted);
+      vertical-align: middle;
+      color: var(--muted-color);
     }
-    .compare-cell {
-      text-align: center;
-      font-size: 14px;
-    }
-    .compare-cell.compare-prem {
-      color: rgb(var(--premium-gold));
-      font-weight: 600;
-    }
-    .compare-num { font-weight: 600; }
-    .compare-yes { color: #3ba55d; }
-    .compare-no { color: var(--text-muted); opacity: .6; font-size: 12px; }
-
-    @media (max-width: 560px) {
-      .compare-row { grid-template-columns: 1fr 64px 64px; padding: 10px 12px; }
-      .compare-feature { font-size: 13px; gap: 8px; }
-    }
+    .page-pricing .compare-table .compare-num { font-weight: 600; }
+    .page-pricing .compare-table tr:last-child td { border-bottom: 0; }
   </style>
 </body>
 </html>

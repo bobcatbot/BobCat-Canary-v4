@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>404 | BobCat</title>
+  <title>403 | BobCat</title>
   {% include 'include/dash-links.html' %}
 </head>
 <body>
@@ -12,15 +12,19 @@
       <a href="{{ url_for('web.index') }}" class="auth-logo d-none"></a>
 
       <div class="auth-content-inner">
-        <div class="error-page error-404">
-          <div class="error-code">404</div>
-          <h1 class="error-title">Oops! This page wandered off</h1>
+        <div class="error-page error-403">
+          <div class="error-chip">
+            <i class="bi bi-lock"></i>
+          </div>
+          <div class="error-code">403</div>
+          <h1 class="error-title">Access denied</h1>
           <p class="error-text">
-            Sorry, the page you're looking for doesn't exist or has been moved.
-            Check the URL, try a quick search, or head back to safer ground.
+            You don't have permission to access this page. If you believe this is
+            a mistake, please contact your administrator or sign in with
+            different credentials.
           </p>
           <div class="error-actions">
-            <a href="{{ url_for('dashboard.dashboard_home', guild_id=guild_id) if guild_id else url_for('web.index') }}" class="error-btn">
+            <a class="error-btn" href="{{ url_for('dashboard.dashboard_home', guild_id=guild_id) if guild_id else url_for('web.index') }}">
               <i class="bi bi-house-fill"></i> Back to Dashboard
             </a>
             <a class="error-btn ghost" onclick="history.back(); return false;">

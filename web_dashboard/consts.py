@@ -23,8 +23,9 @@ premium_faqs = [
   }
 ]
 
-premium_types = {
+premium_plans = {
   'monthly': {
+    'order': 1,
     'price_id': 'price_1ODPSVDUmGmAJQ2o9OYR93OV',
     'price': '6.00',
     'mode': 'subscription',
@@ -35,6 +36,7 @@ premium_types = {
     ]
   },
   'yearly': {
+    'order': 3,
     'price_id': 'price_1ODPTfDUmGmAJQ2on8Ie2wUs',
     'price': '50.00',
     'mode': 'subscription',
@@ -45,6 +47,7 @@ premium_types = {
     ]
   },
   'lifetime': {
+    'order': 2,
     'price_id': 'price_1ODPUUDUmGmAJQ2oILOX7jwl',
     'price': '70.00',
     'mode': 'payment',

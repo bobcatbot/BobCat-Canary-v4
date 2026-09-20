@@ -10,6 +10,7 @@ from .core import (
     Guild,
     Notification,
     StripeEvent,
+    Maintenance,
 )
 from .welcome import (
     MessageConfig,
@@ -73,6 +74,7 @@ ALL_MODELS = [
     Guild,
     Notification,
     StripeEvent,
+    Maintenance,
 
     Warning,
     Economy,

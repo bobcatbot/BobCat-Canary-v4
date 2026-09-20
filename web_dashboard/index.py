@@ -1,7 +1,8 @@
 import logging
+import re
 import stripe
 from pydantic import BaseModel
-from quart import Quart, render_template, flash, session, redirect, request, url_for
+from quart import Quart, render_template, flash, session, redirect, request, url_for, jsonify
 from quart.json.provider import DefaultJSONProvider
 from zenora import BadTokenError
 
@@ -9,7 +10,8 @@ from modules import bot as v
 
 from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config
 from .context import register_context_processors
-from .utils import PremiumModuleError
+from .maintenance import get_state as get_maintenance
+from .utils import PremiumModuleError, DEV_IDS
 
 from .blueprints.auth import auth_bp
 from .blueprints.web import web_bp
@@ -86,10 +88,52 @@ app.register_blueprint(birthdays_bp)
 app.register_blueprint(giveaways_bp)
 app.register_blueprint(economy_bp)
 
+# ── Maintenance mode ──────────────────────────────────────────────────────
+# Toggled with `/dev maintenance` or /admin/maintenance. Left open: static files (the page needs its
+# CSS), Stripe webhooks (a paid checkout must still be recorded), OAuth (so a
+# dev can log in and bypass) and the public status page.
+MAINTENANCE_OPEN = ("/static/", "/webhook/stripe", "/oauth/", "/status", "/api/shard_status")
+
+@app.before_request
+async def maintenance_gate():
+    # Path first: these never touch Mongo, so /status still answers if the DB is down
+    if request.path.startswith(MAINTENANCE_OPEN):
+        return
+    state = await get_maintenance()
+    if not state["enabled"]:
+        return
+    if (session.get("user") or {}).get("id") in DEV_IDS:
+        return
+
+    if request.method != "GET":
+        return jsonify({
+            'status': 'error',
+            'message': 'BobCat is down for maintenance. Please try again shortly.',
+            'code': 'maintenance',
+        }), 503
+    return await render_template('error/maintenance.html', eta=state["eta"]), 503
+
 # ── Global error handlers ─────────────────────────────────────────────────
+def error_guild_id():
+    """The guild a failed /dashboard/<id>/... request was for, so the error
+    page can send the user back to that guild's dashboard. Read from the URL
+    rather than request.view_args: that's empty on a 404 (no route matched),
+    and public routes like /form/<guild_id>/... shouldn't link to a dashboard."""
+    match = re.match(r"/dashboard/(\d+)", request.path)
+    return int(match.group(1)) if match else None
+
 @app.errorhandler(404)
 async def page_not_found(e):
-    return await render_template('error/404.html'), 404
+    return await render_template('error/404.html', guild_id=error_guild_id()), 404
+
+@app.errorhandler(403)
+async def forbidden(e):
+    return await render_template('error/403.html', guild_id=error_guild_id()), 403
+
+@app.errorhandler(500)
+async def internal_error(e):
+    # Quart has already logged the traceback by the time this runs
+    return await render_template('error/500.html', guild_id=error_guild_id()), 500
 
 @app.errorhandler(BadTokenError)
 async def handle_bad_token(e):

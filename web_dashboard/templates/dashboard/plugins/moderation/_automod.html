@@ -88,27 +88,24 @@
 </div>
 {% endmacro %}
 
-<section class="section">
-  <div class="feature_card">
-    <div class="title d-flex justify-content-between align-items-start automod-rulesets-toggle"
+<section class="sectionn">
+  <div class="card">
+    <div class="dash-card-header"
       style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#automodRulesetsBody" role="button"
       aria-expanded="true" aria-controls="automodRulesetsBody">
       <div>
-        <h2>AutoMod Rulesets</h2>
-        <p>The Auto-Moderator is composed of the checks below. You can enable/disable them. You can also
+        <h2 class="dash-card-title">AutoMod Rulesets</h2>
+        <p class="dash-card-subtitle">The Auto-Moderator is composed of the checks below. You can enable/disable them. You can also
           configure the actions that will be taken when those checks are triggered.</p>
       </div>
-      <i class="bi bi-chevron-up automod-rulesets-caret"></i>
     </div>
 
     <hr>
-    <div class="collapse show" id="automodRulesetsBody">
-      <div class="d-flex flex-wrap gap-4 automod-rulesets-grid">
-        {{ ruleset_column('antilink', 'Anti Link', 'bi-link-45deg') }}
-        {{ ruleset_column('antispam', 'Anti Spam', 'bi-chat-square-text') }}
-        {{ ruleset_column('ghostping', 'Ghost Pings', 'bi-incognito') }}
-        {{ ruleset_column('caps', 'Excessive Caps', 'bi-megaphone') }}
-      </div>
+    <div id="automodRulesetsBody" class="card-body d-flex flex-wrap gap-4 automod-rulesets-grid">
+      {{ ruleset_column('antilink', 'Anti Link', 'bi-link-45deg') }}
+      {{ ruleset_column('antispam', 'Anti Spam', 'bi-chat-square-text') }}
+      {{ ruleset_column('ghostping', 'Ghost Pings', 'bi-incognito') }}
+      {{ ruleset_column('caps', 'Excessive Caps', 'bi-megaphone') }}
     </div>
   </div>
 </section>

@@ -6,10 +6,10 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         {% with plugin = get_plugin(guild, 'leveling') %}
@@ -23,66 +23,74 @@
     </div>
 
     <!-- Leaderboard -->
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Leaderboard</h2>
-          <p>View your server's leaderboard</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Leaderboard</h2>
+            <p class="dash-card-subtitle">View your server's leaderboard</p>
+          </div>
         </div>
         
         <hr>
-        <div class="mt-2 d-flex gap-1 justify-content-between align-items-center">
-          <label for="lbStatus" class="title">
-            <h5 class="m-0" style="font-size: 1.125rem; font-weight: 700;">Make my server's leaderboard public</h5>
-            <p class="m-0">Anyone can view your server's leaderboard by visiting the link.</p>
-          </label>
-          <div class="form-switch ps-0">
-            <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status" {% if data['leaderboard']['public'] %}checked{% endif %}>
+        <div class="card-body">
+          <div class="mt-3 d-flex gap-1 justify-content-between align-items-center">
+            <label for="lbStatus" class="title">
+              <h5 class="m-0" style="font-size: 1.125rem; font-weight: 700;">Make my server's leaderboard public</h5>
+              <p class="m-0">Anyone can view your server's leaderboard by visiting the link.</p>
+            </label>
+            <div class="form-switch ps-0">
+              <input type="checkbox" id="lbStatus" class="form-check-input ms-0 mt-0" role="switch" name="lb-status" {% if data['leaderboard']['public'] %}checked{% endif %}>
+            </div>
           </div>
-        </div>
-        <div class="mt-2">
-          <div class="d-flex gap-2 align-items-center">
-            <label for="lbSlug" class="fw-bold">URL</label>
-            {% if not is_premium %}
-            {% include 'components/badges/prem.html' %}
+
+          <div class="mt-3">
+            <div class="d-flex gap-2 align-items-center">
+              <label for="lbSlug" class="fw-bold">URL</label>
+              {% if not is_premium %}
+              {% include 'components/badges/prem.html' %}
+              {% endif %}
+            </div>
+          
+            <div class="d-flex gap-2 mt-2">
+              <div class="d-flex align-items-stretch flex-grow-1" style="border:1px solid rgba(255,255,255,.15);border-radius:8px;overflow:hidden;">
+                <span style="display:flex;align-items:center;padding:0 10px;background:rgba(255,255,255,.06);color:#8b8f9a;font-size:14px;white-space:nowrap;user-select:none;">/leaderboard/</span>
+                <input type="text" id="lbSlug" name="lbSlug" class="text-input"
+                  style="border:0;border-radius:0;flex:1 1 auto;min-width:0;"
+                  value="{{ data.leaderboard.url if data.leaderboard.url else guild.id }}"
+                  placeholder="{{ guild.id }}"
+                  {% if not is_premium %}disabled readonly{% endif %}
+                />
+              </div>
+              <a id="lbLinka" class="btn d-flex align-items-center" href="/leaderboard/{{data.leaderboard.url if data.leaderboard.url else guild.id}}" variant="secondary" target="_blank">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+            </div>
+            {% if is_premium %}
+            <p class="m-0 mt-1 text-muted" style="font-size: 12px;">2-32 characters: lowercase letters, numbers and hyphens. Leave as the server ID to reset.</p>
             {% endif %}
           </div>
-          
-          <div class="d-flex gap-2 mt-1">
-            <div class="d-flex align-items-stretch flex-grow-1" style="border:1px solid rgba(255,255,255,.15);border-radius:8px;overflow:hidden;">
-              <span style="display:flex;align-items:center;padding:0 10px;background:rgba(255,255,255,.06);color:#8b8f9a;font-size:14px;white-space:nowrap;user-select:none;">/leaderboard/</span>
-              <input type="text" id="lbSlug" name="lbSlug" class="text-input"
-                style="border:0;border-radius:0;flex:1 1 auto;min-width:0;"
-                value="{{ data.leaderboard.url if data.leaderboard.url else guild.id }}"
-                placeholder="{{ guild.id }}"
-                {% if not is_premium %}disabled readonly{% endif %}
-              />
-            </div>
-            <a id="lbLinka" class="btn d-flex align-items-center" href="/leaderboard/{{data.leaderboard.url if data.leaderboard.url else guild.id}}" variant="secondary" target="_blank">
-              <i class="bi bi-box-arrow-up-right"></i>
-            </a>
+
+          <div class="mt-2">
+            <label for="lbBanner" class="fw-bold">Banner</label><br>
+            <input type="text" id="lbBanner" name="lbBanner" class="text-input" value="{{data.leaderboard.banner if data.leaderboard.banner else guild.banner.url if guild.banner else ''}}" />
           </div>
-          {% if is_premium %}
-          <p class="m-0 mt-1 text-muted" style="font-size: 12px;">2-32 characters: lowercase letters, numbers and hyphens. Leave as the server ID to reset.</p>
-          {% endif %}
-        </div>
-        <div class="mt-2">
-          <label for="lbBanner" class="fw-bold">Banner</label><br>
-          <input type="text" id="lbBanner" name="lbBanner" class="text-input" value="{{data.leaderboard.banner if data.leaderboard.banner else guild.banner.url if guild.banner else ''}}" />
         </div>
       </div>
     </section>
     
     <!-- Leveling Up Announcements -->
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Leveling Up</h2>
-          <p>Whenever a user gains a level, BobCat can send a message.</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Leveling Up</h2>
+            <p class="dash-card-subtitle">Whenever a user gains a level, BobCat can send a message.</p>
+          </div>
         </div>
         
         <hr>
-        <div>
+        <div class="card-body">
           <div class="level-anno-wrapper single">
             <p class="mb-1">Level up announcement</p>
             <div class="select">
@@ -95,7 +103,7 @@
               </div>
             </div>
           </div>
-          <div class="level-chan-wrapper single" style="margin-top: 0.5rem; display: none;">
+          <div class="level-chan-wrapper single" style="margin-top: 0.5rem;display: none;">
             <p class="mb-1">Announcement Channel</p>
             <div class="select">
               <div class="select-selected">Select an option</div>
@@ -106,83 +114,86 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="mt-2">
-          <p class="mb-2">Level Up Announcement Message</p>
-          <textarea id="LevelAnnoMsg" class="text-input" name="LevelAnnoMsg"></textarea>
-          <script>document.querySelector('#LevelAnnoMsg').value = "{{data['message']['content']}}";</script>
+          <div class="mt-3">
+            <p class="mb-2">Level Up Announcement Message</p>
+            <textarea id="LevelAnnoMsg" class="text-input" name="LevelAnnoMsg"></textarea>
+            <script>document.querySelector('#LevelAnnoMsg').value = "{{data['message']['content']}}";</script>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Server Rank Card Section -->
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Server Rank Card</h2>
-          <p>Customize the rank card displayed in `/rank` commands across your server.</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Server Rank Card</h2>
+            <p class="dash-card-subtitle">Customize the rank card displayed in `/rank` commands across your server.</p>
+          </div>
         </div>
         
         <hr>
-        {% set current_card = (server_cards['all'] | selectattr('card', 'equalto', data['card']) | first) %}
-        <!-- Live Card Preview (built by buildRankCardMock in JS, same renderer as the modal preview) -->
-        <div id="RankCardTop" class="rank-card-mock" style="max-width: 465px;"></div>
+        <div class="card-body">
+          {% set current_card = (server_cards['all'] | selectattr('card', 'equalto', data['card']) | first) %}
+          <!-- Live Card Preview (built by buildRankCardMock in JS, same renderer as the modal preview) -->
+          <div id="RankCardTop" class="rank-card-mock" style="max-width: 465px;"></div>
 
-        <div>
           <button class="mt-2 btn btn-blurple" data-bs-toggle="modal" data-bs-target="#ServerCard">Edit server card</button>
-          
-          <!-- Edit Rank Card Modal -->
-          <div class="modal dark fade" id="ServerCard" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h1 class="modal-title fs-5">Edit Rank Card</h1>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <div id="RankCardModalPreview" class="rank-card-mock" style="max-width: 465px;"></div>
+        </div>
+        
+        <!-- Edit Rank Card Modal -->
+        <div class="modal dark fade" id="ServerCard" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h1 class="modal-title fs-5">Edit Rank Card</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div id="RankCardModalPreview" class="rank-card-mock" style="max-width: 465px;"></div>
 
-                  {% macro rank_card_data(img) %} data-card="{{img.card}}" data-url="{{img.url}}" data-fill="{{img.bar_fill}}" data-bg="{{img.bar_bg}}" {% endmacro %}
-                  <div class="mt-3">
-                    <p class="m-0 mb-1 fw-bold">Solid Colors</p>
-                    <div class="d-flex flex-wrap color-wrapper" style="gap: 6px;">
-                      {% for img in server_cards['default'] %}
-                      <input type="radio" class="rank-color-card" name="rank-color-card" style="--color: {{img.bar_fill}}" {{ rank_card_data(img) }}>
-                      {% endfor %}
-                    </div>
-                  </div>
-                  <div class="mt-3">
-                    <p class="m-0 mb-1 fw-bold">Picture Backgrounds</p>
-                    <div class="d-flex flex-wrap" style="gap: 6px; max-height: 290px; overflow-y: auto;">
-                      {% for img in server_cards['cards'] %}
-                      <img class="rank-img-card" src="{{img.url}}" style="width: 140px; cursor: pointer;" {{ rank_card_data(img) }}>
-                      {% endfor %}
-                    </div>
+                {% macro rank_card_data(img) %} data-card="{{img.card}}" data-url="{{img.url}}" data-fill="{{img.bar_fill}}" data-bg="{{img.bar_bg}}" {% endmacro %}
+                <div class="mt-3">
+                  <p class="m-0 mb-1 fw-bold">Solid Colors</p>
+                  <div class="d-flex flex-wrap color-wrapper" style="gap: 6px;">
+                    {% for img in server_cards['default'] %}
+                    <input type="radio" class="rank-color-card" name="rank-color-card" style="--color: {{img.bar_fill}}" {{ rank_card_data(img) }}>
+                    {% endfor %}
                   </div>
                 </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  <button type="button" id="RankCardSave" class="btn btn-blurple" data-bs-dismiss="modal">Save</button>
+                <div class="mt-3">
+                  <p class="m-0 mb-1 fw-bold">Picture Backgrounds</p>
+                  <div class="d-flex flex-wrap" style="gap: 6px; max-height: 290px; overflow-y: auto;">
+                    {% for img in server_cards['cards'] %}
+                    <img class="rank-img-card" src="{{img.url}}" style="width: 140px; cursor: pointer;" {{ rank_card_data(img) }}>
+                    {% endfor %}
+                  </div>
                 </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="RankCardSave" class="btn btn-blurple" data-bs-dismiss="modal">Save</button>
               </div>
             </div>
           </div>
-          
         </div>
       </div>
     </section>
 
     <!-- Role Rewards -->
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Role Rewards</h2>
-          <p>Role rewards are automatically assigned to users when they reach specified levels.</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Role Rewards</h2>
+            <p class="dash-card-subtitle">Role rewards are automatically assigned to users when they reach specified levels.</p>
+          </div>
         </div>
         
         <hr>
-        <div>
+        <div class="card-body">
           <div class="form-check ms-0 mb-1">
             <input type="radio" id="role-reward-stacked1" name="RoleRewardStacked" class="form-check-input me-2" {% if data.roleRewards.stacked %}checked{% endif %}>
             <label for="role-reward-stacked1">Stack rewards</label>
@@ -193,55 +204,60 @@
             <label for="role-reward-stacked2">Remove previous rewards</label>
             <p class="m-0" style="color: #9195ab; font-size: 14px;">Users only hold the single highest level role reward.</p>
           </div>
+
+          <div class="mt-2">
+            <hr>
+            <div class="d-flex justify-content-end mb-2">
+              <button type="button" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#RoleRewardAddModal">
+                <i class="bi bi-plus-lg"></i> Add Role Reward
+              </button>
+            </div>
+            
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Role</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="RoleRewardTableBody">
+                {% for role in data.roleRewards.roles %}
+                <tr data-role-id="{{role.id}}">
+                  <td>{{role.level}}</td>
+                  <td>{{role.name}}</td>
+                  <td>
+                    <div class="table-actions justify-content-end">
+                      <button type="button" class="btn btn-blurple btn-icon role-reward-edit" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button type="button" class="btn btn-danger btn-icon role-reward-delete" title="Delete">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="mt-2">
-          <hr>
-          <div class="d-flex justify-content-end mb-2">
-            <button type="button" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#RoleRewardAddModal">
-              <i class="bi bi-plus-lg"></i> Add Role Reward
-            </button>
-          </div>
-          
-          <table class="tablee">
-            <thead>
-              <tr>
-                <th>Level</th>
-                <th>Role</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="RoleRewardTableBody">
-              {% for role in data.roleRewards.roles %}
-              <tr data-role-id="{{role.id}}">
-                <td>{{role.level}}</td>
-                <td>{{role.name}}</td>
-                <td class="text-end">
-                  <button type="button" class="btn btn-blurple role-reward-edit" title="Edit">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button type="button" class="btn btn-danger role-reward-delete" title="Delete">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
       </div>
     </section>
 
     <!-- XP Options & Modifiers -->
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>XP Options & Modifiers</h2>
-          <p>Configure cooldowns and level caps.</p>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">XP Options & Modifiers</h2>
+            <p class="dash-card-subtitle">Configure cooldowns and level caps.</p>
+          </div>
         </div>
         
         <hr>
-        <div>
+        <div class="card-body">
           <div>
             <label for="xp_cooldown" class="fw-bold">Cooldown (Seconds)</label><br>
             <input type="number" id="xp_cooldown" class="text-input" min="1" value="{{data.cooldown}}" />
@@ -250,20 +266,22 @@
             <label for="xp_max_level" class="fw-bold">Max Level (0 for unlimited)</label><br>
             <input type="number" id="xp_max_level" class="text-input" min="0" value="{{data.max_level}}" />
           </div>
-        </div>
 
-        <div class="mt-3">
-          <div class="mb-1 title">
-            <h2 class="fs-6">No XP Channels</h2>
-            <p>Prevent members from gaining XP when sending messages in specific channels.</p>
-          </div>
-          <div class="NoXpChans-select-wrapper multiple">
-            <div class="select">
-              <div class="select-selected">Select channels</div>
-              <div class="select-options">
-                {% for channel in guild_models(guild).channels.text %}
-                  <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
-                {% endfor %}
+          <div class="mt-3">
+            <div class="mb-1 title">
+              <div>
+                <h2 class="fs-6">No XP Channels</h2>
+                <p>Prevent members from gaining XP when sending messages in specific channels.</p>
+              </div>
+            </div>
+            <div class="NoXpChans-select-wrapper multiple">
+              <div class="select">
+                <div class="select-selected">Select channels</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                    <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                  {% endfor %}
+                </div>
               </div>
             </div>
           </div>
@@ -272,27 +290,31 @@
     </section>
 
     <!-- Auto Reset -->
-    <section class="section">
-      <div class="feature_card d-flex gap-1 justify-content-between align-items-center">
-        <div class="title">
-          <h2>Auto Reset</h2>
-          <p>Reset user XP and level automatically if they leave the server?</p>
-        </div>
-        <div class="form-switch ps-0">
-          <input type="checkbox" id="level-auto-reset" class="form-check-input ms-0" role="switch" {% if data['auto_reset'] %}checked{% endif %}>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Auto Reset</h2>
+            <p class="dash-card-subtitle mb-0">Reset user XP and level automatically if they leave the server?</p>
+          </div>
+          <div class="form-switch ps-0">
+            <input type="checkbox" id="level-auto-reset" class="form-check-input ms-0" role="switch" {% if data['auto_reset'] %}checked{% endif %}>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Economy Integration -->
-    <section class="section">
-      <div class="feature_card d-flex gap-1 justify-content-between align-items-center">
-        <div class="title">
-          <h2>Economy Integration</h2>
-          <p>Award coins to users when they send messages or gain levels.</p>
-        </div>
-        <div class="form-switch ps-0">
-          <input type="checkbox" id="level-eco-status" class="form-check-input ms-0" role="switch" {% if data['economy'] %}checked{% endif %}>
+    <section class="sectionn">
+      <div class="card ">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Economy Integration</h2>
+            <p class="dash-card-subtitle mb-0">Award coins to users when they send messages or gain levels.</p>
+          </div>
+          <div class="form-switch ps-0">
+            <input type="checkbox" id="level-eco-status" class="form-check-input ms-0" role="switch" {% if data['economy'] %}checked{% endif %}>
+          </div>
         </div>
       </div>
     </section>
@@ -772,30 +794,81 @@
       outline-offset: 2px;
     }
 
-    .tablee {
+    /* Tables */
+    .table {
+      --bs-table-bg: var(--background-color);
+      --bs-table-color: var(--default-color);
+      --bs-table-border-color: var(--border-color);
+      --bs-table-striped-bg: var(--table-stripe-bg);
+      --bs-table-hover-bg: var(--table-hover-bg);
+    }
+    /*--------------------------------------------------------------
+    # Tables
+    --------------------------------------------------------------*/
+    .table {
       width: 100%;
-      background: #181a20;
-      color: var(--text-color);
-      border-color: transparent;
+      margin-bottom: 0;
       border-radius: 8px;
-      overflow: hidden;
-    }
-        
-    .tablee tr th {
-      font-size: 16px;
-      padding: 14px;
-      border-bottom: #2d3343 solid 2px;
-    }
-    .tablee tr {
-      background-color: #181a20;
-      border-bottom: #2d3343 solid 2px;
-    }
-    .tablee tr:last-child {
-      border-bottom: transparent solid 2px;
-    }
-    .tablee > tbody > tr > td {
+      color: var(--default-color);
       vertical-align: middle;
-      padding: 14px;
+      border-color: var(--border-color);
+      background-color: var(--bs-table-bg);
+    }
+
+    .table> :not(caption)>*>* {
+      padding: var(--spacing-md) var(--spacing-md);
+      background-color: transparent;
+      border-bottom-width: 1px;
+      box-shadow: none;
+    }
+
+    .table-sm> :not(caption)>*>* {
+      padding: var(--spacing-sm) var(--spacing-sm);
+    }
+
+    .table>thead {
+      vertical-align: bottom;
+    }
+    
+    .table>thead>tr {
+    }
+    
+    .table>thead>tr>th {
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-color);
+      background-color: var(--table-header-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .table>tbody>tr>td {
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--border-color-light);
+    }
+
+    .table>tbody>tr:last-child>td {
+      border-bottom: none;
+    }
+
+    /* Responsive Table */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Table with Actions */
+    .table-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+
+    .table-actions .btn-icon {
+      width: 32px;
+      height: 32px;
     }
   </style>
 </body>

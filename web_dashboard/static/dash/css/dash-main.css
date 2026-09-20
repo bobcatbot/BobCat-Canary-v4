@@ -4,7 +4,6 @@
   --component-placeholder: #6c757d;
 
   --input-width: var(--componet-max-width);
-  --input-bg: var(--component-bg);
   --input-placeholder-color: var(--component-placeholder);
   
   --num-input-width: var(--componet-max-width);
@@ -56,9 +55,10 @@
   width: 16px;
 }
 
+/* ── Guild Selector ───────────────────────────────────── */
 .guild-selector {
   position: relative;
-  /* padding: var(--padding, 20px) var(--padding, 20px) 0 var(--padding, 20px); */
+  padding: var(--spacing-sm) var(--spacing-md) 0 var(--spacing-md);
   user-select: none;
 }
 .guild-selector .info {
@@ -68,7 +68,7 @@
   width: 100%;
   padding: 10px 13px;
   margin-bottom: 10px;
-  background: var(--color-secondary-4);
+  background: var(--background-color);
   text-align: center;
   border: 2px solid transparent;
   border-radius: 10px;
@@ -85,12 +85,12 @@
 .guild-selector .content {
   display: none;
   position: absolute;
-  top: 105%;
-  left: 0;
+  top: 90%;
+  left: var(--spacing-md);
+  right: var(--spacing-md);
   z-index: 1;
-  min-width: 100%;
   padding: 8px;
-  background-color: var(--color-secondary-4);
+  background-color: var(--background-color);
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
   border-radius: 10px;
 }
@@ -101,6 +101,7 @@
   display: block;
   padding: 8px 10px;
   margin-bottom: 5px;
+  color: var(--sidebar-color);
   text-decoration: none;
   border-radius: 10px;
 }
@@ -113,13 +114,65 @@
 }
 .guild-selector .content a.active,
 .guild-selector .content a:hover {
-  background: var(--color-secondary-3);
+  background: var(--background-color);
 }
 
 .guild-selector.active .content {
   display: block;
 }
 
+/* Collapsed sidebar rail (desktop): just the server icon, and the dropdown
+   flies out to the right of the rail (.sidebar is overflow: visible here). */
+@media (min-width: 1200px) {
+  .sidebar-collapsed .guild-selector {
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+  }
+  .sidebar-collapsed .guild-selector .info {
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .sidebar-collapsed .guild-selector .info .guild-name,
+  .sidebar-collapsed .guild-selector .info > .bi {
+    display: none;
+  }
+  .sidebar-collapsed .guild-selector .content {
+    top: 0;
+    left: calc(100% + 6px);
+    right: auto;
+    min-width: 240px;
+  }
+}
+
+/* ── Upgrade CTA ────────────────────────────────────────
+   Desktop: .header-upgrade button in the header (colours from .btn[variant="premium"]).
+   Mobile: .mobile-menu-item-premium tile in .mobile-header-menu. ta-main.css loads
+   after this file and styles .mobile-menu-item (+ :hover) at single-class specificity,
+   so the tile selectors are doubled up to win. */
+.header-upgrade {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.header-upgrade i {
+  font-size: 16px;
+}
+
+.mobile-menu-item.mobile-menu-item-premium,
+.mobile-menu-item.mobile-menu-item-premium:hover,
+.mobile-menu-item.mobile-menu-item-premium .mobile-menu-label,
+.mobile-menu-item.mobile-menu-item-premium:hover .mobile-menu-label {
+  color: rgb(var(--premium-gold));
+}
+.mobile-menu-item.mobile-menu-item-premium:hover {
+  background-color: rgb(var(--premium-gold) / 0.14);
+}
+
+/* ── Tooltips ───────────────────────────────────────── */
 .tooltipp {
   position: relative;
   display: inline-block;
@@ -207,7 +260,7 @@
 .text-input {
   resize: none;
   width: min(var(--input-width), 100%);
-  color: var(--text-color);
+  color: var(--default-color);
   background: var(--input-bg);
   padding: 8px 14px;
   border: 2px solid var(--input-bg);
@@ -233,18 +286,18 @@
 .num-input {
   width: min(var(--num-input-width), 100%);
   color: #fff;
-  background: var(--num-input-bg);
+  background: var(--input-bg);
   padding: 8px 14px;
-  border: 2px solid var(--num-input-bg);
+  border: 2px solid transparent;
   border-radius: 8px;
 }
 .num-input:hover {
   outline: none;
-  border: 2px solid var(--blurple);
+  border: 2px solid var(--accent-color);
 }
 .num-input:focus {
   outline: none;
-  border: 2px solid var(--blurple);
+  border: 2px solid var(--accent-color);
   box-shadow: 0px 0px 0px 5px rgb(88 101 242 / .3);
 }
 .num-input:disabled {

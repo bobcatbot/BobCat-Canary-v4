@@ -7,12 +7,15 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
-    <div class="pagetitle plugin">
+  <main id="main" class="main main-content">
+    <div class="pagetitle plugin d-flex justify-content-between align-items-center">
       <h1>Notification Center</h1>
+      {% if data %}
+      <button id="MarkAllRead" type="button" class="btn btn-secondary">Mark all as read</button>
+      {% endif %}
     </div>
 
     {% if not data %}
@@ -23,132 +26,192 @@
     </section>
     {% endif %}
 
-    {% for date, notifis in data.items() %}
-    <section class="section">
-      <div class="section__header">
-        <h3 class="date" data-date="{{ date }}">{{ date }}</h3>
-
-        <script>
-          document.querySelectorAll(".date").forEach(item => {
-            var date = new Date(item.getAttribute("data-date"));
-            var options = { day: 'numeric', month: 'numeric', year: 'numeric' };
-            var localDate = date.toLocaleDateString(navigator.language, options);
-
-            var formattedDate = localDate.split('/').join('.');
-
-            var diffDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-            let diffDaysString;
-
-            if (diffDays == 0) {
-              diffDaysString = "Today";
-            } else if (diffDays == 1) {
-              diffDaysString = "Yesterday";
-            } else {
-              diffDaysString = diffDays + " days ago";
-            }
-            item.innerHTML = diffDaysString + ", " + formattedDate;
-          })
-        </script>
-      </div>
-      <div class="section__body">
-        {% for notification in notifis %}
-          <div class="notification">
-            <div class="notification__body">
-              <div class="notification__icons">
-                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" data-unread="{{notification.read}}">
-                  <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"></path>
-                </svg>
-              </div>
-              <div class="notification__info">
-                <h5>{{ notification.title }}</h5>
-              
-                {% if notification.description %}
-                <p class="notification__info__desc">{{ notification.description }}</p>
-                <script>
-                  var converter = new showdown.Converter();
-                  document.querySelectorAll(".notification__info__desc").forEach(item => {
-                    var text = item.innerHTML; // '{{ notification.description }}';
-                    var html = converter.makeHtml(text);
-
-                    item.innerHTML = html;
-                    item.querySelector("p").querySelector("a").classList.add("link");
-                  })
-                </script>
-                {% endif %}
-                <p class="m-0">{{ notification.created_at.time }} by {{notification.user}}</p>
-              </div>
-            </div>
-            <div class="notification__components">
-              {% if notification.type == "error" and notification.fix %}
-              <a href="{{ notification.fix }}" class="btn btn-secondary" target="_blank" aria-label="How to fix">
-                How to fix
-                <i class="bi bi-chevron-right"></i>
-              </a>
-              {% endif %}
-              {% if notification.type == "info" and notification.link %}
-              <a href="{{ notification.link.url }}" class="btn btn-secondary">
-                {{ notification.link.text }}
-                <i class="bi bi-chevron-right" aria-hidden="true"></i>
-              </a>
-              {% endif %}
-              <div class="dropdown">
-                <button class="btn btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 0;color: #fff;" aria-label="More options">
-                  <i class="bi bi-three-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dark">
-                  <li><a id="MarkAsRead" class="dropdown-item" data-id="{{notification.id}}">
-                    Mark as 
-                    {% if notification.read %}
-                    <span>unread</span>
-                    {% else %}
-                    <span>read</span>
-                    {% endif %}
-                  </a></li>
-                </ul>
-              </div>
-            </div>
+    {# Rows arrive newest-first and flat; the script below groups them into
+       days in the viewer's own timezone (the server only knows UTC). #}
+    <div id="NotificationList">
+      {% for notification in data %}
+      <div class="notification" id="n-{{ notification.id }}" data-id="{{ notification.id }}" data-type="{{ notification.type }}" data-ts="{{ notification.created_at }}">
+        <div class="notification__body">
+          <div class="notification__icons">
+            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" data-read="{{ notification.read }}">
+              <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"></path>
+            </svg>
           </div>
-        {% endfor %}
+          <div class="notification__info">
+            <h5>{{ notification.title }}</h5>
+            {% if notification.description %}
+            <p class="notification__info__desc">{{ notification.description }}</p>
+            {% endif %}
+            <p class="m-0"><time class="notification__time"></time> by {{ notification.user }}</p>
+          </div>
+        </div>
+        <div class="notification__components">
+          {% if notification.type == "error" and notification.fix %}
+          <a href="{{ notification.fix }}" class="btn btn-secondary" target="_blank" aria-label="How to fix">
+            How to fix
+            <i class="bi bi-chevron-right"></i>
+          </a>
+          {% endif %}
+          {% if notification.type == "info" and notification.link %}
+          <a href="{{ notification.link }}" class="btn btn-secondary">
+            Open
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </a>
+          {% endif %}
+          <div class="dropdown">
+            <button class="btn btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 0;color: #fff;" aria-label="More options">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dark">
+              <li><button type="button" class="dropdown-item mark-as-read">
+                Mark as
+                {% if notification.read %}
+                <span> unread</span>
+                {% else %}
+                <span> read</span>
+                {% endif %}
+              </button></li>
+              <li><button type="button" class="dropdown-item delete-notification">Delete</button></li>
+            </ul>
+          </div>
+        </div>
       </div>
-    </section>
-    {% endfor %}
+      {% endfor %}
+    </div>
   </main>
 
   <script>
-    document.querySelectorAll('#MarkAsRead').forEach(item => {
-      item.addEventListener('click', event => {
-        var id = item.getAttribute("data-id");
+    // Server data drives the bell (dash/js/main.js -> NotificationBell); this
+    // page only has to keep it in step with what's on screen.
+    const noteList = document.getElementById("NotificationList");
 
-        let status;
-        var unread_status = document.querySelector(".notification").querySelector(".notification__icons").querySelector("svg").getAttribute("data-unread");
+    // ── Group rows into days, in the viewer's local timezone ──
+    function startOfDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
 
-        if (unread_status == "True") {
-          status = false;
+    function dayLabel(date) {
+      // Math.round: a DST change makes a "day" 23 or 25 hours long
+      var diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+      var formatted = date.toLocaleDateString(navigator.language, { day: 'numeric', month: 'numeric', year: 'numeric' }).split('/').join('.');
+      var when = diffDays == 0 ? "Today" : diffDays == 1 ? "Yesterday" : diffDays + " days ago";
+      return when + ", " + formatted;
+    }
+
+    var lastDay = null, sectionBody = null;
+    [...noteList.querySelectorAll(":scope > .notification")].forEach(row => {
+      var date = new Date(row.dataset.ts);
+      row.querySelector(".notification__time").textContent = date.toLocaleTimeString(navigator.language);
+
+      if (date.toDateString() != lastDay) {
+        lastDay = date.toDateString();
+        var section = document.createElement("section");
+        section.className = "sectionn";
+        section.innerHTML = '<div class="section__header"><h3 class="date"></h3></div><div class="section__body"></div>';
+        section.querySelector(".date").textContent = dayLabel(date);
+        sectionBody = section.querySelector(".section__body");
+        noteList.appendChild(section);
+      }
+      sectionBody.appendChild(row);
+    });
+
+    // ── Descriptions are markdown ──
+    var converter = new showdown.Converter();
+    document.querySelectorAll(".notification__info__desc").forEach(item => {
+      item.innerHTML = converter.makeHtml(item.innerHTML);
+      item.querySelectorAll("a").forEach(a => {
+        // showdown lets `javascript:` links through; only keep real web links
+        if (!/^https?:$/.test(a.protocol)) return a.removeAttribute("href");
+        a.classList.add("link");
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+      });
+    });
+
+    // ── Keep the navbar bell in step with the page ──
+    // The page lists every notification, newest first, so its unread rows
+    // (data-read="False") give the true count and the 5 newest for the bell.
+    function syncBell() {
+      var unreadRows = [...document.querySelectorAll(".notification")]
+        .filter(row => row.querySelector('.notification__icons svg[data-read="False"]'));
+
+      NotificationBell.render(unreadRows.slice(0, 5).map(row => ({
+        id: row.dataset.id,
+        type: row.dataset.type,
+        title: row.querySelector("h5").textContent,
+        description: row.querySelector(".notification__info__desc")?.textContent,
+      })), unreadRows.length);
+    }
+
+    function setRead(row, read) {
+      row.querySelector(".notification__icons svg").setAttribute("data-read", read ? "True" : "False");
+      row.querySelector(".mark-as-read span").innerHTML = read ? " unread" : " read";
+    }
+
+    document.querySelectorAll('.mark-as-read').forEach(item => {
+      item.addEventListener('click', async () => {
+        var row = item.closest(".notification");
+        var read = row.querySelector(".notification__icons svg").getAttribute("data-read") == "False";
+
+        if (await NotificationBell.request('POST', { id: row.dataset.id, read: read })) {
+          setRead(row, read);
+          syncBell();
         }
-        if (unread_status == "False") {
-          status = true;
-        }
-
-        fetch(`/dashboard/{{guild.id}}/notifications`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', },
-          body: JSON.stringify({ id: id, read: status })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status == "success") {
-            document.querySelector(".notification").querySelector(".notification__icons").querySelector("svg").setAttribute("data-unread", 
-              status == true ? "True" : "False"
-            );
-
-            var dd_MarkAsRead = document.querySelector("#MarkAsRead").querySelector("span");
-            dd_MarkAsRead.innerHTML = status == true ? "unread" : "read";
-          }
-        });
       })
     })
+
+    document.querySelectorAll('.delete-notification').forEach(item => {
+      item.addEventListener('click', async () => {
+        var row = item.closest(".notification");
+        if (!await NotificationBell.request('DELETE', { id: row.dataset.id })) return;
+
+        var section = row.closest(".sectionn");
+        row.remove();
+        syncBell();
+        if (!section.querySelector(".notification")) section.remove();
+        // Last one gone: reload so the server renders the empty state
+        if (!document.querySelector(".sectionn")) location.reload();
+      })
+    })
+
+    function markAllReadInPage() {
+      document.querySelectorAll(".notification").forEach(row => setRead(row, true));
+      syncBell();
+    }
+
+    // Fired by the navbar bell's own "mark all as read" button (dash/js/main.js)
+    document.addEventListener("notifications:all-read", markAllReadInPage);
+
+    var markAllRead = document.getElementById("MarkAllRead");
+    if (markAllRead) {
+      markAllRead.addEventListener('click', async () => {
+        if (await NotificationBell.request('POST', { mark_all_read: true })) markAllReadInPage();
+      })
+    }
+
+    // ── Jumping to one notification (a bell item was clicked) ──
+    function showNotification(id) {
+      var row = document.getElementById("n-" + id);
+      if (!row) return;
+      row.scrollIntoView({ block: "center" });
+      row.classList.remove("notification--highlight");
+      void row.offsetWidth; // restart the animation if it's already run
+      row.classList.add("notification--highlight");
+    }
+
+    // Bell click while already on this page: main.js has marked it read on the server
+    document.addEventListener("notifications:opened", event => {
+      var row = document.getElementById("n-" + event.detail.id);
+      if (!row) return;
+      setRead(row, true);
+      syncBell();
+      showNotification(event.detail.id);
+    });
+
+    // Bell click from another page lands here via #n-<id>
+    if (location.hash.startsWith("#n-")) showNotification(location.hash.slice(3));
   </script>
-  
+
   <style> 
     .section__header {
       display: flex;
@@ -190,12 +253,12 @@
     .notification__body .notification__icons {
       margin-right: 0.5rem;
     }
-    .notification__body .notification__icons svg[data-unread="False"] {
+    .notification__body .notification__icons svg[data-read="False"] {
       width: 22px;
       height: 22px;
       fill: var(--blurple);
     }
-    .notification__body .notification__icons svg[data-unread="True"] {
+    .notification__body .notification__icons svg[data-read="True"] {
       width: 22px;
       height: 22px;
       fill: none;
@@ -221,6 +284,14 @@
     }
     .notification__body .notification__info .notification__info__desc p .link {
       color: var(--blurple);
+    }
+
+    .notification--highlight {
+      animation: notification-highlight 2s ease-out;
+    }
+    @keyframes notification-highlight {
+      from { box-shadow: 0 0 0 2px var(--blurple); }
+      to { box-shadow: 0 0 0 2px transparent; }
     }
 
     .notification__components {

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Maintenance In Progress | BobCat</title>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <div class="auth-layout auth-centered">
+
+    <!-- Content Side -->
+    <div class="auth-content">
+      <a href="{{ url_for('web.index') }}" class="auth-logo d-none"></a>
+
+      <div class="auth-content-inner">
+        <div class="error-page error-maintenance">
+          <div class="error-tile">
+            <i class="bi bi-wrench"></i>
+          </div>
+          <h1 class="error-title">We'll be right back</h1>
+          <p class="error-text">
+            We're making some improvements to give you a better experience.
+            We'll be back online shortly. Thank you for your patience!
+          </p>
+          <div class="error-progress" role="progressbar" aria-label="Maintenance in progress">
+            <span class="error-progress-bar"></span>
+          </div>
+          {% if eta %}
+          <div class="error-eta">
+            <i class="bi bi-clock"></i> Expected back at {{ eta }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="auth-footer">
+        <div class="footer-copyright">
+          © 2026 BobCat & <a href="https://bootstrapmade.com/trendy-admin-bootstrap-dashboard-template/">BootstrapMade TrendyAdmin</a>. All Rights Reserved.
+        </div>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

@@ -4,39 +4,48 @@ if (guild_switcher) {
   guild_switcher.addEventListener('click', function() {
     guild_switcher.classList.toggle('active');
   });
+
+  // close on outside click or Esc
+  document.addEventListener('click', function(e) {
+    if (!guild_switcher.contains(e.target)) guild_switcher.classList.remove('active');
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') guild_switcher.classList.remove('active');
+  });
 }
 
 // Navbar - side menu
-const navbar_item = document.querySelectorAll('.navbar-item');
+// Deferred script, so the sidebar is already parsed. Runs before ta-main.js's
+// DOMContentLoaded handler, which scrolls the sidebar to the .active link.
+const nav_items = document.querySelectorAll('.sidebar-nav .nav-item');
 
-window.addEventListener('load', function() {
+(function () {
   const currentURL = window.location.pathname;
 
-  navbar_item.forEach((item) => {
-    const itemURL = item.querySelector('.navbar-link').dataset.href;
-    const isActive = itemURL === currentURL;
+  nav_items.forEach((item) => {
+    const link = item.querySelector('.nav-link');
+    const itemURL = link.getAttribute('href');
+    // plugin sub-pages (e.g. /giveaways/new) keep their plugin highlighted
+    const isActive = itemURL === currentURL ||
+      (item.classList.contains('plugin') && currentURL.startsWith(itemURL + '/'));
 
     item.dataset.active = isActive ? "True" : "False";
+    link.classList.toggle('active', isActive);
   });
-});
+})();
 
-navbar_item.forEach((item) => {
-  item.addEventListener('click', (e) => {
-    const currentURL = window.location.pathname;
-    const link = item.querySelector('.navbar-link');
-
+// Premium-locked plugin -> upgrade modal instead of navigating. Links are real
+// <a href>s now, so anything else just follows its href.
+document.querySelectorAll('.sidebar-nav .nav-link[data-key]').forEach((link) => {
+  link.addEventListener('click', (e) => {
     const isModulePrem = link.dataset.modulePremium; // is the plugin premium
     const isPremium = link.dataset.isPremium; // server check - True if hasPrem else False
+    const modalEl = document.getElementById('PremiumModal');
 
-    if (isModulePrem === 'True' && isPremium === 'False') {
-      const PremiumModal = new bootstrap.Modal(document.getElementById('PremiumModal'));
-      PremiumModal.show();
-    } else {
-      const url = link.dataset.href;
-      const isActive = url === currentURL;
-      item.dataset.active = isActive ? "True" : "False";
-
-      document.location.href = url;
+    // not every page includes PremiumModal - fall through to the server-side gate
+    if (isModulePrem === 'True' && isPremium === 'False' && modalEl) {
+      e.preventDefault();
+      new bootstrap.Modal(modalEl).show();
     }
   });
 });
@@ -112,13 +121,13 @@ function handlePremiumOnClick(event) {
   }
 
   // Sidebar links carry data-key only on real plugins (not settings/premium/dashboard)
-  const pluginLinks = document.querySelectorAll('#sidebar-nav .navbar-link[data-key][data-href]');
+  const pluginLinks = document.querySelectorAll('.sidebar-nav .nav-link[data-key][href]');
 
   function isPremiumLocked(el) {
     return el.dataset.modulePremium === 'True' && el.dataset.isPremium === 'False';
   }
   function infoFromLink(link) {
-    return { key: link.dataset.key, name: link.dataset.plugin, href: link.dataset.href };
+    return { key: link.dataset.key, name: link.dataset.plugin, href: link.getAttribute('href') };
   }
 
   // 1. Direct navigation to a disabled plugin page (or one of its sub-pages):
@@ -129,7 +138,7 @@ function handlePremiumOnClick(event) {
     const path = window.location.pathname;
     let link = null;
     for (const l of pluginLinks) {
-      const href = l.dataset.href;
+      const href = l.getAttribute('href');
       if (path === href || path.startsWith(href + '/')) { link = l; break; }
     }
     if (!link || link.dataset.enable !== 'False' || isPremiumLocked(link)) return;
@@ -144,7 +153,7 @@ function handlePremiumOnClick(event) {
   });
 
   // 2. Clicking a disabled plugin in the sidebar - capture so we beat the
-  //    navigation handler bound to the parent <li class="navbar-item">
+  //    premium-modal handler bound to the same link
   pluginLinks.forEach(function (link) {
     link.addEventListener('click', function (e) {
       if (link.dataset.enable !== 'False' || isPremiumLocked(link)) return;
@@ -186,9 +195,10 @@ function handlePremiumOnClick(event) {
    holding a row down shows this as a peek instead (see hold-to-preview below). */
 (function () {
   const card = document.getElementById('PluginHoverCard');
-  const nav = document.getElementById('sidebar-nav');
+  const nav = document.querySelector('.sidebar-nav');
   if (!card || !nav) return;
 
+  const LINK_SEL = '.nav-item.plugin > .nav-link[data-key]';
   const iconEl = card.querySelector('.phc-icon');
   const titleEl = card.querySelector('.phc-title');
   const descEl = card.querySelector('.phc-desc');
@@ -272,7 +282,7 @@ function handlePremiumOnClick(event) {
     }, 120);
   }
 
-  nav.querySelectorAll('.navbar-item.plugin > .navbar-link[data-key]').forEach(function (link) {
+  nav.querySelectorAll(LINK_SEL).forEach(function (link) {
     link.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') show(link); });
     link.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') scheduleHide(); });
   });
@@ -303,7 +313,7 @@ function handlePremiumOnClick(event) {
 
   nav.addEventListener('pointerdown', function (e) {
     if (e.pointerType !== 'touch') return;
-    const link = e.target.closest('.navbar-item.plugin > .navbar-link[data-key]');
+    const link = e.target.closest(LINK_SEL);
     if (!link) return;
     clearHold();
     holdLink = link;
@@ -341,7 +351,7 @@ function handlePremiumOnClick(event) {
   }, true);
 
   nav.addEventListener('click', function (e) {
-    const link = e.target.closest('.navbar-item.plugin > .navbar-link[data-key]');
+    const link = e.target.closest(LINK_SEL);
     if (link && suppressClickFor === link) {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -356,10 +366,122 @@ if (pluginStatusSwitch) {
     // Keep the sidebar link's data-enable in sync so the disabled-plugin
     // modal sees the fresh value without a page reload.
     const navBarLink = document.querySelector(
-      `#sidebar-nav .navbar-link[data-href="${window.location.pathname}"]`
+      `.sidebar-nav .nav-link[href="${window.location.pathname}"]`
     );
     if (navBarLink) {
       navBarLink.setAttribute('data-enable', e.target.checked ? 'True' : 'False');
     }
   });
 }
+
+
+// ── Navbar notification bell ──────────────────────────────────────────────────
+// The bell is on every dashboard page. Besides its own actions it exposes
+// `render` / `request` so the Notification Center page can keep it in step
+// with what it shows, and fires `notifications:all-read` / `notifications:opened`
+// for that page to react to.
+const NotificationBell = (function () {
+  const root = document.querySelector('.notification-dropdown');
+  if (!root || !/\d/.test(root.dataset.url)) return null; // no guild selected -> no bell to drive
+
+  const url = root.dataset.url;
+  const list = root.querySelector('.notification-list');
+  const header = root.querySelector('.notification-header h6');
+  const icons = {
+    info: 'bi-info-circle text-primary',
+    warning: 'bi-exclamation-triangle text-warning',
+    error: 'bi-exclamation-circle text-danger',
+  };
+
+  // The bell is too small for markdown: "**bold**" / "[text](url)" -> plain text
+  function plain(text) {
+    return text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*`]|~~/g, '').trim();
+  }
+
+  // Same markup DashNavbar.html renders server-side. Text goes in via
+  // textContent so titles/descriptions can't inject HTML.
+  function item(n) {
+    const el = document.createElement('div');
+    el.className = 'notification-item unread';
+    el.dataset.id = n.id;
+    el.innerHTML = `
+      <span class="notification-icon"></span>
+      <span class="notification-content"></span>
+      <span class="notification-meta"><span class="notification-dot"></span></span>`;
+
+    if (icons[n.type]) {
+      const icon = el.querySelector('.notification-icon');
+      icon.classList.add(n.type);
+      icon.innerHTML = `<i class="bi ${icons[n.type]}"></i>`;
+    }
+
+    const content = el.querySelector('.notification-content');
+    [['notification-title', n.title], ['notification-text', n.description && plain(n.description)]].forEach(([cls, text]) => {
+      if (!text) return;
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      content.appendChild(span);
+    });
+    return el;
+  }
+
+  // items: [{id, type, title, description}], count: total unread (can exceed items.length)
+  function render(items, count) {
+    document.querySelectorAll('.bi-bell + .badge').forEach(badge => badge.textContent = count);
+    header.textContent = `You have ${count} new notifications`;
+    list.replaceChildren(...items.map(item));
+  }
+
+  // POST / DELETE to the notifications route. Resolves the response on
+  // success, or alerts and resolves null (a dead session returns an HTML
+  // login page, so a failed JSON parse lands here too).
+  async function request(method, payload) {
+    try {
+      const data = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).then(r => r.json());
+      if (data.status === 'success') return data;
+    } catch (e) { /* fall through */ }
+    alert("Couldn't update notifications. Please refresh the page and try again.");
+    return null;
+  }
+
+  // New notifications arrive from the bot at any time, so poll while visible.
+  async function poll() {
+    if (document.hidden) return;
+    try {
+      const data = await fetch(`${url}/unread`).then(r => r.json());
+      if (data.unread) render(data.unread, data.unread_count);
+    } catch (e) { /* offline / session expired: try again next tick */ }
+  }
+  setInterval(poll, 60000);
+
+  // Server-rendered items carry raw markdown descriptions
+  list.querySelectorAll('.notification-text').forEach(el => el.textContent = plain(el.textContent));
+
+  document.getElementById('HeaderMarkAllRead')?.addEventListener('click', async () => {
+    if (!await request('POST', { mark_all_read: true })) return;
+    render([], 0);
+    document.dispatchEvent(new CustomEvent('notifications:all-read'));
+  });
+
+  // Clicking an item marks it read and opens it in the Notification Center
+  list.addEventListener('click', async (e) => {
+    const el = e.target.closest('.notification-item');
+    if (!el) return;
+
+    const id = el.dataset.id;
+    if (!await request('POST', { id, read: true })) return;
+
+    if (location.pathname === url) {
+      document.dispatchEvent(new CustomEvent('notifications:opened', { detail: { id } }));
+    } else {
+      location.href = `${url}#n-${id}`;
+    }
+  });
+
+  return { render, request };
+})();

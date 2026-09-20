@@ -1,82 +1,199 @@
-<header id="header" class="header fixed-top d-flex align-items-center">
-  <div class="d-flex align-items-center justify-content-between">
-    <i class="bi bi-list toggle-sidebar-btn"></i>
-    
-    <a href="/" class="logo d-flex justify-content-center align-items-center">
-      <img src="{{ url_for('static', filename='img/bobcat.png') }}" alt="">
-      <span class="d-none d-md-block">BobCat</span>
-    </a>
-  </div>
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <!-- Header Left -->
+    <div class="header-left">
+      <button class="sidebar-toggle" title="Toggle Sidebar">
+        <i class="bi bi-list"></i>
+      </button>
 
-  <nav class="header-nav ms-auto">
-    <ul class="d-flex align-items-center">
-      {% if guild and guild_models(guild).isPremium == False %}
-      <li class="premium-upgrade nav-item me-2 btn" variant="premium">
-        <a href="premium" class="d-flex" style="font-size: 14px;align-items: center;gap: 4px;color: rgb(var(--premium-gold));">
-          <i class="bi bi-star-fill" style="font-size: 16px;color: rgb(var(--premium-gold));"></i>
+      <a href="/" class="header-logo">
+        <span class="header-logo-mark"><i class="bi bi-lightning-charge-fill"></i></span>
+        <span class="header-logo-text">BobCat</span>
+      </a>
+    </div>
+
+    <!-- Header Right -->
+    <div class="header-right">
+      <!-- Desktop Actions (hidden on mobile, shown in mobile menu) -->
+      <div class="header-actions-desktop">
+
+        <!-- Upgrade CTA (mobile version is a tile in .mobile-header-menu below) -->
+        {% if guild and guild_models(guild).isPremium == False %}
+        <a href="/dashboard/{{guild.id}}/premium" class="btn header-upgrade" variant="premium">
+          <i class="bi bi-star-fill"></i>
           Upgrade to Premium
         </a>
-      </li>
-      {% endif %}
+        {% endif %}
 
-      <li class="nav-item dropdown">
-        <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-          <i class="bi bi-bell" style="display: flex;font-size: 22px;"></i>
-          <span class="badge bg-primary badge-number">{{ notifications(guild).unread_count }}</span>
-        </a><!-- End Notification Icon -->
-
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
-          <li class="dropdown-header">
-            You have {{ notifications(guild).unread_count }} new notifications
-            <a href="/dashboard/{{guild.id}}/notifications"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
-          </li>
-          <li>
-            <hr class="dropdown-divider">
-          </li>
-          {% for notification in notifications(guild).unread %}
-          <li class="notification-item">
-            {% if notification.type == "info" %}
-            <i class="bi bi-info-circle text-primary"></i>
-            {% elif notification.type == "warning" %}
-            <i class="bi bi-exclamation-triangle text-warning"></i>
-            {% elif notification.type == "error" %}
-            <i class="bi bi-exclamation-circle text-danger"></i>
-            {% endif %}
-            <div>
-              {% if notification.title %}<p class="notification__info__title">{{ notification.title }}</p>{% endif %}
-              {% if notification.description %}<p class="notification__info__desc">{{ notification.description }}</p>{% endif %}
+        <!-- Messages -->
+        <!-- <div class="header-action dropdown messages-dropdown">
+          <button class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Messages">
+            <i class="bi bi-chat-text"></i>
+            <span class="badge">2</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <div class="messages-header">
+              <h6>Messages</h6>
+              <a href="apps-chat.html">View all</a>
             </div>
-          </li>
-          <li>
-            <hr class="dropdown-divider">
-          </li> 
-          {% endfor %}
-        </ul><!-- End Notification Dropdown Items -->
-      </li>
-      
-      <li class="nav-item dropdown pe-4">
-        <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
-          <img src="{{user.avatar_url}}" alt="Profile" class="rounded-circle">
-          <span class="d-none d-md-block dropdown-toggle ps-2">{{user.username}}</span>
-        </a>
+            <div class="messages-list">
+              <a href="apps-chat.html" class="message-item unread">
+                <span class="message-avatar">
+                  <img src="assets/img/avatars/avatar-2.webp" alt="Sarah Johnson">
+                  <span class="message-status"></span>
+                </span>
+                <span class="message-content">
+                  <span class="message-name">Sarah Johnson</span>
+                  <span class="message-text">The new dashboard mockups look amazing! 🔥</span>
+                </span>
+                <span class="message-time">2m</span>
+              </a>
+              <a href="apps-chat.html" class="message-item unread">
+                <span class="message-avatar">
+                  <img src="assets/img/avatars/avatar-3.webp" alt="Mike Chen">
+                </span>
+                <span class="message-content">
+                  <span class="message-name">Mike Chen</span>
+                  <span class="message-text">Can you review my PR when you get a chance?</span>
+                </span>
+                <span class="message-time">1h</span>
+              </a>
+              <a href="apps-chat.html" class="message-item">
+                <span class="message-avatar">
+                  <img src="assets/img/avatars/avatar-4.webp" alt="Emma Davis">
+                </span>
+                <span class="message-content">
+                  <span class="message-name">Emma Davis</span>
+                  <span class="message-text">Meeting moved to 3pm tomorrow</span>
+                </span>
+                <span class="message-time">3h</span>
+              </a>
+            </div>
+            <div class="messages-footer">
+              <a href="apps-chat.html">Open chat <i class="bi bi-arrow-right"></i></a>
+            </div>
+          </div>
+        </div> -->
 
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
-          
-          <li style="font-size: 14px;font-weight: 700;">Server Owners</li>
-          <li>
-            <a class="dropdown-item d-flex align-items-center" href="/dashboard">
-              My Servers
-            </a>
-          </li>
-          
-          <li><hr class="dropdown-divider"></li>
-          <li>
-            <a class="dropdown-item d-flex align-items-center" href="/oauth/logout">
-              Sign Out
-            </a>
-          </li>
-        </ul>
-      </li>
-    </ul>
-  </nav>
+        <!-- Notifications -->
+        <div class="header-action dropdown notification-dropdown" data-url="/dashboard/{{guild.id}}/notifications">
+          <button class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+            <i class="bi bi-bell"></i>
+            <span class="badge">{{ notifications(guild).unread_count }}</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <div class="notification-header">
+              <h6>You have {{ notifications(guild).unread_count }} new notifications</h6>
+              <button id="HeaderMarkAllRead" class="notification-mark-read" data-notification-action="mark-all-read" title="Mark all as read">
+                <i class="bi bi-check"></i>
+              </button>
+            </div>
+            <div class="notification-list">
+              {% for notification in notifications(guild).unread %}
+              <div class="notification-item unread" data-id="{{ notification.id }}">
+                <span class="notification-icon {{ notification.type }}">
+                  {% if notification.type == "info" %}
+                  <i class="bi bi-info-circle text-primary"></i>
+                  {% elif notification.type == "warning" %}
+                  <i class="bi bi-exclamation-triangle text-warning"></i>
+                  {% elif notification.type == "error" %}
+                  <i class="bi bi-exclamation-circle text-danger"></i>
+                  {% endif %}
+                </span>
+                <span class="notification-content">
+                  {% if notification.title %}<span class="notification-title">{{ notification.title }}</span>{% endif %}
+                  {% if notification.description %}<span class="notification-text">{{ notification.description }}</span>{% endif %}
+                </span>
+                <span class="notification-meta">
+                  <!-- <span class="notification-time">5m</span> -->
+                  <span class="notification-dot"></span>
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="notification-footer">
+              <a href="/dashboard/{{guild.id}}/notifications">View all</a>
+              <!-- <a href="settings.html">Settings</a> -->
+            </div>
+          </div>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <!-- User Dropdown -->
+        <div class="header-action dropdown user-dropdown">
+          <button class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <img src="{{user.avatar_url}}" alt="User" class="avatar">
+            <span class="user-name">{{user.username}}</span>
+            <i class="bi bi-caret-down user-caret"></i>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <div class="user-menu-card">
+              <span class="user-menu-avatar">
+                <img src="{{user.avatar_url}}" alt="User">
+              </span>
+              <span class="user-menu-name">{{user.username}}</span>
+            </div>
+            <div class="user-menu-body">
+              <a class="dropdown-item" href="/dashboard">
+                <span class="user-menu-item-icon"><i class="bi bi-house-door-fill"></i></span>
+                My Servers
+                <i class="bi bi-caret-right user-menu-item-caret"></i>
+              </a>
+            </div>
+            <div class="user-menu-footer">
+              <a href="/oauth/logout" class="user-menu-signout">
+                <i class="bi bi-sign-out"></i> Sign Out
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Actions (visible only on mobile) -->
+      <div class="header-actions-mobile">
+        <!-- Mobile Menu Toggle -->
+        <button class="header-action mobile-menu-toggle" title="More">
+          <img src="{{user.avatar_url}}" alt="User">
+        </button>
+      </div>
+    </div>
+  </div>
 </header>
+
+<!-- Mobile Header Menu -->
+<div class="mobile-header-menu">
+  <div class="mobile-header-menu-content">
+
+    <!-- Upgrade (desktop version is a button in the header) -->
+    {% if guild and guild_models(guild).isPremium == False %}
+    <a href="/dashboard/{{guild.id}}/premium" class="mobile-menu-item mobile-menu-item-premium">
+      <i class="bi bi-star-fill"></i>
+      <span class="mobile-menu-label">Upgrade</span>
+    </a>
+    {% endif %}
+    
+    <!-- Messages
+    <a href="apps-chat.html" class="mobile-menu-item">
+      <i class="bi bi-chat-teardrop-text"></i>
+      <span class="badge">2</span>
+      <span class="mobile-menu-label">Messages</span>
+    </a> -->
+
+    <!-- Notifications -->
+    <a href="/dashboard/{{guild.id}}/notifications" class="mobile-menu-item">
+      <i class="bi bi-bell"></i>
+      <span class="badge">{{ notifications(guild).unread_count }}</span>
+      <span class="mobile-menu-label">Notifications</span>
+    </a>
+
+    <!-- Sign Out -->
+    <a href="/oauth/logout" class="mobile-menu-item mobile-menu-item-danger">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#FFFFFF" viewBox="0 0 256 256">
+        <path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"></path>
+      </svg>
+      <span class="mobile-menu-label">Sign Out</span>
+    </a>
+  </div>
+</div>

@@ -7,10 +7,10 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div>
         {% with plugin = get_plugin(guild, 'welcome') %}
@@ -27,12 +27,10 @@
       </div>
     </div>
 
-    <section class="section">
-      <div class="feature_card join">
-        <div class="title d-flex justify-content-between align-items-center">
-          <div class="d-flex gap-2 align-items-center">
-            <h2>Send a message when a user joins the server</h2>
-          </div>
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Send a message when a user joins the server</h2>
           <div class="form-switch">
             {% if data['join']['status'] == True %}
             <input type="checkbox" id="join-status" class="form-check-input" role="switch" name="welcome-join-switch" style="font-size: 19px;" checked>
@@ -41,8 +39,7 @@
             {% endif %}
           </div>
         </div>
-
-        <div id="join-data">
+        <div id="join-data" class="card-body">
           <hr>
           <div>
             <p class="mb-2">Welcome message channel</p>
@@ -58,7 +55,6 @@
             </div>
           </div>
           <hr>
-        
           <div>
             <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
               <li class="nav-item" role="presentation">
@@ -88,12 +84,10 @@
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card dm">
-        <div class="title d-flex justify-content-between align-items-center">
-          <div class="d-flex gap-2 align-items-center">
-            <h2>Send a private message to new users</h2>
-          </div>
+    <section class="sectionn">
+      <div class="card dm">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Send a private message to new users</h2>
           <div class="form-switch">
             {% if data['dm']['status'] == True %}
             <input type="checkbox" id="dm-status" class="form-check-input" role="switch" name="welcome-dm-switch"
@@ -103,10 +97,8 @@
               style="font-size: 19px;">
             {% endif %}
           </div>
-
         </div>
-
-        <div id="dm-data">
+        <div id="dm-data" class="card-body">
           <hr>
           <div>
             <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
@@ -134,12 +126,10 @@
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card leave">
-        <div class="title d-flex justify-content-between align-items-center">
-          <div class="d-flex gap-2 align-items-center">
-            <h2>Send a message when a user leaves the server</h2>
-          </div>
+    <section class="sectionn">
+      <div class="card leave">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Send a message when a user leaves the server</h2>
           <div class="form-switch">
             {% if data['leave']['status'] == True %}
             <input type="checkbox" id="leave-status" class="form-check-input" role="switch" name="welcome-leave" style="font-size: 19px;" checked>
@@ -148,8 +138,7 @@
             {% endif %}
           </div>
         </div>
-
-        <div id="leave-data">
+        <div id="leave-data" class="card-body">
           <hr>
           <div>
             <p class="mb-2">Goodbye message channel</p>
@@ -193,10 +182,10 @@
       </div>
     </section>
 
-    <section class="section">
-      <div class="feature_card autoroles">
-        <div class="title d-flex justify-content-between align-items-center">
-          <h2>Give a role to new users</h2>
+    <section class="sectionn">
+      <div class="card autoroles">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Give a role to new users</h2>
           <div class="form-switch">
             {% if data['autoRoles']['status'] == True %}
             <input type="checkbox" id="autoroles-status" class="form-check-input" role="switch" name="welcome-autoroles"
@@ -207,19 +196,16 @@
             {% endif %}
           </div>
         </div>
-
-        <div id="autoroles-data">
+        <div id="autoroles-data" class="card-body">
           <hr>
-          <div>
-            <p class="mb-1">Roles to give</p>
-            <div class="autoroles-select-wrapper multiple">
-              <div class="select">
-                <div class="select-selected">Select an option</div>
-                <div class="select-options">
-                  {% for role in guild_models(guild).roles %}
-                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
-                  {% endfor %}
-                </div>
+          <p class="mb-1">Roles to give</p>
+          <div class="autoroles-select-wrapper multiple">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for role in guild_models(guild).roles %}
+                <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                {% endfor %}
               </div>
             </div>
           </div>
@@ -342,12 +328,13 @@
     const joinStatusSaved = "{{data['join']['status']}}" === "True";
     const joinTypeSaved = "{{data['join']['message']['type']}}";
     const joinContentSaved = JSON.parse(`{{ data['join']['message']['content'] | tojson }}`);
-    document.addEventListener('DOMContentLoaded', () => syncSectionData(joinStatus, joinData, '.feature_card.join'))
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(joinStatus, joinData, '.card.join'))
     document.querySelector('#join-status').addEventListener('change', (e) => {
-      syncSectionData(joinStatus, joinData, '.feature_card.join')
+      syncSectionData(joinStatus, joinData, '.card.join')
+
       show_toast("welcome.join.status", "{{data['join']['status']}}", joinStatus.checked, () => {
         joinStatus.checked = joinStatusSaved;
-        syncSectionData(joinStatus, joinData, '.feature_card.join');
+        syncSectionData(joinStatus, joinData, '.card.join');
       })
     })
 
@@ -380,12 +367,12 @@
     const dmStatusSaved = "{{data['dm']['status']}}" === "True";
     const dmTypeSaved = "{{data['dm']['message']['type']}}";
     const dmContentSaved = JSON.parse(`{{ data['dm']['message']['content'] | tojson }}`);
-    document.addEventListener('DOMContentLoaded', () => syncSectionData(dmStatus, dmData, '.feature_card.dm'))
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(dmStatus, dmData, '.card.dm'))
     document.querySelector('#dm-status').addEventListener('change', (e) => {
-      syncSectionData(dmStatus, dmData, '.feature_card.dm')
+      syncSectionData(dmStatus, dmData, '.card.dm')
       show_toast("welcome.dm.status", "{{data['dm']['status']}}", dmStatus.checked, () => {
         dmStatus.checked = dmStatusSaved;
-        syncSectionData(dmStatus, dmData, '.feature_card.dm');
+        syncSectionData(dmStatus, dmData, '.card.dm');
       })
     })
 
@@ -418,12 +405,12 @@
     const leaveChannelSaved = "{{data['leave']['channel']}}";
     const leaveTypeSaved = "{{data['leave']['message']['type']}}";
     const leaveContentSaved = JSON.parse(`{{ data['leave']['message']['content'] | tojson }}`);
-    document.addEventListener('DOMContentLoaded', () => syncSectionData(leaveStatus, leaveData, '.feature_card.leave'))
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(leaveStatus, leaveData, '.card.leave'))
     document.querySelector('#leave-status').addEventListener('change', (e) => {
-      syncSectionData(leaveStatus, leaveData, '.feature_card.leave')
+      syncSectionData(leaveStatus, leaveData, '.card.leave')
       show_toast("welcome.leave.status", "{{data['leave']['status']}}", leaveStatus.checked, () => {
         leaveStatus.checked = leaveStatusSaved;
-        syncSectionData(leaveStatus, leaveData, '.feature_card.leave');
+        syncSectionData(leaveStatus, leaveData, '.card.leave');
       })
     })
 
@@ -462,12 +449,12 @@
     const autorolesData = document.querySelector('#autoroles-data')
     const autorolesStatusSaved = "{{data['autoRoles']['status']}}" === "True";
     const autorolesRolesSaved = JSON.parse(`{{ data['autoRoles']['roles'] | tojson }}`) || [];
-    document.addEventListener('DOMContentLoaded', () => syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles'))
+    document.addEventListener('DOMContentLoaded', () => syncSectionData(autorolesStatus, autorolesData, '.card.autoroles'))
     document.querySelector('#autoroles-status').addEventListener('change', (e) => {
-      syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles')
+      syncSectionData(autorolesStatus, autorolesData, '.card.autoroles')
       show_toast("welcome.autoRoles.status", "{{data['autoRoles']['status']}}", autorolesStatus.checked, () => {
         autorolesStatus.checked = autorolesStatusSaved;
-        syncSectionData(autorolesStatus, autorolesData, '.feature_card.autoroles');
+        syncSectionData(autorolesStatus, autorolesData, '.card.autoroles');
       })
     })
 

@@ -6,12 +6,12 @@
 <body>
   <!-- ======= Header & Sidebar ======= -->
   {% include 'components/DashNavbar.html' %}
-  {% include 'components/Sidebar.html' %}
+  {% include 'components/DashSidebar.html' %}
 
   {% set default_bitrate_kbps = {0: 64, 1: 128, 2: 256, 3: 384}[guild.premium_tier] %}
 
   <!-- ======= Main ======= -->
-  <main id="main" class="main">
+  <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
       <div class="d-flex align-items-center">
         <a href="/dashboard/{{guild.id}}/temporary-channels"><i class="bi bi-arrow-left pe-2"></i></a>
@@ -27,167 +27,163 @@
       </div>
     </div>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Hub</h2>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Hub</h2>
         </div>
         <hr>
-        <div class="mb-2 em-name">
-          <label for="hub-channel-name">Temporary Channels Name <r style="color: red;">*</r></label><br>
-          <input type="text" id="hub-channel-name" class="text-input" value="{{ data.name or "#{index} - {username}'s Channel" }}" required />
-        </div>
-
-        <div>
-          <p class="mb-0">Preview:</p>
-          <button class="btn btn-secondary" disabled>
-            <i class="bi bi-volume-up-fill"></i>
-            <span>#1 - {{user.username}}'s Channel</span>
-          </button>
+        
+        <div class="card-body">
+          <div class="mb-2 em-name">
+            <label for="hub-channel-name">Temporary Channels Name <r style="color: red;">*</r></label><br>
+            <input type="text" id="hub-channel-name" class="text-input" value="{{ data.name or "#{index} - {username}'s Channel" }}" required />
+          </div>
+          <div>
+            <p class="mb-0">Preview:</p>
+            <button class="btn btn-secondary" disabled>
+              <i class="bi bi-volume-up-fill"></i>
+              <span>#1 - {{user.username}}'s Channel</span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Settings</h2>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Settings</h2>
         </div>
         <hr>
 
-        <div class="user-limit">
-          <p class="mb-1">User limit</p>
-          <p class="mb-1 text-muted fs-7">Default user limit for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
-          <div class="slider-container">
-            <input type="range" id="user-limit-slider" class="slider" min="0" max="99" value="{{ data.user_limit if data.user_limit is not none else 5 }}" data-value="5" />
-            <div class="slider-value" id="user-limit-sliderValue"></div>
-
-            <div class="labels">
-              <span>&infin;</span>
-              <span>20</span>
-              <span>40</span>
-              <span>60</span>
-              <span>80</span>
-              <span>99</span>
+        <div class="card-body">
+          <div class="user-limit">
+            <p class="mb-1">User limit</p>
+            <p class="mb-1 text-muted fs-7">Default user limit for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
+            <div class="slider-container">
+              <input type="range" id="user-limit-slider" class="slider" min="0" max="99" value="{{ data.user_limit if data.user_limit is not none else 5 }}" data-value="5" />
+              <div class="slider-value" id="user-limit-sliderValue"></div>
+              <div class="labels">
+                <span>&infin;</span>
+                <span>20</span>
+                <span>40</span>
+                <span>60</span>
+                <span>80</span>
+                <span>99</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="bitrate mt-3">
-          <p class="mb-1">Bitrate</p>
-          <p class="mb-1 text-muted fs-7">Default bitrate in kbps for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
-          <div class="slider-container">
-            {% set bitrate_kbps = ((data.bitrate / 1000) | int) if data.bitrate else default_bitrate_kbps %}
-            {% if guild.premium_tier == 0 %}
-            <input type="range" id="bitrate-slider" class="slider" min="8" max="96" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
-            {% elif guild.premium_tier == 1 %}
-            <input type="range" id="bitrate-slider" class="slider" min="8" max="128" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
-            {% elif guild.premium_tier == 2 %}
-            <input type="range" id="bitrate-slider" class="slider" min="8" max="256" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
-            {% elif guild.premium_tier == 3 %}
-            <input type="range" id="bitrate-slider" class="slider" min="8" max="384" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
-            {% endif %}
-
-            <div class="slider-value" id="sliderValue"></div>
-
-            <div class="labels">
-              <span>8</span>
-              <span>64</span>
-
+          <div class="bitrate mt-3">
+            <p class="mb-1">Bitrate</p>
+            <p class="mb-1 text-muted fs-7">Default bitrate in kbps for all temporary voice channels. Can be changed on Discord directly for each channel separately.</p>
+            <div class="slider-container">
+              {% set bitrate_kbps = ((data.bitrate / 1000) | int) if data.bitrate else default_bitrate_kbps %}
               {% if guild.premium_tier == 0 %}
-              <span>96</span>
+              <input type="range" id="bitrate-slider" class="slider" min="8" max="96" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
               {% elif guild.premium_tier == 1 %}
-              <span>96</span>
-              <span>128</span>
+              <input type="range" id="bitrate-slider" class="slider" min="8" max="128" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
               {% elif guild.premium_tier == 2 %}
-              <span>96</span>
-              <span>128</span>
-              <span>256</span>
+              <input type="range" id="bitrate-slider" class="slider" min="8" max="256" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
               {% elif guild.premium_tier == 3 %}
-              <span>96</span>
-              <span>128</span>
-              <span>256</span>
-              <span>384</span>
+              <input type="range" id="bitrate-slider" class="slider" min="8" max="384" value="{{ bitrate_kbps }}" data-value="{{ bitrate_kbps }}" />
               {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="feature_card">
-        <div class="title">
-          <h2>Permissions</h2>
-        </div>
-        <hr>
-
-        <div>
-          <div class="sync-hub-category  d-flex justify-content-start gap-3">
-            <div class="form-switch" style="padding-left: 0;">
-              <input type="checkbox" id="sync-hub-category" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.sync_hub_category %}checked{% endif %}>
-            </div>
-            <div>
-              <label for="sync-hub-category">Synchronize permissions with Hub category</label>
-              <p class="m-0 text-muted fs-7">Synchronize the permissions of the temporary channels when they are created with the permissions of the Hub category.</p>
-            </div>
-          </div>
-
-          <div class="hub-categories-select-wrapper single mt-2 {{ '' if data.sync_hub_category else 'd-none' }}">
-            <div class="select">
-              <div class="select-selected">Select an option</div>
-              <div class="select-options">
-                {% for category in guild_models(guild).channels.categories %}
-                  <div class="option" data-type="" data-id="{{category.id}}" data-name="{{category.name}}">{{category.name}}</div>
-                {% endfor %}
+              <div class="slider-value" id="sliderValue"></div>
+              <div class="labels">
+                <span>8</span>
+                <span>64</span>
+                {% if guild.premium_tier == 0 %}
+                <span>96</span>
+                {% elif guild.premium_tier == 1 %}
+                <span>96</span>
+                <span>128</span>
+                {% elif guild.premium_tier == 2 %}
+                <span>96</span>
+                <span>128</span>
+                <span>256</span>
+                {% elif guild.premium_tier == 3 %}
+                <span>96</span>
+                <span>128</span>
+                <span>256</span>
+                <span>384</span>
+                {% endif %}
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="hub-channel-perms mt-3">
-          <h6 class="fs-5 fw-bold">Owner Permissions</h6>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Permissions</h2>
+        </div>
+        <hr>
 
-          <div class="d-flex justify-content-start gap-3">
-            <div class="form-switch" style="padding-left: 0;">
-              <input type="checkbox" id="hub-channel-manage_channels" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.manage_channels %}checked{% endif %}>
+        <div class="card-body">
+          <div>
+            <div class="sync-hub-category  d-flex justify-content-start gap-3">
+              <div class="form-switch" style="padding-left: 0;">
+                <input type="checkbox" id="sync-hub-category" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.sync_hub_category %}checked{% endif %}>
+              </div>
+              <div>
+                <label for="sync-hub-category">Synchronize permissions with Hub category</label>
+                <p class="m-0 text-muted fs-7">Synchronize the permissions of the temporary channels when they are created with the permissions of the Hub category.</p>
+              </div>
             </div>
-            <div>
-              <label for="hub-channel-manage_channels">Manage Channels</label>
-              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.</p>
+            <div class="hub-categories-select-wrapper single mt-2 {{ '' if data.sync_hub_category else 'd-none' }}">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for category in guild_models(guild).channels.categories %}
+                    <div class="option" data-type="" data-id="{{category.id}}" data-name="{{category.name}}">{{category.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
             </div>
           </div>
-
-          <div class="d-flex justify-content-start gap-3 mt-2">
-            <div class="form-switch" style="padding-left: 0;">
-              <input type="checkbox" id="hub-channel-manage_permissions" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.manage_permissions %}checked{% endif %}>
+          
+          <div class="hub-channel-perms mt-3">
+            <h6 class="fs-5 fw-bold">Owner Permissions</h6>
+            <div class="d-flex justify-content-start gap-3">
+              <div class="form-switch" style="padding-left: 0;">
+                <input type="checkbox" id="hub-channel-manage_channels" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.manage_channels %}checked{% endif %}>
+              </div>
+              <div>
+                <label for="hub-channel-manage_channels">Manage Channels</label>
+                <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can rename them on Discord and change the temporary voice channel user limit.</p>
+              </div>
             </div>
-            <div>
-              <label for="hub-channel-manage_permissions">Manage Permissions</label>
-              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can manage their advanced permissions on Discord.</p>
+            <div class="d-flex justify-content-start gap-3 mt-2">
+              <div class="form-switch" style="padding-left: 0;">
+                <input type="checkbox" id="hub-channel-manage_permissions" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.manage_permissions %}checked{% endif %}>
+              </div>
+              <div>
+                <label for="hub-channel-manage_permissions">Manage Permissions</label>
+                <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can manage their advanced permissions on Discord.</p>
+              </div>
+            </div>
+            <div class="d-flex justify-content-start gap-3 mt-2">
+              <div class="form-switch" style="padding-left: 0;">
+                <input type="checkbox" id="hub-channel-priority_speaker" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.priority_speaker %}checked{% endif %}>
+              </div>
+              <div>
+                <label for="hub-channel-priority_speaker">Priority Speaker</label>
+                <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation will be the only priority speaker of the temporary voice channel on Discord.</p>
+              </div>
+            </div>
+            <div class="d-flex justify-content-start gap-3 mt-2">
+              <div class="form-switch" style="padding-left: 0;">
+                <input type="checkbox" id="hub-channel-move_members" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.move_members %}checked{% endif %}>
+              </div>
+              <div>
+                <label for="hub-channel-move_members">Move Members</label>
+                <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can disconnect other users from the temporary voice channel on Discord.</p>
+              </div>
             </div>
           </div>
-
-          <div class="d-flex justify-content-start gap-3 mt-2">
-            <div class="form-switch" style="padding-left: 0;">
-              <input type="checkbox" id="hub-channel-priority_speaker" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.priority_speaker %}checked{% endif %}>
-            </div>
-            <div>
-              <label for="hub-channel-priority_speaker">Priority Speaker</label>
-              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation will be the only priority speaker of the temporary voice channel on Discord.</p>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-start gap-3 mt-2">
-            <div class="form-switch" style="padding-left: 0;">
-              <input type="checkbox" id="hub-channel-move_members" class="form-check-input" role="switch" style="margin-left: 0;" {% if data.permissions.move_members %}checked{% endif %}>
-            </div>
-            <div>
-              <label for="hub-channel-move_members">Move Members</label>
-              <p class="m-0 text-muted fs-7">The user that triggered the temporary channels creation can disconnect other users from the temporary voice channel on Discord.</p>
-            </div>
-          </div>
-
         </div>
       </div>
     </section>
