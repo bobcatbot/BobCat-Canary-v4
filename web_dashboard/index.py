@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 import stripe
 from pydantic import BaseModel
@@ -39,11 +38,6 @@ from .blueprints.plugins.giveaways import giveaways_bp
 from .blueprints.plugins.economy import economy_bp
 
 class PydanticAwareJSONProvider(DefaultJSONProvider):
-    """Lets `| tojson` (and jsonify) serialize the typed DashConfig
-    sub-models directly - e.g. `data['join']['message']['embed'].fields`,
-    which is now a list of EmbedFieldConfig instances rather than plain
-    dicts, still round-trips through `{{ ... | tojson }}` in templates."""
-
     @staticmethod
     def default(obj):
         if isinstance(obj, BaseModel):
@@ -53,6 +47,7 @@ class PydanticAwareJSONProvider(DefaultJSONProvider):
 app = Quart(__name__)
 app.json_provider_class = PydanticAwareJSONProvider
 app.json = PydanticAwareJSONProvider(app)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
@@ -64,38 +59,13 @@ logging.getLogger('quart.serving').setLevel(logging.ERROR)
 
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# ── Compression & static caching ──────────────────────────────────────────
-# text/javascript is what Python's mimetypes reports for .js, and it's not in
-# quart-compress's default list.
+# ── Compression ───────────────────────────────────────────────────────────
 app.config["COMPRESS_MIMETYPES"] = [
     "text/html", "text/css", "text/javascript", "application/javascript",
     "application/json", "image/svg+xml",
 ]
 Compress(app)
-
-@app.url_defaults
-def version_static_urls(endpoint, values):
-    """Append ?v=<file mtime> to url_for('static', ...) so an edited file gets a
-    new URL, which lets the versioned URLs be cached for a year with no build step."""
-    if endpoint != "static" or "filename" not in values or "v" in values:
-        return
-    try:
-        values["v"] = int(os.path.getmtime(os.path.join(app.static_folder, values["filename"])))
-    except OSError:
-        pass
-
-@app.after_request
-async def static_cache_headers(response):
-    """Versioned static URLs never change, so browsers keep them; anything else under
-    /static/ (fetched by JS, url() in CSS) is re-checked with its ETag on each use."""
-    if request.endpoint == "static":
-        if "v" in request.args:
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        else:
-            response.headers["Cache-Control"] = "no-cache"
-    return response
 
 # ── Blueprints ────────────────────────────────────────────────────────────
 app.register_blueprint(web_bp)
@@ -148,10 +118,6 @@ async def maintenance_gate():
 
 # ── Global error handlers ─────────────────────────────────────────────────
 def error_guild_id():
-    """The guild a failed /dashboard/<id>/... request was for, so the error
-    page can send the user back to that guild's dashboard. Read from the URL
-    rather than request.view_args: that's empty on a 404 (no route matched),
-    and public routes like /form/<guild_id>/... shouldn't link to a dashboard."""
     match = re.match(r"/dashboard/(\d+)", request.path)
     return int(match.group(1)) if match else None
 

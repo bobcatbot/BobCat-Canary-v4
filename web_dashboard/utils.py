@@ -11,7 +11,6 @@ from modules import bot as v
 from modules.models import Guild
 from cogs._bot.bot_dash import sync_guild_dashboard
 from .config import BOT_TOKEN, CLIENT_SECRET
-from .db import get_guild
 from .plugins import PLUGIN_LIST
 
 # ── Discord OAuth client ───────────────────────────────────────────────────────
@@ -366,13 +365,5 @@ class GuildModels:
 
     @property
     def isPremium(self):
-        # The templates read this for every plugin card, sidebar row and navbar
-        # button, and is_premium_sync is a blocking Mongo call, so ask once per request.
-        guild_id = str(getattr(self.guild, "id", self.guild))
-        cache = getattr(g, "_premium_sync_cache", None)
-        if cache is None:
-            cache = {}
-            g._premium_sync_cache = cache
-        if guild_id not in cache:
-            cache[guild_id] = v.is_premium_sync(self.guild)
-        return cache[guild_id]
+        doc = g._guild_doc_cache[str(self.guild.id)]
+        return bool(doc and doc.premium.get('status') and doc.premium.get('active'))
