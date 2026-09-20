@@ -4,9 +4,9 @@ import discord
 from quart import Blueprint, jsonify, render_template, request, session, url_for
 
 from modules import bot as v
-from modules.models import Guild, VerificationConfig
+from modules.models import Guild, VerificationConfig, VerificationButtonConfig, EmbedConfig
 from cogs.mod._helpers import audit_log
-from ...utils import bearer_client, plugin_guard, unflatten_keys, deep_merge
+from ...utils import get_current_user, plugin_guard
 from ...config import OAUTH_URL, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY
 
 verification_bp = Blueprint('verification', __name__)
@@ -17,7 +17,7 @@ TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 @verification_bp.route("/dashboard/<int:guild_id>/verification", methods=['GET'])
 @plugin_guard('verification')
 async def verify(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -60,7 +60,10 @@ async def verify_publish(guild_id):
     # just a throwaway discord.Embed) so the edit page's next load reflects
     # what's actually published - saved now since the "already published"
     # branch below returns early, before the save() further down would run.
-    deep_merge(verification_config.message, {'embed': data['embed'], 'btn': data.get('btn', {})})
+    # The page posts the complete embed and button, so they replace what's saved.
+    verification_config.message.embed = EmbedConfig(**data['embed'])
+    if 'btn' in data:
+        verification_config.message.btn = VerificationButtonConfig(**data['btn'])
     config.updated_at = discord.utils.utcnow()
     await config.save()
 
@@ -230,36 +233,6 @@ async def verify_unpublish(guild_id):
     return jsonify({'status': 'success', 'message': 'Verification message unpublished'})
 
 
-@verification_bp.route("/dashboard/<int:guild_id>/verification/update", methods=['POST'])
-@plugin_guard('verification')
-async def verify_update(guild_id):
-    """Update a specific verification setting."""
-    data = await request.get_json()
-    if not data:
-        return jsonify({'status': 'error', 'message': 'No data provided'}), 400
-
-    guild = v.client.get_guild(guild_id)
-    if guild is None:
-        return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
-
-    config = await Guild.get(str(guild.id))
-    if config is None:
-        return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
-
-    key = data.get('key')
-    value = data.get('value')
-
-    if not key:
-        return jsonify({'status': 'error', 'message': 'No key provided'}), 400
-
-    # e.g. key="message.embed.title" -> deep_merge({"message": {"embed": {"title": value}}})
-    deep_merge(config.dashboard.verification, unflatten_keys({key: value}))
-
-    config.updated_at = discord.utils.utcnow()
-    await config.save()
-
-    return jsonify({'status': 'success', 'message': 'Successfully updated verification settings'})
-
 # ── Public captcha_web verification page ────────────────────────────────────
 # End-user facing (no login/plugin_guard on entry — the point of this route
 # IS to log an arbitrary Discord user in), reached via the signed link the
@@ -352,7 +325,7 @@ async def public_verify():
     # ── Logged in as the wrong account for this link ──
     # Navbar.html expects the logged-in user under "user" — reused as-is
     # (Zenora User object: .id/.username/.avatar_url, not dict-subscriptable).
-    user = bearer_client().get_current_user()
+    user = get_current_user()
     if str(user.id) != str(user_id):
         return await render_template(
             "verify.html", state="mismatch", user=user, guild=guild,

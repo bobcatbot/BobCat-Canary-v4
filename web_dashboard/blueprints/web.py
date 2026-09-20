@@ -3,7 +3,7 @@ from quart import Blueprint, jsonify, render_template, request, session
 
 from modules import bot as v
 from ..config import OAUTH_URL, INVITE_URL
-from ..utils import bearer_client
+from ..utils import get_current_user
 
 web_bp = Blueprint('web', __name__)
 
@@ -115,13 +115,13 @@ def _fetch_shard_data(user=None):
 async def status():
     if "token" not in session:
         return await render_template("status.html", logInWithDiscord=OAUTH_URL, shards=_fetch_shard_data(), inviteURL=INVITE_URL)
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     return await render_template("status.html", user=current_user, shards=_fetch_shard_data(current_user), inviteURL=INVITE_URL)
 
 @web_bp.route("/api/shard_status")
 async def api_shard_status():
     try:
-        current_user = bearer_client().get_current_user()
+        current_user = get_current_user()
     except Exception:
         current_user = None
     return jsonify(_fetch_shard_data(current_user))

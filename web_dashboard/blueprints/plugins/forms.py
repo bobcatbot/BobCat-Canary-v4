@@ -6,7 +6,7 @@ from quart import Blueprint, flash, jsonify, redirect, render_template, request,
 
 from modules import bot as v
 from modules.models import Guild, Form, FormResponse
-from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap, deep_merge
+from ...utils import get_current_user, login_required, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 forms_bp = Blueprint('forms', __name__)
@@ -16,10 +16,10 @@ def check_permissions(current_user, guild, form_data, allow_viewer=False):
     a form's submissions. can_manage is admin/manager only; can_access also allows
     the viewer role when allow_viewer=True (the submissions list page)."""
     member = guild.get_member(current_user.id)
+    # `member` is None for someone who isn't in the server: they get no access, not a crash
     is_admin = (
         guild.owner_id == current_user.id or
-        member.guild_permissions.administrator or
-        member.guild_permissions.manage_guild
+        bool(member and (member.guild_permissions.administrator or member.guild_permissions.manage_guild))
     )
 
     def has_role(role_ids):
@@ -40,7 +40,7 @@ def check_permissions(current_user, guild, form_data, allow_viewer=False):
 @forms_bp.route("/form/<int:guild_id>/<form_id>", methods=['GET', 'POST'])
 @login_required
 async def form(guild_id, form_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         await flash('Guild not found', 'error')
@@ -153,7 +153,7 @@ async def form(guild_id, form_id):
 @forms_bp.route("/form/<int:guild_id>/<form_id>/submissions", methods=['GET'])
 @login_required
 async def form_submissions(guild_id, form_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         await flash('Guild not found', 'error')
@@ -197,7 +197,7 @@ async def form_submissions(guild_id, form_id):
 @forms_bp.route("/form/<int:guild_id>/<form_id>/submissions/<submission_id>", methods=['GET'])
 @login_required
 async def form_submission_detail(guild_id, form_id, submission_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
@@ -263,7 +263,7 @@ async def form_submission_detail(guild_id, form_id, submission_id):
 @forms_bp.route("/form/<int:guild_id>/<form_id>/submissions/<submission_id>", methods=['DELETE'])
 @login_required
 async def form_submission_delete(guild_id, form_id, submission_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
@@ -290,7 +290,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
         submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
-            FormResponse._id == obj_id  # Use _id directly
+            FormResponse.id == obj_id
         )
     except (InvalidId, TypeError):
         pass
@@ -300,7 +300,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
         submission = await FormResponse.find_one(
             FormResponse.guild_id == str(guild.id),
             FormResponse.form_id == form_id,
-            FormResponse._id == submission_id  # Use _id directly
+            FormResponse.id == submission_id
         )
     
     if submission is None:
@@ -316,7 +316,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms")
 @plugin_guard('forms')
 async def forms(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -344,7 +344,7 @@ async def forms(guild_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms/creation", methods=['GET', 'POST'])
 @plugin_guard('forms')
 async def forms_create(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -395,7 +395,7 @@ async def forms_create(guild_id):
 @forms_bp.route("/dashboard/<int:guild_id>/forms/<form_id>/edit", methods=['GET', 'POST', 'DELETE'])
 @plugin_guard('forms')
 async def forms_edit(guild_id, form_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -415,16 +415,14 @@ async def forms_edit(guild_id, form_id):
         if not data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-        settings_patch = data.pop('settings', None)
+        # The page posts whatever it changed at the top level (name, questions, the
+        # complete settings object, ...), so each key just replaces what's saved.
         for key, value in data.items():
             if key in ('id', 'guild_id'):
                 continue
             if hasattr(form_data, key):
                 setattr(form_data, key, value)
 
-        if settings_patch:
-            deep_merge(form_data.settings, settings_patch)
-        
         await form_data.save()
         print(f"Updated form {form_id} for guild {guild_id}")
         await flash(f"Successfully updated form {form_id}", 'success')

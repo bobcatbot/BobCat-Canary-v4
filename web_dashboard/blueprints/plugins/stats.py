@@ -4,7 +4,7 @@ from quart import Blueprint, request, render_template, jsonify
 
 from modules import bot as v
 from modules.models import Guild, StatsConfig
-from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...utils import get_current_user, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 stats_bp = Blueprint('stats', __name__)
@@ -13,7 +13,7 @@ stats_bp = Blueprint('stats', __name__)
 @stats_bp.route("/dashboard/<int:guild_id>/stats")
 @plugin_guard('stats')
 async def stats(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
 
     guild = v.client.get_guild(guild_id)
     if guild is None:

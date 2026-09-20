@@ -1,67 +1,38 @@
 import logging
 import discord
+from pydantic import ValidationError
 from quart import Blueprint, request, flash, jsonify, render_template, redirect, url_for
 
 from modules import bot as v
-from modules.models import Guild, Giveaway, EmbedFieldConfig
-from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from modules.models import Guild, Giveaway, EmbedConfig
+from ...utils import get_current_user, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 giveaways_bp = Blueprint('giveaways', __name__)
 logger = logging.getLogger(__name__)
 
-# The dashboard form posts legacy dotted field names that don't match the
-# Giveaway document's own attribute names (e.g. "time.epoch" -> end_epoch,
-# "winners" -> winner_count) - one mapping used by both create and edit,
-# instead of each route repeating its own copy of the same translation.
-_GIVEAWAY_FIELD_MAP = {
-    'name': ('name', str),
-    'channel_id': ('channel_id', lambda v: str(v) if v else None),
-    'prize': ('prize', str),
-    'winners': ('winner_count', lambda v: int(v or 1)),
-    'embed.title': ('embed_title', lambda v: v or ''),
-    'embed.desc': ('embed_desc', lambda v: v or ''),
-    # The color picker's JS already sends an int (parseInt(hex, 16), same as
-    # ticketing_form.html) - only re-parse here if a hex string shows up instead.
-    'embed.color': ('embed_color', lambda v: int(str(v).lstrip('#'), 16) if isinstance(v, str) else (v or 0x5865f2)),
-    'embed.fields': ('embed_fields', lambda v: [EmbedFieldConfig(**f) for f in (v or [])]),
-    'time.epoch': ('end_epoch', lambda v: float(v or 0)),
-    'time.timestamp': ('end_timestamp', lambda v: v or ''),
-    'give_xp.enabled': ('give_xp.enabled', bool),
-    'give_xp.amount': ('give_xp.amount', lambda v: int(v or 0)),
-    'give_coins.enabled': ('give_coins.enabled', bool),
-    'give_coins.amount': ('give_coins.amount', lambda v: int(v or 0)),
-}
-
-def _translate_giveaway_fields(data: dict) -> dict:
-    """Translate a dashboard payload's legacy dotted keys into real Giveaway
-    fields (including the nested give_xp.*/give_coins.* dict keys), applying
-    each field's type coercion. Unknown keys are ignored."""
-    result = {}
-    for key, value in data.items():
-        mapping = _GIVEAWAY_FIELD_MAP.get(key)
-        if mapping is None:
-            continue
-        field, coerce = mapping
-        result[field] = coerce(value)
-    return result
-
 def _apply_giveaway_fields(giveaway: Giveaway, data: dict):
-    """Apply a dashboard edit payload (legacy dotted keys) onto a Giveaway document."""
-    for field, value in _translate_giveaway_fields(data).items():
-        if '.' in field:
-            parent, child = field.split('.', 1)
-            getattr(giveaway, parent)[child] = value
-        else:
+    """Apply a dashboard payload onto a Giveaway document. The page posts the
+    Giveaway's own field names, so each key is just assigned; Giveaway validates
+    on assignment (numbers coerced, the embed dict built into an EmbedConfig).
+    Anything that isn't a field (the create page's `button`) is ignored."""
+    for field, value in data.items():
+        if field in Giveaway.model_fields and field not in ('id', 'guild_id'):
             setattr(giveaway, field, value)
+
+
+@giveaways_bp.errorhandler(ValidationError)
+async def _bad_giveaway_data(error):
+    first = error.errors()[0]
+    return jsonify({'status': 'error', 'message': f"Invalid {'.'.join(str(x) for x in first['loc'])}: {first['msg']}"}), 400
 
 
 def _build_giveaway_embed(giveaway):
     """Build the live giveaway embed for a Giveaway document."""
     embed = discord.Embed(
-        title=giveaway.embed_title or f"🎉 {giveaway.prize} 🎉",
-        description=giveaway.embed_desc,
-        color=discord.Color(giveaway.embed_color)
+        title=giveaway.embed.title or f"🎉 {giveaway.prize} 🎉",
+        description=giveaway.embed.description,
+        color=discord.Color(giveaway.embed.color or 0x5865f2)
     )
     embed.add_field(
         name="Ends",
@@ -74,7 +45,7 @@ def _build_giveaway_embed(giveaway):
 
     # User-added fields (dashboard "Message" editor) come after the computed
     # ones above so the core giveaway info always reads first.
-    for field in giveaway.embed_fields:
+    for field in giveaway.embed.fields:
         if field.name or field.value:
             embed.add_field(name=field.name or '​', value=field.value or '​', inline=field.inline)
 
@@ -124,7 +95,7 @@ async def _send_giveaway_message(guild, giveaway):
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways")
 @plugin_guard('giveaway')
 async def giveaways(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -150,7 +121,7 @@ async def giveaways(guild_id):
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/creation", methods=['GET', 'POST'])
 @plugin_guard('giveaway')
 async def giveaways_creation(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -195,9 +166,7 @@ async def giveaways_creation(guild_id):
             channel_name=channel.name,
             message_id='',
             author_id=str(current_user.id),
-            embed_title='',
-            embed_desc='',
-            embed_color=0x5865f2,
+            embed=EmbedConfig(color=0x5865f2),
             end_epoch=0.0,
             end_timestamp='',
             winner_count=1,
@@ -235,9 +204,7 @@ async def giveaways_creation(guild_id):
             'prize': '',
             'winner_count': None,
             'end_epoch': 0,
-            'embed_desc': '',
-            'embed_color': 0x5865f2,
-            'embed_fields': [],
+            'embed': EmbedConfig(color=0x5865f2),
             'give_xp': {'enabled': False, 'amount': 0},
             'give_coins': {'enabled': False, 'amount': 0},
             'status': 'Draft',
@@ -249,7 +216,7 @@ async def giveaways_creation(guild_id):
 @giveaways_bp.route("/dashboard/<int:guild_id>/giveaways/<gway_id>/edition", methods=['GET', 'POST'])
 @plugin_guard('giveaway')
 async def giveaways_edition(guild_id, gway_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404

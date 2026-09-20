@@ -6,7 +6,7 @@ from modules import bot as v
 from modules.models import Guild, Leveling
 from ...config import mongoURI_db
 from ...uploads import UploadError, upload_rank_card_image
-from ...utils import bearer_client, check_guild_permission, dev_required, plugin_guard, is_premium
+from ...utils import get_current_user, check_guild_permission, dev_required, plugin_guard, is_premium
 
 leveling_bp = Blueprint('leveling', __name__)
 
@@ -34,7 +34,7 @@ async def _leaderboard_action(guild, config):
     if "token" not in session:
         return jsonify({"status": 403, "message": "Not authenticated"}), 403
     try:
-        current_user = bearer_client().get_current_user()
+        current_user = get_current_user()
     except Exception:
         return jsonify({"status": 403, "message": "Not authenticated"}), 403
 
@@ -85,7 +85,7 @@ async def _resolve_leaderboard_guild(identifier: str):
         if guild is not None:
             return guild
 
-    slug_doc = await Guild.find_one({"Dash.leveling.leaderboard.url": identifier.strip().lower()})
+    slug_doc = await Guild.find_one({"dashboard.leveling.leaderboard.url": identifier.strip().lower()})
     if slug_doc is not None:
         return v.client.get_guild(int(slug_doc.id))
 
@@ -119,7 +119,7 @@ async def leaderboard_home(identifier):
     current_user = None
     if "token" in session:
         try:
-            current_user = bearer_client().get_current_user()
+            current_user = get_current_user()
         except Exception:
             current_user = None
 
@@ -176,7 +176,7 @@ async def leaderboard_home(identifier):
 @leveling_bp.route("/dashboard/<int:guild_id>/leveling")
 @plugin_guard('leveling')
 async def levelling(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     
     guild = v.client.get_guild(guild_id)
     if guild is None:

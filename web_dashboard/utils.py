@@ -1,11 +1,16 @@
+import asyncio
 import json
+import time
 import discord
 from functools import wraps
+from typing import Any, Optional
 from quart import session, request, render_template, url_for, redirect, jsonify, flash, g
+from pydantic import BaseModel, ValidationError
 from zenora import APIClient
+from zenora.exceptions import RateLimitException
 
 from modules import bot as v
-from modules.models import Guild, DictModel
+from modules.models import Guild
 from cogs._bot.bot_dash import sync_guild_dashboard
 from .config import BOT_TOKEN, CLIENT_SECRET
 from .db import get_guild
@@ -19,6 +24,87 @@ def bearer_client():
     """Returns a Zenora users client scoped to the current session token."""
     c = APIClient(session.get("token"), bearer=True)
     return c.users
+
+class SessionUser(BaseModel):
+    """The signed-in Discord user, as login stores it in the session. Only id and username
+    are guaranteed; Discord leaves the rest null. Deliberately left out: email, discriminator,
+    premium_type, is_verified, is_system and has_mfa_enabled."""
+    id: int
+    username: str
+    avatar_hash: Optional[str] = None
+    avatar_url: Optional[str] = None
+    banner: Optional[str] = None
+    banner_color: Optional[Any] = None
+    accent_color: Optional[int] = None
+    bio: Optional[str] = None
+    public_flags: Optional[int] = None
+    is_bot: Optional[bool] = None
+    # Zenora's OwnUser only: the signed-in user's own account
+    locale: Optional[str] = None
+    flags: Optional[int] = None
+
+    @classmethod
+    def from_zenora(cls, user) -> "SessionUser":
+        """Build from a Zenora user. A plain `User` has no locale/flags; those stay None."""
+        return cls(**{name: getattr(user, name, None) for name in cls.model_fields})
+
+    def to_session(self) -> dict:
+        """What goes in the cookie: without the nulls, to keep it small."""
+        return self.model_dump(exclude_none=True)
+
+def get_current_user() -> SessionUser:
+    """The signed-in Discord user, read from the session.
+
+    Login stores the user there, so a request never needs to ask Discord who is signed in.
+    Zenora's call is a blocking HTTP request, and this app shares one event loop with the
+    Discord bot, so every such lookup used to freeze both for the length of the round trip.
+    Only a session without a usable stored user falls back to one live lookup, and then
+    remembers it.
+    """
+    stored = session.get("user")
+    if stored is not None:
+        try:
+            return SessionUser(**stored)
+        except ValidationError:
+            pass  # an old or malformed cookie: fetch it fresh below
+
+    user = SessionUser.from_zenora(bearer_client().get_current_user())
+    session["user"] = user.to_session()
+    return user
+
+
+# user id -> (expires_at, guilds). The navbar's server switcher asks on every page.
+_my_guilds_cache = {}
+_MY_GUILDS_TTL = 60  # seconds
+_RATE_LIMIT_BACKOFF = 10  # seconds to serve the old list when Discord doesn't say how long
+
+async def get_my_guilds():
+    """The guilds the signed-in user is in, from Discord (this one does need their OAuth token).
+
+    The HTTP call runs in a thread so it can't stall the shared event loop, and the answer is
+    kept for a minute per user. If Discord rate-limits us, the last list we have is served
+    until the limit resets; it only fails when there's nothing to fall back on.
+    """
+    user_id = get_current_user().id
+    cached = _my_guilds_cache.get(user_id)
+    if cached and cached[0] > time.monotonic():
+        return cached[1]
+
+    token = session.get("token")
+    try:
+        guilds = await asyncio.to_thread(lambda: APIClient(token, bearer=True).users.get_my_guilds())
+    except RateLimitException as error:
+        if cached is None:
+            raise
+        try:
+            wait = error.ratelimit_reset_after
+        except (KeyError, TypeError, ValueError):
+            wait = _RATE_LIMIT_BACKOFF
+        _my_guilds_cache[user_id] = (time.monotonic() + wait, cached[1])
+        return cached[1]
+
+    _my_guilds_cache[user_id] = (time.monotonic() + _MY_GUILDS_TTL, guilds)
+    return guilds
 
 
 async def _cached_guild(guild_id):
@@ -142,47 +228,6 @@ def plugin_item_cap(plugin_key, guild_is_premium) -> int:
     return meta.get('max_premium', 15) if guild_is_premium else meta.get('max', 5)
 
 
-# ── Payload shaping helpers ─────────────────────────────────────────────────────
-def unflatten_keys(data: dict) -> dict:
-    """Expand a flat dict with dotted keys into a nested dict.
-
-    ``{"a.b.c": 1, "a.b.d": 2, "x": 3}`` -> ``{"a": {"b": {"c": 1, "d": 2}}, "x": 3}``
-
-    The dashboard forms post settings as dotted paths (``intro_message.embed.title``);
-    the bot and the edit templates expect the nested shape.
-    """
-    result: dict = {}
-    for key, value in data.items():
-        parts = str(key).split('.')
-        node = result
-        for part in parts[:-1]:
-            child = node.get(part)
-            if not isinstance(child, dict):
-                child = {}
-                node[part] = child
-            node = child
-        node[parts[-1]] = value
-    return result
-
-
-def deep_merge(base, incoming: dict):
-    """Recursively merge ``incoming`` into ``base`` (mutates and returns ``base``).
-
-    Nested dict-likes merge key-by-key so a partial update (e.g. only
-    ``intro_message.embed.title``) doesn't wipe its siblings; every other value
-    type overwrites. ``base`` can be a plain dict or a DictModel (the typed
-    DashConfig sub-models) - both support .get()/[]=/__setitem__, but only
-    DictModel needs the isinstance check widened to still recurse into it
-    instead of overwriting the whole nested object.
-    """
-    for key, value in incoming.items():
-        current = base.get(key)
-        if isinstance(value, dict) and isinstance(current, (dict, DictModel)):
-            deep_merge(current, value)
-        else:
-            base[key] = value
-    return base
-
 # ── Guild-route authorization guards ─────────────────────────────────────────
 async def _guild_checks(guild_id):
     """Shared first half of every guild-route guard: authenticated -> guild is
@@ -217,7 +262,7 @@ async def _guild_checks(guild_id):
         await sync_guild_dashboard(guild)
 
     try:
-        user = bearer_client().get_current_user()
+        user = get_current_user()
     except Exception:
         if is_write:
             return None, (jsonify({'status': 'error', 'message': 'Not authenticated'}), 401)

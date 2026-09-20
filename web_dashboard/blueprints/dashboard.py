@@ -9,7 +9,7 @@ from cogs._bot.bot_dash import sync_guild_dashboard
 from ..config import INVITE_URL, REDIRECT_URI
 from ..db import get_bell_notifications
 from ..consts import langs, premium_faqs, premium_plans, tz, RESERVED_SLUGS
-from ..utils import bearer_client, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
+from ..utils import get_my_guilds, get_current_user, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
 from ..plugins import PLUGIN_LIST
 from ..uploads import upload_embed_image, UploadError
 
@@ -24,7 +24,7 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
     """
     bot_guild_ids = {g.id for g in v.client.guilds}
     my_guilds = [
-        g for g in bearer_client().get_my_guilds()
+        g for g in await get_my_guilds()
         if not (exclude_guild_id and g.id == exclude_guild_id)
     ]
 
@@ -81,7 +81,7 @@ def _is_owner_or_admin(guild, user_id) -> bool:
 @dashboard_bp.route("/dashboard")
 @login_required
 async def guilds():
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
 
     user_eligible_guilds = await get_user_eligible_guilds(current_user)
 
@@ -106,7 +106,7 @@ async def guilds():
 @dashboard_bp.route("/dashboard/<int:guild_id>")
 @login_required
 async def dashboard_home(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     session['guild_id'] = guild_id
 
@@ -134,7 +134,7 @@ async def dashboard_home(guild_id):
 @dashboard_bp.route("/dashboard/<int:guild_id>/settings")
 @guild_guard
 async def settings(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     config = await Guild.get(str(guild.id))
     data = config.settings if config else SettingsConfig()
@@ -148,7 +148,7 @@ async def settings(guild_id):
 @dashboard_bp.route("/dashboard/<int:guild_id>/premium")
 @guild_guard
 async def premium(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     config = await Guild.get(str(guild.id))
     prem_data = config.premium if config else PremiumConfig()
@@ -254,7 +254,7 @@ async def premium(guild_id):
 @login_required
 async def transfer_premium_execute(guild_id):
     """Execute premium transfer."""
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     
     # Authorize
@@ -338,7 +338,7 @@ def _iso_utc(dt: datetime) -> str:
 @dashboard_bp.route("/dashboard/<int:guild_id>/notifications", methods=["GET", "POST", "DELETE"])
 @guild_guard
 async def notifications(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     guild_id_str = str(guild.id)
 
@@ -406,7 +406,7 @@ async def data_post(guild_id):
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
     try:
-        current_user = bearer_client().get_current_user()
+        current_user = get_current_user()
     except Exception:
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 
@@ -572,7 +572,7 @@ async def data_post(guild_id):
                         'code': 'slug_reserved',
                     }), 400
                 clash = await Guild.find_one({
-                    'Dash.leveling.leaderboard.url': slug,
+                    'dashboard.leveling.leaderboard.url': slug,
                     '_id': {'$ne': str(guild.id)},
                 })
                 if clash is not None:
@@ -687,7 +687,7 @@ async def embed_upload_image(guild_id):
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
     try:
-        current_user = bearer_client().get_current_user()
+        current_user = get_current_user()
     except Exception:
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 

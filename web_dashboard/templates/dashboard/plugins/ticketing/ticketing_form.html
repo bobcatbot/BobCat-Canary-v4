@@ -379,21 +379,16 @@
       }
     });
 
-    let ticket_data = isEdit ? {} : {
-      channel_id: null,
-      manager_roles: [],
-      category_open: null,
-      category_claimed: null,
-      category_closed: null,
-      transcript_channel: null,
-      transcript_dm: false,
-      pin_intro: true,
-      max_open_tickets: 1,
-      threading_mode: false
+    // The whole panel, exactly as the server has it. Every control edits this
+    // object and Save posts all of it, so the server just validates and stores it.
+    let ticket_data = JSON.parse('{{ data | tojson }}');
+    if (!isEdit) {
+      // Same defaults the create page renders for these two controls
+      Object.assign(ticket_data, { pin_intro: true, max_open_tickets: 1 });
     }
 
     document.querySelector('#discard-btn').addEventListener('click', (e) => {
-      if (Object.keys(ticket_data).length > 0) {
+      if (JSON.stringify(ticket_data) !== initialState) {
         var res = confirm("Are you sure you want to discard changes?")
         if (res) {
           window.location.href = '/dashboard/{{guild.id}}/ticketing'
@@ -525,14 +520,10 @@
     document.addEventListener('DOMContentLoaded', () => {
       const pmMessageColor = '{{ data.panel_message.embed.color|hexcolor }}';
       if (!isEdit) {
-        // Seed from the rendered defaults (server-supplied), same as panel_button
-        // below - a value present in ticket_data only when actually typed into
-        // means an untouched submission sends a *partial* panel_message.embed
-        // dict, which Pydantic builds as-is rather than falling back to the
-        // model's full default for the missing title/description.
-        ticket_data['panel_message.embed.color'] = parseInt(pmMessageColor.replace("#", ""), 16);
-        ticket_data['panel_message.embed.title'] = PmEmbedTitle.value;
-        ticket_data['panel_message.embed.description'] = PmEmbedDesc.value;
+        // Seed from the rendered defaults (server-supplied), same as panel_button below
+        ticket_data.panel_message.embed.color = parseInt(pmMessageColor.replace("#", ""), 16);
+        ticket_data.panel_message.embed.title = PmEmbedTitle.value;
+        ticket_data.panel_message.embed.description = PmEmbedDesc.value;
       } else {
         PmEmbed.style.borderColor = pmMessageColor;
         PmEmbedColor.closest('div').style.color = pmMessageColor;
@@ -545,33 +536,33 @@
 
       PmEmbed.style.borderColor = value;
 
-      ticket_data['panel_message.embed.color'] = parseInt(value.replace("#", ""), 16);
+      ticket_data.panel_message.embed.color = parseInt(value.replace("#", ""), 16);
     })
 
     PmEmbedTitle.addEventListener('input', (e) => {
       var value = e.target.value;
-      ticket_data['panel_message.embed.title'] = value;
+      ticket_data.panel_message.embed.title = value;
     })
 
     PmEmbedDesc.addEventListener('input', (e) => {
       var value = e.target.value;
-      ticket_data['panel_message.embed.description'] = value;
+      ticket_data.panel_message.embed.description = value;
     })
 
     // Image/thumbnail/icon uploads - this page builds its own ticket_data
     // payload instead of using initEmbedEditor()'s show_toast flow, so these
     // report through a callback rather than a pending-change key.
     wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="author-icon"]'), '{{ guild.id }}', (url) => {
-      ticket_data['panel_message.embed.author.icon_url'] = url;
+      ticket_data.panel_message.embed.author.icon_url = url;
     });
     wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="footer-icon"]'), '{{ guild.id }}', (url) => {
-      ticket_data['panel_message.embed.footer.icon_url'] = url;
+      ticket_data.panel_message.embed.footer.icon_url = url;
     });
     wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="image"]'), '{{ guild.id }}', (url) => {
-      ticket_data['panel_message.embed.image.url'] = url;
+      ticket_data.panel_message.embed.image.url = url;
     });
     wireEmbedUploadCustom(PmEmbed.querySelector('[data-upload-role="thumbnail"]'), '{{ guild.id }}', (url) => {
-      ticket_data['panel_message.embed.thumbnail.url'] = url;
+      ticket_data.panel_message.embed.thumbnail.url = url;
     });
 
     /* Panel Button */
@@ -581,9 +572,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       if (!isEdit) {
-        ticket_data['panel_button.emoji'] = btnPreview.querySelector('#emoji').innerHTML
-        ticket_data['panel_button.label'] = btnPreview.querySelector('#label').innerHTML
-        ticket_data['panel_button.style'] = 'gray'
+        ticket_data.panel_button.emoji = btnPreview.querySelector('#emoji').innerHTML
+        ticket_data.panel_button.label = btnPreview.querySelector('#label').innerHTML
+        ticket_data.panel_button.style = 'gray'
       }
     })
 
@@ -596,7 +587,7 @@
         btnEdit.querySelector('.btn-wrapper').insertAdjacentHTML('beforeend', '<i class="bi bi-trash-fill"></i>');
       }
 
-      ticket_data['panel_button.emoji'] = emoji.icon;
+      ticket_data.panel_button.emoji = emoji.icon;
     }
 
     btnPreview.addEventListener('click', () => {
@@ -615,7 +606,7 @@
 
         btnPreview.querySelector('#emoji').innerHTML = '';
 
-        ticket_data['panel_button.emoji'] = '';
+        ticket_data.panel_button.emoji = '';
       })
     }
 
@@ -626,7 +617,7 @@
 
       btnPreview.querySelector('#label').innerHTML = value;
 
-      ticket_data['panel_button.label'] = value;
+      ticket_data.panel_button.label = value;
     })
 
     // panel button color
@@ -650,7 +641,7 @@
 
         btnPreview.classList.add(`btn-${data[value]}`);
 
-        ticket_data['panel_button.style'] = value;
+        ticket_data.panel_button.style = value;
       })
     })
 
@@ -711,9 +702,9 @@
       const imMessageColor = '{{ data.intro_message.embed.color|hexcolor }}';
       if (!isEdit) {
         // See the matching comment on the panel-message block above.
-        ticket_data['intro_message.embed.color'] = parseInt(imMessageColor.replace("#", ""), 16);
-        ticket_data['intro_message.embed.title'] = ImEmbedTitle.value;
-        ticket_data['intro_message.embed.description'] = ImEmbedDesc.value;
+        ticket_data.intro_message.embed.color = parseInt(imMessageColor.replace("#", ""), 16);
+        ticket_data.intro_message.embed.title = ImEmbedTitle.value;
+        ticket_data.intro_message.embed.description = ImEmbedDesc.value;
       } else {
         ImEmbed.style.borderColor = imMessageColor;
         ImEmbedColor.closest('div').style.color = imMessageColor;
@@ -726,26 +717,26 @@
 
       ImEmbed.style.borderColor = value;
 
-      ticket_data['intro_message.embed.color'] = parseInt(value.replace("#", ""), 16);
+      ticket_data.intro_message.embed.color = parseInt(value.replace("#", ""), 16);
     })
 
     ImEmbedTitle.addEventListener('input', (e) => {
       var value = e.target.value;
-      ticket_data['intro_message.embed.title'] = value;
+      ticket_data.intro_message.embed.title = value;
     })
 
     ImEmbedDesc.addEventListener('input', (e) => {
       var value = e.target.value;
-      ticket_data['intro_message.embed.description'] = value;
+      ticket_data.intro_message.embed.description = value;
     })
 
     // Image/thumbnail uploads - no author/footer icon roles here since this
     // instance is show_author=False, show_footer=False.
     wireEmbedUploadCustom(ImEmbed.querySelector('[data-upload-role="image"]'), '{{ guild.id }}', (url) => {
-      ticket_data['intro_message.embed.image.url'] = url;
+      ticket_data.intro_message.embed.image.url = url;
     });
     wireEmbedUploadCustom(ImEmbed.querySelector('[data-upload-role="thumbnail"]'), '{{ guild.id }}', (url) => {
-      ticket_data['intro_message.embed.thumbnail.url'] = url;
+      ticket_data.intro_message.embed.thumbnail.url = url;
     });
 
     /* Ticket Transcript */
@@ -764,6 +755,13 @@
       var val = e.target.checked
 
       ticket_data['transcript_dm'] = val;
+    })
+
+    // Unsaved-changes check for Discard: the state once the create-page seeds
+    // above have run (registered last, so it fires after them)
+    let initialState = null;
+    document.addEventListener('DOMContentLoaded', () => {
+      initialState = JSON.stringify(ticket_data);
     })
   </script>
 

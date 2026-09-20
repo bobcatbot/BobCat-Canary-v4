@@ -6,7 +6,7 @@ from datetime import datetime
 from discord.ext import commands, tasks
 from beanie.operators import Or
 from modules import bot as v
-from modules.models import Giveaway, Guild
+from modules.models import Giveaway, Guild, EmbedConfig
 
 async def giveaways_fetchall() -> list[Giveaway]:
     return await Giveaway.find_all().to_list()
@@ -22,7 +22,7 @@ class GiveawayCog(commands.Cog):
             embed = discord.Embed(
                 color=v.style(int(data.guild_id)),
                 title=f"🎉 {data.prize} 🎉 [ENDED]",
-                description=data.embed_desc or "",
+                description=data.embed.description or "",
             )
             embed.add_field(name="Ended", value=f"<t:{int(pyTime.time())}:R>", inline=False)
             embed.add_field(name="Hosted by", value=f"<@{data.author_id}>", inline=False)
@@ -46,7 +46,7 @@ class GiveawayCog(commands.Cog):
         embed = discord.Embed(
             color=v.style(int(data.guild_id)),
             title=f"🎉 {data.prize} 🎉",
-            description=data.embed_desc or "",
+            description=data.embed.description or "",
         )
         embed.add_field(name="Ends", value=f"<t:{int(data.end_epoch)}:R> (<t:{int(data.end_epoch)}:f>)", inline=False)
         embed.add_field(name="Hosted by", value=f"<@{data.author_id}>", inline=False)
@@ -331,8 +331,7 @@ class GiveawayCog(commands.Cog):
             winners=[],
             give_xp={"enabled": bool(xp), "amount": xp or 0},
             give_coins={"enabled": bool(coins), "amount": coins or 0},
-            embed_title=f"🎉 {prize} 🎉",
-            embed_desc=description,
+            embed=EmbedConfig(title=f"🎉 {prize} 🎉", description=description, color=0x5865f2),
         )
 
         embed = self._build_giveaway_embed(data)

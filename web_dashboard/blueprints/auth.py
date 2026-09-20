@@ -4,7 +4,7 @@ from quart import Blueprint, flash, redirect, render_template, request, session,
 from zenora import APIClient
 
 from ..config import BOT_TOKEN, CLIENT_SECRET, OAUTH_URL, REDIRECT_URI
-from ..utils import bearer_client
+from ..utils import bearer_client, SessionUser
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -42,12 +42,8 @@ async def oauth_callback():
 
         user = bearer_client().get_current_user()
 
-        # Store the basic user information in the session after getting the user:
-        session["user"] = {
-            "id": user.id,
-            "username": user.username,
-            "avatar_url": user.avatar_url,
-        }
+        # Store the user in the session, so no request has to ask Discord who is signed in
+        session["user"] = SessionUser.from_zenora(user).to_session()
 
         await flash(f'Logged in as {user.username}#{user.discriminator} !', 'log-in')
 

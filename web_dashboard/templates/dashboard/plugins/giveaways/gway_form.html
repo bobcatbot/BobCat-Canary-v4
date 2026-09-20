@@ -127,11 +127,11 @@
         
         <div class="card-body">
           <div class="d-flex gap-2 mb-3">
-            {{ embed_color_picker('gway-embed-color', data.embed_color | hexcolor, css_class='gway-embed-color coloris') }}
+            {{ embed_color_picker('gway-embed-color', data.embed.color | hexcolor) }}
             {% call embed_editor('gway-embed', {
-                'color': data.embed_color|hexcolor,
+                'color': data.embed.color|hexcolor,
                 'title': '🎉 {prize} 🎉',
-                'description': data.embed_desc or '',
+                'description': data.embed.description or '',
               },
               desc_element='textarea',
               show_icons=False, show_author=False, show_footer=False, show_fields=False, color_input=True, title_disabled=True,
@@ -184,7 +184,7 @@
     // Create needs to know when every required field has been filled in
     // (to enable the Publish button); edit only ever sends a partial diff
     // of whatever the user actually touched, so it doesn't track this.
-    var required_fields = ['name', 'channel_id', 'prize', 'winners', 'time.epoch'];
+    var required_fields = ['name', 'channel_id', 'prize', 'winner_count', 'end_epoch'];
     const save_data = isEdit ? {} : new Proxy({}, {
       set(target, key, value) {
         target[key] = value;
@@ -295,7 +295,7 @@
     // Winners
     const gwayWinnersInput = document.querySelector('#gway-winners');
     gwayWinnersInput.addEventListener('input', (e) => {
-      save_data['winners'] = e.target.value
+      save_data['winner_count'] = parseInt(e.target.value) || 0
     })
 
     // Time
@@ -327,8 +327,8 @@
         }).format(new Date(date)).replace(/\//g, '.').replace(',', '');
       }
 
-      save_data['time.epoch'] = toTimestamp(e.target.value)
-      save_data['time.timestamp'] = formatDateTime(e.target.value)
+      save_data['end_epoch'] = toTimestamp(e.target.value)
+      save_data['end_timestamp'] = formatDateTime(e.target.value)
     })
 
     // GiveEXP
@@ -339,13 +339,17 @@
       giveExpAmount.classList.toggle('d-none', !giveExpInput.checked)
     })
 
+    // give_xp / give_coins are posted as complete {enabled, amount} objects
+    const giveExpAmountInput = document.querySelector('#gway-givexp-amount');
+    const giveData = (checkbox, amountInput) => ({ enabled: checkbox.checked, amount: parseInt(amountInput.value) || 0 });
+
     giveExpInput.addEventListener('change', (e) => {
       giveExpAmount.classList.toggle('d-none')
-      save_data['give_xp.enabled'] = e.target.checked
+      save_data['give_xp'] = giveData(giveExpInput, giveExpAmountInput)
     })
 
-    document.querySelector('#gway-givexp-amount').addEventListener('input', (e) => {
-      save_data['give_xp.amount'] = e.target.value
+    giveExpAmountInput.addEventListener('input', (e) => {
+      save_data['give_xp'] = giveData(giveExpInput, giveExpAmountInput)
     })
 
     // GiveCoins
@@ -356,30 +360,39 @@
       giveCoinsAmount.classList.toggle('d-none', !giveCoinsInput.checked)
     })
 
+    const giveCoinsAmountInput = document.querySelector('#gway-givecoins-amount');
+
     giveCoinsInput.addEventListener('change', (e) => {
       giveCoinsAmount.classList.toggle('d-none')
-      save_data['give_coins.enabled'] = e.target.checked
+      save_data['give_coins'] = giveData(giveCoinsInput, giveCoinsAmountInput)
     })
 
-    document.querySelector('#gway-givecoins-amount').addEventListener('input', (e) => {
-      save_data['give_coins.amount'] = e.target.value
+    giveCoinsAmountInput.addEventListener('input', (e) => {
+      save_data['give_coins'] = giveData(giveCoinsInput, giveCoinsAmountInput)
     })
 
     /* Embed message */
     autoGrowEmbedDesc(document.getElementById('gway-embed-desc'));
+
+    // The complete embed, starting from what's saved; the editor's changes (embed.description,
+    // embed.color) land in it and it's posted whole as `embed`.
+    const embedState = JSON.parse('{{ data.embed | tojson }}');
 
     initEmbedEditor([{
       prefix: 'gway-embed',
       colorId: 'gway-embed-color',
       dataKeyPrefix: 'embed',
       initial: {
-        color: `{{ data.embed_color|hexcolor }}`,
-        desc: `{{ (data.embed_desc or '') | tojson }}`,
+        color: `{{ data.embed.color|hexcolor }}`,
+        desc: `{{ (data.embed.description or '') | tojson }}`,
       },
       // Publish/Save build one save_data object POSTed on submit (see
       // required_fields above) rather than initEmbedEditor's default
       // show_toast pending-changes flow, so route field changes there instead.
-      onChange: (key, oldVal, newVal) => { save_data[key] = newVal; },
+      onChange: (key, oldVal, newVal) => {
+        embedState[key.replace('embed.', '')] = newVal;
+        save_data['embed'] = embedState;
+      },
     }]);
 
   </script>

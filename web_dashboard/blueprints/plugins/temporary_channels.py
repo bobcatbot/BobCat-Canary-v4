@@ -5,7 +5,7 @@ from quart import Blueprint, request, render_template, redirect, url_for, jsonif
 
 from modules import bot as v
 from modules.models import Guild, HubConfig
-from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...utils import get_current_user, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 temporary_channels_bp = Blueprint('temporary_channels', __name__)
@@ -14,7 +14,7 @@ temporary_channels_bp = Blueprint('temporary_channels', __name__)
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels")
 @plugin_guard('temporary_channels')
 async def temporary_channels(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -38,7 +38,7 @@ async def temporary_channels(guild_id):
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/creation", methods=['GET', 'POST'])
 @plugin_guard('temporary_channels')
 async def temporary_channels_create(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -163,7 +163,7 @@ async def temporary_channels_create(guild_id):
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/edition", methods=['GET', 'POST'])
 @plugin_guard('temporary_channels')
 async def temporary_channels_edit(guild_id, hub_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404

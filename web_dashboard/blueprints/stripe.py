@@ -8,7 +8,7 @@ from pymongo.errors import DuplicateKeyError
 from quart import Blueprint, current_app, jsonify, request, session, url_for
 
 from ..consts import premium_plans
-from ..utils import bearer_client, check_guild_permission, login_required
+from ..utils import get_current_user, check_guild_permission, login_required
 
 from modules import bot as v
 from modules.models import Guild, StripeEvent, PremiumConfig
@@ -29,7 +29,7 @@ async def _authorize_billing(guild_id):
         return None, None, ({'error': 'Guild not found'}, 404)
 
     try:
-        current_user = bearer_client().get_current_user()
+        current_user = get_current_user()
     except Exception:
         return None, None, ({'error': 'Not authenticated'}, 401)
 
@@ -349,7 +349,7 @@ async def stripe_pay(guild_id, type):
     if error:
         return jsonify(error[0]), error[1]
 
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     return_url = url_for('dashboard.premium', _external=True, guild_id=guild.id)
 
     def _create_session():

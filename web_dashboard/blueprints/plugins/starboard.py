@@ -2,14 +2,14 @@ from quart import Blueprint, render_template
 
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, plugin_guard
+from ...utils import get_current_user, plugin_guard
 
 starboard_bp = Blueprint('starboard', __name__)
 
 @starboard_bp.route("/dashboard/<int:guild_id>/starboard")
 @plugin_guard('starboard')
 async def starboard(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
 
     guild = v.client.get_guild(guild_id)
     if guild is None:

@@ -2,12 +2,12 @@ import logging
 import discord
 from bson import ObjectId
 from bson.errors import InvalidId
-from quart import Blueprint, render_template, redirect, url_for, flash, jsonify, request
+from quart import Blueprint, abort, render_template, redirect, url_for, flash, jsonify, request
 
 from modules import bot as v
 from modules.models import Guild, Ticket, TicketPanelConfig
 from cogs.system.G_ticketing import get_ticket_transcript
-from ...utils import bearer_client, login_required, plugin_guard, is_premium, plugin_item_cap, unflatten_keys, deep_merge
+from ...utils import get_current_user, check_guild_permission, login_required, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 ticketing_bp = Blueprint('ticketing', __name__)
@@ -34,10 +34,27 @@ def _panel_button_view(panel: TicketPanelConfig) -> discord.ui.View:
     return view
 
 # ── Public transcript pages ──────────────────────────────────────────────
+async def _can_view_transcript(guild, user, ticket, panel) -> bool:
+    """Who may read a ticket's transcript: the person who opened it, the staff member who
+    claimed it, server admins, and staff holding one of the panel's manager roles. The link
+    is only ever handed to the creator (DM) and the panel's log channel (staff)."""
+    user_id = str(user.id)
+    if user_id == ticket.creator_id or user_id == (ticket.claimed.get('user') or {}).get('id') or guild.owner_id == user.id:
+        return True
+
+    # owner / Administrator / the dashboard's admin roles / bot masters
+    allowed, _ = await check_guild_permission(guild, user.id)
+    if allowed:
+        return True
+
+    member = guild.get_member(user.id)
+    return bool(member and panel and any(str(role.id) in panel.manager_roles for role in member.roles))
+
+
 @ticketing_bp.route("/t/<int:guild_id>/<ticket_id>")
 @login_required
 async def ticketing_transcript(guild_id, ticket_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return redirect(url_for('web.index'))
@@ -71,6 +88,9 @@ async def ticketing_transcript(guild_id, ticket_id):
         if config is not None:
             panel = next((p for p in config.dashboard.ticketing.panels if p.id == ticket.panel_id), None)
 
+    if not await _can_view_transcript(guild, current_user, ticket, panel):
+        abort(403)
+
     messages = await get_ticket_transcript(ticket)
 
     return await render_template(
@@ -87,7 +107,7 @@ async def ticketing_transcript(guild_id, ticket_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing")
 @plugin_guard('ticketing')
 async def ticketing(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     
     guild = v.client.get_guild(guild_id)
     if guild is None:
@@ -112,7 +132,7 @@ async def ticketing(guild_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/creation", methods=['GET', 'POST'])
 @plugin_guard('ticketing')
 async def ticketing_create(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -121,10 +141,6 @@ async def ticketing_create(guild_id):
         data = await request.get_json()
         if not data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
-
-        # The form posts dotted paths (panel_button.emoji, intro_message.embed.title);
-        # the model and edit template expect the nested shape.
-        data = unflatten_keys(data)
 
         # Validate required fields
         if not data.get('channel_id'):
@@ -184,7 +200,7 @@ async def ticketing_create(guild_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/edition", methods=['GET', 'POST'])
 @plugin_guard('ticketing')
 async def ticketing_edit(guild_id, ticket_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     guild = v.client.get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
@@ -209,20 +225,18 @@ async def ticketing_edit(guild_id, ticket_id):
         if not data:
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
-        # Expand dotted paths (intro_message.embed.title) to the nested shape.
-        data = unflatten_keys(data)
-
         # Re-fetch to apply the edit against the latest saved state.
         config = await Guild.get(str(guild.id))
         if config is None:
             return jsonify({'status': 'error', 'message': 'Guild config not found'}), 404
 
         panels = config.dashboard.ticketing.panels
-        # Merge the update in first so a partial edit (e.g. just the intro
-        # embed title) doesn't clobber sibling keys. deep_merge recurses into
-        # the panel's own DictModel sub-fields and setattr's each leaf, so
-        # the embed color validator still runs on assignment.
-        panel = deep_merge(panels[ticket_idx], data)
+        # The page posts the whole panel, so validate it through the model (defaults
+        # and the embed color validator run) and swap it in. id and panel_message_id
+        # belong to the bot, not the form, so keep the saved ones.
+        saved = panels[ticket_idx]
+        panel = TicketPanelConfig(**{**data, 'id': saved.id, 'panel_message_id': saved.panel_message_id})
+        panels[ticket_idx] = panel
 
         panel_msg_id = panel.panel_message_id
         channel_id = panel.channel_id

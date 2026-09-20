@@ -2,7 +2,7 @@ from quart import Blueprint, render_template
 
 from modules import bot as v
 from modules.models import Guild, Birthday
-from ...utils import bearer_client, plugin_guard
+from ...utils import get_current_user, plugin_guard
 
 birthdays_bp = Blueprint('birthdays', __name__)
 
@@ -10,7 +10,7 @@ birthdays_bp = Blueprint('birthdays', __name__)
 @birthdays_bp.route("/dashboard/<int:guild_id>/birthdays")
 @plugin_guard('birthdays')
 async def birthdays(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     
     guild = v.client.get_guild(guild_id)
     if guild is None:

@@ -1,14 +1,14 @@
 from quart import Blueprint, render_template
 from modules import bot as v
 from modules.models import Guild
-from ...utils import bearer_client, plugin_guard
+from ...utils import get_current_user, plugin_guard
 
 welcome_bp = Blueprint('welcome', __name__)
 
 @welcome_bp.route("/dashboard/<int:guild_id>/welcome")
 @plugin_guard('welcome')
 async def welcome(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
 
     guild = v.client.get_guild(guild_id)
     if guild is None:

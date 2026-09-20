@@ -292,7 +292,9 @@
     // choke on an unquoted tag.
     const isEdit = JSON.parse('{{ is_edit | tojson }}');
 
-    let save_data = isEdit ? {} : {
+    // Edit starts from the saved settings so Save always posts the complete
+    // settings object (the server just stores it); create starts from blank defaults.
+    let save_data = isEdit ? { 'settings': JSON.parse('{{ (data.settings if is_edit else {}) | tojson }}') } : {
       'name': '',
       'description': '',
       'questions': [],
@@ -312,6 +314,9 @@
       'status': true,
       'responses': []
     }
+
+    // Unsaved-changes check for Discard on the edit page
+    const initialState = JSON.stringify(save_data)
 
     new Select('.sub-chan-select-wrapper.single', {
       placeholder: "Select a channel",
@@ -349,6 +354,7 @@
     new EmojiPicker({
       trigger: '#plus-emoji',
       position: ['top', 'right'],
+      guild: JSON.parse(`{{ {'name': guild.name, 'icon': guild.icon.url if guild.icon else '', 'emojis': []} | tojson }}`),
       plug: '',
       emit(emoji) {
         const div = document.createElement('div')
@@ -367,8 +373,7 @@
         if (!save_data.settings.options.reactions.emojis) save_data.settings.options.reactions.emojis = []
         save_data.settings.options.reactions.emojis.push(emoji.icon)
         deleteEmoji()
-      },
-      guild: {{ {'name': guild.name, 'icon': guild.icon.url if guild.icon else '', 'emojis': guild_models(guild).emojis} | tojson }},
+      }
     });
 
     function deleteEmoji() {
@@ -524,7 +529,7 @@
     document.querySelector('#discard-form-btn').addEventListener('click', (e) => {
       let hasChanges;
       if (isEdit) {
-        hasChanges = Object.keys(save_data).length > 0;
+        hasChanges = JSON.stringify(save_data) !== initialState;
       } else {
         hasChanges = (save_data.name && save_data.name !== 'Form') ||
                      save_data.description ||

@@ -3,7 +3,7 @@ from quart import g
 from modules import bot as v
 from .db import get_bell_notifications
 from .plugins import fetch_plugins
-from .utils import bearer_client, GuildModels, _cached_guild
+from .utils import get_my_guilds, GuildModels, _cached_guild
 
 def register_context_processors(app):
     @app.context_processor
@@ -32,7 +32,7 @@ def register_context_processors(app):
                 None
             )
 
-        def get_user_guilds():
+        async def get_user_guilds():
             from quart import session
             if "token" not in session:
                 return []
@@ -41,7 +41,7 @@ def register_context_processors(app):
 
             return [
                 {'id': guild.id, 'name': guild.name, 'icon_url': guild.icon_url}
-                for guild in bearer_client().get_my_guilds()
+                for guild in await get_my_guilds()
                 if guild.id in guild_ids
             ]
 

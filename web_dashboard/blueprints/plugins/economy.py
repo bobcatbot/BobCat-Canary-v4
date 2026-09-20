@@ -2,7 +2,7 @@ from quart import Blueprint, render_template
 
 from modules import bot as v
 from modules.models import Guild, Economy
-from ...utils import bearer_client, plugin_guard, is_premium, plugin_item_cap
+from ...utils import get_current_user, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 economy_bp = Blueprint('economy', __name__)
@@ -10,7 +10,7 @@ economy_bp = Blueprint('economy', __name__)
 @economy_bp.route("/dashboard/<int:guild_id>/economy")
 @plugin_guard('economy')
 async def economy(guild_id):
-    current_user = bearer_client().get_current_user()
+    current_user = get_current_user()
     
     guild = v.client.get_guild(guild_id)
     if guild is None:
