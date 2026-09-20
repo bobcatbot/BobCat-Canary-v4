@@ -13,7 +13,7 @@ new EmojiPicker({
 
 The picker is appended to <body> and positioned with position: fixed, so it is
 never clipped by a parent's overflow. It is loaded straight from this file
-(see dash-links.html) - EmojiPicker.min.js is not referenced anywhere.
+(see dash-links.html).
 */
 
 const EmojiPicker = function (options) {

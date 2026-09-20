@@ -3,7 +3,7 @@ from quart import g
 from modules import bot as v
 from .db import get_bell_notifications
 from .plugins import fetch_plugins
-from .utils import get_my_guilds, GuildModels, _cached_guild
+from .utils import get_current_user, GuildModels, _cached_guild
 
 def register_context_processors(app):
     @app.context_processor
@@ -37,29 +37,24 @@ def register_context_processors(app):
             if "token" not in session:
                 return []
 
-            guild_ids = {g.id for g in v.client.guilds}
-
+            # The servers the user shares with the bot. The bot has every member cached
+            # (Intents.all), so this needs no Discord API call, unlike get_my_guilds().
+            user_id = get_current_user().id
             return [
-                {'id': guild.id, 'name': guild.name, 'icon_url': guild.icon_url}
-                for guild in await get_my_guilds()
-                if guild.id in guild_ids
+                {
+                    'id': guild.id,
+                    'name': guild.name,
+                    'icon_url': guild.icon.with_size(64).url if guild.icon else None,
+                }
+                for guild in v.client.guilds
+                if guild.get_member(user_id)
             ]
-
-        _notif_cache = {}
 
         async def notifications(guild):
             """Returns the guild's unread notifications for the navbar bell.
-
-            DashNavbar.html calls this 3 times per page render, so the result
-            is cached per-request/per-guild and Mongo is only hit once.
+            Every call queries Mongo, so DashNavbar.html calls it once and reuses the result.
             """
-            guild_id = str(getattr(guild, "id", guild))
-            if guild_id in _notif_cache:
-                return _notif_cache[guild_id]
-
-            result = await get_bell_notifications(guild_id)
-            _notif_cache[guild_id] = result
-            return result
+            return await get_bell_notifications(guild)
 
         return {
             'plugins': plugs,

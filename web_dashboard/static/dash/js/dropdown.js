@@ -1,14 +1,3 @@
-/* This file is served minified as dropdown.min.js (see dash-links.html) -
-   there is no build step, so after editing THIS file you must regenerate
-   dropdown.min.js by hand before the change takes effect on the site:
-
-     cd web_dashboard/static/dash/js
-     npx terser dropdown.js --compress --mangle --comments false -o dropdown.min.js
-     node --check dropdown.min.js
-
-   `node --check` only catches syntax errors - re-test the actual dropdowns
-   in the browser if the edit touched logic, not just comments/formatting. */
-
 // Registry of live Select instances, keyed by the selector passed to `new
 // Select(...)`. Lets callers (e.g. save-toast reverts) drive a widget without
 // having kept the constructor's return value.

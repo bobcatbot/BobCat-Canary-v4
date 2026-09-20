@@ -5,11 +5,10 @@ from quart import Blueprint, current_app, redirect, url_for, render_template, fl
 
 from modules import bot as v
 from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig
-from cogs._bot.bot_dash import sync_guild_dashboard
 from ..config import INVITE_URL, REDIRECT_URI
 from ..db import get_bell_notifications
 from ..consts import langs, premium_faqs, premium_plans, tz, RESERVED_SLUGS
-from ..utils import get_my_guilds, get_current_user, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
+from ..utils import get_my_guilds, get_current_user, ensure_guild_doc, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
 from ..plugins import PLUGIN_LIST
 from ..uploads import upload_embed_image, UploadError
 
@@ -121,8 +120,7 @@ async def dashboard_home(guild_id):
 
     # Bot's in the guild but there's no config doc yet (never set up, or one that was deleted)
     # create it now instead of every plugin page below this 404'ing on a missing Guild.get().
-    if await Guild.get(str(guild.id)) is None:
-        await sync_guild_dashboard(guild)
+    await ensure_guild_doc(guild)
 
     return await render_template(
         "dashboard/dashboard.html",

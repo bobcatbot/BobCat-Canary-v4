@@ -1,3 +1,6 @@
+<!-- {# one Mongo round trip, reused by the bell below and the mobile menu #} -->
+{% set bell = notifications(guild) %}
+
 <!-- Header -->
 <header class="header">
   <div class="header-inner">
@@ -80,17 +83,17 @@
         <div class="header-action dropdown notification-dropdown" data-url="/dashboard/{{guild.id}}/notifications">
           <button class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
             <i class="bi bi-bell"></i>
-            <span class="badge">{{ notifications(guild).unread_count }}</span>
+            <span class="badge">{{ bell.unread_count }}</span>
           </button>
           <div class="dropdown-menu dropdown-menu-end">
             <div class="notification-header">
-              <h6>You have {{ notifications(guild).unread_count }} new notifications</h6>
+              <h6>You have {{ bell.unread_count }} new notifications</h6>
               <button id="HeaderMarkAllRead" class="notification-mark-read" data-notification-action="mark-all-read" title="Mark all as read">
                 <i class="bi bi-check"></i>
               </button>
             </div>
             <div class="notification-list">
-              {% for notification in notifications(guild).unread %}
+              {% for notification in bell.unread %}
               <div class="notification-item unread" data-id="{{ notification.id }}">
                 <span class="notification-icon {{ notification.type }}">
                   {% if notification.type == "info" %}
@@ -184,7 +187,7 @@
     <!-- Notifications -->
     <a href="/dashboard/{{guild.id}}/notifications" class="mobile-menu-item">
       <i class="bi bi-bell"></i>
-      <span class="badge">{{ notifications(guild).unread_count }}</span>
+      <span class="badge">{{ bell.unread_count }}</span>
       <span class="mobile-menu-label">Notifications</span>
     </a>
 

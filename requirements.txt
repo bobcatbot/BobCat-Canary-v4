@@ -22,4 +22,5 @@ cloudinary
 # REPLACED Flask with Quart
 quart
 quart-cors
+quart-compress
 uvicorn  

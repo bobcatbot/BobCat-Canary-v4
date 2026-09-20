@@ -1,9 +1,11 @@
 import logging
+import os
 import re
 import stripe
 from pydantic import BaseModel
 from quart import Quart, render_template, flash, session, redirect, request, url_for, jsonify
 from quart.json.provider import DefaultJSONProvider
+from quart_compress import Compress
 from zenora import BadTokenError
 
 from modules import bot as v
@@ -63,6 +65,37 @@ logging.getLogger('quart.serving').setLevel(logging.ERROR)
 if PY_ENV != "production":
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+# ── Compression & static caching ──────────────────────────────────────────
+# text/javascript is what Python's mimetypes reports for .js, and it's not in
+# quart-compress's default list.
+app.config["COMPRESS_MIMETYPES"] = [
+    "text/html", "text/css", "text/javascript", "application/javascript",
+    "application/json", "image/svg+xml",
+]
+Compress(app)
+
+@app.url_defaults
+def version_static_urls(endpoint, values):
+    """Append ?v=<file mtime> to url_for('static', ...) so an edited file gets a
+    new URL, which lets the versioned URLs be cached for a year with no build step."""
+    if endpoint != "static" or "filename" not in values or "v" in values:
+        return
+    try:
+        values["v"] = int(os.path.getmtime(os.path.join(app.static_folder, values["filename"])))
+    except OSError:
+        pass
+
+@app.after_request
+async def static_cache_headers(response):
+    """Versioned static URLs never change, so browsers keep them; anything else under
+    /static/ (fetched by JS, url() in CSS) is re-checked with its ETag on each use."""
+    if request.endpoint == "static":
+        if "v" in request.args:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+    return response
 
 # ── Blueprints ────────────────────────────────────────────────────────────
 app.register_blueprint(web_bp)

@@ -1,13 +1,11 @@
 import asyncio
 import json
-import time
 import discord
 from functools import wraps
 from typing import Any, Optional
 from quart import session, request, render_template, url_for, redirect, jsonify, flash, g
 from pydantic import BaseModel, ValidationError
 from zenora import APIClient
-from zenora.exceptions import RateLimitException
 
 from modules import bot as v
 from modules.models import Guild
@@ -73,39 +71,12 @@ def get_current_user() -> SessionUser:
     return user
 
 
-# user id -> (expires_at, guilds). The navbar's server switcher asks on every page.
-_my_guilds_cache = {}
-_MY_GUILDS_TTL = 60  # seconds
-_RATE_LIMIT_BACKOFF = 10  # seconds to serve the old list when Discord doesn't say how long
-
 async def get_my_guilds():
     """The guilds the signed-in user is in, from Discord (this one does need their OAuth token).
-
-    The HTTP call runs in a thread so it can't stall the shared event loop, and the answer is
-    kept for a minute per user. If Discord rate-limits us, the last list we have is served
-    until the limit resets; it only fails when there's nothing to fall back on.
+    The HTTP call runs in a thread so it can't stall the shared event loop.
     """
-    user_id = get_current_user().id
-    cached = _my_guilds_cache.get(user_id)
-    if cached and cached[0] > time.monotonic():
-        return cached[1]
-
     token = session.get("token")
-    try:
-        guilds = await asyncio.to_thread(lambda: APIClient(token, bearer=True).users.get_my_guilds())
-    except RateLimitException as error:
-        if cached is None:
-            raise
-        try:
-            wait = error.ratelimit_reset_after
-        except (KeyError, TypeError, ValueError):
-            wait = _RATE_LIMIT_BACKOFF
-        _my_guilds_cache[user_id] = (time.monotonic() + wait, cached[1])
-        return cached[1]
-
-    _my_guilds_cache[user_id] = (time.monotonic() + _MY_GUILDS_TTL, guilds)
-    return guilds
-
+    return await asyncio.to_thread(lambda: APIClient(token, bearer=True).users.get_my_guilds())
 
 async def _cached_guild(guild_id):
     """Fetch a Guild document, memoized per-request.
@@ -122,6 +93,13 @@ async def _cached_guild(guild_id):
     if guild_id not in cache:
         cache[guild_id] = await Guild.get(guild_id)
     return cache[guild_id]
+
+async def ensure_guild_doc(guild):
+    """Create the guild's config doc if it has none yet. The read goes through _cached_guild,
+    so the rest of the request reuses it instead of fetching the document again."""
+    if await _cached_guild(guild.id) is None:
+        await sync_guild_dashboard(guild)
+        g._guild_doc_cache.pop(str(guild.id), None)  # don't keep serving the "missing" answer
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 def login_required(f):
@@ -258,8 +236,7 @@ async def _guild_checks(guild_id):
     # up, or a doc that was deleted) - create it now so every route
     # behind this guard (not just the dashboard home page) has a real
     # doc to work with, whether reached via "Setup" or a direct link.
-    if await Guild.get(str(guild.id)) is None:
-        await sync_guild_dashboard(guild)
+    await ensure_guild_doc(guild)
 
     try:
         user = get_current_user()
@@ -389,4 +366,13 @@ class GuildModels:
 
     @property
     def isPremium(self):
-        return v.is_premium_sync(self.guild)
+        # The templates read this for every plugin card, sidebar row and navbar
+        # button, and is_premium_sync is a blocking Mongo call, so ask once per request.
+        guild_id = str(getattr(self.guild, "id", self.guild))
+        cache = getattr(g, "_premium_sync_cache", None)
+        if cache is None:
+            cache = {}
+            g._premium_sync_cache = cache
+        if guild_id not in cache:
+            cache[guild_id] = v.is_premium_sync(self.guild)
+        return cache[guild_id]
