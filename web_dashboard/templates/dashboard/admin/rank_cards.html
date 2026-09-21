@@ -1,154 +1,395 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  {% include 'include/links.html' %}
+  <title>Rank Cards | BobCat Admin</title>
+  {% include 'include/dash-links.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"></script>
 </head>
 <body>
-  <section class="info-cards pt-4">
-    <div class="container">
-      <div class="row justify-center">
-        <div class="col-md-8">
+  <main class="rc-page">
+    <div class="rc-head">
+      <h1 class="rc-title">Rank Cards</h1>
+      <p class="rc-sub">The catalog servers pick from in Leveling. Add a card, or tweak the colors of an existing one.</p>
+    </div>
 
-          <div class="feature_card">
-            <div class="title">
-              <h2>Add Rank Card</h2>
-              <p>Upload a background and pick colors — the bot draws the bar at a fixed spot on every card, so that's all that's needed.</p>
-            </div>
-            <hr>
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    {% endwith %}
+    {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
 
-            {% if error %}
-            <div class="alert" style="background:#ED4245; color:#fff; padding:10px 14px; border-radius:8px; margin-bottom:14px;">{{error}}</div>
-            {% endif %}
+    <!-- ======= Add ======= -->
+    <section class="card rc-panel">
+      <h2 class="rc-h2">Add a card</h2>
+      <p class="rc-sub">Upload a 900&times;300 background and pick the bar colors. The bot draws the bar at a fixed spot on every card, so that's all it needs.</p>
 
-            <form method="POST" enctype="multipart/form-data" class="d-flex flex-column gap-2">
-              <div>
-                <label class="fw-bold">Background image</label><br>
-                <input type="file" name="image" id="ImageInput" accept="image/png,image/jpeg,image/gif,image/webp" required>
-                <p class="mb-0 mt-1" style="font-size: 12px; color:#9195ab;">Should be 900&times;300 to line up with the existing set.</p>
-              </div>
-
-              <!-- Live preview: same renderer as the guild dashboard's card picker -->
-              <div id="CardPreview" class="rank-card-mock" style="max-width: 465px; margin-top: 8px; display: none;"></div>
-
-              <div class="mt-2">
-                <label class="fw-bold">Card key (unique, e.g. cyan-rank.png)</label><br>
-                <input type="text" name="card" class="text-input" required>
-              </div>
-
-              <div class="mt-2">
-                <label class="fw-bold">Display name</label><br>
-                <input type="text" name="card_name" class="text-input" required>
-              </div>
-
-              <div class="mt-2">
-                <label class="fw-bold">Theme</label><br>
-                <select name="theme" id="ThemeSelect" class="text-input">
-                  {% for theme in theme_defaults %}
-                  <option value="{{theme}}">{{theme}}</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <div class="mt-2 d-flex gap-2">
-                <div>
-                  <label class="fw-bold">Bar fill color</label><br>
-                  <input type="color" name="bar_fill" id="BarFillInput" value="#5865F2" required>
-                </div>
-                <div>
-                  <label class="fw-bold">Bar background color</label><br>
-                  <input type="color" name="bar_bg" id="BarBgInput">
-                </div>
-              </div>
-
-              <button type="submit" class="mt-3 btn btn-blurple">Upload &amp; Add Card</button>
-            </form>
+      <div class="rc-add">
+        <form method="POST" enctype="multipart/form-data" class="rc-form" id="AddForm">
+          <div>
+            <label class="form-label" for="ImageInput">Background image</label>
+            <input type="file" name="image" id="ImageInput" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp" required>
+            <div class="rc-hint">Should be 900&times;300 to line up with the existing set.</div>
           </div>
 
-          <div class="feature_card mt-3">
-            <div class="title">
-              <h2>Existing Cards ({{cards|length}})</h2>
-            </div>
-            <hr>
-            <div class="d-flex flex-wrap" style="gap: 10px;">
-              {% for c in cards %}
-              <div style="width: 160px;">
-                <img src="{{c.url}}" style="width: 160px; border-radius: 8px; display:block;">
-                <p class="mb-0 mt-1" style="font-size: 13px;">{{c.card_name}}</p>
-                <p class="mb-0" style="font-size: 11px; color:#9195ab;">{{c.card}} &middot; {{c.theme}}</p>
-              </div>
+          <div>
+            <label class="form-label" for="NameInput">Display name</label>
+            <input type="text" name="card_name" id="NameInput" class="form-control" required>
+          </div>
+
+          <div>
+            <label class="form-label" for="KeyInput">Card key</label>
+            <input type="text" name="card" id="KeyInput" class="form-control" required>
+            <div class="rc-hint">Unique and permanent, since servers store it. Filled in from the name; edit it if you like.</div>
+          </div>
+
+          <div>
+            <label class="form-label" for="ThemeSelect">Theme</label>
+            <select name="theme" id="ThemeSelect" class="form-select">
+              {% for theme in theme_defaults %}
+              <option value="{{ theme }}">{{ theme }}</option>
               {% endfor %}
+            </select>
+          </div>
+
+          <div class="rc-colors">
+            <div>
+              <label class="form-label" for="BarFillInput">Bar fill color</label>
+              <input type="color" name="bar_fill" id="BarFillInput" class="form-control form-control-color" value="#5865F2" required>
+            </div>
+            <div>
+              <label class="form-label" for="BarBgInput">Bar background color</label>
+              <input type="color" name="bar_bg" id="BarBgInput" class="form-control form-control-color">
             </div>
           </div>
 
+          <button type="submit" class="btn btn-blurple">Upload &amp; add card</button>
+        </form>
+
+        <div class="rc-preview-wrap">
+          <label class="form-label">Preview</label>
+          <div id="CardPreview" class="rank-card-mock rc-empty"><span>Choose an image to preview</span></div>
+
+          <div id="PhotoColors" class="mt-3" hidden>
+            <span class="form-label d-block">Photo colors</span>
+            <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Which bar color a click changes">
+              <input type="radio" class="btn-check" name="swatch-target" id="TargetFill" checked>
+              <label class="btn btn-outline-secondary" for="TargetFill">Bar fill</label>
+              <input type="radio" class="btn-check" name="swatch-target" id="TargetBg">
+              <label class="btn btn-outline-secondary" for="TargetBg">Bar background</label>
+            </div>
+            <div id="PhotoSwatches" class="rc-swatches"></div>
+          </div>
         </div>
       </div>
+    </section>
+
+    <!-- ======= Existing ======= -->
+    {% for theme, heading, blurb in [('brand', 'Color cards', 'brand theme'), ('pic', 'Picture cards', 'pic theme')] %}
+    {% set group = cards | selectattr('theme', 'equalto', theme) | list %}
+    <section class="card rc-panel">
+      <h2 class="rc-h2">{{ heading }} ({{ group | length }})</h2>
+      <div class="rc-grid">
+        {% for c in group %}
+        <div class="rc-item">
+          <img src="{{ c.url }}" alt="{{ c.card_name }}" class="rc-thumb" loading="lazy">
+          <div class="rc-item-body">
+            <div class="rc-name" title="{{ c.card_name }}">{{ c.card_name }}</div>
+            <div class="rc-key" title="{{ c.card }}">{{ c.card }}</div>
+            <div class="rc-key">{{ c.servers }} server{{ '' if c.servers == 1 else 's' }}</div>
+          </div>
+          <div class="rc-actions">
+            <button type="button" class="btn btn-sm btn-blurple" data-bs-toggle="modal" data-bs-target="#EditModal"
+              data-card="{{ c.card }}" data-name="{{ c.card_name }}" data-theme="{{ c.theme }}"
+              data-fill="{{ c.bar_fill }}" data-bg="{{ c.bar_bg }}" data-url="{{ c.url }}">Edit</button>
+            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#DeleteModal"
+              data-card="{{ c.card }}" data-name="{{ c.card_name }}" data-servers="{{ c.servers }}"
+              {% if c.card == fallback_card %}disabled title="The bot falls back to this card, so it can't be deleted"{% endif %}>Delete</button>
+          </div>
+        </div>
+        {% else %}
+        <p class="rc-sub m-0">No {{ blurb }} cards yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </main>
+
+  <!-- ======= Edit modal ======= -->
+  <div class="modal fade" id="EditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="POST" enctype="multipart/form-data" class="modal-content" id="EditForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit card</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body rc-form">
+          <div id="EditPreview" class="rank-card-mock"></div>
+          <div>
+            <label class="form-label" for="EditImage">Background image</label>
+            <input type="file" name="image" id="EditImage" class="form-control" accept="image/png,image/jpeg,image/gif,image/webp">
+            <div class="rc-hint">Leave empty to keep the current picture. The key (<code id="EditKey"></code>) can't change, because servers store it.</div>
+          </div>
+          <div>
+            <label class="form-label" for="EditName">Display name</label>
+            <input type="text" name="card_name" id="EditName" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label" for="EditTheme">Theme</label>
+            <select name="theme" id="EditTheme" class="form-select">
+              {% for theme in theme_defaults %}
+              <option value="{{ theme }}">{{ theme }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="rc-colors">
+            <div>
+              <label class="form-label" for="EditFill">Bar fill color</label>
+              <input type="color" name="bar_fill" id="EditFill" class="form-control form-control-color" required>
+            </div>
+            <div>
+              <label class="form-label" for="EditBg">Bar background color</label>
+              <input type="color" name="bar_bg" id="EditBg" class="form-control form-control-color" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-blurple">Save changes</button>
+        </div>
+      </form>
     </div>
-  </section>
+  </div>
+
+  <!-- ======= Delete modal ======= -->
+  <div class="modal fade" id="DeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="POST" class="modal-content" id="DeleteForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete card</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Delete <b id="DeleteName"></b>?</p>
+          <p class="m-0" id="DeleteUsage"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
-    const THEME_DEFAULTS = JSON.parse('{{ theme_defaults | tojson }}');
+    const THEME_DEFAULTS = JSON.parse(`{{ theme_defaults | tojson }}`);
+    const EDIT_URL = "{{ url_for('admin.edit_rank_card', card='__CARD__') }}";
+    const DELETE_URL = "{{ url_for('admin.delete_rank_card', card='__CARD__') }}";
 
+    // Draws the bar over a card background, in the same proportions the bot uses.
+    function drawPreview(el, imageUrl, fill, bg) {
+      el.classList.remove('rc-empty');
+      el.style.backgroundImage = `url("${imageUrl}")`;
+      el.innerHTML = `<div class="rcm-panel"></div><div class="rcm-bar-bg" style="background:${bg};"><div class="rcm-bar-fill" style="background:${fill};"></div></div>`;
+    }
+
+    // ── Add form ─────────────────────────────────────────────
     const imageInput = document.querySelector('#ImageInput');
     const preview = document.querySelector('#CardPreview');
+    const nameInput = document.querySelector('#NameInput');
+    const keyInput = document.querySelector('#KeyInput');
     const themeSelect = document.querySelector('#ThemeSelect');
     const fillInput = document.querySelector('#BarFillInput');
     const bgInput = document.querySelector('#BarBgInput');
 
     let previewUrl = null;
+    let nameTouched = false;
+    let keyTouched = false;
+    let fillTouched = false;
 
-    function render() {
-      if (!previewUrl) return;
-      preview.style.backgroundImage = `url(${previewUrl})`;
-      preview.innerHTML = `
-        <div class="rcm-bar-bg" style="background:${bgInput.value};">
-          <div class="rcm-bar-fill" style="background:${fillInput.value};"></div>
-        </div>
-      `;
+    function renderAdd() {
+      if (previewUrl) drawPreview(preview, previewUrl, fillInput.value, bgInput.value);
     }
+
+    // Row of the picture's own colors (most common first); clicking one sets the bar fill.
+    const photoColors = document.querySelector('#PhotoColors');
+    const photoSwatches = document.querySelector('#PhotoSwatches');
+    const targetBg = document.querySelector('#TargetBg');
+    const swatchTarget = () => targetBg.checked ? bgInput : fillInput;
+
+    function showPhotoColors(swatches) {
+      const hexes = [...new Set(swatches.sort((a, b) => b.getPopulation() - a.getPopulation()).map(s => s.getHex()))];
+      photoSwatches.innerHTML = hexes.map(hex => `<button type="button" class="rc-swatch" data-color="${hex}" title="${hex.toUpperCase()}" style="background:${hex};"></button>`).join('');
+      photoColors.hidden = false;
+      markSelectedSwatch();
+    }
+
+    function markSelectedSwatch() {
+      photoSwatches.querySelectorAll('.rc-swatch').forEach(el => el.classList.toggle('selected', el.dataset.color.toLowerCase() === swatchTarget().value.toLowerCase()));
+    }
+
+    photoSwatches.addEventListener('click', (e) => {
+      const swatch = e.target.closest('.rc-swatch');
+      if (!swatch) return;
+      const input = swatchTarget();
+      input.value = swatch.dataset.color;
+      if (input === fillInput) fillTouched = true;
+      renderAdd();
+      markSelectedSwatch();
+    });
+    document.querySelectorAll('input[name="swatch-target"]').forEach(el => el.addEventListener('change', markSelectedSwatch));
 
     imageInput.addEventListener('change', () => {
       const file = imageInput.files[0];
       if (!file) return;
       previewUrl = URL.createObjectURL(file);
-      preview.style.display = 'block';
-      render();
+      renderAdd();
+
+      // Suggest the bar fill from the picture's most vibrant color, until the user picks their own.
+      Vibrant.from(previewUrl).getPalette().then((palette) => {
+        showPhotoColors(Object.values(palette).filter(Boolean));
+
+        const swatch = palette.Vibrant || palette.LightVibrant || palette.Muted;
+        if (!swatch || fillTouched) return;
+        fillInput.value = swatch.getHex();
+        renderAdd();
+        markSelectedSwatch();
+      });
+
+      // "red-rank.png" -> "Red", "purple_sky.png" -> "Purple Sky"; skipped once the user types a name.
+      if (!nameTouched) {
+        nameInput.value = file.name.replace(/\.[^.]+$/, '').replace(/[-_ ]rank$/i, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        suggestKey();
+      }
     });
 
-    function applyThemeDefaults() {
-      const d = THEME_DEFAULTS[themeSelect.value];
-      if (!d) return;
-      bgInput.value = d.bar_bg;
-      render();
+    // Suggest a key from the name until the user types their own.
+    function suggestKey() {
+      if (keyTouched) return;
+      const slug = nameInput.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      keyInput.value = slug ? `${slug}.png` : '';
     }
-    themeSelect.addEventListener('change', applyThemeDefaults);
-    applyThemeDefaults();
+    keyInput.addEventListener('input', () => { keyTouched = keyInput.value !== ''; });
+    nameInput.addEventListener('input', () => { nameTouched = nameInput.value !== ''; suggestKey(); });
 
-    fillInput.addEventListener('input', render);
-    bgInput.addEventListener('input', render);
+    themeSelect.addEventListener('change', () => {
+      bgInput.value = THEME_DEFAULTS[themeSelect.value].bar_bg;
+      renderAdd();
+      markSelectedSwatch();
+    });
+
+    fillInput.addEventListener('input', () => { fillTouched = true; renderAdd(); markSelectedSwatch(); });
+    bgInput.addEventListener('input', () => { renderAdd(); markSelectedSwatch(); });
+    bgInput.value = THEME_DEFAULTS[themeSelect.value].bar_bg;
+
+    // ── Edit modal ───────────────────────────────────────────
+    const editModal = document.querySelector('#EditModal');
+    const editPreview = document.querySelector('#EditPreview');
+    const editFill = document.querySelector('#EditFill');
+    const editBg = document.querySelector('#EditBg');
+    let editUrl = '';
+
+    const renderEdit = () => drawPreview(editPreview, editUrl, editFill.value, editBg.value);
+    editFill.addEventListener('input', renderEdit);
+    editBg.addEventListener('input', renderEdit);
+
+    // Picking a new picture previews it right away.
+    const editImage = document.querySelector('#EditImage');
+    editImage.addEventListener('change', () => {
+      const file = editImage.files[0];
+      if (file) editUrl = URL.createObjectURL(file);
+      renderEdit();
+    });
+
+    editModal.addEventListener('show.bs.modal', (e) => {
+      const d = e.relatedTarget.dataset;
+      document.querySelector('#EditForm').action = EDIT_URL.replace('__CARD__', encodeURIComponent(d.card));
+      document.querySelector('#EditKey').textContent = d.card;
+      document.querySelector('#EditName').value = d.name;
+      document.querySelector('#EditTheme').value = d.theme;
+      editFill.value = d.fill;
+      editBg.value = d.bg;
+      editImage.value = '';
+      editUrl = d.url;
+      renderEdit();
+    });
+
+    // ── Delete modal ─────────────────────────────────────────
+    document.querySelector('#DeleteModal').addEventListener('show.bs.modal', (e) => {
+      const d = e.relatedTarget.dataset;
+      const n = Number(d.servers);
+      document.querySelector('#DeleteForm').action = DELETE_URL.replace('__CARD__', encodeURIComponent(d.card));
+      document.querySelector('#DeleteName').textContent = d.name;
+      document.querySelector('#DeleteUsage').textContent = n === 0
+        ? 'No server is using it.'
+        : `${n} server${n === 1 ? ' is' : 's are'} using it and will fall back to the default card.`;
+    });
   </script>
 
   <style>
+    body { background: var(--background-color); }
+
+    .rc-page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: var(--spacing-xl) var(--spacing-md) 4rem;
+    }
+    .rc-head { margin-bottom: var(--spacing-lg); }
+    .rc-title { font-size: 2.25rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
+    .rc-sub { color: var(--muted-color); margin: 0; }
+    .rc-h2 { font-size: 1.35rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
+
+    .rc-panel { padding: var(--spacing-lg); margin: 0 0 var(--spacing-md); background: var(--surface-color); }
+
+    .rc-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--spacing-xl); margin-top: var(--spacing-md); }
+    .rc-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+    .rc-hint { font-size: .8rem; color: var(--muted-color); margin-top: var(--spacing-xs); }
+    .rc-colors { display: flex; gap: var(--spacing-lg); flex-wrap: wrap; }
+    /* .form-control makes color inputs full-width with a dark padded box, which squeezed the
+       actual color into a tiny pill. A fixed size with little padding lets the swatch show. */
+    .form-control-color { width: 72px; height: 42px; padding: 4px; flex: none; cursor: pointer; }
+    .rc-preview-wrap { position: sticky; top: calc(var(--header-height) + var(--spacing-md)); align-self: start; }
+
+    .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
+    .rc-item { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+    .rc-thumb { width: 100%; aspect-ratio: 900 / 300; object-fit: cover; border-radius: var(--radius-sm); background: var(--background-color); }
+    .rc-name { font-weight: 600; color: var(--heading-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-key { font-size: .8rem; color: var(--muted-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-actions { display: flex; gap: var(--spacing-sm); }
+
     /* Same rank-card-mock proportions as the guild dashboard's leveling.html preview,
-       trimmed to just the bar since this page has no avatar/name to preview against. */
+       trimmed to just the bar since there's no avatar/name to preview against. */
     .rank-card-mock {
       position: relative;
       width: 100%;
       aspect-ratio: 900 / 300;
       background: #111 center/cover no-repeat;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       overflow: hidden;
     }
-    .rcm-bar-bg {
-      position: absolute;
-      left: 4.11%;
-      top: 73.33%;
-      width: 91.78%;
-      height: 13.33%;
-      border-radius: 999px;
+    .rank-card-mock.rc-empty {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--background-color);
+      border: 2px dashed var(--muted-color);
+      color: var(--muted-color);
     }
-    .rcm-bar-fill {
-      width: 40%;
-      height: 100%;
-      border-radius: 999px;
+    /* Translucent dark box behind the text and bar. Matches PANEL_* in E_leveling.py:
+       (16, 12)-(884, 288) on the 900x300 card, radius 20, 180/255 black. */
+    .rc-swatches { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+    .rc-swatch { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+    .rc-swatch.selected { box-shadow: 0 0 0 2px var(--surface-color), 0 0 0 4px #fff; }
+    .rcm-panel { position: absolute; left: 1.78%; top: 4%; width: 96.44%; height: 92%; border-radius: 2.22% / 6.67%; background: rgba(0, 0, 0, 0.706); }
+    .rcm-bar-bg { position: absolute; left: 4.11%; top: 73.33%; width: 91.78%; height: 13.33%; border-radius: 999px; }
+    .rcm-bar-fill { width: 40%; height: 100%; border-radius: 999px; }
+
+    @media (max-width: 800px) {
+      .rc-add { grid-template-columns: 1fr; }
+      .rc-preview-wrap { position: static; order: -1; }
     }
   </style>
 </body>

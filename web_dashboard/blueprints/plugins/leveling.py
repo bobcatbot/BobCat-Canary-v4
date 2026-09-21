@@ -5,7 +5,6 @@ from quart import Blueprint, flash, jsonify, redirect, render_template, request,
 from modules import bot as v
 from modules.models import Guild, Leveling
 from ...config import mongoURI_db
-from ...uploads import UploadError, upload_rank_card_image
 from ...utils import get_current_user, check_guild_permission, dev_required, plugin_guard, is_premium
 
 leveling_bp = Blueprint('leveling', __name__)
@@ -190,51 +189,5 @@ async def levelling(guild_id):
         user=current_user,
         guild=guild,
         data=config,
-        server_cards=_get_rank_cards(),
-        is_premium=await is_premium(guild),
-    )
-
-
-# ── Site-wide admin: rank card catalog ─────────────────────────────────────────
-THEME_DEFAULTS = { "brand": {"bar_bg": "#FFFFFF"}, "pic": {"bar_bg": "#484B4E"} }
-
-@leveling_bp.route("/admin/rank-cards", methods=["GET", "POST"])
-@dev_required
-async def admin_rank_cards():
-    error = None
-
-    if request.method == "POST":
-        form = await request.form
-        files = await request.files
-
-        card = (form.get("card") or "").strip()
-        card_name = (form.get("card_name") or "").strip()
-        theme = form.get("theme") or "default"
-        bar_fill = (form.get("bar_fill") or "").strip()
-        defaults = THEME_DEFAULTS.get(theme, THEME_DEFAULTS["default"])
-
-        if not card or not card_name or not bar_fill:
-            error = "Card key, name, and bar fill color are required."
-        elif rank_cards.find_one({"card": card}):
-            error = f"'{card}' already exists."
-        else:
-            try:
-                url = await upload_rank_card_image(files.get("image"))
-                rank_cards.insert_one({
-                    "card": card,
-                    "card_name": card_name,
-                    "theme": theme,
-                    "bar_fill": bar_fill,
-                    "bar_bg": (form.get("bar_bg") or "").strip() or defaults["bar_bg"],
-                    "url": url,
-                })
-                return redirect(url_for('leveling.admin_rank_cards'))
-            except UploadError as e:
-                error = str(e)
-
-    return await render_template(
-        "dashboard/admin/rank_cards.html",
-        cards=list(rank_cards.find({}, {'_id': 0})),
-        theme_defaults=THEME_DEFAULTS,
-        error=error,
+        server_cards=_get_rank_cards()
     )

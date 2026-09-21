@@ -8,6 +8,8 @@
   {% include 'components/DashNavbar.html' %}
   {% include 'components/DashSidebar.html' %}
   
+  {% set is_premium = guild_models(guild).isPremium %}
+  
   <!-- ======= Main ======= -->
   <main id="main" class="main main-content page-dashboard">
     <div class="pagetitle plugin">
@@ -498,6 +500,7 @@
       const PREVIEW_USER = { avatar: "{{user.avatar_url}}", name: "{{user.username}}" };
       container.style.backgroundImage = `url(${url})`;
       container.innerHTML = `
+        <div class="rcm-panel"></div>
         <img class="rcm-avatar" src="${PREVIEW_USER.avatar}">
         <div class="rcm-name">${PREVIEW_USER.name}</div>
         <div class="rcm-divider"></div>
@@ -714,6 +717,17 @@
       border-radius: 8px;
       overflow: hidden;
       container-type: inline-size;
+    }
+    /* Translucent dark box behind the text and bar. Matches PANEL_* in E_leveling.py:
+       (16, 12)-(884, 288) on the 900x300 card, radius 20, 180/255 black. */
+    .rcm-panel {
+      position: absolute;
+      left: 1.78%;
+      top: 4%;
+      width: 96.44%;
+      height: 92%;
+      border-radius: 2.22% / 6.67%;
+      background: rgba(0, 0, 0, 0.706);
     }
     .rcm-avatar {
       position: absolute;

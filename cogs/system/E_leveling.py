@@ -8,11 +8,24 @@ import discord
 import asyncio
 from discord.ext import commands
 from easy_pil import Editor, Font, load_image
+from PIL import Image, ImageDraw
 from modules import bot as v
 from modules.models import Guild, Leveling as LevelingModel
 from cogs.money._shop import open_account, update_bank
 
 FALLBACK_CARD = "blurple-rank.png"
+
+# Translucent dark box drawn behind the text and bar on every card, so backgrounds are just pictures.
+# Keep in sync with .rcm-panel in dashboard/plugins/leveling.html and dashboard/admin/rank_cards.html.
+PANEL_BOX = (16, 12, 884, 288)
+PANEL_RADIUS = 20
+PANEL_FILL = (0, 0, 0, 100)
+
+# Progress Bar rendering
+bar_y = 220
+bar_h = 40
+indent = 37
+width = 826
 
 mongoRankCards = pymongo.MongoClient(v.mongoURI_db)['RankCards']['Cards']
 
@@ -70,6 +83,10 @@ class Leveling(commands.Cog):
         """CPU-bound PIL operations run in a thread pool."""
         background = Editor(card_cfg["background"])
 
+        overlay = Image.new("RGBA", background.image.size, (0, 0, 0, 0))
+        ImageDraw.Draw(overlay).rounded_rectangle(PANEL_BOX, radius=PANEL_RADIUS, fill=PANEL_FILL)
+        background.image = Image.alpha_composite(background.image, overlay)
+
         # easy_pil's load_image fetches from a URL and converts to RGBA itself
         profile = Editor(load_image(avatar_url)).resize((150, 150)).circle_image()
         background.paste(profile, (30, 30))
@@ -78,12 +95,6 @@ class Leveling(commands.Cog):
         background.text((200, 40), member_name, font=Font.poppins(size=40), color="#FFFFFF")
         background.rectangle((200, 100), width=400, height=2, fill="#FFFFFF")
         background.text((200, 130), f"Level: {lvl}  XP: {exp} / {next_lvl_xp}", color="#FFFFFF", font=Font.poppins(size=30))
-        
-        # Progress Bar rendering
-        bar_y = 220
-        bar_h = 40
-        indent = 37
-        width = 826
         
         background.rectangle((indent, bar_y), width=width, height=bar_h, fill=card_cfg["bar_bg"], radius=20)
 
