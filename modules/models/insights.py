@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 # ---------------------------------------------------------
 class InsightsDaily(Document):
     """One document per guild per day (in the guild's timezone), incremented in place by the
-    collector (cogs/system/M_insights.py). Counter maps are keyed by
+    collector (cogs/system/B_insights.py). Counter maps are keyed by
     channel id / command name / hour-of-day ("0"-"23") so a new breakdown
     is just another `$inc` path - no schema change."""
 
