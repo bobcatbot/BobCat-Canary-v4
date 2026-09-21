@@ -75,17 +75,18 @@ def style(guild) -> int:
         return blurple
 
 def datetimes(guild):
+    FALLBACK = "UTC"
     guild_id = str(getattr(guild, "id", guild))
     guild_data = _sync_guilds.find_one({"_id": guild_id}, {"settings.timezone": 1})
     timezone_name = (
-        (guild_data.get("settings") or {}).get("timezone", "Europe/London")
+        (guild_data.get("settings") or {}).get("timezone", FALLBACK)
         if guild_data
-        else "Europe/London"
+        else FALLBACK
     )
     try:
         return pytz.timezone(str(timezone_name))
     except pytz.UnknownTimeZoneError:
-        return pytz.timezone("Europe/London")
+        return pytz.timezone(FALLBACK)
 
 def is_premium_sync(guild) -> bool:
     """Synchronous premium check for sync-only call sites (GuildModels /

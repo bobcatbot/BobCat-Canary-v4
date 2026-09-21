@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>Insights</h1>
+        <p class="m-0">Track your server's growth and activity with charts for members, messages and voice</p>
+      </div>
+    </div>
+
+    <!-- Range -->
+    <section class="sectionn">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <span class="text-muted" id="tz-note"></span>
+        <div class="btn-group" id="range-group" role="group" aria-label="Date range">
+          <button type="button" class="btn btn-blurple" data-days="7">7 days</button>
+          <button type="button" class="btn btn-blurple active" data-days="30">30 days</button>
+          <button type="button" class="btn btn-blurple" data-days="90">90 days</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tiles -->
+    <section class="sectionn">
+      <div class="insight-tiles">
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Members</span>
+          <span class="insight-tile-value" id="tile-members">-</span>
+        </div>
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Net growth</span>
+          <span class="insight-tile-value" id="tile-growth">-</span>
+        </div>
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Active users</span>
+          <span class="insight-tile-value" id="tile-active">-</span>
+        </div>
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Messages</span>
+          <span class="insight-tile-value" id="tile-messages">-</span>
+        </div>
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Voice hours</span>
+          <span class="insight-tile-value" id="tile-voice">-</span>
+        </div>
+        <div class="card insight-tile">
+          <span class="insight-tile-label">Boosts</span>
+          <span class="insight-tile-value" id="tile-boosts">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="sectionn">
+      <div class="insight-grid">
+        <h3 class="insight-heading">Growth</h3>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Member growth</h2>
+              <p class="dash-card-subtitle">Total members at the end of each day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-members"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Joins and leaves</h2>
+              <p class="dash-card-subtitle">People joining and leaving per day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-joins"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Time before leaving</h2>
+              <p class="dash-card-subtitle">How long people had been members when they left</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-tenure"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Server boosts</h2>
+              <p class="dash-card-subtitle">Boost count at the end of each day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-boosts"></div>
+        </div>
+
+        <h3 class="insight-heading">Activity</h3>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Messages</h2>
+              <p class="dash-card-subtitle">Messages sent per day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-messages"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Daily active users</h2>
+              <p class="dash-card-subtitle">Different people who sent a message each day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-active"></div>
+        </div>
+
+        <div class="card insight-wide">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Peak hours</h2>
+              <p class="dash-card-subtitle">Messages by weekday and hour</p>
+            </div>
+          </div>
+          <div class="insight-chart insight-chart-tall" id="chart-heatmap"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Top channels</h2>
+              <p class="dash-card-subtitle">Most active channels by messages</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-channels"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Message makeup</h2>
+              <p class="dash-card-subtitle">How many messages are replies, or contain attachments or links</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-makeup"></div>
+        </div>
+
+        <h3 class="insight-heading">Engagement</h3>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Voice activity</h2>
+              <p class="dash-card-subtitle">Hours spent in voice channels per day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-voice"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Reactions</h2>
+              <p class="dash-card-subtitle">Reactions added per day</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-reactions"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Top reactions</h2>
+              <p class="dash-card-subtitle">Most used reaction emojis</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-emojis"></div>
+        </div>
+
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Top commands</h2>
+              <p class="dash-card-subtitle">Most used bot commands</p>
+            </div>
+          </div>
+          <div class="insight-chart" id="chart-commands"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const BLURPLE = '#5865f2', GREEN = '#57f287', RED = '#ed4245', YELLOW = '#fee75c', PINK = '#f47fff';
+    const MUTED = '#8e9297', LINE = 'rgba(255, 255, 255, 0.08)';
+
+    const charts = {};
+    for (const id of ['members', 'joins', 'messages', 'active', 'voice', 'reactions', 'heatmap', 'channels', 'commands', 'emojis', 'makeup', 'tenure', 'boosts']) {
+      const el = document.getElementById('chart-' + id);
+      charts[id] = echarts.init(el);
+      // Also fires when the sidebar collapses, which a window resize wouldn't catch
+      new ResizeObserver(() => charts[id].resize()).observe(el);
+    }
+
+    const fmtDay = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const fmtNum = (n) => Number(n).toLocaleString();
+
+    const tooltip = { backgroundColor: '#1f2129', borderColor: LINE, textStyle: { color: '#fff' } };
+    const emptyNotice = (isEmpty) => ({
+      show: isEmpty, text: 'No data yet', left: 'center', top: 'middle',
+      textStyle: { color: MUTED, fontSize: 14, fontWeight: 'normal' },
+    });
+
+    // Shared shape for the per-day charts (line / bar over the same x axis)
+    function timeSeries(days, series, { scale = false } = {}) {
+      const isEmpty = series.every(s => s.data.every(v => !v));
+      return {
+        title: emptyNotice(isEmpty),
+        grid: { left: 8, right: 16, top: series.length > 1 ? 32 : 16, bottom: 8, containLabel: true },
+        legend: series.length > 1 ? { top: 0, right: 0, textStyle: { color: MUTED } } : undefined,
+        tooltip: { ...tooltip, trigger: 'axis' },
+        xAxis: { type: 'category', data: days.map(fmtDay), axisLine: { lineStyle: { color: LINE } }, axisLabel: { color: MUTED } },
+        yAxis: { type: 'value', scale, minInterval: 1, axisLabel: { color: MUTED }, splitLine: { lineStyle: { color: LINE } } },
+        series,
+      };
+    }
+
+    // Horizontal ranking chart (top channels / commands)
+    function ranking(rows) {
+      return {
+        title: emptyNotice(rows.length === 0),
+        grid: { left: 8, right: 40, top: 8, bottom: 8, containLabel: true },
+        tooltip: { ...tooltip, trigger: 'axis', axisPointer: { type: 'none' } },
+        xAxis: { type: 'value', show: false },
+        yAxis: { type: 'category', inverse: true, data: rows.map(r => r.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: MUTED } },
+        series: [{
+          type: 'bar', data: rows.map(r => r.count), itemStyle: { color: BLURPLE, borderRadius: [0, 4, 4, 0] },
+          label: { show: true, position: 'right', color: MUTED, formatter: (p) => fmtNum(p.value) },
+        }],
+      };
+    }
+
+    function render(d) {
+      document.getElementById('tz-note').textContent = 'Times use your server timezone (' + d.timezone + ')';
+      const last = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] !== null) return arr[i]; return null; };
+      const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+
+      const members = last(d.members);
+      const net = sum(d.joins) - sum(d.leaves);
+      document.getElementById('tile-members').textContent = members === null ? '-' : fmtNum(members);
+      document.getElementById('tile-growth').textContent = (net > 0 ? '+' : '') + fmtNum(net);
+      document.getElementById('tile-messages').textContent = fmtNum(sum(d.messages));
+      document.getElementById('tile-voice').textContent = (sum(d.voice_minutes) / 60).toFixed(1);
+      document.getElementById('tile-active').textContent = fmtNum(d.active_total);
+      const boosts = last(d.boosts);
+      document.getElementById('tile-boosts').textContent = boosts === null ? '-' : fmtNum(boosts) + (d.boost_tier ? ' · Tier ' + d.boost_tier : '');
+
+      charts.members.setOption(timeSeries(d.days, [
+        { name: 'Members', type: 'line', smooth: true, showSymbol: false, connectNulls: true, data: d.members,
+          itemStyle: { color: BLURPLE }, areaStyle: { color: BLURPLE, opacity: 0.15 } },
+      ], { scale: true }), true);
+
+      charts.joins.setOption(timeSeries(d.days, [
+        { name: 'Joins', type: 'bar', data: d.joins, itemStyle: { color: GREEN } },
+        { name: 'Leaves', type: 'bar', data: d.leaves, itemStyle: { color: RED } },
+      ]), true);
+
+      charts.messages.setOption(timeSeries(d.days, [
+        { name: 'Messages', type: 'bar', data: d.messages, itemStyle: { color: BLURPLE } },
+      ]), true);
+
+      charts.active.setOption(timeSeries(d.days, [
+        { name: 'Active users', type: 'line', smooth: true, showSymbol: false, data: d.active,
+          itemStyle: { color: GREEN }, areaStyle: { color: GREEN, opacity: 0.15 } },
+      ]), true);
+
+      charts.reactions.setOption(timeSeries(d.days, [
+        { name: 'Reactions', type: 'bar', data: d.reactions, itemStyle: { color: YELLOW } },
+      ]), true);
+
+      charts.voice.setOption(timeSeries(d.days, [
+        { name: 'Voice hours', type: 'bar', data: d.voice_minutes.map(m => +(m / 60).toFixed(2)), itemStyle: { color: GREEN } },
+      ]), true);
+
+      const peak = Math.max(0, ...d.heatmap.map(c => c[2]));
+      charts.heatmap.setOption({
+        title: emptyNotice(peak === 0),
+        grid: { left: 8, right: 16, top: 8, bottom: 56, containLabel: true },
+        tooltip: { ...tooltip, formatter: (p) => `${d.weekdays[p.value[1]]} ${String(p.value[0]).padStart(2, '0')}:00<br><b>${fmtNum(p.value[2])}</b> messages` },
+        xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')), splitArea: { show: true }, axisLine: { lineStyle: { color: LINE } }, axisLabel: { color: MUTED } },
+        yAxis: { type: 'category', data: d.weekdays, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: MUTED } },
+        visualMap: { min: 0, max: Math.max(peak, 1), calculable: false, orient: 'horizontal', left: 'center', bottom: 0, textStyle: { color: MUTED }, inRange: { color: ['#26292b', BLURPLE] } },
+        series: [{ type: 'heatmap', data: d.heatmap, itemStyle: { borderColor: '#17181e', borderWidth: 2, borderRadius: 3 } }],
+      }, true);
+
+      charts.channels.setOption(ranking(d.channels), true);
+      charts.commands.setOption(ranking(d.commands), true);
+      charts.emojis.setOption(ranking(d.emojis), true);
+
+      const total = d.makeup.messages;
+      const pct = (n) => Math.round(n / total * 100) + '%';
+      charts.makeup.setOption(ranking(total === 0 ? [] : [
+        { name: 'Replies · ' + pct(d.makeup.replies), count: d.makeup.replies },
+        { name: 'With attachments · ' + pct(d.makeup.with_attachments), count: d.makeup.with_attachments },
+        { name: 'With links · ' + pct(d.makeup.with_links), count: d.makeup.with_links },
+      ]), true);
+
+      charts.tenure.setOption(ranking(sum(d.leave_age.map(r => r.count)) === 0 ? [] : d.leave_age), true);
+
+      charts.boosts.setOption(timeSeries(d.days, [
+        { name: 'Boosts', type: 'line', step: 'end', showSymbol: false, connectNulls: true, data: d.boosts,
+          itemStyle: { color: PINK }, areaStyle: { color: PINK, opacity: 0.15 } },
+      ], { scale: true }), true);
+    }
+
+    async function load(days) {
+      const res = await fetch(`/dashboard/{{ guild.id }}/insights/data?days=${days}`);
+      const body = await res.json();
+      if (!res.ok || body.status === 'error') throw new Error(body.message || 'Failed to load insights');
+      render(body);
+    }
+
+    document.getElementById('range-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-days]');
+      if (!btn) return;
+      document.querySelectorAll('#range-group button').forEach(b => b.classList.toggle('active', b === btn));
+      load(btn.dataset.days).catch(err => console.error(err));
+    });
+
+    load(30).catch(err => console.error(err));
+  </script>
+
+  <style>
+    .insight-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+    }
+
+    .insight-tile {
+      padding: 16px 20px;
+      gap: 4px;
+      margin-bottom: 0 !important;
+    }
+
+    .insight-tile-label {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .insight-tile-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .insight-heading {
+      grid-column: 1 / -1;
+      margin: 8px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .insight-heading:first-child {
+      margin-top: 0;
+    }
+
+    .insight-wide {
+      grid-column: 1 / -1;
+    }
+
+    .insight-chart {
+      height: 280px;
+      padding: 0 16px 16px;
+    }
+
+    .insight-chart-tall {
+      height: 360px;
+    }
+
+    @media (max-width: 991px) {
+      .insight-tiles {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .insight-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</body>
+</html>

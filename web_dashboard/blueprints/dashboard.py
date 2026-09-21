@@ -1,15 +1,14 @@
 import re
 import discord
 from datetime import datetime, timezone, timedelta
-from quart import Blueprint, current_app, redirect, url_for, render_template, flash, request, session, jsonify
+from quart import Blueprint, current_app, redirect, render_template, request, session, jsonify
 
 from modules import bot as v
-from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig
+from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig, InsightsDaily
 from ..config import INVITE_URL, REDIRECT_URI
 from ..db import get_bell_notifications
 from ..consts import langs, premium_faqs, premium_plans, tz, RESERVED_SLUGS
 from ..utils import get_my_guilds, get_current_user, ensure_guild_doc, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
-from ..plugins import PLUGIN_LIST
 from ..uploads import upload_embed_image, UploadError
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -128,6 +127,95 @@ async def dashboard_home(guild_id):
     )
 
 
+
+# ── Insights ──────────────────────────────────────────────────────────────
+INSIGHTS_MAX_DAYS = 90
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+@dashboard_bp.route("/dashboard/<int:guild_id>/insights", methods=["GET"])
+@guild_guard
+async def analytics(guild_id):
+    current_user = get_current_user()
+    guild = v.client.get_guild(guild_id)
+    return await render_template("dashboard/insights.html", user=current_user, guild=guild)
+
+@dashboard_bp.route("/dashboard/<int:guild_id>/insights/data", methods=["GET"])
+@guild_guard
+async def analytics_data(guild_id):
+    """Daily series for the last `days` days (guild timezone), zero-filled so every chart
+    shares one x axis. Hour-of-day counts are folded into a weekday x hour grid."""
+    guild = v.client.get_guild(guild_id)
+
+    days = min(max(request.args.get('days', 30, type=int), 1), INSIGHTS_MAX_DAYS)
+    tz_guild = v.datetimes(guild)
+    today = datetime.now(tz_guild).date()
+    dates = [(today - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+
+    docs = await InsightsDaily.find(
+        InsightsDaily.guild_id == str(guild_id),
+        InsightsDaily.date >= dates[0],
+    ).to_list()
+    by_date = {d.date: d for d in docs}
+
+    heatmap = [[0] * 24 for _ in WEEKDAYS]
+    channels, commands, emojis, leave_age = {}, {}, {}, {}
+    active = set()
+    for date, doc in by_date.items():
+        active.update(doc.active_users)
+        weekday = datetime.strptime(date, "%Y-%m-%d").weekday()
+        for hour, count in doc.hourly.items():
+            heatmap[weekday][int(hour)] += count
+        for channel_id, count in doc.channels.items():
+            channels[channel_id] = channels.get(channel_id, 0) + count
+        for name, count in doc.commands.items():
+            commands[name] = commands.get(name, 0) + count
+        for emoji, count in doc.emojis.items():
+            emojis[emoji] = emojis.get(emoji, 0) + count
+        for bucket, count in doc.leave_age.items():
+            leave_age[bucket] = leave_age.get(bucket, 0) + count
+
+    def top(counts, label):
+        ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:10]
+        return [{'name': label(key), 'count': count} for key, count in ranked]
+
+    def channel_label(channel_id):
+        channel = guild.get_channel_or_thread(int(channel_id))
+        return f"#{channel.name}" if channel else "Deleted channel"
+
+    def emoji_label(emoji):
+        # custom emoji are stored as <:name:id> / <a:name:id>; show them as :name:
+        return f":{emoji.strip('<>').split(':')[1]}:" if emoji.startswith("<") else emoji
+
+    def series(field):
+        return [getattr(by_date[d], field) if d in by_date else 0 for d in dates]
+
+    return jsonify({
+        'status': 'success',
+        'timezone': str(tz_guild),
+        'days': dates,
+        'members': [by_date[d].member_count if d in by_date else None for d in dates],
+        'joins': series('joins'),
+        'leaves': series('leaves'),
+        'messages': series('messages'),
+        'voice_minutes': series('voice_minutes'),
+        'reactions': series('reactions'),
+        'active': [len(by_date[d].active_users) if d in by_date else 0 for d in dates],
+        'active_total': len(active),
+        'boosts': [by_date[d].boosts if d in by_date else None for d in dates],
+        'boost_tier': next((by_date[d].boost_tier for d in reversed(dates) if d in by_date and by_date[d].boost_tier is not None), None),
+        'makeup': {field: sum(getattr(doc, field) for doc in by_date.values())
+                   for field in ('messages', 'replies', 'with_attachments', 'with_links')},
+        'leave_age': [{'name': label, 'count': leave_age.get(bucket, 0)}
+                      for bucket, label in (('1d', 'Under 1 day'), ('7d', '1-7 days'), ('30d', '7-30 days'), ('older', '30+ days'))],
+        'heatmap': [[hour, weekday, count]
+                    for weekday, row in enumerate(heatmap)
+                    for hour, count in enumerate(row)],
+        'weekdays': WEEKDAYS,
+        'channels': top(channels, channel_label),
+        'commands': top(commands, lambda name: f"/{name}"),
+        'emojis': top(emojis, emoji_label),
+    })
+# ──────────────────────────────────────────────────────────────────────────────
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/settings")
 @guild_guard
@@ -140,6 +228,7 @@ async def settings(guild_id):
         "dashboard/settings.html",
         user=current_user, guild=guild, data=data, languages=langs, timezones=tz
     )
+
 
 
 # ── Premium ───────────────────────────────────────────────────────────────────
@@ -324,6 +413,8 @@ async def transfer_premium_execute(guild_id):
         print(f"Failed to push premium-received notification for guild {target_doc.id}: {e}")
     
     return jsonify({'status': 'success', 'message': 'Premium transferred successfully'}), 200
+# ──────────────────────────────────────────────────────────────────────────────
+
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
@@ -388,8 +479,12 @@ async def notifications(guild_id):
 async def notifications_unread(guild_id):
     """JSON for the navbar bell's poll: newest unread + total unread count."""
     return jsonify(await get_bell_notifications(guild_id))
+# ──────────────────────────────────────────────────────────────────────────────
 
 
+
+
+# ── Data Post  ─────────────────────────────────────────────────────────────
 @dashboard_bp.route("/dashboard/<int:guild_id>/data/post", methods=["POST"])
 async def data_post(guild_id):
     """

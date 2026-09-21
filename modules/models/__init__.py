@@ -68,6 +68,7 @@ from .leveling import (
 from .birthdays import BirthdaysConfig, Birthday
 from .giveaways import GiveawaysConfig, Giveaway
 from .economy import ShopItemConfig, EconomyConfig, Economy
+from .insights import InsightsDaily
 
 # List of all models to pass to init
 ALL_MODELS = [
@@ -87,4 +88,5 @@ ALL_MODELS = [
     TicketMessage,
     TempChannel,
     Birthday,
+    InsightsDaily,
 ]
