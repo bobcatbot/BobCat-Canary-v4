@@ -1,0 +1,143 @@
+<!-- Public-page header: new pill style (ta-main.css .header) + the public site's links.
+     Needs `inviteURL` in the render context; user is optional (logged-out = login button). -->
+<header class="header pub-header">
+  <div class="header-inner">
+    <!-- Logo -->
+    <a href="/" class="header-logo">
+      <span class="header-logo-mark"><i class="bi bi-lightning-charge-fill"></i></span>
+      <span class="header-logo-text">BobCat</span>
+    </a>
+
+    <!-- Links (desktop) -->
+    <nav class="pub-links" aria-label="Main">
+      <a href="/" class="pub-link">Home</a>
+      <a href="/#about" class="pub-link">About</a>
+      <div class="dropdown">
+        <a href="/#plugins" class="pub-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <span>Plugins</span>
+          <i class="bi bi-caret-down user-caret"></i>
+        </a>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/plugins/management">Moderation &amp; Management</a></li>
+          <li><a class="dropdown-item" href="/plugins/utilities">Utilities</a></li>
+          <li><a class="dropdown-item" href="/plugins/engagement-and-fun">Engagement &amp; Fun</a></li>
+        </ul>
+      </div>
+      <a href="/#team" class="pub-link">Team</a>
+      <a href="{{ inviteURL }}" class="pub-link" target="_blank" rel="noopener">Invite</a>
+    </nav>
+
+    <!-- Right side -->
+    <div class="header-right">
+      {% if user %}
+      <div class="header-action dropdown user-dropdown">
+        <button class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="{{ user.avatar_url }}" alt="User" class="avatar">
+          <span class="user-name">{{ user.username }}</span>
+          <i class="bi bi-caret-down user-caret"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <div class="user-menu-card">
+            <span class="user-menu-avatar"><img src="{{ user.avatar_url }}" alt="User"></span>
+            <span class="user-menu-name">{{ user.username }}</span>
+          </div>
+          <div class="user-menu-body">
+            <a class="dropdown-item" href="/dashboard">
+              <span class="user-menu-item-icon"><i class="bi bi-house-door-fill"></i></span>
+              My Servers
+              <i class="bi bi-caret-right user-menu-item-caret"></i>
+            </a>
+          </div>
+          <div class="user-menu-footer">
+            <a href="/oauth/logout" class="user-menu-signout"><i class="bi bi-sign-out"></i> Sign Out</a>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-blurple pub-login">
+        <i class="bi bi-discord"></i>
+        <span class="pub-login-long">Login with Discord</span>
+        <span class="pub-login-short">Login</span>
+      </a>
+      {% endif %}
+
+      <!-- Hamburger (mobile) -->
+      <button class="pub-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#pubMobileMenu"
+              aria-controls="pubMobileMenu" aria-expanded="false" aria-label="Menu">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="collapse pub-mobile" id="pubMobileMenu">
+    <a href="/">Home</a>
+    <a href="/#about">About</a>
+    <a href="#pubMobilePlugins" class="pub-mobile-toggle collapsed" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="pubMobilePlugins">
+      <span>Plugins</span>
+      <i class="bi bi-caret-down user-caret"></i>
+    </a>
+    <div class="collapse pub-mobile-sub" id="pubMobilePlugins">
+      <a href="/plugins/management">Moderation &amp; Management</a>
+      <a href="/plugins/utilities">Utilities</a>
+      <a href="/plugins/engagement-and-fun">Engagement &amp; Fun</a>
+    </div>
+    <a href="/#team">Team</a>
+    <a href="{{ inviteURL }}" target="_blank" rel="noopener">Invite</a>
+  </div>
+
+<style>
+  /* No sidebar on public pages: undo ta-main's sidebar offsets */
+  .header.pub-header { left: 0; flex-direction: column; align-items: stretch; height: auto; }
+  .pub-header .header-inner { flex: none; height: calc(var(--header-height) - var(--spacing-sm)); }
+  .pub-header .header-logo { display: flex; }
+  .pub-header .header-right { margin-left: auto; }
+
+  .pub-links { display: none; align-items: center; gap: var(--spacing-xs); margin-left: var(--spacing-md); }
+  @media (min-width: 992px) { .pub-links { display: flex; } }
+
+  .pub-link {
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    color: var(--muted-color);
+    font-weight: 600;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+  }
+  .pub-link:hover, .pub-link.show {
+    color: var(--heading-color);
+    background: color-mix(in srgb, var(--accent-color), transparent 88%);
+  }
+  .pub-link.dropdown-toggle::after { margin-left: 6px; }
+
+  .pub-login { display: inline-flex; align-items: center; gap: 8px; border-radius: var(--radius-full); white-space: nowrap; }
+  .pub-login-short { display: none; }
+  @media (max-width: 575px) {
+    .pub-login-long { display: none; }
+    .pub-login-short { display: inline; }
+  }
+
+  .pub-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; margin-left: var(--spacing-xs);
+    border: 0; border-radius: var(--radius-full);
+    background: var(--background-color); color: var(--muted-color); font-size: 1.4rem;
+  }
+  @media (min-width: 992px) { .pub-toggle { display: none; } }
+
+  .pub-mobile {
+    margin-top: var(--spacing-sm);
+    background: var(--header-bg);
+    border: 1px solid var(--header-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
+  }
+  .pub-mobile a { display: block; padding: 12px 18px; color: var(--default-color); font-weight: 600; }
+  .pub-mobile a:hover { background: var(--background-color); }
+  .pub-mobile-toggle { display: flex !important; align-items: center; justify-content: space-between; }
+  .pub-mobile-toggle .user-caret { transition: transform var(--transition-fast); }
+  .pub-mobile-toggle:not(.collapsed) .user-caret { transform: rotate(180deg); }
+  .pub-mobile-sub { background: var(--background-color); }
+  .pub-mobile-sub a { padding-left: 34px; font-weight: 500; color: var(--muted-color); }
+  @media (min-width: 992px) { .pub-mobile { display: none !important; } }
+</style>
+</header>

@@ -1,439 +1,468 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  {% include 'include/links.html' %}
+  <title>{{ guild.name }} Leaderboard | BobCat</title>
+  {% include 'include/dash-links.html' %}
 </head>
 <body>
-  <hero id="hero" class="d-flex align-items-center">
-    <div class="container position-relative d-flex flex-column align-items-center justify-content-center">
-      {% set lb_banner = (data.leaderboard.banner or '') | trim %}
-      <div class="hero-img-container">
-        {% if lb_banner %}
-        <img
-          id="banner"
-          class="img-fluid banner"
-          src="{{ lb_banner }}"
-          alt="Server banner"
-          onerror="this.style.visibility='hidden';"
-        >
-        <img 
-          id="hero-image"
-          class="img-fluid hero-img"
-          src="{{ guild.icon.url if guild.icon else '' }}"
-          alt="Server Icon"
-          style="position: absolute;z-index: 5;bottom: -74px;left: 50%;transform: translateX(-50%);"
-        >
-        {% else %}
-        <img 
-          id="hero-image"
-          class="img-fluid hero-img no-banner"
-          src="{{ guild.icon.url if guild.icon else '' }}"
-          alt="Server Icon"
-        >
-        {% endif %}
+  {% include 'components/PublicNavbar.html' %}
+
+  {% set lb_banner = (data.leaderboard.banner or '') | trim %}
+  {% set is_premium = guild_models(guild).isPremium %}
+  {% set is_admin = guild_permissions and (guild_permissions.administrator or guild_permissions.bot_master) %}
+
+  <!-- ======= Main (public page: no dashboard header/sidebar) ======= -->
+  <main class="lb-page">
+
+    <!-- Hero -->
+    <section class="lb-hero {% if lb_banner %}has-banner{% endif %}">
+      {% if lb_banner %}
+      <img id="banner" class="lb-banner" src="{{ lb_banner }}" alt="Server banner" onerror="this.closest('.lb-hero').classList.remove('has-banner'); this.remove();">
+      {% endif %}
+      <div class="lb-hero-content">
+        <img id="hero-image" class="lb-icon" src="{{ guild.icon.url if guild.icon else '' }}" alt="Server icon" data-premium="{{ is_premium }}">
+        <h1 class="lb-title" data-premium="{{ is_premium }}">{{ guild.name }}</h1>
       </div>
+    </section>
 
-      <h1>{{guild.name}}</h1>
-    </div>
-  </hero>
-  
-  <section class="info-cards pt-0">
-    <div class="container">
-      <div class="row mt-4 justify-center">
-        <div class="col-md-8">
-          <div class="feature_card leaderboard">
-            <div class="title">
-              <h2>Leaderboard</h2>
-            </div>
-            <hr>
-
-            <div class="tittle flex justify-between align-center">
-              <div class="flex" style="gap: 1.4rem!important;margin-left: 8px;">
-                <p>#</p>
-                <p>User</p>
-              </div>
-              <div class="flex gap-2">
-                <p>Exp</p>
-                <p>Level</p>
-                <p>Messages</p>
-              </div>
-            </div>
-            {% for idx, (player, data) in users %}
-            <div id="card-{{player.id}}" class="p-card flex justify-between align-center">
-              <div class="flex gap-3 align-center">
-                <span class="count" data-count="{{idx}}"></span>
-
-                <div class="d-flex align-items-center">
-                  <img src="{{player.display_avatar}}" class="image" alt="Avatar">
-                  <span>{{player.display_name}}</span>
-
-                  {% if guild_permissions.administrator or guild_permissions.bot_master %}
-                  <div class="ms-2">
-                    <button 
-                      class="UserResetXp btn btn-danger" 
-                      data-bs-toggle="modal" data-bs-target="#UserResetXp-{{loop.index}}"
-                      style="--bs-btn-padding-y: 4px;"
-                    >Reset XP</button>
-                    <div id="UserResetXp-{{loop.index}}" class="modal dark">
-                      <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
-                          <div class="modal-header">
-                            <h1 class="modal-title fs-5">
-                              <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
-                              Reset member's XP?
-                            </h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                          </div>
-                          <div class="modal-body">
-                            You are about to reset @{{player}}'s Levels and XP! This action is strictly irreversible!
-                          </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="user-rest-xp btn btn-danger" data-index="{{loop.index}}" data-player="{{player.id}}">Yes</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {% endif %}
-                </div>
-              </div>
-              
-              <div class="flex gap-2 align-center justify-around" style="width: 175px;">
-                <p id="exp">{{data['exp']}}</p>
-                <p id="lvl">{{data['lvl']}}</p>
-                <p>{{data.msg_count}}</p>
-              </div>
-            </div>
-            {% endfor %}
+    <div class="lb-layout">
+      <!-- Leaderboard -->
+      <section class="lb-main">
+        <div class="card leaderboard">
+          <div class="dash-card-header">
+            <h2 class="dash-card-title">Leaderboard</h2>
           </div>
-        </div>
-        
-        <div class="col-md-4">
-          <!-- Tools -->
-          {% if guild_permissions.administrator or guild_permissions.bot_master %}
-          <div class="feature_card mb-2">
-            <div class="title">
-              <h2>Admin tools</h2>
-            </div>
-            
-            <hr>
-            <div>
-              <a href="/dashboard/{{guild.id}}/leveling" class="btn btn-link" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;">
-                <i class="bi bi-gear-fill pe-2"></i>
-                Leveling Settings
-              </a>
+          <hr>
+
+          <div class="card-body">
+            <div class="lb-row lb-head">
+              <span>#</span>
+              <span>User</span>
+              <span class="lb-num">Exp</span>
+              <span class="lb-num">Level</span>
+              <span class="lb-num lb-msgs">Messages</span>
             </div>
 
-            {% if lb_banner %}
-            <hr>
-            <div>
-              <button class="btn btn-link" data-bs-toggle="modal" data-bs-target="#RemoveBannerModal" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;margin-bottom: 4px;">
-                <i class="bi bi-trash3 pe-2" style="color: rgb(255, 107, 134);"></i>
-                Remove banner
-              </button>
-              <div class="modal dark fade" id="RemoveBannerModal" tabindex="-1" aria-hidden="true">
+            {% for idx, (player, stats) in users %}
+            <div id="card-{{ player.id }}" class="lb-row lb-player">
+              <span class="lb-rank" data-rank="{{ idx }}">{{ idx }}</span>
+
+              <div class="lb-user">
+                <img src="{{ player.display_avatar }}" class="lb-avatar" alt="Avatar">
+                <span class="lb-name">{{ player.display_name }}</span>
+
+                {% if is_admin %}
+                <button
+                  class="UserResetXp btn btn-danger"
+                  data-bs-toggle="modal" data-bs-target="#UserResetXp-{{ loop.index }}"
+                >Reset XP</button>
+                {% endif %}
+              </div>
+
+              <span class="lb-num lb-exp">{{ stats['exp'] }}</span>
+              <span class="lb-num lb-lvl">{{ stats['lvl'] }}</span>
+              <span class="lb-num lb-msgs">{{ stats.msg_count }}</span>
+
+              {% if is_admin %}
+              <div id="UserResetXp-{{ loop.index }}" class="modal dark fade" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                   <div class="modal-content">
                     <div class="modal-header">
                       <h1 class="modal-title fs-5">
-                        <i class="bi bi-trash3 pe-2" style="color: rgb(255, 107, 134);"></i>
-                        Remove the leaderboard banner?
+                        <i class="bi bi-arrow-counterclockwise pe-2 lb-danger"></i>
+                        Reset member's XP?
                       </h1>
                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                      The banner will be cleared from this leaderboard. You can set it again from Leveling Settings.
+                      You are about to reset @{{ player }}'s Levels and XP! This action is strictly irreversible!
                     </div>
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                      <button type="button" id="RemoveBanner" class="btn btn-danger">Remove</button>
+                      <button type="button" class="user-rest-xp btn btn-danger" data-index="{{ loop.index }}" data-player="{{ player.id }}">Yes</button>
                     </div>
                   </div>
                 </div>
               </div>
+              {% endif %}
             </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar cards -->
+      <aside class="lb-side">
+        {% if is_admin %}
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">Admin tools</h2>
+              <p class="dash-card-subtitle">Only visible to server admins</p>
+            </div>
+          </div>
+          <hr>
+          <div class="card-body lb-tools">
+            <a href="/dashboard/{{ guild.id }}/leveling" class="lb-tool">
+              <i class="bi bi-gear-fill"></i> Leveling Settings
+            </a>
+
+            {% if lb_banner %}
+            <button class="lb-tool" data-bs-toggle="modal" data-bs-target="#RemoveBannerModal">
+              <i class="bi bi-trash3 lb-danger"></i> Remove banner
+            </button>
             {% endif %}
 
-            <hr>
-            <div>
-              <button class="btn btn-link" data-bs-toggle="modal" data-bs-target="#ResetAllXP" style="--bs-btn-color: rgb(145 149 171);--bs-btn-hover-color: #fff;padding: 0;text-decoration: none;">
-                <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
-                Reset all users
-              </button>
-              <div class="modal dark fade" id="ResetAllXP" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h1 class="modal-title fs-5" id="exampleModalLabel">
-                        <i class="bi bi-arrow-counterclockwise pe-2" style="color: rgb(255, 107, 134);"></i>
-                        Do you want to reset everyone's XP?
-                      </h1>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                      This action is strictly irreversible! Everyone will lose their XP and Levels.
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nope</button>
-                      <button type="button" id="rest-all-xp" class="btn btn-danger">Reset</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button class="lb-tool" data-bs-toggle="modal" data-bs-target="#ResetAllXP">
+              <i class="bi bi-arrow-counterclockwise lb-danger"></i> Reset all users
+            </button>
           </div>
-          {% endif %}
+        </div>
+        {% endif %}
 
-          <!-- How it works -->
-          <div class="feature_card">
-            <div class="title">
-              <h2>How it works</h2>
+        <div class="card">
+          <div class="dash-card-header">
+            <div>
+              <h2 class="dash-card-title">How it works</h2>
+              <p class="dash-card-subtitle">Earning XP and levels</p>
             </div>
-            <hr>
-            <p class="test-sm mb-2">Every minute that you're messaging, you randomly gain 1 to 10 XP.</p>
-            <p class="test-sm mb-2">To avoid spamming, earning XP is limited to a cooldown per user.</p>
-            <p class="test-sm mt-2">In the server, you type /rank to see your rank and level.</p>
           </div>
+          <hr>
+          <div class="card-body lb-how">
+            <p>Every minute that you're messaging, you randomly gain 1 to 10 XP.</p>
+            <p>To avoid spamming, earning XP is limited to a cooldown per user.</p>
+            <p>In the server, you type <code>/rank</code> to see your rank and level.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  {% if is_admin %}
+  {% if lb_banner %}
+  <div class="modal dark fade" id="RemoveBannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5">
+            <i class="bi bi-trash3 pe-2 lb-danger"></i>
+            Remove the leaderboard banner?
+          </h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          The banner will be cleared from this leaderboard. You can set it again from Leveling Settings.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="RemoveBanner" class="btn btn-danger">Remove</button>
         </div>
       </div>
     </div>
-  </section>
+  </div>
+  {% endif %}
+
+  <div class="modal dark fade" id="ResetAllXP" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5">
+            <i class="bi bi-arrow-counterclockwise pe-2 lb-danger"></i>
+            Do you want to reset everyone's XP?
+          </h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          This action is strictly irreversible! Everyone will lose their XP and Levels.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nope</button>
+          <button type="button" id="rest-all-xp" class="btn btn-danger">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <script>
+    function lbPost(body) {
+      return fetch(window.location.pathname, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guild_id: '{{ guild.id }}', ...body })
+      }).then(res => res.json());
+    }
+
     document.querySelector('#RemoveBanner')?.addEventListener('click', () => {
-      fetch(window.location.pathname, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          guild_id: '{{guild.id}}',
-          key: 'RemoveBanner'
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
+      lbPost({ key: 'RemoveBanner' }).then(data => {
         bootstrap.Modal.getInstance(document.querySelector('#RemoveBannerModal'))?.hide();
+        if (data.status === 200) window.location.reload();
+      });
+    });
 
-        if (data.status === 200) {
-          document.querySelector('#banner')?.remove();
-          document.querySelector('#hero-image')?.removeAttribute('style');
-          window.location.reload();
-        }
-      })
-    })
-
-    document.querySelector('#rest-all-xp').addEventListener('click', () => {
-      fetch(window.location.pathname, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          guild_id: '{{guild.id}}',
-          key: 'rest_all'
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        const modal = bootstrap.Modal.getInstance(document.querySelector('#ResetAllXP'));
-        modal.hide();
-
-        if (data.status === 200) {
-          window.location.reload();
-        }
-      })
-    })
+    document.querySelector('#rest-all-xp')?.addEventListener('click', () => {
+      lbPost({ key: 'rest_all' }).then(data => {
+        bootstrap.Modal.getInstance(document.querySelector('#ResetAllXP'))?.hide();
+        if (data.status === 200) window.location.reload();
+      });
+    });
 
     document.querySelectorAll('.user-rest-xp').forEach(btn => {
       btn.addEventListener('click', () => {
-        var user = btn.dataset.player;
-        console.log(user);
+        const user = btn.dataset.player;
 
-        const idx = btn.dataset.index;
+        lbPost({ key: 'reset', user_id: user }).then(data => {
+          bootstrap.Modal.getInstance(document.querySelector(`#UserResetXp-${btn.dataset.index}`))?.hide();
 
-        fetch(window.location.pathname, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            key: 'reset',
-            guild_id: '{{guild.id}}',
-            user_id: user
-          })
-        })
-          .then(res => res.json())
-          .then(data => {
-            const modal = bootstrap.Modal.getInstance(document.querySelector(`#UserResetXp-${idx}`));
-            modal.hide();
-
-            if (data.status === 200) {
-              const card = document.querySelector(`#card-${user}`);
-              card.querySelector('#exp').innerHTML = 0;
-              card.querySelector('#lvl').innerHTML = 0;
-            }
-          })
-      })
-    })
+          if (data.status === 200) {
+            const card = document.querySelector(`#card-${user}`);
+            card.querySelector('.lb-exp').textContent = 0;
+            card.querySelector('.lb-lvl').textContent = 0;
+          }
+        });
+      });
+    });
   </script>
 
   <style>
-    #hero {
-      height: auto;
-      padding: 0px 0;
+    body { background: var(--background-color); }
+
+    .lb-page {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: calc(var(--header-height) + var(--spacing-xl)) var(--spacing-md) 4rem;
+    }
+
+    /* Hero */
+    .lb-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      text-align: left;
+      margin-bottom: var(--spacing-xl);
+    }
+    .lb-banner {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      border-radius: var(--radius-lg);
+      background: var(--surface-color);
+      border: 1px solid var(--card-border);
     }
     
-    #hero .container {
-      padding-top: 40px;
+    .lb-hero-content {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding-left: 35px;
     }
-    
-    #hero .hero-img {
+    @media (max-width: 575px) {
+      .lb-hero-content {
+        flex-direction: column;
+        align-items: baseline;
+        padding-left: 10px;
+      }
+    }
+
+    .lb-icon {
       width: 160px;
       height: 160px;
-      margin: 0 0 8px 0;
-      border-radius: 20px;
+      border-radius: var(--radius-xl);
+      border: 4px solid var(--background-color);
+      background: var(--surface-color);
+      box-shadow: 0 0 28px rgba(88, 101, 242, .45);
     }
-    #hero h1 {
-      font-size: 38px;
+    .lb-icon[data-premium="True"] { box-shadow: 0 0 28px rgba(255, 195, 79, .4); }
+    .lb-hero.has-banner .lb-icon {
+      margin-top: -90px; 
+      position: relative; 
     }
-    
-    #hero .hero-img-container {
-      position: relative;
-      width: 100%;
-      padding-top: 20px;
+    /* White text with a blurple band sweeping across (gold for premium servers) */
+    .lb-title {
+      --lb-shimmer: #5865F2;
+      --lb-shimmer-hi: #8b95ff;
+      font-size: 2.75rem;
+      font-weight: 700;
+      color: transparent;
+      background-image: linear-gradient(100deg, #fff 30%, var(--lb-shimmer) 42%, var(--lb-shimmer-hi) 50%, var(--lb-shimmer) 58%, #fff 70%, #fff 100%);
+      background-size: 250% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: lb-sweep 5s linear infinite;
     }
-    #hero .hero-img-container:has(#banner) {
-      position: relative;
-      top: -68px;
-      padding-top: 50px;
+    .lb-title[data-premium="True"] {
+      --lb-shimmer: #e8a92e;
+      --lb-shimmer-hi: #ffc34f;
     }
-    #hero #banner {
-      width: 100%;
-      height: 240px;
-      object-fit: cover;
-      border-radius: 16px;
-      background: #1f2129;
+    @keyframes lb-sweep {
+      from { background-position: 120% 0; }
+      to { background-position: -130% 0; }
     }
-
-    .feature_card {
-      padding: 24px;
-      margin-bottom: 16px;
-      background-color: #1f2129;
-      border-radius: 8px;
-    }
-    .feature_card .title h2 {
-      margin: 0;
-      color: #fff;
-      font-size: 18px;
-      font-weight: 600;
-    }
-    .feature_card .title p {
-      margin: 0;
-      color: #9195ab;
-      font-size: 14px;
-    }
-    .feature_card hr {
-      color: #fff;
-      margin: 15px 0;
-      opacity: .25;
-      border: 1px solid #666666;
+    @media (prefers-reduced-motion: reduce) {
+      .lb-title { animation: none; background-position: 0 0; }
     }
 
-    .modal.dark {
-      --bs-modal-color: var(--text-color);
-      --bs-modal-bg: var(--bs-body-color);
+    .lb-page .dash-card-title { 
+      font-size: 1.35rem;
+    }
+    .lb-page .dash-card-subtitle {
+      font-size: 0.9rem;
     }
 
-    .modal.dark .btn-close {
-      padding: 8px;
-      background: 
-        transparent 
-        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23FFF'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e") 
-        center / 40%
-        auto 
-        no-repeat !important
+    /* Layout */
+    .lb-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-lg);
+      align-items: start;
     }
-
-    .modal.dark .btn-close:focus {
-      outline: 0;
-      box-shadow: none;
+    @media (min-width: 992px) {
+      .lb-layout { 
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      }
     }
-
-    .center {
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    .lb-layout .card {
+      margin-bottom: var(--spacing-lg);
     }
-    .flex {
-      display: flex;
-    }
-    .justify-center {
-      justify-content: center;
-    }
-    .justify-between {
-      justify-content: space-between;
-    }
-    .justify-around {
-      justify-content: space-around;
-    }
-    .align-center {
-      align-items: center;
-    }
-    .test-sm {
-      font-size: 14px;
-    }
-    
-    .leaderboard .tittle {
-      padding: 0 20px;
-      margin-bottom: 2px;
-    }
-    .leaderboard p {
-      margin: 0;
-    }
-
-    .leaderboard .p-card {
-      height: 60px;
-      padding: 10px 20px;
-      background-color: #272934;
-      margin-bottom: 8px;
-      border-radius: 8px;
-    }
-    .leaderboard .p-card:last-child {
+    .lb-side .card:last-child {
       margin-bottom: 0;
     }
 
-    .leaderboard .p-card .count {
-      position: relative;
-      width: 24px;
-      height: 24px;
-      background-color: gray;
-      border-radius: 100%;
+    /* Leaderboard rows */
+    .lb-row {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 100px 80px 110px;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: 14px 20px;
+      font-size: 1.1rem;
     }
-    .leaderboard .p-card .count::before {
-      content: attr(data-count);
-      position: absolute;
-      top: 55%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    
-    .leaderboard .p-card .count[data-count="1"] {
-      background-color: #ff9e03;
-    }
-    .leaderboard .p-card .count[data-count="2"] {
-      background-color: lightslategray;
-    }
-    .leaderboard .p-card .count[data-count="3"] {
-      background-color: #c66e04;
+    @media (max-width: 575px) {
+      .lb-row {
+        grid-template-columns: 32px minmax(0, 1fr) 64px 48px;
+        padding: 12px;
+        font-size: 1rem;
+      }
+      .lb-msgs {
+        display: none;
+      }
     }
     
-    .leaderboard .p-card .image {
-      width: 32px;
-      height: 32px;
-      margin-right: 4px;
-      border-radius: 100%;
+    .lb-head {
+      color: var(--muted-color);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-top: 0;
     }
     
-    .leaderboard .p-card .UserResetXp {
+    .lb-player {
+      background: var(--background-color);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      min-height: 76px;
+    }
+    .lb-player:last-child {
+      margin-bottom: 0;
+    }
+    
+    .lb-num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .lb-rank {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--light-color);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .lb-rank[data-rank="1"] { background: #ff9e03; }
+    .lb-rank[data-rank="2"] { background: lightslategray; }
+    .lb-rank[data-rank="3"] { background: #c66e04; }
+
+    .lb-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .lb-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .lb-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lb-player .UserResetXp {
       display: none;
+      --bs-btn-padding-y: 4px;
+      --bs-btn-padding-x: 10px;
+      --bs-btn-font-size: 0.9rem;
     }
-    .leaderboard .p-card:hover .UserResetXp {
+    .lb-player:hover .UserResetXp {
       display: block;
+    }
+
+    /* Sidebar cards */
+    .lb-tools {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs, 0.25rem);
+    }
+    .lb-tool {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: none;
+      color: var(--default-color);
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-align: left;
+      transition: color var(--transition-fast), background-color var(--transition-fast);
+    }
+    .lb-tool i { 
+      font-size: 1.25rem;
+    }
+    .lb-tool:hover { 
+      color: var(--heading-color);
+      background: var(--background-color);
+    }
+    .lb-danger { 
+      color: var(--danger-color);
+    }
+
+    .lb-how { 
+      font-size: 1.05rem;
+      color: var(--muted-color);
+    }
+    .lb-how p { 
+      margin: 0 0 var(--spacing-sm);
+    }
+    .lb-how p:last-child { 
+      margin: 0;
+    }
+
+    /* Phone overrides - must stay last so they beat the base rules above */
+    @media (max-width: 575px) {
+      .lb-icon { width: 120px; height: 120px; }
+      .lb-hero.has-banner .lb-icon { margin-top: -60px; }
+      .lb-title { font-size: 1.75rem; }
+      .lb-avatar { width: 36px; height: 36px; }
     }
   </style>
 </body>

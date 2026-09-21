@@ -1,5 +1,6 @@
 from quart import g
 from modules import bot as v
+from .config import INVITE_URL
 from .db import get_bell_notifications
 from .plugins import fetch_plugins
 from .utils import get_current_user, GuildModels, _cached_guild
@@ -54,4 +55,5 @@ def register_context_processors(app):
             'guilds': get_user_guilds,
             'guild_models': guild_models,
             'notifications': notifications,
+            'inviteURL': INVITE_URL,
         }
