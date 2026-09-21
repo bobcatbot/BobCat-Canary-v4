@@ -310,7 +310,9 @@ async def public_verify():
 
     state, ctx = await _resolve_verify_link(guild_id, user_id, exp, sig)
     if state:
-        return await render_template("verify.html", state=state, logInWithDiscord=OAUTH_URL, **ctx)
+        # The navbar shows the profile only when it's handed `user`, so pass it on error pages too.
+        user = get_current_user() if "token" in session else None
+        return await render_template("verify.html", state=state, user=user, logInWithDiscord=OAUTH_URL, **ctx)
 
     guild, member = ctx["guild"], ctx["member"]
 

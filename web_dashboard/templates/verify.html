@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  {% include 'include/links.html' %}
+  {% include 'include/dash-links.html' %}
   {% if state == 'challenge' %}
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   {% endif %}
 </head>
 <body style="height: 100dvh;display: flex;flex-direction: column;justify-content: center;">
-  {% include 'components/Navbar.html' %}
+  {% include 'components/PublicNavbar.html' %}
 
-  <main class="mainn" align="center">
+  <main class="main justify-content-center align-items-center" align="center">
     <img src="{{url_for('static', filename='img/bobcat.png')}}" alt="">
 
     {% if state == 'login' %}
