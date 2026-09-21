@@ -196,6 +196,8 @@ class Guild(Document):
     premium: PremiumConfig = Field(default_factory=PremiumConfig)
     settings: SettingsConfig = Field(default_factory=SettingsConfig)
     dashboard: DashConfig = Field(default_factory=DashConfig)
+    # @everyone's permission bits from before /lockdown add server, restored by /lockdown remove server
+    lockdown_perms: Optional[int] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

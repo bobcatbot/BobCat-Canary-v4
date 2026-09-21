@@ -2,6 +2,7 @@ import discord
 from typing import Union
 from discord.ext import commands
 from modules import bot as v
+from modules.models import Guild
 
 
 class mod_lockdown(commands.Cog):
@@ -77,7 +78,12 @@ class mod_lockdown(commands.Cog):
         await ctx.defer()
 
         everyone: discord.Role = ctx.guild.default_role
-        # Snapshot the bits we're changing so unlock_server can restore them exactly
+        # Snapshot @everyone's permissions so unlock_server can restore them exactly.
+        # Only saved if none is stored, so locking twice can't overwrite the real baseline.
+        guild_doc = await Guild.get(str(ctx.guild.id))
+        if guild_doc.lockdown_perms is None:
+            guild_doc.lockdown_perms = everyone.permissions.value
+            await guild_doc.save()
         new_perms = discord.Permissions(everyone.permissions.value)
         new_perms.update(send_messages=False, send_messages_in_threads=False, create_public_threads=False, connect=False)
         if hidden:
@@ -171,10 +177,16 @@ class mod_lockdown(commands.Cog):
         await ctx.defer()
 
         everyone: discord.Role = ctx.guild.default_role
-        new_perms = discord.Permissions(everyone.permissions.value)
-        # Only undo the specific bits lockdown set — don't grant new permissions
-        new_perms.update(send_messages=True, read_messages=True, send_messages_in_threads=True, create_public_threads=True, connect=True)
+        guild_doc = await Guild.get(str(ctx.guild.id))
+        if guild_doc.lockdown_perms is not None:
+            new_perms = discord.Permissions(guild_doc.lockdown_perms)
+        else:
+            # No snapshot (lockdown predates it) — fall back to re-enabling the bits lockdown turns off
+            new_perms = discord.Permissions(everyone.permissions.value)
+            new_perms.update(send_messages=True, read_messages=True, send_messages_in_threads=True, create_public_threads=True, connect=True)
         await everyone.edit(permissions=new_perms, reason=f"Server unlock by {ctx.author}")
+        guild_doc.lockdown_perms = None
+        await guild_doc.save()
 
         status_chan = discord.utils.get(ctx.guild.text_channels, name="server-locked")
         if status_chan:
