@@ -30,6 +30,8 @@
       </div>
     </section>
 
+    <p class="text-muted" id="backfill-note" hidden></p>
+
     <!-- Tiles -->
     <section class="sectionn">
       <div class="insight-tiles">
@@ -253,6 +255,9 @@
     }
 
     function render(d) {
+      const note = document.getElementById('backfill-note');
+      note.hidden = d.backfilled_days === 0;
+      note.textContent = d.backfilled_days + ' day(s) in this range were backfilled from history. They include messages, active users, and joins from current members only. Voice, reactions, member count and most leaves are not available for them.';
       document.getElementById('tz-note').textContent = 'Times use your server timezone (' + d.timezone + ')';
       const last = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] !== null) return arr[i]; return null; };
       const sum = (arr) => arr.reduce((a, b) => a + b, 0);

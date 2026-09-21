@@ -191,6 +191,7 @@ async def analytics_data(guild_id):
     return jsonify({
         'status': 'success',
         'timezone': str(tz_guild),
+        'backfilled_days': sum(doc.backfilled for doc in by_date.values()),
         'days': dates,
         'members': [by_date[d].member_count if d in by_date else None for d in dates],
         'joins': series('joins'),

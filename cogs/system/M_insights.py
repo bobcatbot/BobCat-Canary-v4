@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import traceback
 from collections import Counter, defaultdict
@@ -25,6 +26,9 @@ class Insights(commands.Cog):
         # (guild_id, user_id) -> [channel_id, credited_until]
         self.voice_sessions: dict[tuple[str, int], list] = {}
 
+        # guild ids with a backfill running
+        self.backfilling: set[str] = set()
+
         self.flush_loop.start()
 
     def cog_unload(self):
@@ -48,6 +52,18 @@ class Insights(commands.Cog):
 
     def _bump(self, guild_id, path: str, amount: float = 1, now: datetime | None = None):
         self.buffer[(str(guild_id), self._day(guild_id, now or self._now()))][path] += amount
+
+    @staticmethod
+    def _message_paths(message: discord.Message, hour: int) -> list[str]:
+        """The counters one message adds to. Shared by the live listener and backfill."""
+        paths = ["messages", f"hourly.{hour}", f"channels.{message.channel.id}"]
+        if message.reference is not None:
+            paths.append("replies")
+        if message.attachments:
+            paths.append("with_attachments")
+        if "http://" in message.content or "https://" in message.content:
+            paths.append("with_links")
+        return paths
 
     def _credit_voice(self, key: tuple[str, int], now: datetime):
         """Move the time a member has spent in voice since the last credit into the buffer."""
@@ -75,17 +91,8 @@ class Insights(commands.Cog):
         if message.guild is None or message.author.bot:
             return
         now = message.created_at
-        self._bump(message.guild.id, "messages", now=now)
-        self._bump(message.guild.id, f"hourly.{self._local(message.guild.id, now).hour}", now=now)
-        self._bump(message.guild.id, f"channels.{message.channel.id}", now=now)
-
-        # Message makeup
-        if message.reference is not None:
-            self._bump(message.guild.id, "replies", now=now)
-        if message.attachments:
-            self._bump(message.guild.id, "with_attachments", now=now)
-        if "http://" in message.content or "https://" in message.content:
-            self._bump(message.guild.id, "with_links", now=now)
+        for path in self._message_paths(message, self._local(message.guild.id, now).hour):
+            self._bump(message.guild.id, path, now=now)
 
         # Daily active users
         key = (str(message.guild.id), self._day(message.guild.id, now))
@@ -192,6 +199,144 @@ class Insights(commands.Cog):
     @flush_loop.before_loop
     async def before_flush_loop(self):
         await self.client.wait_until_ready()
+
+
+    # ── Backfill ────────────────────────────────────────────────────────────
+    async def _backfill(self, guild: discord.Guild, days: int, progress) -> dict:
+        """Rebuild past days from what Discord still has: message history, current members' join
+        dates, and the audit log's kicks/bans. Only days before today that have no data yet are
+        written (so live counts are never overwritten). Days that already have data are skipped, so
+        re-running only fills gaps, e.g. after asking for more days."""
+        tz = v.datetimes(guild)
+        today = datetime.now(tz).date()
+        first = today - timedelta(days=days)
+        after = tz.localize(datetime.combine(first, datetime.min.time()))
+        guild_id = str(guild.id)
+
+        collection = InsightsDaily.get_pymongo_collection()
+        taken = {doc["date"] async for doc in collection.find(
+            {"guild_id": guild_id, "date": {"$gte": first.isoformat()}}, {"date": 1})}
+
+        def wanted(date: str) -> bool:
+            return first.isoformat() <= date < today.isoformat() and date not in taken
+
+        counts, users = defaultdict(Counter), defaultdict(set)
+
+        # Messages
+        me = guild.me
+        candidates = [*guild.text_channels, *guild.threads]
+        channels = [c for c in candidates
+                    if (p := c.permissions_for(me)).view_channel and p.read_message_history]
+        skipped = len(candidates) - len(channels)
+        for done, channel in enumerate(channels, 1):
+            try:
+                async for message in channel.history(limit=None, after=after):
+                    if message.author.bot:
+                        continue
+                    local = message.created_at.astimezone(tz)
+                    date = local.date().isoformat()
+                    if not wanted(date):
+                        continue
+                    for path in self._message_paths(message, local.hour):
+                        counts[date][path] += 1
+                    users[date].add(message.author.id)
+            except discord.Forbidden:
+                skipped += 1
+            await progress(done, len(channels))
+
+        # Joins: only people still in the server have a joined_at
+        for member in guild.members:
+            if not member.bot and member.joined_at is not None:
+                date = member.joined_at.astimezone(tz).date().isoformat()
+                if wanted(date):
+                    counts[date]["joins"] += 1
+
+        # Leaves: the audit log only records kicks and bans (about 45 days)
+        audit_log = True
+        try:
+            for action in (discord.AuditLogAction.kick, discord.AuditLogAction.ban):
+                async for entry in guild.audit_logs(limit=None, action=action, after=after):
+                    if getattr(entry.target, "bot", False):
+                        continue
+                    date = entry.created_at.astimezone(tz).date().isoformat()
+                    if wanted(date):
+                        counts[date]["leaves"] += 1
+        except discord.Forbidden:
+            audit_log = False
+
+        ops = []
+        for date in counts.keys() | users.keys():
+            fields = {**counts[date], "active_users": [str(u) for u in users[date]], "backfilled": True}
+            ops.append(UpdateOne(
+                {"_id": f"{guild_id}:{date}"},
+                {"$set": fields, "$setOnInsert": {"guild_id": guild_id, "date": date}},
+                upsert=True,
+            ))
+        if ops:
+            await collection.bulk_write(ops, ordered=False)
+
+        return {
+            "days": len(ops),
+            "messages": sum(c["messages"] for c in counts.values()),
+            "channels": len(channels),
+            "skipped": skipped,
+            "audit_log": audit_log,
+        }
+
+    insights = discord.SlashCommandGroup("insights", "Server insights", guild_only=True)
+
+    @insights.command(name="backfill", description="Fill in past days of insights from your message history")
+    @commands.has_permissions(manage_guild=True)
+    @discord.option("days", int, description="How many days back to fill (default 30)", required=False, min_value=1, max_value=90, default=30)
+    async def backfill(self, ctx: discord.ApplicationContext, days: int = 30):
+        guild_id = str(ctx.guild.id)
+        if guild_id in self.backfilling:
+            return await ctx.respond("A backfill is already running for this server.", ephemeral=True)
+
+        self.backfilling.add(guild_id)
+        await ctx.respond("⏳ Backfilling insights... this can take a while on busy servers.", ephemeral=True)
+
+        loop, last_edit = asyncio.get_running_loop(), 0.0
+
+        async def progress(done: int, total: int):
+            nonlocal last_edit
+            if loop.time() - last_edit < 5:
+                return
+            last_edit = loop.time()
+            try:
+                await ctx.interaction.edit_original_response(content=f"⏳ Scanning channels... {done}/{total}")
+            except discord.HTTPException:
+                pass
+
+        try:
+            result = await self._backfill(ctx.guild, days, progress)
+        except Exception:
+            traceback.print_exc()
+            message = "❌ The backfill failed. Nothing was saved, so you can run it again."
+        else:
+            message = (
+                f"✅ Backfilled **{result['days']}** days from **{result['messages']:,}** messages in {result['channels']} channels.\n"
+                "Joins only include members who are still here, and leaves only include kicks and bans "
+                + ("from the audit log (about the last 45 days)." if result["audit_log"] else "(I can't view the audit log, so none were added).")
+            )
+            if result["skipped"]:
+                message += f"\n{result['skipped']} channels were skipped because I can't read their history."
+        finally:
+            self.backfilling.discard(guild_id)
+
+        try:
+            await ctx.interaction.edit_original_response(content=message)
+        except discord.HTTPException:  # the interaction token expires after 15 minutes
+            await ctx.channel.send(f"{ctx.author.mention} {message}")
+
+    @backfill.error
+    async def backfill_error(self, ctx: discord.ApplicationContext, error):
+        if isinstance(error, commands.MissingPermissions):
+            return await ctx.respond(
+                embed=discord.Embed(title="❌ Missing permission", description="You need the `Manage Server` permission.", color=v.error),
+                ephemeral=True,
+            )
+        raise error
 
 def setup(client):
     client.add_cog(Insights(client))

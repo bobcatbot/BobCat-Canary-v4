@@ -23,6 +23,7 @@ class InsightsDaily(Document):
 
     joins: int = 0
     leaves: int = 0
+    backfilled: bool = False  # rebuilt from history rather than collected live
     member_count: Optional[int] = None  # latest snapshot for the day
     boosts: Optional[int] = None  # latest snapshot for the day
     boost_tier: Optional[int] = None
