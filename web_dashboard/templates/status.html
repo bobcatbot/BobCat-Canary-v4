@@ -12,7 +12,7 @@
   <section class="page-header d-flex align-items-center">
     <div class="container d-flex flex-column align-items-center justify-content-center" data-aos="fade-up">      
       <h1>Bot status</h1>
-      <p class="m-0" id="countdown">This page automatically refreshes every 30 seconds. Next update in: <span id="timer"></span></p>
+      <p class="m-0">This page refreshes every 30 seconds. Last updated: <span id="updated">loading…</span></p>
     </div>
   </section><!-- End Hero -->
 
@@ -23,12 +23,9 @@
       </button>
       <div class="collapse" id="collapseExample">
         <div class="collapse-card collapse-card-body">
-          <p><b style="color: green;">No letter</b> - Working as intentional!</p>
-          <p><b style="color: green;">C</b> - Connected. The bot has connected to discord, but it might not respond to all commands.</p>
-          <p><b style="color: orange;">P</b> - Partially connected. Like connected, except some servers won't have any commands work.</p>
-          <p><b style="color: orange;">L</b> - Currently in the process of logging in.</p>
-          <p><b style="color: red;">Q</b> - Offline and waiting for its turn to log in.</p>
-          <p><b style="color: red;">🔥</b> - Not only is the cluster offline, it hasn't shown any signs it's trying to reconnect.</p>
+          {% for state in shard_states %}
+          <p><b style="color: {{ state.color }};">{{ state.emoji or 'No letter' }}</b> - <b>{{ state.label }}.</b> {{ state.detail }}</p>
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -38,121 +35,115 @@
     </div>
 
     <!-- ======= Shard list ======= -->
-    <div id="shard-list" class="container my-4 mt-3 d-flex align-items-stretch gap-3">
-      {% for shard in shards %}
-      <div class="position-relative shard-card" data-id="{{ shard.id }}">
-        <div class="card" style="text-align: center;background-color: #223;" data-color="{{shard.color}}" aria-describedby="shard-{{shard.id}}">
-          <div class="card-body">
-            <h5 class="card-title m-0">{{shard.id}}</h5>
-            <p class="card-text"></p>
-          </div>
-        </div>
-      
-        <div id="shard-{{shard.id}}" role="tooltip"></div>
-      </div>{% endfor %}
-    </div><!-- End Shard list -->
+    <div id="shard-list" class="container my-4 mt-3 d-flex flex-wrap align-items-stretch gap-3"></div>
   </main>
 
   <div id="preloader"></div>
   <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 
   <script>
-  // Update shard data
+  const REFRESH_SECONDS = 30;
+  let lastUpdate = null;   // last successful refresh, shown to the visitor
+  let lastAttempt = 0;     // last try, so a failing API is retried every 30s, not every second
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function infoRow(label, value) {
+    const row = el('div', 'text');
+    row.append(el('b', 'title', label), value);
+    return row;
+  }
+
+  function buildShardCard(shard) {
+    const wrap = el('div', 'position-relative shard-card');
+    wrap.dataset.id = shard.id;
+
+    const card = el('div', 'card');
+    card.style.cssText = 'text-align: center; background-color: #223;';
+    card.dataset.color = shard.color;
+    card.setAttribute('aria-describedby', `shard-${shard.id}`);
+
+    const body = el('div', 'card-body');
+    const title = el('h5', 'card-title m-0', shard.id);
+    title.style.color = shard.color;
+    body.append(title);
+    if (shard.emoji) {
+      const emoji = el('p', 'card-text', shard.emoji);
+      emoji.style.color = shard.color;
+      body.append(emoji);
+    }
+    card.append(body);
+
+    // Guild names are user-controlled, so everything here goes in as text, never HTML
+    const tooltip = el('div');
+    tooltip.id = `shard-${shard.id}`;
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.append(
+      infoRow('Status:', shard.label),
+      infoRow('Latency:', shard.latency_ms === null ? '—' : `${shard.latency_ms}ms`),
+      infoRow('Connected for:', shard.connected_since ? formatDuration(shard.connected_since) : '—'),
+      infoRow('Servers:', shard.servers === null ? '—' : shard.servers),
+    );
+    if (shard.user_in_guilds.length) {
+      const known = el('div', 'text flex-column');
+      known.append(el('b', 'title', 'Servers you may know:'));
+      shard.user_in_guilds.forEach(name => known.append(el('span', null, name)));
+      tooltip.append(known);
+    }
+
+    wrap.append(card, tooltip);
+    return wrap;
+  }
+
   async function updateShardData() {
+    lastAttempt = Date.now();
     try {
       const response = await fetch('/api/shard_status');
-      const shards = await response.json();
+      const data = await response.json();
 
-      const isLoggedIn = Boolean('{{ (user is not none) | lower }}');
-      console.log('User logged in:', isLoggedIn);
-
-      const badShards = shards.filter(s => s.state !== 'Ready').map(s => s.id);
-
-      // Update alert once after processing all shards
       const alertEl = document.querySelector('.alert[role="alert"]');
-      if (alertEl) {
-        alertEl.classList.remove('alert-success', 'alert-danger');
-        alertEl.textContent = badShards.length > 0
-          ? `${badShards.length} shard(s) are misbehaving`
-          : 'All systems are operational!';
-        alertEl.classList.add(badShards.length > 0 ? 'alert-danger' : 'alert-success');
-      }
+      const down = data.shards_total - data.shards_healthy;
+      alertEl.classList.remove('alert-success', 'alert-danger');
+      alertEl.textContent = down > 0
+        ? `${down} of ${data.shards_total} shard(s) aren't fully online. Servers on them may not respond right now.`
+        : `All systems are operational! ${data.shards_total} shard(s), ${data.guilds} servers`;
+      alertEl.classList.add(down > 0 ? 'alert-danger' : 'alert-success');
 
-      shards.forEach(shard => {
-        console.log('shard:', shard);
-
-        const shardCard = document.querySelector(`.shard-card[data-id="${shard.id}"]`);
-        if (!shardCard) return;
-
-        const card = shardCard.querySelector('.card');
-        card.setAttribute('data-color', shard.color);
-
-        const title = shardCard.querySelector('.card-title');
-        title.textContent = shard.id;
-        title.style.color = shard.color;
-
-        // Reuse or recreate card-text safely
-        let cardText = shardCard.querySelector('.card-text');
-        if (shard.emoji) {
-          if (!cardText) {
-            cardText = document.createElement('p');
-            cardText.className = 'card-text';
-            card.querySelector('.card-body').appendChild(cardText);
-          }
-          cardText.textContent = shard.emoji;
-          cardText.style.color = shard.color;
-        } else if (cardText) {
-          cardText.textContent = '';
-        }
-
-        // Update tooltip
-        const tooltip = shardCard.querySelector('[role="tooltip"]');
-        const guildsHTML = isLoggedIn && shard.user_in_guilds?.length
-          ? `<div class="text flex-column"><b class="title">Servers you may know:</b> ${shard.user_in_guilds.map(g => `<span>${g}</span>`).join('')}</div>`
-          : '';
-
-        tooltip.innerHTML = `
-          <div class="text"><b class="title">Status:</b> ${shard.state}</div>
-          <div class="text"><b class="title">Latency:</b> ${shard.latency}</div>
-          <div class="text"><b class="title">Uptime:</b> ${formatUptime(shard.uptime)}</div>
-          <div class="text"><b class="title">Servers:</b> ${shard.servers}</div>
-          ${guildsHTML}
-        `;
-      });
+      document.getElementById('shard-list').replaceChildren(...data.shards.map(buildShardCard));
+      lastUpdate = Date.now();
     } catch (error) {
       console.error('Failed to update shard data:', error);
     }
   }
 
-  function formatUptime(isoString) {
-    const since = new Date(isoString);
-    const diff = Math.floor((Date.now() - since) / 1000);
+  function formatDuration(isoString) {
+    const diff = Math.max(0, Math.floor((Date.now() - new Date(isoString)) / 1000));
 
     const d = Math.floor(diff / 86400);
     const h = Math.floor((diff % 86400) / 3600);
     const m = Math.floor((diff % 3600) / 60);
     const s = diff % 60;
 
-    if (d > 0) return `${d}d`;
+    if (d > 0) return `${d}d ${h}h`;
     if (h > 0) return `${h}h ${m}m`;
     if (m > 0) return `${m}m`;
     return `${s}s`;
   }
 
-  // Timer
-  const timer = document.getElementById('timer');
-  let seconds = 30;
-  
-  const interval = setInterval(() => {
-    seconds--;
-    timer.textContent = seconds;
-    if (seconds === 0) {
-      updateShardData();
-      seconds = 30;
+  setInterval(() => {
+    if (lastUpdate !== null) {
+      const ago = Math.floor((Date.now() - lastUpdate) / 1000);
+      document.getElementById('updated').textContent = ago < 2 ? 'just now' : `${ago}s ago`;
     }
+    if (Date.now() - lastAttempt >= REFRESH_SECONDS * 1000) updateShardData();
   }, 1000);
-  
-  updateShardData(); // Initial update
+
+  updateShardData();
 
   </script>
 </body>
