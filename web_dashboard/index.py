@@ -9,7 +9,7 @@ from zenora import BadTokenError
 
 from modules import bot as v
 
-from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config, twitch_config
+from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config, twitch_config, youtube_config
 from .context import register_context_processors
 from .maintenance import get_state as get_maintenance
 from .utils import PremiumModuleError, DEV_IDS
@@ -60,6 +60,7 @@ app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
 app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
 app.config["TWITCH_EVENTSUB_SECRET"] = twitch_config["EVENTSUB_SECRET"]
+app.config["YOUTUBE_WEBSUB_SECRET"] = youtube_config["WEBSUB_SECRET"]
 
 stripe.api_key = stripe_config["SECRET_KEY"]
 

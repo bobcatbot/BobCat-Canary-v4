@@ -62,12 +62,20 @@
           {% endif %}
 
           {% if data != [] %}
+          <div class="gway-header-container">
+            <div class="row m-0">
+              <div class="col col-md-4 text-muted fs-6">Channel</div>
+              <div class="col-md-2 d-none d-md-flex text-muted fs-6">Upcoming</div>
+              <div class="col-md-3 d-none d-md-flex text-muted fs-6">New videos</div>
+              <div class="col d-none d-md-flex text-muted fs-6">Live alerts</div>
+            </div>
+          </div>
           <div class="row m-0 gway-list">
             {% for channel in data %}
             <div class="gway-card">
               <a href="youtube/{{channel.id}}/edition" class="card-link">
                 <div class="row d-flex flex-column flex-md-row align-items-start align-items-lg-center">
-                  <div class="d-flex align-items-center justify-content-between d-md-block col col-md-5 m-0">
+                  <div class="d-flex align-items-center justify-content-between d-md-block col col-md-4 m-0">
                     <div>
                       <p class="m-0">{{channel.channel_identifier}}</p>
                     </div>
@@ -75,6 +83,7 @@
                       <button type="button" class="btn btn-icon btn-outline-secondary delete-hub-modal" data-bs-toggle="modal" data-bs-target="#DeleteModal-{{channel.id}}"><i class="bi bi-trash-fill"></i></button>
                     </div>
                   </div>
+                  <p class="col col-md-2 m-0"><span class="d-block d-md-none text-muted">Upcoming:</span> {{ 'On' if channel.upcoming.enabled else 'Off' }}</p>
                   <p class="col col-md-3 m-0"><span class="d-block d-md-none text-muted">New videos:</span> {{ 'On' if channel.video.enabled else 'Off' }}</p>
                   <p class="col m-0"><span class="d-block d-md-none text-muted">Live alerts:</span> {{ 'On' if channel.live.enabled else 'Off' }}</p>
                   <div class="d-none d-lg-flex align-items-center justify-content-end col m-0">
@@ -217,8 +226,14 @@
     }
 
     .gway-list,
-    .gway-list .row {
+    .gway-list .row,
+    .gway-header-container .row {
       --bs-gutter-y: 0;
+    }
+
+    /* column headings line up with the text inside a row (1px border + 13px padding) */
+    .gway-header-container {
+      padding: 0 2px 8px;
     }
 
     .gway-card {

@@ -69,6 +69,25 @@ class EmbedImageConfig(DictModel):
 class EmbedThumbnailConfig(DictModel):
     url: Optional[str] = None
 
+def _strip_empty_strings(data):
+    """Discord's API treats a present-but-empty string ("") on a field like
+    description/title as invalid, not the same as the key being absent - but
+    an untouched dashboard text field always submits "" rather than null, so
+    exclude_none alone (see to_embed() below) doesn't catch it. Recursively
+    drops any "" (and dicts left empty once their only string content is
+    stripped) before the payload reaches discord.Embed.from_dict()."""
+    if isinstance(data, dict):
+        cleaned = {}
+        for key, value in data.items():
+            stripped = _strip_empty_strings(value)
+            if stripped == "" or stripped is None or stripped == {}:
+                continue
+            cleaned[key] = stripped
+        return cleaned
+    if isinstance(data, list):
+        return [item for item in (_strip_empty_strings(v) for v in data) if item not in ("", None, {})]
+    return data
+
 class EmbedConfig(DictModel):
     model_config = ConfigDict(extra="allow", validate_assignment=True)
 
@@ -107,6 +126,14 @@ class EmbedConfig(DictModel):
         data = self.model_dump(exclude_none=True)
         if transform is not None:
             data = transform(data)
+        data = _strip_empty_strings(data)
+        # A field's "inline" bool always survives stripping even when its
+        # name/value didn't, so an untouched field needs its own explicit
+        # check - Discord requires both name and value on any field present.
+        if data.get("fields"):
+            data["fields"] = [f for f in data["fields"] if f.get("name") and f.get("value")]
+            if not data["fields"]:
+                data.pop("fields")
         return discord.Embed.from_dict(data)
 
 # ---------------------------------------------------------

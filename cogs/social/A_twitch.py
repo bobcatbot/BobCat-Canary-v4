@@ -4,15 +4,12 @@ so this cog carries no polling loop for notifications - just a daily safety-net
 pass that prunes EventSub subscriptions no guild references anymore (in case a
 dashboard delete route failed partway through) and keeps the cached app token
 fresh."""
-
 import logging
 from discord.ext import commands, tasks
-
 from modules import twitch
 from modules.models import TwitchStreamer, TwitchSubscription
 
 logger = logging.getLogger(__name__)
-
 
 class TwitchHousekeeping(commands.Cog):
     def __init__(self, client):
@@ -51,7 +48,6 @@ class TwitchHousekeeping(commands.Cog):
     @prune_orphaned_subscriptions.before_loop
     async def before_prune_orphaned_subscriptions(self):
         await self.client.wait_until_ready()
-
 
 def setup(client):
     client.add_cog(TwitchHousekeeping(client))

@@ -4,14 +4,14 @@ from quart import Blueprint, request, flash, jsonify, render_template, redirect,
 
 from modules import bot as v
 from modules import twitch
-from modules.models import Guild, TwitchStreamer, TwitchSubscription, YoutubeChannel, EmbedConfig
+from modules import youtube
+from modules.models import Guild, TwitchStreamer, TwitchSubscription, YoutubeChannel, YoutubeSubscription
 from modules.models.social import YoutubeNotifyConfig
 from ...utils import get_current_user, plugin_guard, is_premium, plugin_item_cap
 from ...plugins import PLUGIN_LIST
 
 social_bp = Blueprint('social', __name__)
 logger = logging.getLogger(__name__)
-
 
 # ── Shared helpers ────────────────────────────────────────────────────────
 def _apply_fields(doc, data: dict, model_cls):
@@ -22,12 +22,10 @@ def _apply_fields(doc, data: dict, model_cls):
         if field in model_cls.model_fields and field not in ('id', 'guild_id'):
             setattr(doc, field, value)
 
-
 @social_bp.errorhandler(ValidationError)
 async def _bad_social_data(error):
     first = error.errors()[0]
     return jsonify({'status': 'error', 'message': f"Invalid {'.'.join(str(x) for x in first['loc'])}: {first['msg']}"}), 400
-
 
 # ── Twitch ────────────────────────────────────────────────────────────────
 @social_bp.route("/dashboard/<int:guild_id>/twitch/search")
@@ -274,13 +272,46 @@ async def youtube_creation(guild_id):
                 msg += f" Upgrade to premium for up to {PLUGIN_LIST.get('youtube', {}).get('max_premium', 10)}."
             return jsonify({'status': 'error', 'message': msg, 'code': 'item_cap'}), 409
 
+        try:
+            resolved = await youtube.resolve_channel(identifier)
+        except Exception as e:
+            logger.error("YouTube channel lookup failed for %r: %s", identifier, e)
+            return jsonify({'status': 'error', 'message': 'Channel lookup failed'}), 502
+        if not resolved:
+            return jsonify({'status': 'error', 'message': f'No YouTube channel found for "{identifier}"'}), 400
+        resolved_channel_id = resolved['id']
+
+        if await YoutubeChannel.find_one(
+            YoutubeChannel.guild_id == str(guild.id),
+            YoutubeChannel.resolved_channel_id == resolved_channel_id,
+        ):
+            return jsonify({'status': 'error', 'message': f'{resolved["title"]} is already being watched in this server'}), 409
+
+        subscription = await YoutubeSubscription.get(resolved_channel_id)
+        if subscription is None or subscription.status == "revoked":
+            try:
+                await youtube.subscribe(resolved_channel_id)
+            except Exception as e:
+                logger.error("Failed to create WebSub subscription for %s: %s", resolved_channel_id, e)
+                return jsonify({'status': 'error', 'message': 'Failed to subscribe to YouTube notifications for this channel'}), 502
+            if subscription is None:
+                subscription = YoutubeSubscription(id=resolved_channel_id)
+                await subscription.insert()
+            else:
+                subscription.status = "enabled"
+                await subscription.save()
+
         uuid = v.uuid(length=12, strCase="upper/lower/nums")
         channel = YoutubeChannel(
             id=uuid,
             guild_id=str(guild.id),
             channel_identifier=identifier,
-            video=YoutubeNotifyConfig(embed=EmbedConfig(color=0xFF0000)),
-            live=YoutubeNotifyConfig(embed=EmbedConfig(color=0xFF0000)),
+            resolved_channel_id=resolved_channel_id,
+            channel_title=resolved.get('title'),
+            avatar_url=resolved.get('thumbnail_url'),
+            upcoming=YoutubeNotifyConfig(),
+            video=YoutubeNotifyConfig(),
+            live=YoutubeNotifyConfig(),
         )
         _apply_fields(channel, data, YoutubeChannel)
         await channel.insert()
@@ -294,12 +325,12 @@ async def youtube_creation(guild_id):
         guild=guild,
         data={
             'channel_identifier': '',
-            'video': YoutubeNotifyConfig(embed=EmbedConfig(color=0xFF0000)),
-            'live': YoutubeNotifyConfig(embed=EmbedConfig(color=0xFF0000)),
+            'video': YoutubeNotifyConfig(),
+            'live': YoutubeNotifyConfig(),
+            'upcoming': YoutubeNotifyConfig(),
         },
         is_edit=False,
     )
-
 
 @social_bp.route("/dashboard/<int:guild_id>/youtube/<channel_id>/edition", methods=['GET', 'POST'])
 @plugin_guard('youtube')
@@ -351,6 +382,20 @@ async def youtube_delete(guild_id, channel_id):
     if channel is None:
         return jsonify({'status': 'error', 'message': 'Channel not found'}), 404
 
+    resolved_channel_id = channel.resolved_channel_id
     await channel.delete()
+
+    # If no guild watches this channel anymore, drop the WebSub subscription too.
+    if resolved_channel_id:
+        remaining = await YoutubeChannel.find(YoutubeChannel.resolved_channel_id == resolved_channel_id).count()
+        if remaining == 0:
+            subscription = await YoutubeSubscription.get(resolved_channel_id)
+            if subscription:
+                try:
+                    await youtube.unsubscribe(resolved_channel_id)
+                except Exception as e:
+                    logger.warning("Failed to unsubscribe WebSub for %s: %s", resolved_channel_id, e)
+                await subscription.delete()
+
     logger.info("Deleted YouTube channel %s for guild %s", channel_id, guild_id)
     return jsonify({'status': 'success', 'message': 'Channel removed'})

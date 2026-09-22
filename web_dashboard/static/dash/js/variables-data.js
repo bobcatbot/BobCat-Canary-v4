@@ -25,7 +25,10 @@ window.BOT_VARIABLES = [
   { tag: '{streamer}', desc: "The streamer's display name" },
   { tag: '{title}', desc: 'The stream title' },
   { tag: '{game}', desc: 'The game/category being streamed' },
-  { tag: '{url}', desc: 'A link to the stream' },
+  { tag: '{url}', desc: 'A link to the stream or video' },
+
+  // YouTube notifications
+  { tag: '{channel}', desc: "The YouTube channel's display name" },
 
   // User
   { tag: '{user}', desc: "The user's username and display name" },

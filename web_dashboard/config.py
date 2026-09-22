@@ -43,3 +43,8 @@ twitch_config = {
   "CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
   "EVENTSUB_SECRET": os.getenv('TWITCH_EVENTSUB_SECRET'),
 }
+
+youtube_config = {
+  "API_KEY": os.getenv('YOUTUBE_API_KEY'),
+  "WEBSUB_SECRET": os.getenv('YOUTUBE_WEBSUB_SECRET'),
+}

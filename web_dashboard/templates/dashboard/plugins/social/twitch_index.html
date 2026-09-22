@@ -62,6 +62,13 @@
           {% endif %}
 
           {% if data != [] %}
+          <div class="gway-header-container">
+            <div class="row m-0">
+              <div class="col col-md-4 text-muted fs-6">Streamer</div>
+              <div class="col-md-4 d-none d-md-flex text-muted fs-6">Channel</div>
+              <div class="col d-none d-md-flex text-muted fs-6">Status</div>
+            </div>
+          </div>
           <div class="row m-0 gway-list">
             {% for streamer in data %}
             <div class="gway-card">
@@ -218,8 +225,14 @@
     }
 
     .gway-list,
-    .gway-list .row {
+    .gway-list .row,
+    .gway-header-container .row {
       --bs-gutter-y: 0;
+    }
+
+    /* column headings line up with the text inside a row (1px border + 13px padding) */
+    .gway-header-container {
+      padding: 0 2px 8px;
     }
 
     .gway-card {

@@ -2,10 +2,8 @@
 in Mongo), user lookup, and EventSub subscription management. No existing shared HTTP
 client helper in this codebase to build on - plain aiohttp calls per request, same
 ad-hoc style used elsewhere (e.g. web_dashboard/blueprints/plugins/verification.py)."""
-
 import aiohttp
 from datetime import datetime, timedelta, timezone
-
 from web_dashboard.config import twitch_config, URL_BASE
 from modules.models import TwitchAppToken
 
@@ -15,7 +13,6 @@ EVENTSUB_CALLBACK = f"{URL_BASE}/webhook/twitch/eventsub"
 
 # Refresh a bit before actual expiry so a request never races an expired token.
 _REFRESH_MARGIN = timedelta(minutes=10)
-
 
 async def get_app_token() -> str:
     """Return a cached, valid Twitch app access token - refreshing it (client
@@ -49,13 +46,11 @@ async def get_app_token() -> str:
     await token.save()
     return token.access_token
 
-
 async def _headers() -> dict:
     return {
         "Client-Id": twitch_config["CLIENT_ID"],
         "Authorization": f"Bearer {await get_app_token()}",
     }
-
 
 async def get_user(login: str) -> dict | None:
     """Helix 'Get Users' - resolve a streamer login to its Twitch user id/display name.
@@ -71,7 +66,6 @@ async def get_user(login: str) -> dict | None:
 
     users = data.get("data") or []
     return users[0] if users else None
-
 
 async def search_channels(query: str, limit: int = 8) -> list[dict]:
     """Helix 'Search Channels' - live-search suggestions for the dashboard's
@@ -97,7 +91,6 @@ async def search_channels(query: str, limit: int = 8) -> list[dict]:
         for channel in (data.get("data") or [])
     ]
 
-
 async def get_stream(user_id: str) -> dict | None:
     """Helix 'Get Streams' - live stream details (title, game, preview thumbnail) for
     a broadcaster. The stream.online EventSub event itself only carries IDs and a
@@ -116,6 +109,38 @@ async def get_stream(user_id: str) -> dict | None:
     streams = data.get("data") or []
     return streams[0] if streams else None
 
+async def get_channel_info(broadcaster_id: str) -> dict | None:
+    """Helix 'Get Channel Information' - works regardless of live status, unlike
+    Get Streams. Used on stream.offline to find the game that was last being
+    played, since the offline event itself carries no stream details at all."""
+    async with aiohttp.ClientSession() as http:
+        async with http.get(
+            f"{HELIX_BASE}/channels",
+            params={"broadcaster_id": broadcaster_id},
+            headers=await _headers(),
+        ) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+    channels = data.get("data") or []
+    return channels[0] if channels else None
+
+async def get_latest_vod(user_id: str) -> dict | None:
+    """Helix 'Get Videos' (type=archive) - the broadcaster's most recent VOD,
+    used to link/show duration for the ended-stream notification card. Returns
+    None if no archive VOD exists yet (e.g. Twitch hasn't finished processing
+    it, or the broadcaster doesn't save VODs)."""
+    async with aiohttp.ClientSession() as http:
+        async with http.get(
+            f"{HELIX_BASE}/videos",
+            params={"user_id": user_id, "type": "archive", "first": 1},
+            headers=await _headers(),
+        ) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+    videos = data.get("data") or []
+    return videos[0] if videos else None
 
 async def get_game(game_id: str) -> dict | None:
     """Helix 'Get Games' - box art for the notification card's "preview + box art"
@@ -134,7 +159,6 @@ async def get_game(game_id: str) -> dict | None:
 
     games = data.get("data") or []
     return games[0] if games else None
-
 
 async def create_eventsub_subscription(broadcaster_id: str) -> list[str]:
     """Subscribe to stream.online + stream.offline for a broadcaster. Returns the
@@ -160,7 +184,6 @@ async def create_eventsub_subscription(broadcaster_id: str) -> list[str]:
                 data = await resp.json()
                 sub_ids.append(data["data"][0]["id"])
     return sub_ids
-
 
 async def delete_eventsub_subscription(eventsub_id: str) -> None:
     async with aiohttp.ClientSession() as http:

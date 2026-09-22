@@ -78,6 +78,8 @@ from .social import (
     YoutubeConfig,
     YoutubeNotifyConfig,
     YoutubeChannel,
+    YoutubeSubscription,
+    YoutubeVideoState,
 )
 
 # List of all models to pass to init
@@ -104,4 +106,6 @@ ALL_MODELS = [
     TwitchAppToken,
     TwitchEvent,
     YoutubeChannel,
+    YoutubeSubscription,
+    YoutubeVideoState,
 ]

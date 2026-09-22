@@ -2,7 +2,7 @@ from beanie import Document
 from pydantic import ConfigDict, Field
 from datetime import datetime, timezone
 from typing import List, Optional
-from .core import DictModel, EmbedConfig
+from .core import DictModel
 
 # ---------------------------------------------------------
 # Twitch notifications plugin
@@ -85,11 +85,13 @@ class YoutubeConfig(DictModel):
     status: bool = False
 
 class YoutubeNotifyConfig(DictModel):
-    """Shared shape for a YoutubeChannel's Video-tab or Live-tab settings block."""
+    """Shared shape for a YoutubeChannel's Upcoming/Video/Live-tab settings
+    block. No user-customizable embed here - the notification card itself
+    (title/thumbnail/timestamp) is pre-built fresh from YouTube's own data
+    each time (see _build_youtube_embed), same reasoning as Twitch's card."""
     channel_id: Optional[str] = None
     mention_role_id: Optional[str] = None
     custom_message: str = ""
-    embed: EmbedConfig = Field(default_factory=lambda: EmbedConfig(color=0xFF0000))
     enabled: bool = False
 
 class YoutubeChannel(Document):
@@ -97,11 +99,54 @@ class YoutubeChannel(Document):
 
     class Settings:
         name = "youtube_channels"
-        indexes = ["guild_id"]
+        indexes = ["guild_id", "resolved_channel_id"]
 
     id: str = Field(alias="_id")
     guild_id: str
     channel_identifier: str  # handle/URL as entered on the dashboard
-    resolved_channel_id: Optional[str] = None  # filled in once detection ships
+    resolved_channel_id: Optional[str] = None
+    channel_title: Optional[str] = None  # captured once at add-time, for the notification card
+    avatar_url: Optional[str] = None  # captured once at add-time, for the notification card
+    upcoming: YoutubeNotifyConfig = Field(default_factory=YoutubeNotifyConfig)
     video: YoutubeNotifyConfig = Field(default_factory=YoutubeNotifyConfig)
     live: YoutubeNotifyConfig = Field(default_factory=YoutubeNotifyConfig)
+
+    # Live-state tracking, written by the WebSub webhook handler.
+    is_live: bool = False
+    current_video_id: Optional[str] = None
+    notification_message_id: Optional[str] = None
+
+class YoutubeSubscription(Document):
+    """One row per real YouTube channel id with an active WebSub lease - shared
+    across every guild watching that channel, since a WebSub subscription is
+    owned by the app+topic, not by a guild (mirrors TwitchSubscription)."""
+
+    class Settings:
+        name = "youtube_subscriptions"
+
+    id: str = Field(alias="_id")  # resolved YouTube channel id
+    status: str = "enabled"  # enabled | revoked
+    # WebSub leases expire (~10 days max) and need periodic renewal - see
+    # cogs/social/B_youtube.py.
+    lease_expires: Optional[datetime] = None
+    # Cached so the "went live" polling fallback (cogs/social/B_youtube.py)
+    # only spends 1 quota unit resolving it once, not on every poll.
+    uploads_playlist_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class YoutubeVideoState(Document):
+    """Per-video notification bookkeeping, keyed on YouTube's own video id.
+    WebSub redelivers on every edit to a video (title change, description edit,
+    a scheduled stream flipping to live) and can retry deliveries outright, so
+    this is what stops a "new video" or "went live" notification from firing
+    more than once for the same video."""
+
+    class Settings:
+        name = "youtube_video_state"
+
+    id: str = Field(alias="_id")  # YouTube video id
+    channel_id: str
+    notified_upcoming: bool = False
+    notified_new: bool = False
+    notified_live: bool = False
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

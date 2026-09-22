@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   {% include 'include/dash-links.html' %}
-  {% from 'components/embed_editor.html' import embed_color_picker, embed_editor %}
 </head>
 <body>
   <!-- ======= Header & Sidebar ======= -->
@@ -13,7 +12,7 @@
   <div class="mb-2">
     <div class="form-switch ps-0 user-select-none">
       <input class="form-check-input ms-0" type="checkbox" id="{{key}}-enabled" {% if notify.enabled %}checked{% endif %} />
-      <label class="form-check-label" for="{{key}}-enabled">Enable {{ 'new video' if key == 'video' else 'go live' }} notifications</label>
+      <label class="form-check-label" for="{{key}}-enabled">Enable {{ {'upcoming': 'upcoming stream', 'video': 'new video', 'live': 'go live'}[key] }} notifications</label>
     </div>
   </div>
 
@@ -46,22 +45,10 @@
     </div>
   </div>
 
-  <div class="mt-3">
+  <div class="mt-3 mb-3">
     <label for="{{key}}-message">Custom message</label><br>
-    <p class="mb-1 fs-7 text-muted">Use {channel} and {url} as placeholders.</p>
+    <p class="mb-1 fs-7 text-muted">Use {channel} and {url} as placeholders. The video/stream card itself (title, thumbnail) is built automatically, so there's no embed to configure here.</p>
     <textarea id="{{key}}-message" class="text-input">{{ notify.custom_message or '' }}</textarea>
-  </div>
-
-  <div class="mt-3 d-flex gap-2 mb-3">
-    {{ embed_color_picker(key ~ '-embed-color', notify.embed.color | hexcolor) }}
-    {{ embed_editor(key ~ '-embed', {
-        'color': notify.embed.color|hexcolor,
-        'title': notify.embed.title or '',
-        'description': notify.embed.description or '',
-      },
-      desc_element='textarea',
-      show_icons=False, show_author=False, show_footer=False, show_fields=False, color_input=True,
-    ) }}
   </div>
   {% endmacro %}
 
@@ -109,6 +96,9 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#live">Live</button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#upcoming">Upcoming</button>
+      </li>
     </ul>
 
     <div class="tab-content">
@@ -135,6 +125,20 @@
             <hr>
             <div class="card-body">
               {{ notify_tab('live', data.live) }}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="upcoming" class="tab-pane pt-2" role="tabpanel">
+        <section class="sectionn">
+          <div class="card">
+            <div class="dash-card-header">
+              <h2 class="dash-card-title">Upcoming stream notifications</h2>
+            </div>
+            <hr>
+            <div class="card-body">
+              {{ notify_tab('upcoming', data.upcoming) }}
             </div>
           </div>
         </section>
@@ -241,28 +245,14 @@
         state.custom_message = e.target.value;
         commit();
       })
-
-      autoGrowEmbedDesc(document.getElementById(`${key}-embed-desc`));
-      initEmbedEditor([{
-        prefix: `${key}-embed`,
-        colorId: `${key}-embed-color`,
-        dataKeyPrefix: 'embed',
-        initial: {
-          color: initialData.embed.color ? `#${(initialData.embed.color).toString(16).padStart(6, '0')}` : '#ffffff',
-          title: initialData.embed.title || '',
-          desc: initialData.embed.description || '',
-        },
-        onChange: (changeKey, oldVal, newVal) => {
-          state.embed[changeKey.replace('embed.', '')] = newVal;
-          commit();
-        },
-      }]);
     }
 
     const videoData = JSON.parse('{{ data.video | tojson }}');
     const liveData = JSON.parse('{{ data.live | tojson }}');
+    const upcomingData = JSON.parse('{{ data.upcoming | tojson }}');
     wireNotifyTab('video', videoData);
     wireNotifyTab('live', liveData);
+    wireNotifyTab('upcoming', upcomingData);
   </script>
 
   <style>
