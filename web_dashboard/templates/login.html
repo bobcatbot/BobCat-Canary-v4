@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  {% include 'include/links.html' %}
+  {% include 'include/dash-links.html' %}
 </head>
 <body style="height: 100dvh;display: flex;flex-direction: column;justify-content: center;">
-  <!-- ======= Header & Sidebar ======= -->
-  {% include 'components/Navbar.html' %}
+  {% include 'components/PublicNavbar.html' %}
 
-  <main class="mainn" align="center">
+  <main class="main  justify-content-center align-items-center ms-0" align="center">
     <img src="{{url_for('static', filename='img/bobcat.png')}}" alt="">
     
     <div>
@@ -15,7 +14,16 @@
       <p>You need to login with your Discord account to access this feature.</p>
     </div>
     
-    <a onclick="window.open('{{logInWithDiscord}}', 'Login with Discord', 'width=550,height=920')" class="btn btn-blurple">Login with Discord</a>
+    <a
+      class="btn btn-blurple"
+      onclick="window.open(
+        '{{logInWithDiscord}}', 
+        'Login with Discord',
+        'width=478,height=780,top=' + Math.round((screen.availHeight - 780) / 3)
+      )"
+    >
+      Login with Discord
+    </a>
   </main>
 </body>
 </html>

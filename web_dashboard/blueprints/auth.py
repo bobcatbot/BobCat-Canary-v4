@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 
 from quart import Blueprint, flash, redirect, render_template, request, session, url_for
@@ -50,7 +51,7 @@ async def oauth_callback():
         redirect_url = session.pop('redirect', url_for("web.index"))
         session.pop('_flashes', None)
         return await render_template("oauth_callback.html", redirect_url=redirect_url)
-    except Exception as e:
-        print(e)
+    except Exception:
+        traceback.print_exc()
         await flash('Oh no, something went wrong during authentication', 'login-error')
         return redirect(url_for("web.index"))
