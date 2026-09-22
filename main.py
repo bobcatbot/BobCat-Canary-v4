@@ -10,6 +10,7 @@ from datetime import datetime
 from modules import bot as v
 from modules.models import ALL_MODELS
 from web_dashboard.index import serve_dashboard
+from web_dashboard.plugins import reload_plugin_list
 
 client = v.client
 
@@ -150,6 +151,7 @@ async def start() -> None:
     print("─" * 60)
 
     await initialise_database()
+    reload_plugin_list()
     load_extensions()
 
     print("🌐 Starting Web Dashboard")

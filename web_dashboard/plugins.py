@@ -1,8 +1,41 @@
 import copy
 import json
+import pymongo
+
+from .config import mongoURI_db
 
 with open('web_dashboard/plugin_list.json', 'r', encoding='utf-8') as f:
-  PLUGIN_LIST = json.load(f)
+  _BOOTSTRAP_PLUGIN_LIST = json.load(f)
+
+# Plugin metadata (title/description/badge/category/item caps/...) lives in Mongo,
+# not this JSON file, so an admin edit (web_dashboard/blueprints/admin.py) takes
+# effect immediately - no process restart. The JSON above is only a one-time seed
+# for a fresh database. See reload_plugin_list() below.
+plugin_registry = pymongo.MongoClient(mongoURI_db)['Bot']['plugin_registry']
+
+PLUGIN_LIST: dict = {}
+
+def reload_plugin_list() -> None:
+  """Refresh PLUGIN_LIST from Mongo. Called once at boot (main.py, right after the
+  database connects) and again after every /admin/plugins create/edit, so a saved
+  change is live on the very next request.
+
+  Mutates PLUGIN_LIST in place (clear + update) rather than rebinding the name -
+  every plugin blueprint did `from .plugins import PLUGIN_LIST`, which binds its
+  own reference to this exact dict object at import time. Reassigning `PLUGIN_LIST`
+  here would leave all of those pointing at a stale, empty dict forever.
+  """
+  if plugin_registry.count_documents({}) == 0:
+    plugin_registry.insert_many([
+      {**meta, 'key': key} for key, meta in _BOOTSTRAP_PLUGIN_LIST.items()
+    ])
+
+  fresh = {
+    doc['key']: {k: v for k, v in doc.items() if k not in ('_id', 'key')}
+    for doc in plugin_registry.find({})
+  }
+  PLUGIN_LIST.clear()
+  PLUGIN_LIST.update(fresh)
 
 def fetch_plugins(dash):
   """

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Plugin Registry | BobCat Admin</title>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <main class="rc-page">
+    <div class="rc-head">
+      <h1 class="rc-title">Plugin Registry</h1>
+      <p class="rc-sub">Dashboard plugin cards - title, description, badge, category, item caps. Saved here, live on the next page load, no restart.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    {% endwith %}
+    {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <!-- ======= Add ======= -->
+    <section class="card rc-panel">
+      <h2 class="rc-h2">Add a plugin</h2>
+
+      <form method="POST" class="rc-form" id="AddForm">
+        <div>
+          <label class="form-label" for="AddKey">Key</label>
+          <input type="text" name="key" id="AddKey" class="form-control" required>
+          <div class="rc-hint">Unique and permanent - blueprints reference this key directly.</div>
+        </div>
+        <div>
+          <label class="form-label" for="AddTitle">Title</label>
+          <input type="text" name="title" id="AddTitle" class="form-control" required>
+        </div>
+        <div>
+          <label class="form-label" for="AddDescription">Description</label>
+          <input type="text" name="description" id="AddDescription" class="form-control">
+        </div>
+        <div>
+          <label class="form-label" for="AddDbKey">db_key</label>
+          <input type="text" name="db_key" id="AddDbKey" class="form-control" required>
+          <div class="rc-hint">Field name on DashConfig, e.g. "twitch" for dashboard.twitch.</div>
+        </div>
+        <div>
+          <label class="form-label" for="AddIcon">Icon</label>
+          <input type="text" name="icon" id="AddIcon" class="form-control">
+          <div class="rc-hint">Material Symbols name.</div>
+        </div>
+        <div>
+          <label class="form-label" for="AddUrl">URL slug</label>
+          <input type="text" name="url" id="AddUrl" class="form-control" required>
+        </div>
+        <div>
+          <label class="form-label" for="AddBadge">Badge</label>
+          <select name="badge" id="AddBadge" class="form-select">
+            {% for badge in badge_choices %}
+            <option value="{{ badge }}">{{ badge or '(none)' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="AddCategory">Category</label>
+          <input type="text" name="category" id="AddCategory" class="form-control" required>
+          <div class="rc-hint">e.g. management, utilities, fun, social.</div>
+        </div>
+        <div class="form-check">
+          <input type="checkbox" name="premium" id="AddPremium" class="form-check-input">
+          <label class="form-check-label" for="AddPremium">Premium-gated</label>
+        </div>
+        <div>
+          <label class="form-label" for="AddMax">Item cap (free)</label>
+          <input type="number" name="max" id="AddMax" class="form-control" min="0">
+        </div>
+        <div>
+          <label class="form-label" for="AddMaxPremium">Item cap (premium)</label>
+          <input type="number" name="max_premium" id="AddMaxPremium" class="form-control" min="0">
+        </div>
+
+        <button type="submit" class="btn btn-blurple">Add plugin</button>
+      </form>
+    </section>
+
+    <!-- ======= Existing ======= -->
+    <section class="card rc-panel">
+      <h2 class="rc-h2">Plugins ({{ plugins | length }})</h2>
+      <div class="rc-grid">
+        {% for p in plugins %}
+        <div class="rc-item">
+          <div class="rc-item-body">
+            <div class="rc-name" title="{{ p.title }}">{{ p.title }} {% if p.badge %}<span class="badge bg-secondary">{{ p.badge }}</span>{% endif %}</div>
+            <div class="rc-key" title="{{ p.key }}">{{ p.key }}</div>
+            <div class="rc-key">{{ p.category }}{% if p.premium %} · premium{% endif %}</div>
+          </div>
+          <div class="rc-actions">
+            <button type="button" class="btn btn-sm btn-blurple" data-bs-toggle="modal" data-bs-target="#EditModal"
+              data-key="{{ p.key }}" data-title="{{ p.title }}" data-description="{{ p.description }}"
+              data-db-key="{{ p.db_key }}" data-icon="{{ p.icon }}" data-url="{{ p.url }}"
+              data-badge="{{ p.badge }}" data-category="{{ p.category }}" data-premium="{{ p.premium | tojson }}"
+              data-max="{{ p.max if p.max is not none else '' }}" data-max-premium="{{ p.max_premium if p.max_premium is not none else '' }}">Edit</button>
+          </div>
+        </div>
+        {% else %}
+        <p class="rc-sub m-0">No plugins registered yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <!-- ======= Edit modal ======= -->
+  <div class="modal fade" id="EditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="POST" class="modal-content" id="EditForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit plugin</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body rc-form">
+          <div class="rc-hint">Key: <code id="EditKey"></code> (can't change - blueprints reference it directly)</div>
+          <div>
+            <label class="form-label" for="EditTitle">Title</label>
+            <input type="text" name="title" id="EditTitle" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label" for="EditDescription">Description</label>
+            <input type="text" name="description" id="EditDescription" class="form-control">
+          </div>
+          <div>
+            <label class="form-label" for="EditDbKey">db_key</label>
+            <input type="text" name="db_key" id="EditDbKey" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label" for="EditIcon">Icon</label>
+            <input type="text" name="icon" id="EditIcon" class="form-control">
+          </div>
+          <div>
+            <label class="form-label" for="EditUrl">URL slug</label>
+            <input type="text" name="url" id="EditUrl" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label" for="EditBadge">Badge</label>
+            <select name="badge" id="EditBadge" class="form-select">
+              {% for badge in badge_choices %}
+              <option value="{{ badge }}">{{ badge or '(none)' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="EditCategory">Category</label>
+            <input type="text" name="category" id="EditCategory" class="form-control" required>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="premium" id="EditPremium" class="form-check-input">
+            <label class="form-check-label" for="EditPremium">Premium-gated</label>
+          </div>
+          <div>
+            <label class="form-label" for="EditMax">Item cap (free)</label>
+            <input type="number" name="max" id="EditMax" class="form-control" min="0">
+          </div>
+          <div>
+            <label class="form-label" for="EditMaxPremium">Item cap (premium)</label>
+            <input type="number" name="max_premium" id="EditMaxPremium" class="form-control" min="0">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-blurple">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const EDIT_URL = "{{ url_for('admin.edit_plugin', key='__KEY__') }}";
+
+    document.querySelectorAll('[data-bs-target="#EditModal"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const d = btn.dataset;
+        document.querySelector('#EditForm').action = EDIT_URL.replace('__KEY__', encodeURIComponent(d.key));
+        document.querySelector('#EditKey').textContent = d.key;
+        document.querySelector('#EditTitle').value = d.title;
+        document.querySelector('#EditDescription').value = d.description || '';
+        document.querySelector('#EditDbKey').value = d.dbKey;
+        document.querySelector('#EditIcon').value = d.icon || '';
+        document.querySelector('#EditUrl').value = d.url;
+        document.querySelector('#EditBadge').value = d.badge || '';
+        document.querySelector('#EditCategory').value = d.category;
+        document.querySelector('#EditPremium').checked = d.premium === 'true';
+        document.querySelector('#EditMax').value = d.max || '';
+        document.querySelector('#EditMaxPremium').value = d.maxPremium || '';
+      });
+    });
+  </script>
+
+  <style>
+    body { background: var(--background-color); }
+
+    .rc-page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: var(--spacing-xl) var(--spacing-md) 4rem;
+    }
+    .rc-head { margin-bottom: var(--spacing-lg); }
+    .rc-title { font-size: 2.25rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
+    .rc-sub { color: var(--muted-color); margin: 0; }
+    .rc-h2 { font-size: 1.35rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
+
+    .rc-panel { padding: var(--spacing-lg); margin: 0 0 var(--spacing-md); background: var(--surface-color); }
+
+    .rc-form { display: flex; flex-direction: column; gap: var(--spacing-md); max-width: 480px; }
+    .rc-hint { font-size: .8rem; color: var(--muted-color); margin-top: var(--spacing-xs); }
+
+    .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
+    .rc-item { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-sm); }
+    .rc-name { font-weight: 600; color: var(--heading-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-key { font-size: .8rem; color: var(--muted-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-actions { display: flex; gap: var(--spacing-sm); }
+  </style>
+</body>
+</html>

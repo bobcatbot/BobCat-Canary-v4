@@ -3,6 +3,7 @@ from modules.models import Guild
 from web_dashboard.utils import dev_required, get_current_user
 from .plugins.leveling import rank_cards
 from ..uploads import UploadError, upload_rank_card_image
+from ..plugins import plugin_registry, reload_plugin_list
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -115,3 +116,69 @@ async def delete_rank_card(card):
     await flash(f"Deleted {card}. Servers that had it now get the fallback card.", "success")
 
   return redirect(url_for('admin.admin_rank_cards'))
+
+# ── Site-wide admin: Plugin registry ────────────────────────────────────────
+BADGE_CHOICES = ["", "new", "beta", "soon", "prem"]
+
+def _plugin_form_fields(form):
+  return {
+    "title": (form.get("title") or "").strip(),
+    "description": (form.get("description") or "").strip(),
+    "db_key": (form.get("db_key") or "").strip(),
+    "icon": (form.get("icon") or "").strip(),
+    "url": (form.get("url") or "").strip(),
+    "badge": form.get("badge") if form.get("badge") in BADGE_CHOICES else "",
+    "category": (form.get("category") or "").strip(),
+    "premium": form.get("premium") == "on",
+    "status": False,
+    "max": int(form["max"]) if (form.get("max") or "").strip().isdigit() else None,
+    "max_premium": int(form["max_premium"]) if (form.get("max_premium") or "").strip().isdigit() else None,
+  }
+
+@admin_bp.route("/admin/plugins", methods=["GET", "POST"])
+@dev_required
+async def admin_plugins():
+  error = None
+
+  if request.method == "POST":
+    form = await request.form
+    key = (form.get("key") or "").strip()
+    fields = _plugin_form_fields(form)
+
+    if not key or not fields["title"] or not fields["db_key"] or not fields["url"]:
+      error = "Key, title, db_key, and url are required."
+    elif plugin_registry.find_one({"key": key}):
+      error = f"'{key}' already exists."
+    else:
+      plugin_registry.insert_one({"key": key, **fields})
+      reload_plugin_list()
+      await flash(f"Added {fields['title']}.", "success")
+      return redirect(url_for('admin.admin_plugins'))
+
+  plugins = list(plugin_registry.find({}, {'_id': 0}).sort("category"))
+
+  return await render_template(
+    "dashboard/admin/plugins.html",
+    user=get_current_user(),
+    plugins=plugins,
+    badge_choices=BADGE_CHOICES,
+    error=error,
+  )
+
+@admin_bp.route("/admin/plugins/<key>/edit", methods=["POST"])
+@dev_required
+async def edit_plugin(key):
+  form = await request.form
+  fields = _plugin_form_fields(form)
+
+  if not fields["title"] or not fields["db_key"] or not fields["url"]:
+    await flash("Title, db_key, and url are required.", "error")
+    return redirect(url_for('admin.admin_plugins'))
+
+  if plugin_registry.update_one({"key": key}, {"$set": fields}).matched_count == 0:
+    await flash(f"'{key}' no longer exists.", "error")
+  else:
+    reload_plugin_list()
+    await flash(f"Updated {fields['title']}.", "success")
+
+  return redirect(url_for('admin.admin_plugins'))
