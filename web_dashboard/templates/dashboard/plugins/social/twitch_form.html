@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        <h1 class="em-title">{{ 'Edit streamer' if is_edit else 'Add streamer' }}</h1>
+      </div>
+
+      <div class="buttons">
+        {% if is_edit %}
+        <button type="button" id="delete" class="btn btn-danger"><i class="bi bi-trash mr-1"></i> Delete</button>
+        {% endif %}
+        <button type="button" id="discard-btn" class="btn btn-danger">Discard</button>
+        <button type="button" id="save-btn" class="btn btn-blurple">Save</button>
+      </div>
+    </div>
+
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Streamer</h2>
+        </div>
+        <hr>
+
+        <div class="card-body">
+          <div class="mb-2">
+            <label for="streamer-login">Streamer name <req style="color: red;">*</req></label><br>
+            <p class="mb-1 fs-7 text-muted">Search for the streamer's Twitch channel.</p>
+            <div class="twitch-streamer-search{% if is_edit %} disabled{% endif %}" id="twitch-streamer-search">
+              <div class="twitch-streamer-box" id="twitch-streamer-box">
+                <span class="twitch-streamer-prefix">twitch.tv/</span>
+                <input
+                  type="text"
+                  id="streamer-login"
+                  class="twitch-streamer-input"
+                  autocomplete="off"
+                  value="{{ data.streamer_login or '' }}"
+                  placeholder="streamer_login"
+                  {% if is_edit %}disabled{% endif %}
+                />
+                {% if not is_edit %}
+                <button type="button" id="twitch-streamer-clear" class="twitch-streamer-clear" style="display:none;"><i class="bi bi-x-circle-fill"></i></button>
+                <i class="bi bi-chevron-down twitch-streamer-chevron"></i>
+                {% endif %}
+              </div>
+              {% if not is_edit %}
+              <div class="twitch-streamer-results" id="twitch-streamer-results"></div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-0 mt-3">
+            <p class="mb-1">Notification channel <req style="color: red;">*</req></p>
+            <div class="twitch-chan-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for channel in guild_models(guild).channels.text %}
+                  <div class="option" data-type="channel" data-id="{{channel.id}}" data-name="{{channel.name}}" data-can-send="{{channel.can_send}}">{{channel.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-0 mt-3">
+            <p class="mb-1">Mention role</p>
+            <p class="mb-1 fs-7 text-muted">Pinged along with the notification. Optional.</p>
+            <div class="twitch-role-select-wrapper single">
+              <div class="select">
+                <div class="select-selected">Select an option</div>
+                <div class="select-options">
+                  {% for role in guild_models(guild).roles %}
+                  <div class="option" data-type="role" data-id="{{role.id}}" data-name="{{role.name}}" data-disabled="{{role.disabled}}" style="--color: {{role.color}}">{{role.name}}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label for="twitch-message">Message</label><br>
+            <p class="mb-1 fs-7 text-muted">Sent when the streamer goes live. Use {streamer}, {title}, {game} and {url} as placeholders.</p>
+            <textarea id="twitch-message" class="text-input">{{ data.custom_message or '{streamer} is now live!' }}</textarea>
+          </div>
+
+          <div class="mt-3">
+            <div class="form-switch ps-0 user-select-none">
+              <input class="" type="checkbox" id="twitch-watch-button" {% if data.watch_button != False %}checked{% endif %} />
+              <label class="form-check-label" for="twitch-watch-button">Show "Watch Stream" button</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const isEdit = JSON.parse('{{ is_edit | tojson }}');
+
+    new Select('.twitch-chan-select-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: JSON.parse('{{ ([data.channel_id] if (is_edit and data.channel_id) else []) | tojson }}')
+    })
+
+    new Select('.twitch-role-select-wrapper.single', {
+      placeholder: "Select a role",
+      type: 'role',
+      multiple: false,
+      maxItems: 1,
+      options: JSON.parse('{{ ([data.mention_role_id] if (is_edit and data.mention_role_id) else []) | tojson }}')
+    })
+
+    const save_data = isEdit ? {} : new Proxy({}, {
+      set(target, key, value) {
+        target[key] = value;
+        checkIfDataUpdated();
+        return true;
+      }
+    });
+
+    var required_fields = ['streamer_login', 'channel_id'];
+    function checkIfDataUpdated() {
+      const allFieldsExist = required_fields.every(field => save_data[field]);
+      const saveBtn = document.querySelector('#save-btn');
+      if (saveBtn && !isEdit) saveBtn.disabled = !allFieldsExist;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isEdit) {
+        checkIfDataUpdated();
+      }
+    })
+
+    document.querySelector('#discard-btn').addEventListener('click', (e) => {
+      if (Object.keys(save_data).length > 0) {
+        if (confirm("Are you sure you want to discard changes?")) {
+          window.location.href = '/dashboard/{{guild.id}}/twitch'
+        }
+      } else {
+        window.location.href = '/dashboard/{{guild.id}}/twitch'
+      }
+    })
+
+    document.querySelector('#save-btn').addEventListener('click', (e) => {
+      fetch(isEdit ? "edition" : "creation", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ...save_data }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status == 'success') {
+            window.location.href = '/dashboard/{{guild.id}}/twitch'
+          } else {
+            alert(data.message || 'Failed to save')
+          }
+        })
+    })
+
+    if (isEdit) {
+      document.querySelector('#delete').addEventListener('click', (e) => {
+        if (!confirm("Remove this streamer? This cannot be undone.")) return;
+        fetch("delete", {
+          method: "DELETE",
+          headers: {"Content-Type": "application/json"},
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status == 'success') {
+              window.location.href = '/dashboard/{{guild.id}}/twitch'
+            } else {
+              alert(data.message || 'Failed to delete')
+            }
+          })
+      })
+    }
+
+    // Streamer live-search
+    const loginInput = document.querySelector('#streamer-login');
+    if (!isEdit) {
+      const resultsEl = document.querySelector('#twitch-streamer-results');
+      const clearBtn = document.querySelector('#twitch-streamer-clear');
+      const boxEl = document.querySelector('#twitch-streamer-box');
+      let searchTimer = null;
+      let currentQuery = '';
+
+      const chevronEl = document.querySelector('.twitch-streamer-chevron');
+
+      const closeResults = () => {
+        resultsEl.style.display = 'none';
+        resultsEl.innerHTML = '';
+        if (chevronEl) chevronEl.classList.replace('bi-chevron-up', 'bi-chevron-down');
+      };
+
+      const openResults = () => {
+        resultsEl.style.display = 'block';
+        if (chevronEl) chevronEl.classList.replace('bi-chevron-down', 'bi-chevron-up');
+      };
+
+      // Twitch channel names/display names are attacker-influenceable (anyone
+      // can register a Twitch account) - never trust them into innerHTML raw.
+      const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+
+      const renderResults = (channels) => {
+        if (!channels.length) {
+          resultsEl.innerHTML = '<div class="twitch-streamer-empty">No data available</div>';
+        } else {
+          resultsEl.innerHTML = channels.map(c => `
+            <div class="twitch-streamer-option" data-login="${escapeHtml(c.login)}">
+              <img src="${escapeHtml(c.thumbnail_url)}" alt="" class="twitch-streamer-avatar" />
+              <div>
+                <div class="twitch-streamer-name">${escapeHtml(c.display_name)}</div>
+                <div class="twitch-streamer-login">${escapeHtml(c.login)}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+        openResults();
+      };
+
+      boxEl.addEventListener('click', () => {
+        loginInput.focus();
+        // Nothing typed yet - open with the placeholder empty-state, same as
+        // the moment a search comes back with zero matches.
+        if (resultsEl.style.display !== 'block') renderResults([]);
+      });
+
+      loginInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        save_data['streamer_login'] = value;
+        clearBtn.style.display = value ? 'inline-flex' : 'none';
+        checkIfDataUpdated();
+
+        clearTimeout(searchTimer);
+        if (!value) {
+          renderResults([]);
+          return;
+        }
+
+        searchTimer = setTimeout(() => {
+          currentQuery = value;
+          fetch(`/dashboard/{{guild.id}}/twitch/search?q=${encodeURIComponent(value)}`)
+            .then(res => res.json())
+            .then(data => {
+              // Ignore a stale response that resolved after a newer query fired.
+              if (currentQuery !== value) return;
+              renderResults(data.data || []);
+            })
+            .catch(() => closeResults());
+        }, 300);
+      });
+
+      resultsEl.addEventListener('click', (e) => {
+        const option = e.target.closest('.twitch-streamer-option');
+        if (!option) return;
+        const login = option.dataset.login;
+        loginInput.value = login;
+        save_data['streamer_login'] = login;
+        clearBtn.style.display = 'inline-flex';
+        checkIfDataUpdated();
+        closeResults();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        loginInput.value = '';
+        save_data['streamer_login'] = '';
+        clearBtn.style.display = 'none';
+        checkIfDataUpdated();
+        closeResults();
+        loginInput.focus();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!boxEl.contains(e.target) && !resultsEl.contains(e.target)) closeResults();
+      });
+    }
+
+    // Channel id
+    const chanSelectWrapper = document.querySelector('.twitch-chan-select-wrapper.single');
+    chanSelectWrapper.addEventListener('select:update', (e) => {
+      const selectedOptions = e.detail.selectedOptions;
+      save_data['channel_id'] = selectedOptions[0] ? selectedOptions[0] : null
+      checkIfDataUpdated();
+    })
+
+    // Mention role
+    const roleSelectWrapper = document.querySelector('.twitch-role-select-wrapper.single');
+    roleSelectWrapper.addEventListener('select:update', (e) => {
+      const selectedOptions = e.detail.selectedOptions;
+      save_data['mention_role_id'] = selectedOptions[0] ? selectedOptions[0] : null
+    })
+
+    // Message
+    const messageInput = document.querySelector('#twitch-message');
+    messageInput.addEventListener('input', (e) => {
+      save_data['custom_message'] = e.target.value
+    })
+
+    // Watch Stream button toggle
+    const watchButtonInput = document.querySelector('#twitch-watch-button');
+    watchButtonInput.addEventListener('change', (e) => {
+      save_data['watch_button'] = e.target.checked
+    })
+  </script>
+
+  <style>
+    .em-title {
+      max-width: 40vw;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      padding: 3px 6px;
+      font-size: 23px!important;
+    }
+
+    @media (max-width: 768px) {
+      .em-title {
+        max-width: 90vw;
+      }
+    }
+
+    .twitch-streamer-search {
+      position: relative;
+    }
+
+    .twitch-streamer-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      padding: 0 12px;
+      transition: border-color var(--transition-fast);
+    }
+    .twitch-streamer-search.disabled .twitch-streamer-box {
+      opacity: 0.6;
+    }
+    .twitch-streamer-box:focus-within {
+      border-color: var(--accent-color);
+    }
+
+    .twitch-streamer-prefix {
+      color: var(--muted-color);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .twitch-streamer-input {
+      flex: 1;
+      min-width: 0;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-weight: 600;
+      padding: 10px 0;
+    }
+    .twitch-streamer-input:focus-visible {
+      outline: none;
+      border: none;
+    }
+
+    .twitch-streamer-clear {
+      background: none;
+      border: none;
+      color: var(--muted-color);
+      padding: 4px;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .twitch-streamer-clear:hover {
+      color: var(--text-color);
+    }
+
+    .twitch-streamer-chevron {
+      color: var(--muted-color);
+    }
+
+    .twitch-streamer-results {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .twitch-streamer-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .twitch-streamer-option:hover {
+      background: var(--color-secondary-3);
+    }
+
+    .twitch-streamer-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .twitch-streamer-name {
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .twitch-streamer-login {
+      font-size: 0.8rem;
+      color: var(--muted-color);
+    }
+
+    .twitch-streamer-empty {
+      padding: 12px;
+      color: var(--muted-color);
+      text-align: center;
+    }
+  </style>
+</body>
+</html>

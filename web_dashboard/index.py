@@ -9,7 +9,7 @@ from zenora import BadTokenError
 
 from modules import bot as v
 
-from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config
+from .config import PY_ENV, APP_SECRET, OAUTH_URL, stripe_config, twitch_config
 from .context import register_context_processors
 from .maintenance import get_state as get_maintenance
 from .utils import PremiumModuleError, DEV_IDS
@@ -18,6 +18,7 @@ from .blueprints.auth import auth_bp
 from .blueprints.web import web_bp
 from .blueprints.dashboard import dashboard_bp
 from .blueprints.stripe import stripe_bp
+from .blueprints.social_webhooks import social_webhooks_bp
 from .blueprints.admin import admin_bp
 
 # ── Server Management ──────────────────────────────────────────────────────
@@ -38,6 +39,11 @@ from .blueprints.plugins.birthdays import birthdays_bp
 from .blueprints.plugins.giveaways import giveaways_bp
 from .blueprints.plugins.economy import economy_bp
 
+# ── Social ─────────────────────────────────────────────────────────────────
+from .blueprints.plugins.social import social_bp
+
+
+
 class PydanticAwareJSONProvider(DefaultJSONProvider):
     @staticmethod
     def default(obj):
@@ -53,6 +59,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config["SECRET_KEY"] = APP_SECRET
 app.config["STRIPE_PUBLIC_KEY"] = stripe_config["PUBLIC_KEY"]
 app.config["STRIPE_WEBHOOK_KEY"] = stripe_config["WH_KEY"]
+app.config["TWITCH_EVENTSUB_SECRET"] = twitch_config["EVENTSUB_SECRET"]
 
 stripe.api_key = stripe_config["SECRET_KEY"]
 
@@ -73,6 +80,7 @@ app.register_blueprint(web_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(stripe_bp)
+app.register_blueprint(social_webhooks_bp)
 app.register_blueprint(admin_bp)
 
 # Server Management
@@ -93,11 +101,14 @@ app.register_blueprint(birthdays_bp)
 app.register_blueprint(giveaways_bp)
 app.register_blueprint(economy_bp)
 
+# Social
+app.register_blueprint(social_bp)
+
 # ── Maintenance mode ──────────────────────────────────────────────────────
 # Toggled with `/dev maintenance` or /admin/maintenance. Left open: static files (the page needs its
 # CSS), Stripe webhooks (a paid checkout must still be recorded), OAuth (so a
 # dev can log in and bypass) and the public status page.
-MAINTENANCE_OPEN = ("/static/", "/webhook/stripe", "/oauth/", "/status", "/api/shard_status")
+MAINTENANCE_OPEN = ("/static/", "/webhook/stripe", "/webhook/twitch", "/oauth/", "/status", "/api/shard_status")
 
 @app.before_request
 async def maintenance_gate():

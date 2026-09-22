@@ -158,6 +158,7 @@ from .leveling import LevelingConfig
 from .birthdays import BirthdaysConfig
 from .giveaways import GiveawaysConfig
 from .economy import EconomyConfig
+from .social import TwitchConfig, YoutubeConfig
 
 # ---------------------------------------------------------
 # Dashboard Config
@@ -182,6 +183,10 @@ class DashConfig(BaseModel):
     birthdays: BirthdaysConfig = Field(default_factory=BirthdaysConfig)
     giveaways: GiveawaysConfig = Field(default_factory=GiveawaysConfig)
     economy: EconomyConfig = Field(default_factory=EconomyConfig)
+
+    # Social
+    twitch: TwitchConfig = Field(default_factory=TwitchConfig)
+    youtube: YoutubeConfig = Field(default_factory=YoutubeConfig)
 
     # sticky_messages: Dict[str, Any] = Field(default_factory=dict)
 

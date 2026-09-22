@@ -69,6 +69,16 @@ from .birthdays import BirthdaysConfig, Birthday
 from .giveaways import GiveawaysConfig, Giveaway
 from .economy import ShopItemConfig, EconomyConfig, Economy
 from .insights import InsightsDaily
+from .social import (
+    TwitchConfig,
+    TwitchStreamer,
+    TwitchSubscription,
+    TwitchAppToken,
+    TwitchEvent,
+    YoutubeConfig,
+    YoutubeNotifyConfig,
+    YoutubeChannel,
+)
 
 # List of all models to pass to init
 ALL_MODELS = [
@@ -89,4 +99,9 @@ ALL_MODELS = [
     TempChannel,
     Birthday,
     InsightsDaily,
+    TwitchStreamer,
+    TwitchSubscription,
+    TwitchAppToken,
+    TwitchEvent,
+    YoutubeChannel,
 ]

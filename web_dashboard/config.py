@@ -37,3 +37,9 @@ cloudinary_config = {
   "api_key": os.getenv('CLOUDINARY_API_KEY'),
   "api_secret": os.getenv('CLOUDINARY_API_SECRET'),
 }
+
+twitch_config = {
+  "CLIENT_ID": os.getenv('TWITCH_CLIENT_ID'),
+  "CLIENT_SECRET": os.getenv('TWITCH_CLIENT_SECRET'),
+  "EVENTSUB_SECRET": os.getenv('TWITCH_EVENTSUB_SECRET'),
+}

@@ -142,5 +142,31 @@
     "status": false,
     "max": 5,
     "max_premium": 8
+  },
+  "twitch": {
+    "title": "Twitch Notifications",
+    "description": "Post a message in your server whenever a streamer you follow goes live on Twitch",
+    "db_key": "twitch",
+    "icon": "stream",
+    "url": "twitch",
+    "badge": "beta",
+    "category": "social",
+    "premium": true,
+    "status": false,
+    "max": 3,
+    "max_premium": 10
+  },
+  "youtube": {
+    "title": "YouTube Notifications",
+    "description": "Post a message in your server whenever a channel you follow uploads a video or goes live on YouTube",
+    "db_key": "youtube",
+    "icon": "smart_display",
+    "url": "youtube",
+    "badge": "soon",
+    "category": "social",
+    "premium": true,
+    "status": false,
+    "max": 3,
+    "max_premium": 10
   }
 }
