@@ -27,6 +27,7 @@ window.BOT_VARIABLES = [
   { tag: '{game}', desc: 'The game/category being streamed' },
   { tag: '{url}', desc: 'A link to the stream' },
 
+  // User
   { tag: '{user}', desc: "The user's username and display name" },
   { tag: '{user.mention}', desc: 'Mentions the user' },
   { tag: '{user.id}', desc: 'The id of the user' },
@@ -38,6 +39,7 @@ window.BOT_VARIABLES = [
   { tag: '{user.display_avatar}', desc: 'A link to the avatar avatar' },
   { tag: '{user.bot}', desc: 'Whether the user is a bot' },
 
+  // Server
   { tag: '{server}', desc: 'The name of the server' },
   { tag: '{server.name}', desc: 'The name of the server' },
   { tag: '{server.id}', desc: 'The id of the server' },

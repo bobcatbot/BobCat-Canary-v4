@@ -111,14 +111,19 @@ async def twitch_creation(guild_id):
         broadcaster_id = user['id']
 
         subscription = await TwitchSubscription.get(broadcaster_id)
-        if subscription is None:
+        if subscription is None or subscription.status == "revoked":
             try:
                 eventsub_ids = await twitch.create_eventsub_subscription(broadcaster_id)
             except Exception as e:
                 logger.error("Failed to create EventSub subscription for %s: %s", login, e)
                 return jsonify({'status': 'error', 'message': 'Failed to subscribe to Twitch notifications for this streamer'}), 502
-            subscription = TwitchSubscription(id=broadcaster_id, eventsub_ids=eventsub_ids)
-            await subscription.insert()
+            if subscription is None:
+                subscription = TwitchSubscription(id=broadcaster_id, eventsub_ids=eventsub_ids)
+                await subscription.insert()
+            else:
+                subscription.eventsub_ids = eventsub_ids
+                subscription.status = "enabled"
+                await subscription.save()
 
         uuid = v.uuid(length=12, strCase="upper/lower/nums")
         streamer = TwitchStreamer(
