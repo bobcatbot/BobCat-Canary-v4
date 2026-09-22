@@ -295,7 +295,7 @@ class Leveling(commands.Cog):
 
         desc = ""
         for idx, data in enumerate(sorted_players, start=1):
-            member = ctx.guild.get_member(int(data.user_id)) or await v.client.fetch_user(int(data.user_id))
+            member = ctx.guild.get_member(int(data.user_id)) or await self.client.fetch_user(int(data.user_id))
             medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"#{idx}"
             desc += f"{medal} ● {member.display_name} ● LVL: {data.lvl}\n"
  

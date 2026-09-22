@@ -33,6 +33,16 @@ client = commands.AutoShardedBot(
   help_command=None,
 )
 
+def get_client(guild_id: Union[int, str, None] = None) -> commands.Bot:
+    """Return the bot instance that serves a given guild.
+
+    Always the main client for now. This is the seam a future white-label /
+    custom-bot feature would hook into - once a guild can run its own bot,
+    this becomes the single place that resolves guild_id -> the right
+    client, instead of every call site assuming `client`.
+    """
+    return client
+
 btz_gid = 903243004544962600
 guild_ids = [ btz_gid, ]
 

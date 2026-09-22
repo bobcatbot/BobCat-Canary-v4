@@ -80,13 +80,13 @@ async def _resolve_leaderboard_guild(identifier: str):
     slug (premium feature, stored at ``leveling.leaderboard.url``).
     """
     if identifier.isdigit():
-        guild = v.client.get_guild(int(identifier))
+        guild = v.get_client(int(identifier)).get_guild(int(identifier))
         if guild is not None:
             return guild
 
     slug_doc = await Guild.find_one({"dashboard.leveling.leaderboard.url": identifier.strip().lower()})
     if slug_doc is not None:
-        return v.client.get_guild(int(slug_doc.id))
+        return v.get_client(int(slug_doc.id)).get_guild(int(slug_doc.id))
 
     return None
 
@@ -135,7 +135,7 @@ async def leaderboard_home(identifier):
     users = []
     rank = 0
     for data in sorted_players:
-        player = v.client.get_user(int(data.user_id))
+        player = v.get_client(guild.id).get_user(int(data.user_id))
         if not player:
             continue
         rank += 1
@@ -177,7 +177,7 @@ async def leaderboard_home(identifier):
 async def levelling(guild_id):
     current_user = get_current_user()
     
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 

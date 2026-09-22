@@ -15,7 +15,7 @@ temporary_channels_bp = Blueprint('temporary_channels', __name__)
 @plugin_guard('temporary_channels')
 async def temporary_channels(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -39,7 +39,7 @@ async def temporary_channels(guild_id):
 @plugin_guard('temporary_channels')
 async def temporary_channels_create(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -164,7 +164,7 @@ async def temporary_channels_create(guild_id):
 @plugin_guard('temporary_channels')
 async def temporary_channels_edit(guild_id, hub_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -288,7 +288,7 @@ async def temporary_channels_edit(guild_id, hub_id):
 @temporary_channels_bp.route("/dashboard/<int:guild_id>/temporary-channels/<hub_id>/delete", methods=['DELETE'])
 @plugin_guard('temporary_channels')
 async def temporary_channels_delete(guild_id, hub_id):
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 

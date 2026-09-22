@@ -18,7 +18,7 @@ TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 @plugin_guard('verification')
 async def verify(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -37,7 +37,7 @@ async def verify(guild_id):
 @plugin_guard('verification')
 async def verify_publish(guild_id):
     """Publish or update the verification message."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -199,7 +199,7 @@ async def verify_publish(guild_id):
 @plugin_guard('verification')
 async def verify_unpublish(guild_id):
     """Delete the verification message."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -272,7 +272,7 @@ async def _resolve_verify_link(guild_id, user_id, exp, sig):
     carries whatever the caller needs (error message, or the resolved
     guild/member/role for a successful resolution).
     """
-    verification_cog = v.client.get_cog('Verification')
+    verification_cog = v.get_client(guild_id).get_cog('Verification')
     if not verification_cog or not (guild_id and user_id and exp and sig):
         return "invalid", {}
 
@@ -280,7 +280,7 @@ async def _resolve_verify_link(guild_id, user_id, exp, sig):
     if reason != "ok":
         return reason, {}  # 'expired' or 'invalid'
 
-    guild = v.client.get_guild(int(guild_id))
+    guild = v.get_client(int(guild_id)).get_guild(int(guild_id))
     if guild is None:
         return "invalid", {}
 
@@ -364,7 +364,7 @@ async def public_verify():
         )
 
     shim = _LogShim(guild, member)
-    verification_cog = v.client.get_cog('Verification')
+    verification_cog = v.get_client(guild.id).get_cog('Verification')
     if verification_cog:
         logs = verification_cog._build_verification_log(shim, passed=True)
         await audit_log(shim, "Verification", logs)

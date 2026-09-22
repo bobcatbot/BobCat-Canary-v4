@@ -75,7 +75,7 @@ class GiveawayCog(commands.Cog):
                 continue
 
             try:
-                guild = await v.client.fetch_guild(int(data.guild_id))
+                guild = await self.client.fetch_guild(int(data.guild_id))
                 channel = await guild.fetch_channel(int(data.channel_id))
                 msg = await channel.fetch_message(int(data.message_id))
             except (discord.NotFound, discord.Forbidden):

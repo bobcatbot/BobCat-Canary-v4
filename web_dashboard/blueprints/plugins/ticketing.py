@@ -55,7 +55,7 @@ async def _can_view_transcript(guild, user, ticket, panel) -> bool:
 @login_required
 async def ticketing_transcript(guild_id, ticket_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return redirect(url_for('web.index'))
 
@@ -109,7 +109,7 @@ async def ticketing_transcript(guild_id, ticket_id):
 async def ticketing(guild_id):
     current_user = get_current_user()
     
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -133,7 +133,7 @@ async def ticketing(guild_id):
 @plugin_guard('ticketing')
 async def ticketing_create(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -201,7 +201,7 @@ async def ticketing_create(guild_id):
 @plugin_guard('ticketing')
 async def ticketing_edit(guild_id, ticket_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -277,7 +277,7 @@ async def ticketing_edit(guild_id, ticket_id):
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/delete", methods=['DELETE'])
 @plugin_guard('ticketing')
 async def ticketing_delete(guild_id, ticket_id):
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 

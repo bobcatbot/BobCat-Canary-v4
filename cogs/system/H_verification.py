@@ -326,7 +326,7 @@ class Verification(commands.Cog):
             attempts_left = self.MAX_ATTEMPTS
             while attempts_left > 0:
                 try:
-                    msg = await v.client.wait_for(
+                    msg = await self.client.wait_for(
                         "message",
                         check=lambda m: m.author.id == interaction.user.id and isinstance(m.channel, discord.DMChannel),
                         timeout=self.TIMEOUT_SECONDS

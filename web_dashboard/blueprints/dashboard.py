@@ -37,7 +37,7 @@ async def get_user_eligible_guilds(current_user, exclude_guild_id=None):
         bot_master = False
         config = configs.get(str(guild.id))
         if config:
-            bot_guild = v.client.get_guild(guild.id)
+            bot_guild = v.get_client(guild.id).get_guild(guild.id)
             member = bot_guild.get_member(current_user.id) if bot_guild else None
             if member:
                 settings = config.settings
@@ -105,7 +105,7 @@ async def guilds():
 @login_required
 async def dashboard_home(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     session['guild_id'] = guild_id
 
     if guild is None:
@@ -135,7 +135,7 @@ WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 @guild_guard
 async def analytics(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     return await render_template("dashboard/insights.html", user=current_user, guild=guild)
 
 @dashboard_bp.route("/dashboard/<int:guild_id>/insights/data", methods=["GET"])
@@ -143,7 +143,7 @@ async def analytics(guild_id):
 async def analytics_data(guild_id):
     """Daily series for the last `days` days (guild timezone), zero-filled so every chart
     shares one x axis. Hour-of-day counts are folded into a weekday x hour grid."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
 
     days = min(max(request.args.get('days', 30, type=int), 1), INSIGHTS_MAX_DAYS)
     tz_guild = v.datetimes(guild)
@@ -222,7 +222,7 @@ async def analytics_data(guild_id):
 @guild_guard
 async def settings(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     config = await Guild.get(str(guild.id))
     data = config.settings if config else SettingsConfig()
     return await render_template(
@@ -237,7 +237,7 @@ async def settings(guild_id):
 @guild_guard
 async def premium(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     config = await Guild.get(str(guild.id))
     prem_data = config.premium if config else PremiumConfig()
 
@@ -268,7 +268,7 @@ async def premium(guild_id):
         eligible = await get_user_eligible_guilds(current_user=current_user, exclude_guild_id=guild_id)
         candidates = [
             g for g in eligible
-            if (bot_guild := v.client.get_guild(g['id'])) and _is_owner_or_admin(bot_guild, current_user.id)
+            if (bot_guild := v.get_client(g['id']).get_guild(g['id'])) and _is_owner_or_admin(bot_guild, current_user.id)
         ]
         target_docs = {
             d.id: d for d in
@@ -343,7 +343,7 @@ async def premium(guild_id):
 async def transfer_premium_execute(guild_id):
     """Execute premium transfer."""
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     
     # Authorize
     if guild.owner_id != current_user.id:
@@ -363,7 +363,7 @@ async def transfer_premium_execute(guild_id):
     if not target_guild_id:
         return jsonify({'error': 'Target guild ID is required'}), 400
     
-    target_guild = v.client.get_guild(int(target_guild_id))
+    target_guild = v.get_client(int(target_guild_id)).get_guild(int(target_guild_id))
     if not target_guild:
         return jsonify({'error': 'Target guild not found'}), 404
     
@@ -429,7 +429,7 @@ def _iso_utc(dt: datetime) -> str:
 @guild_guard
 async def notifications(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     guild_id_str = str(guild.id)
 
     def guild_notifs():
@@ -495,7 +495,7 @@ async def data_post(guild_id):
     if 'token' not in session:
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -776,7 +776,7 @@ async def embed_upload_image(guild_id):
     if 'token' not in session:
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 

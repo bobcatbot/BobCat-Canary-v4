@@ -41,7 +41,7 @@ def check_permissions(current_user, guild, form_data, allow_viewer=False):
 @login_required
 async def form(guild_id, form_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         await flash('Guild not found', 'error')
         return redirect(url_for('web.index'))
@@ -154,7 +154,7 @@ async def form(guild_id, form_id):
 @login_required
 async def form_submissions(guild_id, form_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         await flash('Guild not found', 'error')
         return redirect(url_for('web.index'))
@@ -198,7 +198,7 @@ async def form_submissions(guild_id, form_id):
 @login_required
 async def form_submission_detail(guild_id, form_id, submission_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -264,7 +264,7 @@ async def form_submission_detail(guild_id, form_id, submission_id):
 @login_required
 async def form_submission_delete(guild_id, form_id, submission_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -317,7 +317,7 @@ async def form_submission_delete(guild_id, form_id, submission_id):
 @plugin_guard('forms')
 async def forms(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -345,7 +345,7 @@ async def forms(guild_id):
 @plugin_guard('forms')
 async def forms_create(guild_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -396,7 +396,7 @@ async def forms_create(guild_id):
 @plugin_guard('forms')
 async def forms_edit(guild_id, form_id):
     current_user = get_current_user()
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 

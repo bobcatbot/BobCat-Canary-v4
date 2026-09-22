@@ -12,7 +12,7 @@ birthdays_bp = Blueprint('birthdays', __name__)
 async def birthdays(guild_id):
     current_user = get_current_user()
     
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 

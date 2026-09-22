@@ -24,7 +24,7 @@ BILLING_PERMISSION_LEVELS = ("Owner", "Administrator")
 
 async def _authorize_billing(guild_id):
     """Resolve the guild for a billing request and authorize the session user."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return None, None, ({'error': 'Guild not found'}, 404)
 

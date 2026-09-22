@@ -102,8 +102,8 @@ class starboard(commands.Cog):
 
         starCount = 0
 
-        guild = await v.client.fetch_guild(payload.guild_id)
-        channel = await v.client.fetch_channel(payload.channel_id)
+        guild = await self.client.fetch_guild(payload.guild_id)
+        channel = await self.client.fetch_channel(payload.channel_id)
         message = await channel.fetch_message(payload.message_id)
 
         source_nsfw = _channel_is_nsfw(channel)
@@ -144,7 +144,7 @@ class starboard(commands.Cog):
             Starboard.root_message_id == str(message.id),
         )
 
-        chan = await v.client.fetch_channel(int(starChannel))
+        chan = await self.client.fetch_channel(int(starChannel))
 
         if starCount == int(starLimit) and result is None:
             star_message = await chan.send(
@@ -191,8 +191,8 @@ class starboard(commands.Cog):
 
         starCount = 0
 
-        guild = v.client.get_guild(payload.guild_id)
-        channel = v.client.get_channel(payload.channel_id)
+        guild = self.client.get_guild(payload.guild_id)
+        channel = self.client.get_channel(payload.channel_id)
         message = await channel.fetch_message(payload.message_id)
 
         for r in message.reactions:
@@ -207,7 +207,7 @@ class starboard(commands.Cog):
         if result is None:
             return
 
-        chan = v.client.get_channel(int(starChannel))
+        chan = self.client.get_channel(int(starChannel))
 
         if starCount < int(starLimit):
             star_message = await chan.fetch_message(int(result.star_message_id))
@@ -231,10 +231,10 @@ class starboard(commands.Cog):
         if not starChannel:
             return
 
-        message = await v.client.get_channel(payload.channel_id).fetch_message(payload.message_id)
-        guild = v.client.get_guild(payload.guild_id)
+        message = await self.client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+        guild = self.client.get_guild(payload.guild_id)
 
-        chan = v.client.get_channel(int(starChannel))
+        chan = self.client.get_channel(int(starChannel))
 
         result = await Starboard.find_one(
             Starboard.guild_id == str(guild.id),

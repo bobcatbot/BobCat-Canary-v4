@@ -94,7 +94,7 @@ class Money(commands.Cog):
                 try:
                     # ✅ Add error handling for user fetching
                     try:
-                        member = await v.client.fetch_user(int(data["user_id"]))
+                        member = await self.client.fetch_user(int(data["user_id"]))
                         display_name = member.display_name
                     except (discord.NotFound, discord.HTTPException):
                         display_name = f"Unknown User ({data['user_id']})"

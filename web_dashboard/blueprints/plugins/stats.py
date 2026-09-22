@@ -15,7 +15,7 @@ stats_bp = Blueprint('stats', __name__)
 async def stats(guild_id):
     current_user = get_current_user()
 
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return await render_template("error/404.html"), 404
 
@@ -38,7 +38,7 @@ async def stats(guild_id):
 @plugin_guard('stats')
 async def stats_setup(guild_id):
     """Auto-create default stats channels."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -99,11 +99,11 @@ async def stats_setup(guild_id):
 @plugin_guard('stats')
 async def stats_refresh(guild_id):
     """Force refresh stats channels."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
-    cog = v.client.get_cog("Stats")
+    cog = v.get_client(guild_id).get_cog("Stats")
     if cog is None:
         return jsonify({'status': 'error', 'message': 'Stats cog not loaded'}), 404
 
@@ -128,7 +128,7 @@ async def stats_create_counter(guild_id):
     if not target:
         return jsonify({'status': 'error', 'message': 'Target is required'}), 400
 
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -172,7 +172,7 @@ async def stats_create_counter(guild_id):
     print(f"Saved counter {target} for guild {guild_id}")
 
     # Force an immediate update
-    cog = v.client.get_cog("Stats")
+    cog = v.get_client(guild_id).get_cog("Stats")
     if cog:
         await cog.update_guild_stats(guild, force=True)
 
@@ -190,7 +190,7 @@ async def stats_create_counter(guild_id):
 @plugin_guard('stats')
 async def stats_delete_counter(guild_id, counter_idx):
     """Delete a specific counter and its associated channel."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -230,7 +230,7 @@ async def stats_delete_counter(guild_id, counter_idx):
 @plugin_guard('stats')
 async def stats_reset(guild_id):
     """Delete all stats channels and clear config."""
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 
@@ -270,7 +270,7 @@ async def stats_reorder(guild_id):
         return jsonify({'status': 'error', 'message': 'Order data required'}), 400
 
     new_order = data['order']
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         return jsonify({'status': 'error', 'message': 'Guild not found'}), 404
 

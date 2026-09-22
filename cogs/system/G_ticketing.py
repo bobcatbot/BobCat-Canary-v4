@@ -60,8 +60,8 @@ async def get_ticket_transcript(ticket: Ticket) -> list[dict]:
 
 # ── Shared state-transition helpers ─────────────────────────────────────
 
-def _status_entry(user_id, reason: str | None = None) -> dict:
-    user = v.client.get_user(int(user_id))
+def _status_entry(client, user_id, reason: str | None = None) -> dict:
+    user = client.get_user(int(user_id))
     entry = {
         "status": True,
         "user": {
@@ -235,7 +235,7 @@ class CloseTicketModal(discord.ui.Modal):
         await interaction.response.send_message(embed=close_em, ephemeral=True)
 
         reason = self.children[0].value
-        self.ticket.closed = _status_entry(int(interaction.user.id), reason=reason)
+        self.ticket.closed = _status_entry(interaction.client, int(interaction.user.id), reason=reason)
         self.ticket.status = "closed"
         await self.ticket.save()
 
@@ -260,8 +260,8 @@ class DeleteTicketConfirm(discord.ui.View):
         await interaction.response.defer(invisible=False, ephemeral=True)
 
         if not self.ticket.closed.get('status'):
-            self.ticket.closed = _status_entry(int(interaction.user.id), reason="Ticket deleted")
-        self.ticket.deleted = _status_entry(int(interaction.user.id))
+            self.ticket.closed = _status_entry(interaction.client, int(interaction.user.id), reason="Ticket deleted")
+        self.ticket.deleted = _status_entry(interaction.client, int(interaction.user.id))
         self.ticket.status = "deleted"
         await self.ticket.save()
 
@@ -289,7 +289,7 @@ class TicketControls(discord.ui.View):
 
         move_to = await _move_to_category(interaction.channel, panel.category_claimed, interaction.guild)
 
-        ticket.claimed = _status_entry(interaction.user.id)
+        ticket.claimed = _status_entry(interaction.client, interaction.user.id)
         await ticket.save()
 
         embed = discord.Embed(color=0x5865f2, description=f"{interaction.user.mention}, you claimed the ticket{move_to}")
@@ -324,7 +324,7 @@ class TicketControls(discord.ui.View):
 
         ticket.closed["status"] = False
         ticket.closed["user"] = ""
-        ticket.reopened = _status_entry(interaction.user.id)
+        ticket.reopened = _status_entry(interaction.client, interaction.user.id)
         ticket.status = "open"
         await ticket.save()
 
@@ -379,7 +379,7 @@ class Ticketing(commands.Cog):
                 self.ticket_timeouts.pop(channel_id, None)
                 continue
 
-            ticket.closed = _status_entry(0, reason="Auto-closed due to 24 hours of inactivity")
+            ticket.closed = _status_entry(self.client, 0, reason="Auto-closed due to 24 hours of inactivity")
             ticket.status = "closed"
             await ticket.save()
 

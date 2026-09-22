@@ -225,7 +225,7 @@ async def _guild_checks(guild_id):
             return None, (jsonify({'status': 'error', 'message': 'Not authenticated'}), 401)
         return None, await login_page()
 
-    guild = v.client.get_guild(guild_id)
+    guild = v.get_client(guild_id).get_guild(guild_id)
     if guild is None:
         if is_write:
             return None, (jsonify({'status': 'error', 'message': 'Guild not found'}), 404)
