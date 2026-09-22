@@ -8,10 +8,24 @@
  * Keep this in sync with components/variables.html (the modal is still used elsewhere as a click-to-browse reference).
  */
 window.BOT_VARIABLES = [
+
+  // Leveling
   { tag: '{level}', desc: "The user's level (used for level up messages)" },
+
+  // Giveaways
   { tag: '{prize}', desc: 'The prize of the giveaway' },
+
+  // Temp voice channels
   { tag: '{index}', desc: 'The current number of opened/closed temporary voice channels' },
+
+  // Birthday
   { tag: '{age}', desc: 'The age of the user (used for birthday messages)' },
+
+  // Twitch live notifications
+  { tag: '{streamer}', desc: "The streamer's display name" },
+  { tag: '{title}', desc: 'The stream title' },
+  { tag: '{game}', desc: 'The game/category being streamed' },
+  { tag: '{url}', desc: 'A link to the stream' },
 
   { tag: '{user}', desc: "The user's username and display name" },
   { tag: '{user.mention}', desc: 'Mentions the user' },

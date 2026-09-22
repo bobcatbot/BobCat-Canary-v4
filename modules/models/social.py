@@ -29,6 +29,12 @@ class TwitchStreamer(Document):
     mention_role_id: Optional[str] = None
     custom_message: str = "{streamer} is now live!"
     watch_button: bool = True
+    show_viewers: bool = False
+    # "none" - no embed at all, just the plain message
+    # "preview" - stream preview image (default)
+    # "preview_boxart" - stream preview + the game's box art as the embed thumbnail
+    # "minimal" - embed shown, no image/thumbnail at all
+    embed_image_mode: str = "preview"
 
     # Live-state tracking, written by the EventSub webhook handler.
     is_live: bool = False

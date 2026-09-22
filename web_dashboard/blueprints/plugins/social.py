@@ -146,6 +146,8 @@ async def twitch_creation(guild_id):
             'mention_role_id': None,
             'custom_message': '{streamer} is now live!',
             'watch_button': True,
+            'show_viewers': False,
+            'embed_image_mode': 'preview',
         },
         is_edit=False,
     )

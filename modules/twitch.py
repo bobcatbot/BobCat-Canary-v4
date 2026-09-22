@@ -117,6 +117,25 @@ async def get_stream(user_id: str) -> dict | None:
     return streams[0] if streams else None
 
 
+async def get_game(game_id: str) -> dict | None:
+    """Helix 'Get Games' - box art for the notification card's "preview + box art"
+    image mode. Returns None if Twitch has no game/category with this id."""
+    if not game_id:
+        return None
+
+    async with aiohttp.ClientSession() as http:
+        async with http.get(
+            f"{HELIX_BASE}/games",
+            params={"id": game_id},
+            headers=await _headers(),
+        ) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+    games = data.get("data") or []
+    return games[0] if games else None
+
+
 async def create_eventsub_subscription(broadcaster_id: str) -> list[str]:
     """Subscribe to stream.online + stream.offline for a broadcaster. Returns the
     created subscription ids (Twitch requires one subscription per event type)."""

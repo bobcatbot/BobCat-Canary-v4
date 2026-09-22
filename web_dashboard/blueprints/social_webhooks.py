@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import hashlib
 import logging
@@ -11,6 +12,12 @@ from modules import twitch
 from modules.models import TwitchStreamer as TwitchStreamers, TwitchSubscription, TwitchEvent
 
 TWITCH_PURPLE = 0x9146FF
+
+# Twitch's live preview thumbnail isn't generated the instant a stream starts -
+# fetching stream details (and posting) right on stream.online gets a generic
+# "404 preview" placeholder image instead of a real one. Wait this long before
+# doing either, so the thumbnail's actually ready.
+STREAM_ONLINE_DELAY_SECONDS = 90
 
 social_webhooks_bp = Blueprint('social_webhooks', __name__)
 logger = logging.getLogger(__name__)
@@ -43,12 +50,19 @@ def _verify_signature(secret: str, message_id: str, timestamp: str, body: bytes,
 
 
 # ── Notification handling ────────────────────────────────────────────────
-def _build_notification_embed(streamer: TwitchStreamers, stream: dict | None, channel_url: str) -> discord.Embed:
+async def _build_notification_embed(streamer: TwitchStreamers, stream: dict | None, channel_url: str) -> discord.Embed | None:
     """Pre-built stream-info card - not user-customizable, just assembled fresh
     from Twitch's data each time (title/game/preview thumbnail), same shape as
-    every other Twitch notification bot's live card."""
+    every other Twitch notification bot's live card. embed_image_mode controls
+    whether there's an embed at all, and if so what image(s) it carries."""
+    mode = streamer.embed_image_mode
+    if mode == "none":
+        return None
+
     title = stream.get("title") if stream else None
     game = stream.get("game_name") if stream else None
+    game_id = stream.get("game_id") if stream else None
+    viewer_count = stream.get("viewer_count") if stream else None
     thumbnail_template = stream.get("thumbnail_url") if stream else None
 
     embed = discord.Embed(color=TWITCH_PURPLE, timestamp=datetime.now(timezone.utc))
@@ -61,13 +75,28 @@ def _build_notification_embed(streamer: TwitchStreamers, stream: dict | None, ch
         embed.description = f"[{title}]({channel_url})"
     if game:
         embed.add_field(name="Game", value=game, inline=False)
-    if thumbnail_template:
+    if streamer.show_viewers and viewer_count is not None:
+        embed.add_field(name="Viewers", value=str(viewer_count), inline=False)
+
+    if mode != "minimal" and thumbnail_template:
         embed.set_image(url=thumbnail_template.format(width=440, height=248))
+
+    if mode == "preview_boxart" and game_id:
+        try:
+            game_data = await twitch.get_game(game_id)
+        except Exception as e:
+            logger.warning("Failed to fetch box art for game %s: %s", game_id, e)
+            game_data = None
+        if game_data and game_data.get("box_art_url"):
+            embed.set_thumbnail(url=game_data["box_art_url"].format(width=144, height=192))
+
     embed.set_footer(text="BobCat")
     return embed
 
 
 async def _handle_stream_online(event: dict):
+    await asyncio.sleep(STREAM_ONLINE_DELAY_SECONDS)
+
     broadcaster_id = event["broadcaster_user_id"]
     streamers = await TwitchStreamers.find(TwitchStreamers.streamer_user_id == broadcaster_id).to_list()
     if not streamers:
@@ -106,7 +135,7 @@ async def _handle_stream_online(event: dict):
         try:
             msg = await channel.send(
                 content=content,
-                embed=_build_notification_embed(streamer, stream, channel_url),
+                embed=await _build_notification_embed(streamer, stream, channel_url),
                 view=view,
             )
         except discord.HTTPException as e:
@@ -150,6 +179,17 @@ NOTIFICATION_HANDLERS = {
 }
 
 
+async def _run_handler(handler, sub_type: str, event: dict):
+    """Runs a notification handler in the background, off the request/response
+    cycle - stream.online sleeps for STREAM_ONLINE_DELAY_SECONDS first, and
+    Twitch expects a 2xx ack within a few seconds or it'll treat delivery as
+    failed and retry."""
+    try:
+        await handler(event)
+    except Exception as e:
+        logger.error("Failed to handle Twitch notification %s: %s", sub_type, e)
+
+
 # ── Route ──────────────────────────────────────────────────────────────────
 @social_webhooks_bp.route('/webhook/twitch/eventsub', methods=['POST'])
 async def twitch_eventsub():
@@ -188,12 +228,7 @@ async def twitch_eventsub():
         if not handler:
             return jsonify({"status": "ignored"}), 200
 
-        try:
-            await handler(payload.get("event", {}))
-        except Exception as e:
-            logger.error("Failed to handle Twitch notification %s: %s", sub_type, e)
-            return jsonify({"error": "Handler failed"}), 500
-
+        asyncio.create_task(_run_handler(handler, sub_type, payload.get("event", {})))
         return jsonify({"status": "ok"}), 200
 
     return jsonify({"status": "ignored"}), 200
