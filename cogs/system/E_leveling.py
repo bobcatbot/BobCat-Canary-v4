@@ -229,25 +229,35 @@ class Leveling(commands.Cog):
             await message.author.add_roles(role)
 
     # ── Slash commands ─────────────────────────────────────────────────────
-    @commands.slash_command(description="Gives yours or member's ranks")
-    @discord.option("member", discord.Member, description="Select a member", required=False)
+    @commands.slash_command(
+        description=v.t.msg(None, "leveling.rank.cmd.description"),
+        name_localizations=v.t.localizations("leveling.rank.cmd.name"),
+        description_localizations=v.t.localizations("leveling.rank.cmd.description"),
+    )
+    @discord.option(
+        "member", discord.Member,
+        description=v.t.msg(None, "leveling.rank.cmd.options.member.description"),
+        name_localizations=v.t.localizations("leveling.rank.cmd.options.member.name"),
+        description_localizations=v.t.localizations("leveling.rank.cmd.options.member.description"),
+        required=False,
+    )
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         guild_doc = await Guild.get(str(ctx.guild.id))
         if guild_doc is None:
-            return await ctx.respond("❌ Guild not found!", ephemeral=True)
-            
+            return await ctx.respond(v.t.msg(ctx.guild, "leveling.helpers.guild_not_found"), ephemeral=True)
+
         lvl_data = guild_doc.dashboard.leveling
         if not lvl_data.status:
-            embed = discord.Embed(description="Leveling is disabled", color=v.error)
+            embed = discord.Embed(description=v.t.msg(ctx.guild, "leveling.helpers.disabled"), color=v.error)
             return await ctx.respond(embed=embed, ephemeral=True)
-        
+
         member = ctx.author if not member else member
         if member.bot:
-            return await ctx.respond(f"{member.mention} is a bot! So they have no rank")
-        
+            return await ctx.respond(v.t.msg(ctx.guild, "leveling.rank.is_bot", member=member.mention))
+
         data = await LevelingModel.get(f"{ctx.guild.id}_{member.id}")
         if data is None or (data.lvl == 0 and data.exp == 0):
-            return await ctx.respond(f"**{member.display_name}** has no rank. Keep chatting to earn a rank!")
+            return await ctx.respond(v.t.msg(ctx.guild, "leveling.rank.no_rank", member=member.display_name))
         
         exp = data.exp
         lvl = data.lvl
@@ -272,19 +282,23 @@ class Leveling(commands.Cog):
         file = discord.File(fp=img_bytes, filename=f"{member.id}_rank.png")
         await ctx.respond(file=file)
 
-    @commands.slash_command(description="View the top 5 users in the server")
+    @commands.slash_command(
+        description=v.t.msg(None, "leveling.leaderboard.cmd.description"),
+        name_localizations=v.t.localizations("leveling.leaderboard.cmd.name"),
+        description_localizations=v.t.localizations("leveling.leaderboard.cmd.description"),
+    )
     async def leaderboard(self, ctx: discord.ApplicationContext):
         guild_doc = await Guild.get(str(ctx.guild.id))
         if guild_doc is None:
-            return await ctx.respond("❌ Guild not found!", ephemeral=True)
-            
+            return await ctx.respond(v.t.msg(ctx.guild, "leveling.helpers.guild_not_found"), ephemeral=True)
+
         lvl_data = guild_doc.dashboard.leveling
         if not lvl_data.status:
             return await ctx.respond(
-                embed=discord.Embed(description="Leveling is disabled", color=v.error),
+                embed=discord.Embed(description=v.t.msg(ctx.guild, "leveling.helpers.disabled"), color=v.error),
                 ephemeral=True
             )
- 
+
         lvl_users = await LevelingModel.find(LevelingModel.guild_id == str(ctx.guild.id)).to_list()
         sorted_players = sorted(
             lvl_users,
@@ -296,17 +310,17 @@ class Leveling(commands.Cog):
         for idx, data in enumerate(sorted_players, start=1):
             member = ctx.guild.get_member(int(data.user_id)) or await self.client.fetch_user(int(data.user_id))
             medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"#{idx}"
-            desc += f"{medal} ● {member.display_name} ● LVL: {data.lvl}\n"
- 
+            desc += v.t.msg(ctx.guild, "leveling.leaderboard.line", medal=medal, name=member.display_name, lvl=data.lvl)
+
         embed = discord.Embed(
-            title=f"🏆 {ctx.guild.name}'s Leaderboard",
-            description=desc if desc else "No users ranked yet!",
+            title=v.t.msg(ctx.guild, "leveling.leaderboard.title", server=ctx.guild.name),
+            description=desc if desc else v.t.msg(ctx.guild, "leveling.leaderboard.no_users"),
             color=0xffffff
         )
 
         view = discord.ui.View()
         view.add_item(discord.ui.Button(
-            label="View Full Leaderboard",
+            label=v.t.msg(ctx.guild, "leveling.leaderboard.button"),
             url=f"{v.web_url}/leaderboard/{ctx.guild.id}"
         ))
         await ctx.respond(embed=embed, view=view)

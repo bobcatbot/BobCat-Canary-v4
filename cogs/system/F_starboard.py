@@ -8,10 +8,10 @@ DEFAULT_EMOJI = "⭐"
 _CONFIG_CACHE_TTL = 30  # seconds
 
 class JumpToMsg(discord.ui.View):
-    def __init__(self, msg):
+    def __init__(self, msg, guild=None):
         super().__init__()
         button = discord.ui.Button(
-            label="Jump to message",
+            label=v.t.msg(guild, "starboard.jump_button"),
             style=discord.ButtonStyle.link,
             url=msg.jump_url
         )
@@ -113,7 +113,7 @@ class starboard(commands.Cog):
         if not starSelf and payload.user_id == message.author.id:
             await message.remove_reaction(payload.emoji, payload.member)
             try:
-                await payload.member.send("❌ You cannot star your own messages!")
+                await payload.member.send(v.t.msg(guild, "starboard.self_star_error"))
             except discord.HTTPException:
                 pass
             return
@@ -150,7 +150,7 @@ class starboard(commands.Cog):
             star_message = await chan.send(
                 content=f"{starReaction} **{starCount}** **|** {channel.mention}",
                 embed=embed,
-                view=JumpToMsg(message) if starJumpLink else None
+                view=JumpToMsg(message, guild) if starJumpLink else None
             )
 
             await Starboard(

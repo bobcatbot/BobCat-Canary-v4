@@ -1,0 +1,5 @@
+"files":
+  - "source": "/Languages/en-GB.json"
+    "translation": "/Languages/%locale%.json"
+
+"commit_message": "chore(i18n): sync translations [skip ci]"

@@ -57,7 +57,7 @@ async def apply_action(guild: discord.Guild, member: discord.Member, moderator: 
     action_label = None
     try:
         if action == "warn":
-            action_label = "Warned"
+            action_label = v.t.msg(guild, "mod.actions.warned")
             await Warning(
                 guild_id=str(guild.id),
                 user_id=str(member.id),
@@ -67,15 +67,15 @@ async def apply_action(guild: discord.Guild, member: discord.Member, moderator: 
             ).insert()
 
         elif action == "mute":
-            action_label = "Muted"
+            action_label = v.t.msg(guild, "mod.actions.muted")
             await member.timeout_for(MUTE_DURATION, reason=reason)
 
         elif action == "kick":
-            action_label = "Kicked"
+            action_label = v.t.msg(guild, "mod.actions.kicked")
             await member.kick(reason=reason)
 
         elif action == "ban":
-            action_label = "Banned"
+            action_label = v.t.msg(guild, "mod.actions.banned")
             await member.ban(reason=reason)
     except (discord.Forbidden, discord.HTTPException):
         return None
@@ -94,14 +94,18 @@ async def apply_action(guild: discord.Guild, member: discord.Member, moderator: 
 
     return action_label
 
-def build_log_embed(guild: discord.Guild, member: discord.Member, reason: str, action_label: str, log_title: str, channel: discord.abc.GuildChannel | None = None) -> discord.Embed:
-    logs = discord.Embed(color=v.style(guild), description=f"**Reason:** {reason}")
-    logs.set_author(icon_url=member.display_avatar.url, name=f"[{log_title}] {member}")
-    logs.add_field(name="User", value=f"{member.mention} (`{member.id}`)", inline=True)
+def build_log_embed(guild: discord.Guild, member: discord.Member, reason: str, action_label: str, log_title_key: str, channel: discord.abc.GuildChannel | None = None) -> discord.Embed:
+    """log_title_key is a full mod.<category>.log_title translation key
+    (e.g. "automod.antilink.log_title"), not a bare tag string - the
+    bracketed tag itself ("ANTILINK" etc.) stays baked into that template,
+    same convention as kick/ban/mute's own "[KICK] {member}" style keys."""
+    logs = discord.Embed(color=v.style(guild), description=v.t.msg(guild, "mod.helpers.reason_line", reason=reason))
+    logs.set_author(icon_url=member.display_avatar.url, name=v.t.msg(guild, log_title_key, member=member))
+    logs.add_field(name=v.t.msg(guild, "mod.helpers.log_fields.user"), value=f"{member.mention} (`{member.id}`)", inline=True)
     if channel is not None:
-        logs.add_field(name="Channel", value=channel.mention, inline=True)
-    logs.add_field(name="Action", value=action_label, inline=True)
-    logs.set_footer(icon_url="https://cdn.discordapp.com/emojis/957251535425900545.webp?size=56", text="BobCat Security & Safety")
+        logs.add_field(name=v.t.msg(guild, "automod.channel_field"), value=channel.mention, inline=True)
+    logs.add_field(name=v.t.msg(guild, "mod.helpers.dm_fields.action"), value=action_label, inline=True)
+    logs.set_footer(icon_url="https://cdn.discordapp.com/emojis/957251535425900545.webp?size=56", text=v.t.msg(guild, "automod.log_footer"))
     return logs
 
 async def punish(message: discord.Message, config, reason: str, event: str, log_title: str):
@@ -141,13 +145,13 @@ class AntiLink(commands.Cog):
         content = message.content
 
         if antilink.block_invites and INVITE_RE.search(content):
-            await punish(message, antilink, "Sent a server invite", "ModerationAntiLink", "ANTILINK")
+            await punish(message, antilink, v.t.msg(message.guild, "automod.antilink.invite_reason"), "ModerationAntiLink", "automod.antilink.log_title")
             return
 
         if antilink.block_scam_links:
             domains = extract_domains(content)
             if domains & SCAM_DOMAINS:
-                await punish(message, antilink, "Sent a known scam/phishing link", "ModerationAntiLink", "ANTILINK")
+                await punish(message, antilink, v.t.msg(message.guild, "automod.antilink.scam_reason"), "ModerationAntiLink", "automod.antilink.log_title")
                 return
 
 
@@ -181,7 +185,7 @@ class AntiSpam(commands.Cog):
             return
 
         bucket.clear()
-        await punish(message, antispam, "Spamming messages", "ModerationAntiSpam", "ANTISPAM")
+        await punish(message, antispam, v.t.msg(message.guild, "automod.antispam.reason"), "ModerationAntiSpam", "automod.antispam.log_title")
 
 
 class GhostPing(commands.Cog):
@@ -274,7 +278,7 @@ class GhostPing(commands.Cog):
             return  # they've already left, nothing to punish
 
         moderator = guild.me
-        reason = f"Ghost pinged {data['mention_count']} mention(s) then removed the message"
+        reason = v.t.msg(guild, "automod.ghostping.reason", count=data['mention_count'])
 
         action_label = await apply_action(guild, member, moderator, ghostping.action, reason, ghostping.dm)
         if action_label is None:
@@ -282,7 +286,7 @@ class GhostPing(commands.Cog):
 
         channel = guild.get_channel(data["channel_id"])
 
-        logs = build_log_embed(guild, member, reason, action_label, "GHOSTPING", channel)
+        logs = build_log_embed(guild, member, reason, action_label, "automod.ghostping.log_title", channel)
         await audit_log(guild, "ModerationGhostPing", logs)
 
 
@@ -309,7 +313,7 @@ class ExcessiveCaps(commands.Cog):
         if caps_percentage(content) < caps.threshold:
             return
 
-        await punish(message, caps, "Excessive use of capital letters", "ModerationCaps", "CAPS")
+        await punish(message, caps, v.t.msg(message.guild, "automod.caps.reason"), "ModerationCaps", "automod.caps.log_title")
 
 
 def setup(client):

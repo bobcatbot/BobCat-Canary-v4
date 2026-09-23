@@ -283,18 +283,35 @@ class Insights(commands.Cog):
             "audit_log": audit_log,
         }
 
-    insights = discord.SlashCommandGroup("insights", "Server insights", guild_only=True)
+    insights = discord.SlashCommandGroup(
+        "insights",
+        v.t.msg(None, "insights.group.description"),
+        guild_only=True,
+        name_localizations=v.t.localizations("insights.group.name"),
+        description_localizations=v.t.localizations("insights.group.description"),
+    )
 
-    @insights.command(name="backfill", description="Fill in past days of insights from your message history")
+    @insights.command(
+        name="backfill",
+        description=v.t.msg(None, "insights.backfill.cmd.description"),
+        name_localizations=v.t.localizations("insights.backfill.cmd.name"),
+        description_localizations=v.t.localizations("insights.backfill.cmd.description"),
+    )
     @commands.has_permissions(manage_guild=True)
-    @discord.option("days", int, description="How many days back to fill (default 30)", required=False, min_value=1, max_value=90, default=30)
+    @discord.option(
+        "days", int,
+        description=v.t.msg(None, "insights.backfill.cmd.options.days.description"),
+        name_localizations=v.t.localizations("insights.backfill.cmd.options.days.name"),
+        description_localizations=v.t.localizations("insights.backfill.cmd.options.days.description"),
+        required=False, min_value=1, max_value=90, default=30,
+    )
     async def backfill(self, ctx: discord.ApplicationContext, days: int = 30):
         guild_id = str(ctx.guild.id)
         if guild_id in self.backfilling:
-            return await ctx.respond("A backfill is already running for this server.", ephemeral=True)
+            return await ctx.respond(v.t.msg(ctx.guild, "insights.backfill.already_running"), ephemeral=True)
 
         self.backfilling.add(guild_id)
-        await ctx.respond("⏳ Backfilling insights... this can take a while on busy servers.", ephemeral=True)
+        await ctx.respond(v.t.msg(ctx.guild, "insights.backfill.starting"), ephemeral=True)
 
         loop, last_edit = asyncio.get_running_loop(), 0.0
 
@@ -304,7 +321,7 @@ class Insights(commands.Cog):
                 return
             last_edit = loop.time()
             try:
-                await ctx.interaction.edit_original_response(content=f"⏳ Scanning channels... {done}/{total}")
+                await ctx.interaction.edit_original_response(content=v.t.msg(ctx.guild, "insights.backfill.progress", done=done, total=total))
             except discord.HTTPException:
                 pass
 
@@ -312,15 +329,15 @@ class Insights(commands.Cog):
             result = await self._backfill(ctx.guild, days, progress)
         except Exception:
             traceback.print_exc()
-            message = "❌ The backfill failed. Nothing was saved, so you can run it again."
+            message = v.t.msg(ctx.guild, "insights.backfill.failed")
         else:
-            message = (
-                f"✅ Backfilled **{result['days']}** days from **{result['messages']:,}** messages in {result['channels']} channels.\n"
-                "Joins only include members who are still here, and leaves only include kicks and bans "
-                + ("from the audit log (about the last 45 days)." if result["audit_log"] else "(I can't view the audit log, so none were added).")
+            audit_note = v.t.msg(ctx.guild, "insights.backfill.audit_note_available" if result["audit_log"] else "insights.backfill.audit_note_unavailable")
+            message = v.t.msg(
+                ctx.guild, "insights.backfill.success",
+                days=result['days'], messages=result['messages'], channels=result['channels'], audit_note=audit_note,
             )
             if result["skipped"]:
-                message += f"\n{result['skipped']} channels were skipped because I can't read their history."
+                message += v.t.msg(ctx.guild, "insights.backfill.skipped_note", skipped=result['skipped'])
         finally:
             self.backfilling.discard(guild_id)
 
@@ -333,7 +350,11 @@ class Insights(commands.Cog):
     async def backfill_error(self, ctx: discord.ApplicationContext, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(title="❌ Missing permission", description="You need the `Manage Server` permission.", color=v.error),
+                embed=discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "insights.backfill.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True,
             )
         raise error

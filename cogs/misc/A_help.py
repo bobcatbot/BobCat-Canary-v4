@@ -3,139 +3,52 @@ from modules import bot as v
 from discord.ext import commands
 from modules.models import Guild
 
-COMMANDS = {
-    "Commands": {
-        "menu": "All of bobcats commands",
-        "title": "BobCat General Commands",
-        "gate": None,
-        "cmds": {
-            "/help": "The command you used to get here!",
-            "/invite": "Invite BobCat to your server",
-            "/user": "Get information about a user",
-            "/server": "Get information about a server",
-        }
-    },
-    "Games": {
-        "menu": "All of bobcats game commands",
-        "title": "BobCat Game Commands",
-        "gate": None,
-        "cmds": {
-            "/games": "Shows all of bobcats game commands",
-            "/8ball": "Ask a question to the magic 8ball",
-            "/coinflip": "Flips a coin",
-            "/diceroll": "Rolls a 6 sided dice",
-            "/guess": "Guess the random number between 1 and 10",
-            "/rps": "Play rock, paper, scissors",
-            "/tictactoe": "Play tic-tac-toe",
-        }
-    },
-    "Mod": {
-        "menu": "All of bobcats moderation commands",
-        "title": "BobCat Moderation Commands",
-        "gate": "moderation",
-        "cmds": {
-            "/clear": "Clears messages",
-            "/kick": "Kicks a user",
-            "/ban": "Bans a user",
-            "/unban": "Unbans a user",
-            "/mute": "Mutes a user",
-            "/unmute": "Unmutes a user",
-            "/warn": "Warns a user",
-            "/unwarn": "Unwarns a user",
-            "/warnings": "Gets the warnings of a user",
-            "/slowmode": "Sets the slowmode of a channel",
-            "/lockdown add channel": "Locks a channel",
-            "/lockdown add server": "Locks the server",
-            "/lockdown remove channel": "Unlocks a channel",
-            "/lockdown remove server": "Unlocks the server",
-        }
-    },
-    "Leveling": {
-        "menu": "All of bobcats leveling commands",
-        "title": "BobCat Leveling Commands",
-        "gate": "leveling",
-        "cmds": {
-            "/rank": "Shows your or a member's level and XP",
-            "/leaderboard": "Shows the leaderboard",
-        }
-    },
-    "Economy": {
-        "menu": "All of bobcats economy commands",
-        "title": "BobCat Economy Commands",
-        "gate": "economy",
-        "cmds": {
-            "/economy shop": "Browse the shop",
-            "/economy balance": "Shows your balance",
-            "/economy work": "Earn coins",
-            "/economy withdraw": "Withdraw coins from the bank",
-            "/economy deposit": "Deposit coins to the bank",
-            "/economy buy": "Buy an item from the shop",
-            "/economy sell": "Sell an item from your inventory",
-            "/economy inventory": "Shows your inventory",
-        },
-        "staff_cmds": { # shown only to moderate_members
-            "/economy give-coins": "🔒 Give coins to a user",
-            "/economy remove-coins": "🔒 Remove coins from a user",
-        },
-    },
-    "Giveaway": {
-        "menu": "All of bobcats giveaway commands",
-        "title": "BobCat Giveaway Commands",
-        "gate": "giveaways",
-        "cmds": {
-            "/giveaway create": "Create a giveaway",
-            "/giveaway end": "End a giveaway",
-            "/giveaway reroll": "Reroll a giveaway",
-            "/giveaway list": "List all giveaways",
-            # "/giveaway delete": "Delete a giveaway",
-        }
-    },
-    "Birthdays": {
-        "menu": "All of bobcats birthdays commands",
-        "title": "BobCat Birthdays Commands",
-        "gate": "birthdays",
-        "cmds": {
-            "/birthdays": "Show all birthdays for the current month",
-            "/next-birthdays": "Shows the next 10 upcoming birthdays",
-            "/birthday": "Show yours or another member's birthday",
-            "/set-birthday": "Sets yours or another member's birthday",
-            "/remove-birthday": "Remove yours or another member's birthday",
-        }
-    }
-}
+CATEGORIES = [
+    {"key": "commands", "gate": None},
+    {"key": "games", "gate": None},
+    {"key": "mod", "gate": "moderation"},
+    {"key": "leveling", "gate": "leveling"},
+    {"key": "economy", "gate": "economy", "staff": True},  # staff_cmds shown only to moderate_members
+    {"key": "giveaway", "gate": "giveaways"},
+    {"key": "birthdays", "gate": "birthdays"},
+]
+CATEGORIES_BY_KEY = {cat["key"]: cat for cat in CATEGORIES}
 
 class BackBtn(discord.ui.Button):
     def __init__(self, client, row=1):
-        super().__init__(label="Back", style=discord.ButtonStyle.blurple, row=row)
+        super().__init__(label=v.t.msg(None, "help.menu.back_button"), style=discord.ButtonStyle.blurple, row=row)
         self.client = client
 
     async def callback(self, interaction: discord.Interaction):
         em = discord.Embed(
             color=v.style(interaction.guild.id),
-            title="BobCat Help Menu",
-            description=(
-                "Thanks for using **BobCat**"
-                "\n**BobCat Prefix:** `b!`"
-                "\nBobcat is a simple to use bot with entertainment, moderation, administration, and more."
-            )
+            title=v.t.msg(interaction.guild, "help.menu.title"),
+            description=v.t.msg(interaction.guild, "help.menu.description", prefix="b!")
         )
         em.set_thumbnail(url=self.client.user.avatar.url)
         await interaction.response.edit_message(
-            content=None, embed=em, view=DropdownView(self.client)
+            content=None, embed=em, view=DropdownView(self.client, interaction.guild)
         )
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, client: discord.Bot):
+    def __init__(self, client: discord.Bot, guild=None):
         self.client: discord.Bot = client
         self._mentions = self._build_mentions()
 
+        # value= is the stable English key (CATEGORIES_BY_KEY lookup in the
+        # callback), separate from label= which is the translated display
+        # text - so category selection keeps working regardless of language.
         options = [
-            discord.SelectOption(label=name, description=cat["menu"])
-            for name, cat in COMMANDS.items()
+            discord.SelectOption(
+                value=cat["key"],
+                label=v.t.msg(guild, f"help.categories.{cat['key']}.name"),
+                description=v.t.msg(guild, f"help.categories.{cat['key']}.menu"),
+            )
+            for cat in CATEGORIES
         ]
 
         super().__init__(
-            placeholder="Browse Categories",
+            placeholder=v.t.msg(guild, "help.menu.placeholder"),
             options=options,
             min_values=1,
             max_values=1,
@@ -171,9 +84,10 @@ class Dropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         selected = self.values[0]
-        cat = COMMANDS.get(selected)
+        cat = CATEGORIES_BY_KEY.get(selected)
         if cat is None:
             return
+        key = cat["key"]
 
         # Gate toggle-able modules against the guild's *current* dashboard
         gate = cat["gate"]
@@ -181,17 +95,18 @@ class Dropdown(discord.ui.Select):
             dash = await v.dashboard(interaction.guild.id)
             module = getattr(dash, gate, None) if dash else None
             if not module or not module.get("status"):
+                category_name = v.t.msg(interaction.guild, f"help.categories.{key}.name")
                 return await interaction.response.send_message(
-                    f"❌ The **{selected}** module is disabled for this server.",
+                    v.t.msg(interaction.guild, "help.menu.disabled", category=category_name),
                     ephemeral=True,
                 )
 
-        cmds = dict(cat["cmds"])
-        if "staff_cmds" in cat and interaction.user.guild_permissions.moderate_members:
-            cmds.update(cat["staff_cmds"])
+        cmds = v.t.table(interaction.guild, f"help.categories.{key}.cmds")
+        if cat.get("staff") and interaction.user.guild_permissions.moderate_members:
+            cmds.update(v.t.table(interaction.guild, f"help.categories.{key}.staff_cmds"))
 
         em = discord.Embed(
-            title=cat["title"],
+            title=v.t.msg(interaction.guild, f"help.categories.{key}.title"),
             description=self._fmt(cmds),
             color=v.style(interaction.guild.id)
         )
@@ -202,13 +117,13 @@ class Dropdown(discord.ui.Select):
         await interaction.response.edit_message(embed=em, view=view)
 
 class DropdownView(discord.ui.View):
-    def __init__(self, client):
+    def __init__(self, client, guild=None):
         super().__init__(timeout=None)
         self.client = client
-        
-        self.add_item(Dropdown(self.client))
-        self.add_item(discord.ui.Button(label="Invite", url="https://discord.com/oauth2/authorize?client_id=957234668627951640&permissions=8&scope=bot", row=2))
-        self.add_item(discord.ui.Button(label="Support", url="https://discord.gg/T7zE4x4xbT", row=2))
+
+        self.add_item(Dropdown(self.client, guild))
+        self.add_item(discord.ui.Button(label=v.t.msg(guild, "help.menu.invite_button"), url="https://discord.com/oauth2/authorize?client_id=957234668627951640&permissions=8&scope=bot", row=2))
+        self.add_item(discord.ui.Button(label=v.t.msg(guild, "help.menu.support_button"), url="https://discord.gg/T7zE4x4xbT", row=2))
 
 class MiscHelp(commands.Cog):
     def __init__(self, client: discord.Bot):
@@ -216,21 +131,26 @@ class MiscHelp(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        # No guild here (fires once at startup, not tied to any interaction) - this
+        # registration only supplies click-behavior for messages sent before a
+        # restart, it doesn't re-render their already-displayed text, so DEFAULT_LANG
+        # is fine. Every *new* /help invocation below builds a fresh, guild-aware
+        # DropdownView regardless of what this registered.
         self.client.add_view(DropdownView(self.client))
-       
-    @commands.slash_command(description="A list of commands and utilities")
+
+    @commands.slash_command(
+        description=v.t.msg(None, "help.cmd.description"),
+        name_localizations=v.t.localizations("help.cmd.name"),
+        description_localizations=v.t.localizations("help.cmd.description"),
+    )
     async def help(self, ctx):
         em = discord.Embed(
             color=v.style(ctx.guild.id),
-            title="BobCat Help Menu",
-            description=(
-                "Thanks for using **BobCat**"
-                f"\n**BobCat Prefix:** `{self.client.command_prefix}`"
-                "\nBobcat is a simple to use bot with entertainment, moderation, administration, and more."
-            )
+            title=v.t.msg(ctx.guild, "help.menu.title"),
+            description=v.t.msg(ctx.guild, "help.menu.description", prefix=self.client.command_prefix)
         )
         em.set_thumbnail(url=self.client.user.avatar.url)
-        await ctx.respond(embed=em, view=DropdownView(self.client), ephemeral=False)
+        await ctx.respond(embed=em, view=DropdownView(self.client, ctx.guild), ephemeral=False)
 
 def setup(client):
     client.add_cog(MiscHelp(client))

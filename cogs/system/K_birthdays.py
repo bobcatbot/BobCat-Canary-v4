@@ -114,7 +114,7 @@ class BirthdayTimers(commands.Cog):
                         else:
                             print(f"⚠️ Bot missing manage_roles permission in {guild.name}")
 
-                # Send birthday message
+                # Send birthday message (dashboard-configurable, admin-authored - not translated, matches welcome.py/leveling.py precedent)
                 message_template = config.message or "🎉 Happy Birthday {user}! You are now {age} years old! 🎂"
                 await channel.send(v.render_placeholders(
                     message_template,
@@ -199,7 +199,12 @@ class BirthdayCommands(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
 
-    @commands.slash_command(name="birthdays", description="Show all birthdays for the current month")
+    @commands.slash_command(
+        name=v.t.msg(None, "birthdays.cmd.list.name"),
+        description=v.t.msg(None, "birthdays.cmd.list.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.list.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.list.description"),
+    )
     async def birthdays(self, ctx: discord.ApplicationContext):
         birthdays = await get_bdays(ctx.guild.id)
         tz = v.datetimes(ctx.guild.id)
@@ -220,21 +225,26 @@ class BirthdayCommands(commands.Cog):
             entries.append(f"**{birthday_date.strftime('%d %B')}** — {username} ({ordinal(age)})")
 
         if not entries:
-            return await ctx.respond("No birthdays this month.", ephemeral=True)
+            return await ctx.respond(v.t.msg(ctx.guild, "birthdays.no_birthdays_month"), ephemeral=True)
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title=f"🎂 Birthdays in {now.strftime('%B')}",
+            title=v.t.msg(ctx.guild, "birthdays.month_title", month=now.strftime('%B')),
             description="\n".join(entries)
         )
         await ctx.respond(embed=embed)
 
-    @commands.slash_command(name="next-birthdays", description="Shows the next 10 upcoming birthdays")
+    @commands.slash_command(
+        name=v.t.msg(None, "birthdays.cmd.next.name"),
+        description=v.t.msg(None, "birthdays.cmd.next.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.next.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.next.description"),
+    )
     async def next_birthdays(self, ctx: discord.ApplicationContext):
         birthdays = await get_bdays(ctx.guild.id)
 
         if not birthdays:
-            return await ctx.respond("I don't know **any** birthdays **yet**.", ephemeral=True)
+            return await ctx.respond(v.t.msg(ctx.guild, "birthdays.none_known"), ephemeral=True)
 
         tz = v.datetimes(ctx.guild.id)
         now = datetime.datetime.now(tz)
@@ -255,13 +265,24 @@ class BirthdayCommands(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title="📅 Upcoming Birthdays",
+            title=v.t.msg(ctx.guild, "birthdays.upcoming_title"),
             description="\n".join(entry[1] for entry in top10)
         )
         await ctx.respond(embed=embed)
 
-    @commands.slash_command(name="birthday", description="Show yours or another member's birthday")
-    @discord.option("member", description="The member to view", required=False)
+    @commands.slash_command(
+        name=v.t.msg(None, "birthdays.cmd.view.name"),
+        description=v.t.msg(None, "birthdays.cmd.view.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.view.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.view.description"),
+    )
+    @discord.option(
+        "member",
+        description=v.t.msg(None, "birthdays.cmd.view.options.member.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.view.options.member.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.view.options.member.description"),
+        required=False,
+    )
     async def view_birthday(self, ctx: discord.ApplicationContext, member: discord.Member = None):
         member = member or ctx.author
         birthday = await Birthday.get(f"{ctx.guild.id}_{member.id}")
@@ -269,7 +290,7 @@ class BirthdayCommands(commands.Cog):
         if birthday is None or not birthday.date:
             embed = discord.Embed(
                 color=v.style(ctx.guild.id),
-                description=f"{member.mention} has no birthday set."
+                description=v.t.msg(ctx.guild, "birthdays.no_birthday_set", member=member.mention)
             )
             return await ctx.respond(embed=embed, ephemeral=True)
 
@@ -281,21 +302,41 @@ class BirthdayCommands(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            description=f"{member.mention}'s **{ordinal(age)}** birthday is in **{days_away}** days on **{date.strftime('%d %B %Y')}**."
+            description=v.t.msg(
+                ctx.guild, "birthdays.info",
+                member=member.mention, age=ordinal(age), days=days_away, date=date.strftime('%d %B %Y')
+            )
         )
         await ctx.respond(embed=embed)
 
-    @commands.slash_command(name="set-birthday", description="Set yours or another member's birthday")
-    @discord.option("date", description="Birthday date (YYYY-MM-DD)", required=True)
-    @discord.option("member", description="The member to set the birthday of", required=False)
+    @commands.slash_command(
+        name=v.t.msg(None, "birthdays.cmd.set.name"),
+        description=v.t.msg(None, "birthdays.cmd.set.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.set.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.set.description"),
+    )
+    @discord.option(
+        "date",
+        description=v.t.msg(None, "birthdays.cmd.set.options.date.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.set.options.date.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.set.options.date.description"),
+        required=True,
+    )
+    @discord.option(
+        "member",
+        description=v.t.msg(None, "birthdays.cmd.set.options.member.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.set.options.member.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.set.options.member.description"),
+        required=False,
+    )
     async def set_birthday(self, ctx: discord.ApplicationContext, date: str, member: discord.Member = None):
         member = member or ctx.author
-        
+
         existing = await Birthday.get(f"{ctx.guild.id}_{member.id}")
         if existing is not None:
             embed = discord.Embed(
                 color=v.style(ctx.guild.id),
-                description=f"{member.mention} already has a birthday set."
+                description=v.t.msg(ctx.guild, "birthdays.already_set", member=member.mention)
             )
             return await ctx.respond(embed=embed, ephemeral=True)
 
@@ -304,7 +345,7 @@ class BirthdayCommands(commands.Cog):
         except ValueError:
             embed = discord.Embed(
                 color=v.error,
-                description="❌ Invalid date format. Please use `YYYY-MM-DD`."
+                description=v.t.msg(ctx.guild, "birthdays.invalid_format")
             )
             return await ctx.respond(embed=embed, ephemeral=True)
 
@@ -314,7 +355,7 @@ class BirthdayCommands(commands.Cog):
         # parsed is naive (strptime never attaches tzinfo) - localize it to the
         # guild's timezone before comparing, same as next_birthday() has to.
         if parsed.replace(tzinfo=tz) > now:
-            return await ctx.respond("❌ Birthday can't be in the future!", ephemeral=True)
+            return await ctx.respond(v.t.msg(ctx.guild, "birthdays.future_date"), ephemeral=True)
 
         next_bd, age = next_birthday(parsed, now)
         days_away = (next_bd - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
@@ -331,23 +372,31 @@ class BirthdayCommands(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            description=f"📝 Duly noted, I'll wish {member.mention}'s **{ordinal(age)}** birthday in **{days_away}** days on **{parsed.strftime('%d %B %Y')}**."
+            description=v.t.msg(
+                ctx.guild, "birthdays.success",
+                member=member.mention, age=ordinal(age), days=days_away, date=parsed.strftime('%d %B %Y')
+            )
         )
         await ctx.respond(embed=embed)
 
-    @commands.slash_command(name="remove-birthday", description="Remove your birthday")
+    @commands.slash_command(
+        name=v.t.msg(None, "birthdays.cmd.remove.name"),
+        description=v.t.msg(None, "birthdays.cmd.remove.description"),
+        name_localizations=v.t.localizations("birthdays.cmd.remove.name"),
+        description_localizations=v.t.localizations("birthdays.cmd.remove.description"),
+    )
     async def remove_birthday(self, ctx: discord.ApplicationContext):
         birthday = await Birthday.get(f"{ctx.guild.id}_{ctx.author.id}")
 
         if birthday is None:
             embed = discord.Embed(
                 color=v.style(ctx.guild.id),
-                description="You have no birthday set."
+                description=v.t.msg(ctx.guild, "birthdays.not_set")
             )
             return await ctx.respond(embed=embed, ephemeral=True)
 
         await birthday.delete()
-        await ctx.respond("✅ I will no longer wish **your** birthday.", ephemeral=True)
+        await ctx.respond(v.t.msg(ctx.guild, "birthdays.removed"), ephemeral=True)
 
 def setup(client):
     client.add_cog(BirthdayTimers(client))

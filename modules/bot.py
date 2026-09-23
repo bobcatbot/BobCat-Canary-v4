@@ -9,6 +9,7 @@ from typing import Literal, Optional, Union
 from discord.ext import commands
 
 from .models import DashConfig, Guild, Notification
+from .translate import Translate
 
 load_dotenv()
 
@@ -25,6 +26,8 @@ mongo_cdn = os.getenv('mongoURI_cdn')
 _sync_data = pymongo.MongoClient(mongoURI_db)["Data"]
 _sync_guilds = _sync_data["guilds"]
 _sync_notifs = _sync_data["notifications"]
+
+t = Translate()
 
 client = commands.AutoShardedBot(
   command_prefix = prefix,

@@ -9,30 +9,56 @@ class mod_lockdown(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    lockdown = discord.SlashCommandGroup(name="lockdown", description="Lockdown a channel/server")
-    lock   = lockdown.create_subgroup(name="add",    description="Lockdown commands")
-    unlock = lockdown.create_subgroup(name="remove", description="Unlock commands")
+    lockdown = discord.SlashCommandGroup(
+        name="lockdown",
+        description=v.t.msg(None, "lockdown.group.description"),
+        name_localizations=v.t.localizations("lockdown.group.name"),
+        description_localizations=v.t.localizations("lockdown.group.description"),
+    )
+    lock = lockdown.create_subgroup(
+        name="add",
+        description=v.t.msg(None, "lockdown.add_group.description"),
+        name_localizations=v.t.localizations("lockdown.add_group.name"),
+        description_localizations=v.t.localizations("lockdown.add_group.description"),
+    )
+    unlock = lockdown.create_subgroup(
+        name="remove",
+        description=v.t.msg(None, "lockdown.remove_group.description"),
+        name_localizations=v.t.localizations("lockdown.remove_group.name"),
+        description_localizations=v.t.localizations("lockdown.remove_group.description"),
+    )
 
     # ── Shared helper ─────────────────────────────────────────────────────────
 
-    def _missing_perms_embed(self, perm: str) -> discord.Embed:
+    def _missing_perms_embed(self, guild, perm: str) -> discord.Embed:
         return discord.Embed(
             color=v.error,
-            title="Missing Permission",
-            description=f"❌ You are missing `{perm}` permission",
+            title=v.t.msg(guild, "lockdown.missing_perms.title"),
+            description=v.t.msg(guild, "lockdown.missing_perms.description", perm=perm),
         )
 
-    def _bot_missing_perms_embed(self, perm: str) -> discord.Embed:
+    def _bot_missing_perms_embed(self, guild, perm: str) -> discord.Embed:
         return discord.Embed(
             color=v.error,
-            title="Missing Permission",
-            description=f"❌ BobCat is missing `{perm}` permission",
+            title=v.t.msg(guild, "lockdown.bot_missing_perms.title"),
+            description=v.t.msg(guild, "lockdown.bot_missing_perms.description", perm=perm),
         )
 
     # ── Lock ──────────────────────────────────────────────────────────────────
 
-    @lock.command(name="channel", description="Lockdown a channel")
-    @discord.option("channel", description="Channel to lockdown", required=True)
+    @lock.command(
+        name="channel",
+        description=v.t.msg(None, "lockdown.lock_channel.cmd.description"),
+        name_localizations=v.t.localizations("lockdown.lock_channel.cmd.name"),
+        description_localizations=v.t.localizations("lockdown.lock_channel.cmd.description"),
+    )
+    @discord.option(
+        "channel",
+        description=v.t.msg(None, "lockdown.lock_channel.cmd.options.channel.description"),
+        name_localizations=v.t.localizations("lockdown.lock_channel.cmd.options.channel.name"),
+        description_localizations=v.t.localizations("lockdown.lock_channel.cmd.options.channel.description"),
+        required=True,
+    )
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_guild_permissions(manage_channels=True)
     async def lockdown_channel(
@@ -57,21 +83,32 @@ class mod_lockdown(commands.Cog):
         await ctx.respond(
             embed=discord.Embed(
                 color=v.style(ctx.guild.id),
-                title=f"🔒 #{channel.name} has been locked",
-                description="You will gain access again once the lockdown is lifted.",
+                title=v.t.msg(ctx.guild, "lockdown.lock_channel.success_title", channel=channel.name),
+                description=v.t.msg(ctx.guild, "lockdown.access_restored_desc"),
             )
         )
 
     @lockdown_channel.error
     async def lockdown_channel_error(self, ctx: discord.ApplicationContext, error: Exception):
         if isinstance(error, commands.MissingPermissions):
-            return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to lockdown channels", description='Please give BobCat the "Manage Channels" permission')
-            return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._bot_missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
 
-    @lock.command(name="server", description="Lockdown the server")
-    @discord.option("hidden", bool, description="Hide all channels from non-admins", required=False)
+    @lock.command(
+        name="server",
+        description=v.t.msg(None, "lockdown.lock_server.cmd.description"),
+        name_localizations=v.t.localizations("lockdown.lock_server.cmd.name"),
+        description_localizations=v.t.localizations("lockdown.lock_server.cmd.description"),
+    )
+    @discord.option(
+        "hidden", bool,
+        description=v.t.msg(None, "lockdown.lock_server.cmd.options.hidden.description"),
+        name_localizations=v.t.localizations("lockdown.lock_server.cmd.options.hidden.name"),
+        description_localizations=v.t.localizations("lockdown.lock_server.cmd.options.hidden.description"),
+        required=False,
+    )
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_guild_permissions(manage_channels=True, manage_roles=True)
     async def lockdown_server(self, ctx: discord.ApplicationContext, hidden: bool = False):
@@ -103,22 +140,18 @@ class mod_lockdown(commands.Cog):
             await chan.send(
                 embed=discord.Embed(
                     color=v.red,
-                    title="Server is currently locked",
-                    description=(
-                        "This server has been fully locked down by staff.\n"
-                        "You will not be able to see or talk in channels until this is lifted.\n"
-                        "**Please be patient.**"
-                    ),
+                    title=v.t.msg(ctx.guild, "lockdown.lock_server.locked_channel_title"),
+                    description=v.t.msg(ctx.guild, "lockdown.lock_server.locked_channel_description"),
                 )
             )
-            desc = "All channels are now hidden. A temporary status channel has been created for announcements."
+            desc = v.t.msg(ctx.guild, "lockdown.lock_server.hidden_desc")
         else:
-            desc = "You will gain access again once the lockdown is lifted."
+            desc = v.t.msg(ctx.guild, "lockdown.access_restored_desc")
 
         await ctx.respond(
             embed=discord.Embed(
                 color=v.style(ctx.guild.id),
-                title="🔒 Server channels have been locked",
+                title=v.t.msg(ctx.guild, "lockdown.lock_server.success_title"),
                 description=desc,
             )
         )
@@ -126,15 +159,27 @@ class mod_lockdown(commands.Cog):
     @lockdown_server.error
     async def lockdown_server_error(self, ctx: discord.ApplicationContext, error: Exception):
         if isinstance(error, commands.MissingPermissions):
-            return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to lockdown the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
-            return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels / Manage Roles"), ephemeral=True)
+            perms = f"{v.t.msg(ctx.guild, 'lockdown.perms.manage_channels')} / {v.t.msg(ctx.guild, 'lockdown.perms.manage_roles')}"
+            return await ctx.respond(embed=self._bot_missing_perms_embed(ctx.guild, perms), ephemeral=True)
 
     # ── Unlock ────────────────────────────────────────────────────────────────
 
-    @unlock.command(name="channel", description="Unlock a channel")
-    @discord.option("channel", description="Channel to unlock", required=True)
+    @unlock.command(
+        name="channel",
+        description=v.t.msg(None, "lockdown.unlock_channel.cmd.description"),
+        name_localizations=v.t.localizations("lockdown.unlock_channel.cmd.name"),
+        description_localizations=v.t.localizations("lockdown.unlock_channel.cmd.description"),
+    )
+    @discord.option(
+        "channel",
+        description=v.t.msg(None, "lockdown.unlock_channel.cmd.options.channel.description"),
+        name_localizations=v.t.localizations("lockdown.unlock_channel.cmd.options.channel.name"),
+        description_localizations=v.t.localizations("lockdown.unlock_channel.cmd.options.channel.description"),
+        required=True,
+    )
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_guild_permissions(manage_channels=True)
     async def unlock_channel(
@@ -157,20 +202,25 @@ class mod_lockdown(commands.Cog):
         await ctx.respond(
             embed=discord.Embed(
                 color=v.style(ctx.guild.id),
-                title=f"🔓 #{channel.name} has been unlocked",
-                description="Everyone now has access to this channel.",
+                title=v.t.msg(ctx.guild, "lockdown.unlock_channel.success_title", channel=channel.name),
+                description=v.t.msg(ctx.guild, "lockdown.unlock_channel.success_description"),
             )
         )
 
     @unlock_channel.error
     async def unlock_channel_error(self, ctx: discord.ApplicationContext, error: Exception):
         if isinstance(error, commands.MissingPermissions):
-            return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to unlock channels", description='Please give BobCat the "Manage Channels" permission')
-            return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._bot_missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
 
-    @unlock.command(name="server", description="Unlock the server")
+    @unlock.command(
+        name="server",
+        description=v.t.msg(None, "lockdown.unlock_server.cmd.description"),
+        name_localizations=v.t.localizations("lockdown.unlock_server.cmd.name"),
+        description_localizations=v.t.localizations("lockdown.unlock_server.cmd.description"),
+    )
     @commands.has_permissions(manage_channels=True)
     @commands.bot_has_guild_permissions(manage_channels=True, manage_roles=True)
     async def unlock_server(self, ctx: discord.ApplicationContext):
@@ -195,18 +245,19 @@ class mod_lockdown(commands.Cog):
         await ctx.respond(
             embed=discord.Embed(
                 color=v.style(ctx.guild.id),
-                title="🔓 Server has been unlocked",
-                description="All channels are accessible again.",
+                title=v.t.msg(ctx.guild, "lockdown.unlock_server.success_title"),
+                description=v.t.msg(ctx.guild, "lockdown.unlock_server.success_description"),
             )
         )
 
     @unlock_server.error
     async def unlock_server_error(self, ctx: discord.ApplicationContext, error: Exception):
         if isinstance(error, commands.MissingPermissions):
-            return await ctx.respond(embed=self._missing_perms_embed("Manage Channels"), ephemeral=True)
+            return await ctx.respond(embed=self._missing_perms_embed(ctx.guild, v.t.msg(ctx.guild, "lockdown.perms.manage_channels")), ephemeral=True)
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(ctx.guild, kind="error", title="BobCat is missing permission to unlock the server", description='Please give BobCat the "Manage Channels" and "Manage Roles" permissions')
-            return await ctx.respond(embed=self._bot_missing_perms_embed("Manage Channels / Manage Roles"), ephemeral=True)
+            perms = f"{v.t.msg(ctx.guild, 'lockdown.perms.manage_channels')} / {v.t.msg(ctx.guild, 'lockdown.perms.manage_roles')}"
+            return await ctx.respond(embed=self._bot_missing_perms_embed(ctx.guild, perms), ephemeral=True)
 
 def setup(client):
     client.add_cog(mod_lockdown(client))

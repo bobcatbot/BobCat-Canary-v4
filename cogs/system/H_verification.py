@@ -35,49 +35,41 @@ class Verification(commands.Cog):
         """Builds the audit log embed for a verification result."""
         avatar = interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url
         logs = discord.Embed(
-            title=f"{interaction.user} Verification Result",
+            title=v.t.msg(interaction.guild, "verification.log.title", user=interaction.user),
             color=v.style(interaction.guild.id)
         )
         logs.set_thumbnail(url=avatar)
-        logs.add_field(name="User", value=interaction.user.mention, inline=True)
+        logs.add_field(name=v.t.msg(interaction.guild, "verification.log.user_field"), value=interaction.user.mention, inline=True)
         logs.add_field(
-            name="Account Created",
+            name=v.t.msg(interaction.guild, "verification.log.created_field"),
             value=f"<t:{int(interaction.user.created_at.timestamp())}:R>",
             inline=True
         )
         if passed:
-            logs.add_field(name="Status", value=f"✅ `{interaction.user.name}` has successfully passed verification.", inline=False)
+            logs.add_field(name=v.t.msg(interaction.guild, "verification.log.status_field"), value=v.t.msg(interaction.guild, "verification.log.passed_status", user=interaction.user.name), inline=False)
         else:
-            action_label = {"kick": "Kicked", "ban": "Banned", "timeout": "Timed Out", "unverified": "Kept Unverified"}.get(fail_action, "Kept Unverified")
-            logs.add_field(name="Status", value=f"❌ `{interaction.user.name}` has failed to pass verification.", inline=False)
-            logs.add_field(name="Reason", value=f"Too many failed attempts. This user has been `{action_label}`.", inline=False)
+            action_label = v.t.table(interaction.guild, "verification.log.fail_actions").get(fail_action, v.t.msg(interaction.guild, "verification.log.fail_actions.unverified"))
+            logs.add_field(name=v.t.msg(interaction.guild, "verification.log.status_field"), value=v.t.msg(interaction.guild, "verification.log.failed_status", user=interaction.user.name), inline=False)
+            logs.add_field(name=v.t.msg(interaction.guild, "verification.log.reason_field"), value=v.t.msg(interaction.guild, "verification.log.reason_value", label=action_label), inline=False)
         logs.timestamp = datetime.now()
         return logs
 
-    def _build_captcha(self, captcha_text: str) -> tuple[discord.Embed, discord.File, io.BytesIO]:
+    def _build_captcha(self, guild, captcha_text: str) -> tuple[discord.Embed, discord.File, io.BytesIO]:
         """Generates the captcha image and embed using BytesIO (no file collision!)."""
         image = ImageCaptcha(width=280, height=90)
-        
+
         # Use BytesIO instead of writing to disk
         image_buffer = io.BytesIO()
         image.write(captcha_text, image_buffer)
         image_buffer.seek(0)
 
         embed = discord.Embed(
-            title="🔐 Human Verification Required",
-            description=(
-                "**Please type the captcha below to access this server!**"
-                "\n\n**Instructions:**"
-                "\n• Type the traced colored characters from left to right"
-                "\n• Ignore the decoy characters spread around"
-                "\n• Case doesn't matter (upper/lower both work)"
-                f"\n• You have **{self.MAX_ATTEMPTS}** attempts"
-                f"\n• You have **{self.TIMEOUT_SECONDS}** seconds"
-            ),
+            title=v.t.msg(guild, "verification.captcha_embed.title"),
+            description=v.t.msg(guild, "verification.captcha_embed.description", max_attempts=self.MAX_ATTEMPTS, timeout=self.TIMEOUT_SECONDS),
             color=discord.Color.blue()
         )
         embed.set_image(url="attachment://captcha.png")
-        embed.set_footer(text=f"Verification • {datetime.now().strftime('%H:%M')}")
+        embed.set_footer(text=v.t.msg(guild, "verification.captcha_embed.footer", time=datetime.now().strftime('%H:%M')))
         file = discord.File(image_buffer, filename="captcha.png")
         return embed, file, image_buffer
 
@@ -102,14 +94,9 @@ class Verification(commands.Cog):
             except discord.Forbidden:
                 pass
 
-    def _get_fail_action_label(self, action: str) -> str:
+    def _get_fail_action_label(self, guild, action: str) -> str:
         """Get human-readable label for fail action."""
-        return {
-            "unverified": "Kept Unverified",
-            "kick": "Kicked",
-            "ban": "Banned",
-            "timeout": "Timed Out (5m)",
-        }.get(action, "Kept Unverified")
+        return v.t.table(guild, "verification.fail_action_labels").get(action, v.t.msg(guild, "verification.fail_action_labels.unverified"))
 
     def _verify_signature(self, guild_id: str, user_id: str, exp: str) -> str:
         """HMAC over the fields carried by a captcha_web verify link. Shared by
@@ -181,7 +168,7 @@ class Verification(commands.Cog):
             elapsed = (datetime.now() - self.button_cooldowns[interaction.user.id]).total_seconds()
             if elapsed < 5:  # 5 second cooldown on button
                 return await interaction.followup.send(
-                    "⏳ Please wait a moment before clicking again.",
+                    v.t.msg(interaction.guild, "verification.cooldown"),
                     ephemeral=True
                 )
         self.button_cooldowns[interaction.user.id] = datetime.now()
@@ -192,10 +179,10 @@ class Verification(commands.Cog):
             if elapsed < self.COOLDOWN_SECONDS:
                 remaining = int(self.COOLDOWN_SECONDS - elapsed)
                 return await interaction.followup.send(
-                    f"⏳ You already have an active verification. Please wait **{remaining}s** or check your DMs.",
+                    v.t.msg(interaction.guild, "verification.already_active", remaining=remaining),
                     ephemeral=True
                 )
-        
+
         # Mark as active
         self.active_verifications[interaction.user.id] = datetime.now()
 
@@ -203,7 +190,7 @@ class Verification(commands.Cog):
         guild_doc = await Guild.get(str(interaction.guild.id))
         if guild_doc is None:
             return await interaction.followup.send(
-                "❌ Guild configuration not found. Please contact an admin.",
+                v.t.msg(interaction.guild, "verification.guild_not_found"),
                 ephemeral=True
             )
             
@@ -218,14 +205,14 @@ class Verification(commands.Cog):
         # Status check before anything else
         if not status:
             return await interaction.followup.send(
-                "❌ The verification service has been disabled. Please contact your server owner.",
+                v.t.msg(interaction.guild, "verification.service_disabled"),
                 ephemeral=True
             )
 
         # Role ID guard — if not configured yet, bail cleanly
         if not verify_role:
             return await interaction.followup.send(
-                "❌ Verification is not fully configured. Please contact your server owner.",
+                v.t.msg(interaction.guild, "verification.not_configured"),
                 ephemeral=True
             )
 
@@ -233,25 +220,25 @@ class Verification(commands.Cog):
             role = await interaction.guild.fetch_role(int(verify_role))
         except discord.NotFound:
             return await interaction.followup.send(
-                "❌ The verification role no longer exists. Please contact your server owner.",
+                v.t.msg(interaction.guild, "verification.role_missing"),
                 ephemeral=True
             )
 
         if interaction.user.id == interaction.guild.owner_id:
             return await interaction.followup.send(
-                embed=discord.Embed(description="👑 You are the server owner — you don't need to verify.", color=v.success),
+                embed=discord.Embed(description=v.t.msg(interaction.guild, "verification.owner_exempt"), color=v.success),
                 ephemeral=True
             )
 
         if role in interaction.user.roles:
             return await interaction.followup.send(
-                f"✅ {interaction.user.display_name}, you are already verified.",
+                v.t.msg(interaction.guild, "verification.already_verified", user=interaction.user.display_name),
                 ephemeral=True
             )
 
         # ── Generate captcha ──
         captcha_text = "".join(random.sample(string.ascii_letters + string.digits, self.CAPTCHA_LENGTH))
-        captcha_embed, captcha_file, _ = self._build_captcha(captcha_text)
+        captcha_embed, captcha_file, _ = self._build_captcha(interaction.guild, captcha_text)
 
         # ── Instant ───────────────────────────────────────────────────────────
         if mode == "instant":
@@ -259,12 +246,12 @@ class Verification(commands.Cog):
                 await interaction.user.add_roles(role, reason="Instant verification")
             except discord.Forbidden:
                 return await interaction.followup.send(
-                    "❌ I don't have permission to assign roles. Please contact an admin.",
+                    v.t.msg(interaction.guild, "verification.instant.no_role_perms"),
                     ephemeral=True
                 )
-            
+
             await interaction.followup.send(
-                "✅ You have been verified! You can now access the server channels.",
+                v.t.msg(interaction.guild, "verification.instant.success"),
                 ephemeral=True
             )
             logs = self._build_verification_log(interaction, passed=True)
@@ -281,7 +268,7 @@ class Verification(commands.Cog):
             except discord.HTTPException:
                 return await interaction.followup.send(
                     embed=discord.Embed(
-                        description="❌ I wasn't able to DM you. Please open your DMs and try again.",
+                        description=v.t.msg(interaction.guild, "verification.dm.dm_failed"),
                         color=v.error
                     ),
                     ephemeral=True
@@ -289,34 +276,34 @@ class Verification(commands.Cog):
 
             # Hint button
             hint_view = discord.ui.View()
-            hint_btn = discord.ui.Button(label="💡 Hint", style=discord.ButtonStyle.blurple)
+            hint_btn = discord.ui.Button(label=v.t.msg(interaction.guild, "verification.dm.hint_button"), style=discord.ButtonStyle.blurple)
             async def hint_callback(i: discord.Interaction):
                 if i.user.id != interaction.user.id:
-                    return await i.response.send_message("This isn't your verification!", ephemeral=True)
-                await i.response.send_message(f"**Hint:** `{captcha_text}`", ephemeral=True, delete_after=10)
+                    return await i.response.send_message(v.t.msg(interaction.guild, "verification.helpers.not_your_verification"), ephemeral=True)
+                await i.response.send_message(v.t.msg(interaction.guild, "verification.dm.hint_text", captcha=captcha_text), ephemeral=True, delete_after=10)
             hint_btn.callback = hint_callback
             hint_view.add_item(hint_btn)
 
             # Cancel button
-            cancel_btn = discord.ui.Button(label="❌ Cancel", style=discord.ButtonStyle.red)
+            cancel_btn = discord.ui.Button(label=v.t.msg(interaction.guild, "verification.dm.cancel_button"), style=discord.ButtonStyle.red)
             async def cancel_callback(i: discord.Interaction):
                 if i.user.id != interaction.user.id:
-                    return await i.response.send_message("This isn't your verification!", ephemeral=True)
+                    return await i.response.send_message(v.t.msg(interaction.guild, "verification.helpers.not_your_verification"), ephemeral=True)
                 self.active_verifications.pop(interaction.user.id, None)
-                await i.response.send_message("Verification cancelled.", ephemeral=True)
-                await dm.send("❌ Verification cancelled.")
+                await i.response.send_message(v.t.msg(interaction.guild, "verification.dm.cancel_confirm"), ephemeral=True)
+                await dm.send(v.t.msg(interaction.guild, "verification.helpers.cancelled"))
             cancel_btn.callback = cancel_callback
             hint_view.add_item(cancel_btn)
 
-            captcha_embed.set_footer(text=f"Verification period: {self.TIMEOUT_SECONDS} seconds")
+            captcha_embed.set_footer(text=v.t.msg(interaction.guild, "verification.dm.footer", seconds=self.TIMEOUT_SECONDS))
             await dm.send(embed=captcha_embed, view=hint_view, file=captcha_file)
 
             # Tell user to check DMs
             notify_view = discord.ui.View()
-            notify_view.add_item(discord.ui.Button(label="📬 Check DMs", url=dm.jump_url))
+            notify_view.add_item(discord.ui.Button(label=v.t.msg(interaction.guild, "verification.dm.check_dms_button"), url=dm.jump_url))
             await interaction.followup.send(
                 embed=discord.Embed(
-                    description="📬 **Starting verification... Check your DMs!**",
+                    description=v.t.msg(interaction.guild, "verification.dm.starting_description"),
                     color=v.style(interaction.guild.id)
                 ),
                 view=notify_view,
@@ -333,8 +320,8 @@ class Verification(commands.Cog):
                     )
                 except asyncio.TimeoutError:
                     await dm.send(embed=discord.Embed(
-                        title="⏰ Verification Timed Out",
-                        description=f"You took too long to respond. Please start verification again.",
+                        title=v.t.msg(interaction.guild, "verification.dm.timeout_title"),
+                        description=v.t.msg(interaction.guild, "verification.dm.timeout_description"),
                         color=v.error
                     ))
                     self.active_verifications.pop(interaction.user.id, None)
@@ -342,7 +329,7 @@ class Verification(commands.Cog):
 
                 # Check if user typed "cancel"
                 if msg.content.lower() in ["cancel", "stop", "quit"]:
-                    await dm.send("❌ Verification cancelled.")
+                    await dm.send(v.t.msg(interaction.guild, "verification.helpers.cancelled"))
                     self.active_verifications.pop(interaction.user.id, None)
                     return
 
@@ -350,13 +337,13 @@ class Verification(commands.Cog):
                     try:
                         await interaction.user.add_roles(role, reason="Passed captcha verification")
                     except discord.Forbidden:
-                        await dm.send("❌ I couldn't assign the verification role. Please contact an admin.")
+                        await dm.send(v.t.msg(interaction.guild, "verification.helpers.cannot_assign_role"))
                         self.active_verifications.pop(interaction.user.id, None)
                         return
-                    
+
                     await dm.send(embed=discord.Embed(
-                        title="✅ You have been verified!",
-                        description=f"You passed verification and can now access **{interaction.guild.name}**.",
+                        title=v.t.msg(interaction.guild, "verification.helpers.verified_title"),
+                        description=v.t.msg(interaction.guild, "verification.helpers.verified_description", server=interaction.guild.name),
                         color=discord.Color.green()
                     ))
                     logs = self._build_verification_log(interaction, passed=True)
@@ -367,23 +354,18 @@ class Verification(commands.Cog):
                 attempts_left -= 1
                 if attempts_left > 0:
                     await dm.send(embed=discord.Embed(
-                        title="❌ Incorrect",
-                        description=f"Wrong answer. You have **{attempts_left}** attempt{'s' if attempts_left != 1 else ''} left.",
+                        title=v.t.msg(interaction.guild, "verification.helpers.incorrect_title"),
+                        description=v.t.msg(interaction.guild, "verification.helpers.wrong_answer", count=attempts_left, plural='s' if attempts_left != 1 else ''),
                         color=v.error
                     ))
 
             # Out of attempts
-            fail_label = self._get_fail_action_label(fail_action)
-            retry_msg = f"🔄 You can return to <#{chan}> and click Verify to try again." if fail_action == "unverified" else ""
+            fail_label = self._get_fail_action_label(interaction.guild, fail_action)
+            retry_msg = v.t.msg(interaction.guild, "verification.helpers.retry_hint", channel=chan) if fail_action == "unverified" else ""
 
             await dm.send(embed=discord.Embed(
-                title="❌ Verification Failed",
-                description=(
-                    f"You failed verification in **{interaction.guild.name}**.\n"
-                    f"**Reason:** Too many failed attempts.\n"
-                    f"**Correct answer:** `{captcha_text}`\n\n"
-                    f"{retry_msg}"
-                ),
+                title=v.t.msg(interaction.guild, "verification.helpers.failed_title"),
+                description=v.t.msg(interaction.guild, "verification.dm.failed_description", server=interaction.guild.name, answer=captcha_text, retry_msg=retry_msg),
                 color=v.error
             ))
             await self._apply_fail_action(interaction, fail_action)
@@ -406,27 +388,27 @@ class Verification(commands.Cog):
                 def __init__(self):
                     super().__init__(
                         discord.ui.InputText(
-                            label="Enter the captcha code",
-                            placeholder="Type the characters you see...",
+                            label=v.t.msg(interaction.guild, "verification.channel.modal_input_label"),
+                            placeholder=v.t.msg(interaction.guild, "verification.channel.modal_placeholder"),
                             style=discord.InputTextStyle.short,
                             max_length=self.CAPTCHA_LENGTH + 5
                         ),
-                        title="🔐 Captcha Verification",
+                        title=v.t.msg(interaction.guild, "verification.channel.modal_title"),
                     )
 
                 async def callback(self, modal_interaction: discord.Interaction):
                     if modal_interaction.user.id != _user.id:
                         return await modal_interaction.response.send_message(
-                            "This isn't your verification!",
+                            v.t.msg(interaction.guild, "verification.helpers.not_your_verification"),
                             ephemeral=True
                         )
-                    
+
                     answer = self.children[0].value.strip()
 
                     # Check for cancel
                     if answer.lower() in ["cancel", "stop", "quit"]:
                         await modal_interaction.response.send_message(
-                            "❌ Verification cancelled.",
+                            v.t.msg(interaction.guild, "verification.helpers.cancelled"),
                             ephemeral=True
                         )
                         self.active_verifications.pop(interaction.user.id, None)
@@ -437,15 +419,15 @@ class Verification(commands.Cog):
                             await _user.add_roles(_role, reason="Passed captcha verification")
                         except discord.Forbidden:
                             await modal_interaction.response.send_message(
-                                "❌ I couldn't assign the verification role. Please contact an admin.",
+                                v.t.msg(interaction.guild, "verification.helpers.cannot_assign_role"),
                                 ephemeral=True
                             )
                             return
-                        
+
                         await modal_interaction.response.send_message(
                             embed=discord.Embed(
-                                title="✅ You have been verified!",
-                                description=f"You passed verification and can now access **{_guild_name}**.",
+                                title=v.t.msg(interaction.guild, "verification.helpers.verified_title"),
+                                description=v.t.msg(interaction.guild, "verification.helpers.verified_description", server=_guild_name),
                                 color=discord.Color.green()
                             ),
                             ephemeral=True
@@ -461,8 +443,8 @@ class Verification(commands.Cog):
                     if remaining > 0:
                         await modal_interaction.response.send_message(
                             embed=discord.Embed(
-                                title="❌ Incorrect",
-                                description=f"Wrong answer. You have **{remaining}** attempt{'s' if remaining != 1 else ''} left.\nClick **Answer** to try again.",
+                                title=v.t.msg(interaction.guild, "verification.helpers.incorrect_title"),
+                                description=v.t.msg(interaction.guild, "verification.helpers.wrong_answer", count=remaining, plural='s' if remaining != 1 else '') + v.t.msg(interaction.guild, "verification.channel.wrong_answer_suffix"),
                                 color=v.error
                             ),
                             ephemeral=True
@@ -470,17 +452,12 @@ class Verification(commands.Cog):
                         return
 
                     # Out of attempts
-                    fail_label = self._get_fail_action_label(_fail_action)
-                    retry_msg = f"🔄 You can return to <#{_chan}> and click Verify to try again." if _fail_action == "unverified" else ""
+                    fail_label = self._get_fail_action_label(interaction.guild, _fail_action)
+                    retry_msg = v.t.msg(interaction.guild, "verification.helpers.retry_hint", channel=_chan) if _fail_action == "unverified" else ""
 
                     failed_embed = discord.Embed(
-                        title="❌ Verification Failed",
-                        description=(
-                            f"You failed verification in **{_guild_name}**.\n"
-                            f"**Reason:** Too many failed attempts.\n"
-                            f"**Correct answer:** `{captcha_text}`\n"
-                            f"{retry_msg}"
-                        ),
+                        title=v.t.msg(interaction.guild, "verification.helpers.failed_title"),
+                        description=v.t.msg(interaction.guild, "verification.channel.failed_description", server=_guild_name, answer=captcha_text, retry_msg=retry_msg),
                         color=v.error
                     )
                     await modal_interaction.response.send_message(embed=failed_embed, ephemeral=True)
@@ -493,24 +470,24 @@ class Verification(commands.Cog):
                 def __init__(self):
                     super().__init__(timeout=self.TIMEOUT_SECONDS)
 
-                @discord.ui.button(label="🔑 Answer", style=discord.ButtonStyle.green)
+                @discord.ui.button(label=v.t.msg(interaction.guild, "verification.channel.answer_button"), style=discord.ButtonStyle.green)
                 async def answer(self, button: discord.ui.Button, btn_interaction: discord.Interaction):
                     if btn_interaction.user.id != _user.id:
                         return await btn_interaction.response.send_message(
-                            "This isn't your verification!",
+                            v.t.msg(interaction.guild, "verification.helpers.not_your_verification"),
                             ephemeral=True
                         )
                     await btn_interaction.response.send_modal(CaptchaModal())
 
-                @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.red)
+                @discord.ui.button(label=v.t.msg(interaction.guild, "verification.channel.cancel_button"), style=discord.ButtonStyle.red)
                 async def cancel(self, button: discord.ui.Button, btn_interaction: discord.Interaction):
                     if btn_interaction.user.id != _user.id:
                         return await btn_interaction.response.send_message(
-                            "This isn't your verification!",
+                            v.t.msg(interaction.guild, "verification.helpers.not_your_verification"),
                             ephemeral=True
                         )
                     self.active_verifications.pop(interaction.user.id, None)
-                    await btn_interaction.response.send_message("❌ Verification cancelled.", ephemeral=True)
+                    await btn_interaction.response.send_message(v.t.msg(interaction.guild, "verification.helpers.cancelled"), ephemeral=True)
 
             await interaction.followup.send(
                 embed=captcha_embed,
@@ -528,12 +505,12 @@ class Verification(commands.Cog):
             verify_url = self.build_verify_url(interaction.guild.id, interaction.user.id)
 
             view = discord.ui.View()
-            view.add_item(discord.ui.Button(label="🌐 Verify", url=verify_url, style=discord.ButtonStyle.link))
+            view.add_item(discord.ui.Button(label=v.t.msg(interaction.guild, "verification.web.verify_button"), url=verify_url, style=discord.ButtonStyle.link))
 
             await interaction.followup.send(
                 embed=discord.Embed(
-                    title="🌐 Web Verification",
-                    description="Click the button below to verify through your browser.",
+                    title=v.t.msg(interaction.guild, "verification.web.title"),
+                    description=v.t.msg(interaction.guild, "verification.web.description"),
                     color=v.style(interaction.guild.id)
                 ),
                 view=view,

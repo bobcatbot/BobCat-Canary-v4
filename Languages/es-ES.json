@@ -1,0 +1,860 @@
+{
+  "games": {
+    "cmd": {
+      "description": "Muestra la lista y la información de los juegos del servidor",
+      "name": "games"
+    },
+    "title": "Juegos de Discord"
+  },
+  "8ball": {
+    "cmd": {
+      "description": "Haz una pregunta a la bola 8 mágica",
+      "name": "8ball",
+      "options": {
+        "amount": {
+          "description": "Cantidad de la apuesta",
+          "name": "amount"
+        },
+        "question": {
+          "description": "¿Qué pregunta quieres hacer?",
+          "name": "question"
+        }
+      },
+      "title": "Bola 8 mágica"
+    },
+    "embed": {
+      "description": "**Question:** {question}\n**Answer:** {answer}"
+    },
+    "responses": [
+      "Es seguro.",
+      "Sin duda.",
+      "Sin ninguna duda.",
+      "Sí, definitivamente.",
+      "Puedes confiar en ello.",
+      "Por lo que veo, sí.",
+      "Lo más probable.",
+      "Todo apunta bien.",
+      "Sí.",
+      "Las señales apuntan a que sí.",
+      "La respuesta no está clara, inténtalo de nuevo.",
+      "Pregunta de nuevo más tarde.",
+      "Mejor no te lo digo ahora.",
+      "No puedo predecirlo ahora.",
+      "Concéntrate y pregunta de nuevo.",
+      "No cuentes con ello.",
+      "Mi respuesta es no.",
+      "Mis fuentes dicen que no.",
+      "Las perspectivas no son muy buenas.",
+      "Muy dudoso."
+    ]
+  },
+  "diceroll": {
+    "cmd": {
+      "description": "Lanza dos dados y apuesta monedas al resultado",
+      "name": "diceroll",
+      "options": {
+        "amount": {
+          "description": "Cantidad de la apuesta",
+          "name": "amount"
+        }
+      },
+      "title": "Tirada de dados"
+    },
+    "doubles_suffix": " 🎲 ¡Dobles!",
+    "lose": "y ha perdido **`{bet}`** monedas.",
+    "result": "{user} sacó **{die1}** y **{die2}** (total **{total}**) {outcome}",
+    "rolling": "{user} lanza sus dados",
+    "win": "y ha ganado **`{change}`** monedas!"
+  },
+  "coinflip": {
+    "cmd": {
+      "description": "Te permite lanzar una moneda para obtener cara o cruz",
+      "name": "coinflip",
+      "title": "Cara o cruz"
+    },
+    "heads": "Cara",
+    "result": "{user} ha lanzado una moneda y ha sacado **{result}**",
+    "tails": "Cruz"
+  },
+  "guess": {
+    "already_active": {
+      "description": "Ya tienes una partida en curso. Escribe `cancel` para detenerla.",
+      "title": "❌ ¡Ya hay una partida activa!"
+    },
+    "cancelled": {
+      "description": "Se te han devuelto tus **`{bet}`** monedas de apuesta. ¡Más suerte la próxima vez!",
+      "title": "🚫 Partida cancelada"
+    },
+    "cmd": {
+      "description": "Adivina el número entre 1 y 100 para ganar tu apuesta",
+      "name": "guess",
+      "options": {
+        "amount": {
+          "description": "Cantidad de la apuesta",
+          "name": "amount"
+        }
+      },
+      "title": "Adivina el número"
+    },
+    "cooldown": {
+      "description": "Espera `{retry_after}s` antes de iniciar otra partida.",
+      "title": "⏳ ¡Más despacio!"
+    },
+    "hint": {
+      "description": "¡Tu número `{guess}` es **{direction}**!",
+      "footer": "Intento {guesses} • Escribe 'cancel' para salir",
+      "hint_field": "💡 Pista",
+      "hint_value": "El número es {hint}",
+      "recent_field": "📋 Intentos recientes",
+      "title": "📈 Pista",
+      "too_high": "demasiado alto",
+      "too_low": "demasiado bajo"
+    },
+    "hints": {
+      "high": "alto ⬆️",
+      "low": "bajo ⬇️",
+      "medium": "medio ↔️",
+      "very_high": "muy alto 🔥",
+      "very_low": "muy bajo 🧊"
+    },
+    "start": {
+      "description": "Adivina un número entre `1` y `{max}`.\nHas apostado **`{bet}`** monedas. Escribe `cancel` para terminar la partida y recuperar tu apuesta.",
+      "footer": "Partida iniciada por {player}",
+      "title": "🎯 ¡Adivina el número!"
+    },
+    "timeout": {
+      "description": "Has tardado demasiado en adivinar. La partida ha terminado y has perdido tu apuesta de **`{bet}`** monedas.",
+      "title": "⏰ ¡Se acabó el tiempo!"
+    },
+    "win": {
+      "description": "¡El número era **{target}**!\nLo has adivinado en **{guesses}** intentos y {result}",
+      "refunded": "has recuperado tu apuesta.",
+      "score_field": "📊 Puntuación",
+      "score_value": "Victorias: {wins}",
+      "title": "🎉 ¡Lo has acertado!",
+      "won": "ha ganado **`{change}`** monedas!"
+    }
+  },
+  "rps": {
+    "ai_field": "🤖 IA",
+    "ai_lose": {
+      "description": "¡{winner_move} gana a {loser_move}!\nHas perdido **`{bet}`** monedas.",
+      "title": "😔 ¡Has perdido!"
+    },
+    "ai_win": {
+      "description": "¡{winner_move} gana a {loser_move}!\nHas ganado **`{bet}`** monedas!",
+      "title": "🎉 ¡Has ganado!"
+    },
+    "already_active": {
+      "description": "Ya hay una partida en este canal.",
+      "title": "❌ ¡Ya hay una partida activa!"
+    },
+    "cant_play_bot": {
+      "description": "Desafía a un usuario real.",
+      "title": "❌ ¡No puedes jugar contra bots!"
+    },
+    "cant_play_self": {
+      "description": "Desafía a otra persona para jugar.",
+      "title": "❌ ¡No puedes jugar contra ti mismo!"
+    },
+    "challenge": {
+      "description": "¡**{challenger}** ha desafiado a **{opponent}** por **`{bet}`** monedas!\n\n{challenger}, elige tu jugada:"
+    },
+    "cmd": {
+      "description": "Juega a piedra, papel o tijera y apuesta monedas al resultado",
+      "name": "rps",
+      "options": {
+        "amount": {
+          "description": "Cantidad de la apuesta",
+          "name": "amount"
+        },
+        "opponent": {
+          "description": "Desafía a otro usuario",
+          "name": "opponent"
+        }
+      },
+      "title": "Piedra, papel o tijera"
+    },
+    "cooldown": {
+      "description": "Espera `{segundos}s` antes de iniciar otra partida.",
+      "title": "⏳ ¡Más despacio!"
+    },
+    "errors": {
+      "ai_only_player": "❌ ¡Solo el jugador puede jugar contra la IA!",
+      "ended": "❌ ¡Esta partida ya ha terminado!",
+      "not_your_turn": "❌ ¡No es tu turno!"
+    },
+    "moves": {
+      "paper": "Papel",
+      "rock": "Piedra",
+      "scissors": "Tijera"
+    },
+    "multi_lose": {
+      "description": "¡{winner_move} gana a {loser_move}!\n{bettor} ha perdido **`{bet}`** monedas.",
+      "title": "🏆 ¡{winner} gana!"
+    },
+    "multi_win": {
+      "description": "¡{winner_move} gana a {loser_move}!\n{bettor} ha ganado **`{bet}`** monedas!",
+      "title": "🏆 ¡{winner} gana!"
+    },
+    "next_turn": "**{player}**, ¡es tu turno! Elige tu jugada:",
+    "tie": {
+      "description": "¡Ambos eligieron {move}!",
+      "title": "🤝 ¡Empate!"
+    },
+    "timed_out": {
+      "description": "Nadie hizo una elección a tiempo.",
+      "title": "⏰ ¡La partida ha caducado!"
+    },
+    "title": "👊 ¡Piedra, papel o tijera!",
+    "vs_ai": {
+      "description": "**{player}**, ¡elige tu jugada! Apuesta **`{bet}`** monedas.",
+      "title": "🤖 ¡Piedra, papel o tijera contra la IA!"
+    }
+  },
+  "ttt": {
+    "ai_thinking": "🤖 La IA está pensando...",
+    "ai_wins": {
+      "description": "¡La IA te ha ganado! Has perdido **`{bet}`** monedas.",
+      "title": "😔 ¡Gana la IA!"
+    },
+    "already_active": {
+      "description": "Ya hay una partida en este canal.",
+      "title": "❌ ¡Ya hay una partida activa!"
+    },
+    "cant_play_bot": {
+      "description": "Desafía a un usuario real.",
+      "title": "❌ ¡No puedes jugar contra bots!"
+    },
+    "cant_play_self": {
+      "description": "Desafía a otra persona para jugar.",
+      "title": "❌ ¡No puedes jugar contra ti mismo!"
+    },
+    "challenge": {
+      "description": "¡**{challenger}** ha desafiado a **{opponent}** por **`{bet}`** monedas!\n\n{challenger}, ¡es tu turno!"
+    },
+    "cmd": {
+      "description": "Juega al tres en raya y apuesta monedas al resultado",
+      "name": "ttt",
+      "options": {
+        "amount": {
+          "description": "Cantidad de la apuesta",
+          "name": "amount"
+        },
+        "opponent": {
+          "description": "Desafía a otro usuario",
+          "name": "opponent"
+        }
+      },
+      "title": "Tres en raya"
+    },
+    "cooldown": {
+      "description": "Espera `{segundos}s` antes de iniciar otra partida.",
+      "title": "⏳ ¡Más despacio!"
+    },
+    "errors": {
+      "ai_only_player": "❌ ¡Solo el jugador puede jugar contra la IA!",
+      "button_not_found": "❌ ¡Botón no encontrado!",
+      "ended": "❌ ¡Esta partida ya ha terminado!",
+      "not_your_turn": "❌ ¡No es tu turno!",
+      "taken": "❌ ¡Esa posición ya está ocupada!"
+    },
+    "footer": "Partida iniciada a las {time}",
+    "next_turn": "**{player}**, ¡es tu turno!",
+    "player_wins": {
+      "other": "¡Enhorabuena, {winner_mention}! {bettor} ha perdido **`{bet}`** monedas.",
+      "self": "¡Enhorabuena, {winner_mention}! Has ganado **`{bet}`** monedas!",
+      "title": "🏆 ¡{winner} gana!"
+    },
+    "tie": {
+      "description": "¡La partida terminó en empate! Se te ha devuelto la apuesta.",
+      "title": "🤝 ¡Empate!"
+    },
+    "timed_out": {
+      "description": "Nadie hizo una jugada a tiempo.",
+      "title": "⏰ ¡La partida ha caducado!"
+    },
+    "title": "🎯 Tres en raya",
+    "vs_ai": {
+      "description": "**{player}**, ¡es tu turno! Apuesta **`{bet}`** monedas.",
+      "title": "🎯 Tres en raya contra la IA"
+    }
+  },
+
+  "help": {
+    "categories": {
+      "birthdays": {
+        "cmds": {
+          "/birthday": "Muestra tu cumpleaños o el de otro miembro",
+          "/birthdays": "Muestra todos los cumpleaños del mes actual",
+          "/next-birthdays": "Muestra los próximos 10 cumpleaños",
+          "/remove-birthday": "Elimina tu cumpleaños o el de otro miembro",
+          "/set-birthday": "Establece tu cumpleaños o el de otro miembro"
+        },
+        "menu": "Todos los comandos de cumpleaños de BobCat",
+        "name": "Cumpleaños",
+        "title": "Comandos de cumpleaños de BobCat"
+      },
+      "commands": {
+        "cmds": {
+          "/help": "¡El comando que has usado para llegar aquí!",
+          "/invite": "Invita a BobCat a tu servidor",
+          "/server": "Obtén información sobre un servidor",
+          "/user": "Obtén información sobre un usuario"
+        },
+        "menu": "Todos los comandos de BobCat",
+        "name": "Comandos",
+        "title": "Comandos generales de BobCat"
+      },
+      "economy": {
+        "cmds": {
+          "/economy balance": "Muestra tu saldo",
+          "/economy buy": "Compra un artículo de la tienda",
+          "/economy deposit": "Deposita monedas en el banco",
+          "/economy inventory": "Muestra tu inventario",
+          "/economy sell": "Vende un artículo de tu inventario",
+          "/economy shop": "Explora la tienda",
+          "/economy withdraw": "Retira monedas del banco",
+          "/economy work": "Gana monedas"
+        },
+        "menu": "Todos los comandos de economía de BobCat",
+        "name": "Economía",
+        "staff_cmds": {
+          "/economy give-coins": "🔒 Da monedas a un usuario",
+          "/economy remove-coins": "🔒 Quita monedas a un usuario"
+        },
+        "title": "Comandos de economía de BobCat"
+      },
+      "games": {
+        "cmds": {
+          "/8ball": "Haz una pregunta a la bola 8 mágica",
+          "/coinflip": "Lanza una moneda",
+          "/diceroll": "Lanza un dado de 6 caras",
+          "/games": "Muestra todos los comandos de juegos de BobCat",
+          "/guess": "Adivina el número aleatorio entre 1 y 100",
+          "/rps": "Juega a piedra, papel o tijera",
+          "/ttt": "Juega al tres en raya"
+        },
+        "menu": "Todos los comandos de juegos de BobCat",
+        "name": "Juegos",
+        "title": "Comandos de juegos de BobCat"
+      },
+      "giveaway": {
+        "cmds": {
+          "/giveaway create": "Crea un sorteo",
+          "/giveaway end": "Finaliza un sorteo",
+          "/giveaway list": "Muestra todos los sorteos",
+          "/giveaway reroll": "Vuelve a sortear un sorteo"
+        },
+        "menu": "Todos los comandos de sorteos de BobCat",
+        "name": "Sorteo",
+        "title": "Comandos de sorteos de BobCat"
+      },
+      "leveling": {
+        "cmds": {
+          "/leaderboard": "Muestra la clasificación",
+          "/rank": "Muestra tu nivel y XP o los de otro miembro"
+        },
+        "menu": "Todos los comandos de niveles de BobCat",
+        "name": "Niveles",
+        "title": "Comandos de niveles de BobCat"
+      },
+      "mod": {
+        "cmds": {
+          "/ban": "Banea a un usuario",
+          "/clear": "Borra mensajes",
+          "/kick": "Expulsa a un usuario",
+          "/lockdown add channel": "Bloquea un canal",
+          "/lockdown add server": "Bloquea el servidor",
+          "/lockdown remove channel": "Desbloquea un canal",
+          "/lockdown remove server": "Desbloquea el servidor",
+          "/mute": "Silencia a un usuario",
+          "/slowmode": "Establece el modo lento de un canal",
+          "/unban": "Quita el baneo a un usuario",
+          "/unmute": "Deja de silenciar a un usuario",
+          "/unwarn": "Quita una advertencia a un usuario",
+          "/warn": "Advierte a un usuario",
+          "/warnings": "Muestra las advertencias de un usuario"
+        },
+        "menu": "Todos los comandos de moderación de BobCat",
+        "name": "Moderación",
+        "title": "Comandos de moderación de BobCat"
+      }
+    },
+    "cmd": {
+      "description": "Una lista de comandos y utilidades",
+      "name": "help"
+    },
+    "menu": {
+      "back_button": "Atrás",
+      "description": "Gracias por usar **BobCat**\n**Prefijo de BobCat:** `{prefix}`\nBobCat es un bot fácil de usar con entretenimiento, moderación, administración y mucho más.",
+      "disabled": "❌ El módulo **{category}** está desactivado en este servidor.",
+      "invite_button": "Invitar",
+      "placeholder": "Explorar categorías",
+      "support_button": "Soporte",
+      "title": "Menú de ayuda de BobCat"
+    }
+  },
+  "invite": {
+    "button": "Invitar",
+    "cmd": {
+      "description": "Obtiene un enlace de invitación para añadirme a tu servidor",
+      "name": "invite"
+    },
+    "description": "Haz clic en el botón",
+    "title": "Invitar a BobCat"
+  },
+
+  "mod": {
+    "actions": {
+      "banned": "baneado",
+      "kicked": "expulsado",
+      "moderate": "moderar",
+      "muted": "silenciado",
+      "timed_out": "puesto en tiempo de espera",
+      "unmuted": "dejado de silenciar",
+      "unwarned": "advertencia eliminada",
+      "warned": "advertido"
+    },
+    "common_errors": {
+      "generic_description": "Ha ocurrido un error inesperado. Inténtalo de nuevo.",
+      "generic_title": "❌ El comando ha fallado",
+      "missing_perms_title": "❌ Falta un permiso"
+    },
+    "durations": {
+      "five_min": "5 minutos",
+      "one_day": "1 día",
+      "one_hour": "1 hora",
+      "one_week": "1 semana",
+      "sixty_sec": "60 segundos",
+      "ten_min": "10 minutos"
+    },
+    "helpers": {
+      "cannot_me": "No puedes hacer que me {action} a mí mismo.",
+      "cannot_owner": "No puedes {action} al propietario del servidor.",
+      "cannot_self": "No puedes {action} a ti mismo.",
+      "dm_fields": {
+        "action": "Acción",
+        "moderator": "Moderador",
+        "reason": "Motivo",
+        "server": "Servidor"
+      },
+      "dm_title": "Has sido {action}",
+      "duration_field": "Duración",
+      "immune_role": "Ese miembro tiene un rol de inmunidad y no puede ser moderado.",
+      "log_fields": {
+        "moderator": "Moderador",
+        "reason": "Motivo",
+        "user": "Usuario"
+      },
+      "reason_line": "**Motivo:** {reason}",
+      "role_above_mine": "El rol más alto de ese miembro está por encima o al mismo nivel que mi rol más alto.",
+      "role_above_yours": "El rol más alto de ese miembro está por encima o al mismo nivel que tu rol más alto.",
+      "unspecified_reason": "No especificado"
+    }
+  },
+  "automod": {
+    "antilink": {
+      "invite_reason": "Ha enviado una invitación a un servidor",
+      "log_title": "[ANTIENLACES] {member}",
+      "scam_reason": "Ha enviado un enlace conocido de estafa/phishing"
+    },
+    "antispam": {
+      "log_title": "[ANTISPAM] {member}",
+      "reason": "Envío masivo de mensajes"
+    },
+    "caps": {
+      "log_title": "[MAYÚSCULAS] {member}",
+      "reason": "Uso excesivo de letras mayúsculas"
+    },
+    "channel_field": "Canal",
+    "ghostping": {
+      "log_title": "[GHOSTPING] {member}",
+      "reason": "Ha hecho ghost ping a {count} mención(es) y después ha eliminado el mensaje"
+    },
+    "log_footer": "Seguridad y protección de BobCat"
+  },
+  "clear": {
+    "cleared": "✅ Se han borrado **{count}** mensajes.",
+    "cmd": {
+      "description": "Borra una cantidad determinada de mensajes",
+      "name": "clear",
+      "options": {
+        "amount": {
+          "description": "El número de mensajes que quieres borrar",
+          "name": "amount"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "El comando de borrado ha fallado porque a BobCat le falta el permiso `Gestionar mensajes`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Gestionar mensajes`",
+      "bot_missing_title": "BobCat no puede gestionar mensajes",
+      "missing_perms_description": "Necesitas el permiso `Gestionar mensajes`."
+    }
+  },
+  "kick": {
+    "cmd": {
+      "description": "Expulsa a un miembro del servidor",
+      "name": "kick",
+      "options": {
+        "member": {
+          "description": "El miembro que quieres expulsar",
+          "name": "miembro"
+        },
+        "reason": {
+          "description": "El motivo de la expulsión",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "El comando de expulsión ha fallado porque a BobCat le falta el permiso `Expulsar miembros`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Expulsar miembros`",
+      "bot_missing_title": "BobCat no puede expulsar miembros",
+      "missing_perms_description": "Necesitas el permiso `Expulsar miembros`."
+    },
+    "failed_title": "❌ La expulsión ha fallado",
+    "log_title": "[EXPULSIÓN] {member}",
+    "success_author": "{member} ha sido expulsado"
+  },
+  "ban": {
+    "cmd": {
+      "description": "Banea a un miembro del servidor",
+      "name": "ban",
+      "options": {
+        "delete_messages": {
+          "description": "El número de días anteriores de mensajes que quieres borrar",
+          "name": "delete_messages"
+        },
+        "member": {
+          "description": "El miembro que quieres banear",
+          "name": "miembro"
+        },
+        "reason": {
+          "description": "El motivo del baneo",
+          "name": "reason"
+        }
+      }
+    },
+    "deleted_field": "Mensajes eliminados",
+    "deleted_value": "{days} día(s)",
+    "errors": {
+      "bot_missing_description": "El comando de baneo ha fallado porque a BobCat le falta el permiso `Banear miembros`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Banear miembros`",
+      "bot_missing_title": "BobCat no puede banear miembros",
+      "missing_perms_description": "Necesitas el permiso `Banear miembros`."
+    },
+    "failed_title": "❌ El baneo ha fallado",
+    "log_title": "[BANEO] {member}",
+    "reason_delete_line": "**Reason:** {reason}\n**Deleted message history:** {days} day(s)",
+    "success_author": "{member} ha sido baneado"
+  },
+  "unban": {
+    "cannot_check_description": "No tengo permiso para ver la lista de baneos.",
+    "cannot_check_title": "❌ No se pueden comprobar los baneos",
+    "cmd": {
+      "description": "Quita el baneo de un usuario del servidor",
+      "name": "unban",
+      "options": {
+        "reason": {
+          "description": "El motivo del desbaneo",
+          "name": "reason"
+        },
+        "user_id": {
+          "description": "El ID del usuario al que quieres quitar el baneo",
+          "name": "user_id"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "El comando para quitar el baneo ha fallado porque a BobCat le falta el permiso `Banear miembros`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Banear miembros`",
+      "bot_missing_title": "BobCat no puede quitar baneos",
+      "missing_perms_description": "Necesitas el permiso `Banear miembros`."
+    },
+    "invalid_id_description": "Proporciona un ID de usuario de Discord válido.",
+    "invalid_id_title": "❌ ID de usuario no válido",
+    "log_title": "[DESBANEO] {user}",
+    "not_found_description": "Ese usuario no está baneado actualmente.",
+    "not_found_title": "❌ Usuario no encontrado",
+    "success_author": "{user} ya no está baneado"
+  },
+  "mute": {
+    "already_muted_title": "❌ El miembro ya está silenciado",
+    "cmd": {
+      "description": "Silencia a un miembro del servidor",
+      "name": "mute",
+      "options": {
+        "member": {
+          "description": "El miembro que quieres silenciar",
+          "name": "miembro"
+        },
+        "reason": {
+          "description": "El motivo del silencio",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "El comando de silencio ha fallado porque a BobCat le falta el permiso `Poner miembros en tiempo de espera`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat no puede silenciar miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "failed_title": "❌ El silencio ha fallado",
+    "log_title": "[SILENCIO] {member}",
+    "role_above_mine": "El rol Silenciado está por encima o al mismo nivel que mi rol más alto.",
+    "success_author": "{member} ha sido silenciado"
+  },
+  "unmute": {
+    "cmd": {
+      "description": "Deja de silenciar a un miembro",
+      "name": "unmute",
+      "options": {
+        "member": {
+          "description": "El miembro al que quieres dejar de silenciar",
+          "name": "miembro"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The unmute command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat cannot unmute miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "failed_title": "❌ No se ha podido dejar de silenciar",
+    "log_title": "[FIN DEL SILENCIO] {member}",
+    "not_muted_title": "❌ El miembro no está silenciado",
+    "not_timed_out_title": "❌ El miembro no está en tiempo de espera",
+    "success_author": "{member} ha dejado de estar silenciado"
+  },
+  "timeout": {
+    "cmd": {
+      "description": "Pone temporalmente a un miembro en tiempo de espera",
+      "name": "timeout",
+      "options": {
+        "duration": {
+          "description": "Duración del tiempo de espera",
+          "name": "duration"
+        },
+        "member": {
+          "description": "El miembro al que quieres poner en tiempo de espera",
+          "name": "miembro"
+        },
+        "reason": {
+          "description": "Motivo del tiempo de espera",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The timeout command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat cannot time out miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "failed_title": "❌ El tiempo de espera ha fallado",
+    "footer": "En tiempo de espera hasta",
+    "invalid_duration": "❌ Duración del tiempo de espera no válida.",
+    "log_title": "[TIEMPO DE ESPERA] {member}",
+    "success_author": "{member} ha sido puesto en tiempo de espera durante {duration}"
+  },
+  "warn": {
+    "case_field": "Caso",
+    "case_value": "`{case}`",
+    "cmd": {
+      "description": "Advierte a un miembro del servidor",
+      "name": "warn",
+      "options": {
+        "member": {
+          "description": "El miembro al que quieres advertir",
+          "name": "miembro"
+        },
+        "reason": {
+          "description": "El motivo de la advertencia",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The warn command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat cannot warn miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "log_title": "[ADVERTENCIA] {member}",
+    "reason_case_line": "**Reason:** {reason}\n**Case:** `{case}`",
+    "success_author": "{member} ha recibido una advertencia"
+  },
+  "unwarn": {
+    "cmd": {
+      "description": "Elimina una advertencia de un miembro del servidor",
+      "name": "unwarn",
+      "options": {
+        "case": {
+          "description": "La advertencia que quieres eliminar",
+          "name": "case"
+        },
+        "member": {
+          "description": "El miembro cuya advertencia quieres eliminar",
+          "name": "miembro"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The unwarn command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat cannot unwarn miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "infraction_field": "Infracción",
+    "infraction_value": "{reason} • `{case}`",
+    "invalid_case_title": "❌ ID de advertencia no válido",
+    "log_reason_removed": "Caso `{case}` eliminado",
+    "log_title": "[ELIMINAR ADVERTENCIA] {member}",
+    "no_warnings_title": "❌ Este usuario no tiene advertencias",
+    "success_author": "{member} ya no tiene esa advertencia"
+  },
+  "warnings": {
+    "author_title": "Advertencias de {member}",
+    "buttons": {
+      "no": "No",
+      "remove_all": "Eliminar todas las advertencias",
+      "yes": "Sí"
+    },
+    "cancelled_description": "**Cancelado**",
+    "cmd": {
+      "description": "Muestra las advertencias de un miembro",
+      "name": "warnings",
+      "options": {
+        "member": {
+          "description": "El miembro cuyas advertencias quieres ver",
+          "name": "miembro"
+        }
+      }
+    },
+    "confirm_description": "Are you sure you want to remove all of **{member}'s** warnings?\n**This action is irreversible.**",
+    "errors": {
+      "bot_missing_description": "The warnings command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Poner miembros en tiempo de espera`",
+      "bot_missing_title": "BobCat cannot warn miembros",
+      "missing_perms_description": "Necesitas el permiso `Poner miembros en tiempo de espera`."
+    },
+    "last10_field": "Últimas 10 advertencias",
+    "line_format": "`{case}` • {time} • **{reason}**",
+    "no_warnings_author": "{member} no tiene advertencias",
+    "total_field": "Total",
+    "total_value": "{count} advertencias"
+  },
+  "slowmode": {
+    "cmd": {
+      "description": "Establece el modo lento de un canal",
+      "name": "slowmode",
+      "options": {
+        "delay": {
+          "description": "Los segundos que quieres establecer para el modo lento",
+          "name": "delay"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "El comando de modo lento ha fallado porque a BobCat le falta el permiso `Gestionar canales`.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ Me falta el permiso `Gestionar canales`",
+      "bot_missing_title": "BobCat no puede establecer el modo lento del canal",
+      "missing_perms_description": "Necesitas el permiso `Gestionar canales`."
+    },
+    "off": "{channel} ya no está en modo lento",
+    "on": "{channel} está ahora en modo lento de **{delay} segundos**\n\n(Sugerencia: Escribe /slowmode off cuando quieras desactivar el modo lento)"
+  },
+  "lockdown": {
+    "access_restored_desc": "Recuperarás el acceso cuando se levante el bloqueo.",
+    "add_group": {
+      "description": "Comandos de bloqueo",
+      "name": "add"
+    },
+    "bot_missing_perms": {
+      "description": "❌ A BobCat le falta el permiso `{perm}`",
+      "title": "Falta un permiso"
+    },
+    "group": {
+      "description": "Bloquea un canal/servidor",
+      "name": "lockdown"
+    },
+    "lock_channel": {
+      "cmd": {
+        "description": "Bloquea un canal",
+        "name": "channel",
+        "options": {
+          "channel": {
+            "description": "Canal que quieres bloquear",
+            "name": "channel"
+          }
+        }
+      },
+      "success_title": "🔒 #{channel} ha sido bloqueado"
+    },
+    "lock_server": {
+      "cmd": {
+        "description": "Bloquea el servidor",
+        "name": "server",
+        "options": {
+          "hidden": {
+            "description": "Oculta todos los canales a quienes no sean administradores",
+            "name": "hidden"
+          }
+        }
+      },
+      "hidden_desc": "Todos los canales están ocultos. Se ha creado un canal de estado temporal para los anuncios.",
+      "locked_channel_description": "This server has been fully locked down by staff.\nYou will not be able to see or talk in channels until this is lifted.\n**Please be patient.**",
+      "locked_channel_title": "El servidor está bloqueado actualmente",
+      "success_title": "🔒 Los canales del servidor han sido bloqueados"
+    },
+    "missing_perms": {
+      "description": "❌ Te falta el permiso `{perm}`",
+      "title": "Falta un permiso"
+    },
+    "perms": {
+      "manage_channels": "Gestionar canales",
+      "manage_roles": "Gestionar roles"
+    },
+    "remove_group": {
+      "description": "Comandos de desbloqueo",
+      "name": "remove"
+    },
+    "unlock_channel": {
+      "cmd": {
+        "description": "Desbloquea un canal",
+        "name": "channel",
+        "options": {
+          "channel": {
+            "description": "Canal que quieres desbloquear",
+            "name": "channel"
+          }
+        }
+      },
+      "success_description": "Ahora todo el mundo tiene acceso a este canal.",
+      "success_title": "🔓 #{channel} ha sido desbloqueado"
+    },
+    "unlock_server": {
+      "cmd": {
+        "description": "Desbloquea el servidor",
+        "name": "server"
+      },
+      "success_description": "Todos los canales vuelven a estar accesibles.",
+      "success_title": "🔓 El servidor ha sido desbloqueado"
+    }
+  }
+}

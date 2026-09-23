@@ -69,11 +69,28 @@ class Warn(commands.Cog):
         self.client = client
 
 # Warn [Member] {reason}
-    @commands.slash_command(name="warn", description="Warns a member from the server")
+    @commands.slash_command(
+        name="warn",
+        description=v.t.msg(None, "warn.cmd.description"),
+        name_localizations=v.t.localizations("warn.cmd.name"),
+        description_localizations=v.t.localizations("warn.cmd.description"),
+    )
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
-    @discord.option("member", discord.Member, description="The member you want to warn", required=True)
-    @discord.option("reason", description="The reason for the warn", required=False)
+    @discord.option(
+        "member", discord.Member,
+        description=v.t.msg(None, "warn.cmd.options.member.description"),
+        name_localizations=v.t.localizations("warn.cmd.options.member.name"),
+        description_localizations=v.t.localizations("warn.cmd.options.member.description"),
+        required=True,
+    )
+    @discord.option(
+        "reason",
+        description=v.t.msg(None, "warn.cmd.options.reason.description"),
+        name_localizations=v.t.localizations("warn.cmd.options.reason.name"),
+        description_localizations=v.t.localizations("warn.cmd.options.reason.description"),
+        required=False,
+    )
     async def warn(self, ctx, member: discord.Member, *, reason=None):
         allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
@@ -85,7 +102,7 @@ class Warn(commands.Cog):
                 ephemeral=True,
             )
 
-        reason = reason or "Unspecified"
+        reason = reason or v.t.msg(ctx.guild, "mod.helpers.unspecified_reason")
 
         warning = await add_member_warning(
             guild=ctx.guild,
@@ -96,12 +113,9 @@ class Warn(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            description=(
-                f"**Reason:** {reason}\n"
-                f"**Case:** `{warning.case}`"
-            ),
+            description=v.t.msg(ctx.guild, "warn.reason_case_line", reason=reason, case=warning.case),
         )
-        embed.set_author(icon_url=member.avatar.url, name=f"{member} has been warned")
+        embed.set_author(icon_url=member.avatar.url, name=v.t.msg(ctx.guild, "warn.success_author", member=member))
         await ctx.respond(embed=embed)
 
         dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation.settings.warn.dm
@@ -110,27 +124,31 @@ class Warn(commands.Cog):
             member=member,
             guild=ctx.guild,
             moderator=ctx.author,
-            action="Warned",
+            action=v.t.msg(ctx.guild, "mod.actions.warned"),
             reason=reason,
             dm_fields=dm_fields,
         )
 
         logs = discord.Embed(color=v.style(ctx.guild.id))
-        logs.set_author(icon_url=member.display_avatar.url, name=f"[WARN] {member}")
-        logs.add_field(name="User", value=member.mention, inline=True)
-        logs.add_field(name="Moderator", value=ctx.author.mention)
-        logs.add_field(name="Reason", value=reason)
-        logs.add_field(name="Case", value=f"`{warning.case}`")
+        logs.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "warn.log_title", member=member))
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.user"), value=member.mention, inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.moderator"), value=ctx.author.mention)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.reason"), value=reason)
+        logs.add_field(name=v.t.msg(ctx.guild, "warn.case_field"), value=v.t.msg(ctx.guild, "warn.case_value", case=warning.case))
         await audit_log(ctx, "ModerationWarn", logs)
 
     @warn.error
     async def warn_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed = discord.Embed(title="❌ Missing permission", description="You need the `Time out Members` permission.", color=v.error),
+                embed = discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "warn.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True
             )
-        
+
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
                 ctx.guild, kind="error",
@@ -140,8 +158,8 @@ class Warn(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Time out Members` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/warn)",
+                    title=v.t.msg(ctx.guild, "warn.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "warn.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/warn"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -149,8 +167,8 @@ class Warn(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,
@@ -162,11 +180,28 @@ class UnWarn(commands.Cog):
         self.client = client
     
 # Unwarn
-    @commands.slash_command(name="unwarn", description="Unwarns a member from the server")
+    @commands.slash_command(
+        name="unwarn",
+        description=v.t.msg(None, "unwarn.cmd.description"),
+        name_localizations=v.t.localizations("unwarn.cmd.name"),
+        description_localizations=v.t.localizations("unwarn.cmd.description"),
+    )
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
-    @discord.option("member", discord.Member, description="The member you want to unwarn", required=True)
-    @discord.option("case", description="The warn you want to remove", required=True)
+    @discord.option(
+        "member", discord.Member,
+        description=v.t.msg(None, "unwarn.cmd.options.member.description"),
+        name_localizations=v.t.localizations("unwarn.cmd.options.member.name"),
+        description_localizations=v.t.localizations("unwarn.cmd.options.member.description"),
+        required=True,
+    )
+    @discord.option(
+        "case",
+        description=v.t.msg(None, "unwarn.cmd.options.case.description"),
+        name_localizations=v.t.localizations("unwarn.cmd.options.case.name"),
+        description_localizations=v.t.localizations("unwarn.cmd.options.case.description"),
+        required=True,
+    )
     async def unwarn(self, ctx, member: discord.Member, case):
         allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
@@ -177,24 +212,24 @@ class UnWarn(commands.Cog):
                 ),
                 ephemeral=True,
             )
-        
+
         warnings = await get_member_warnings(guild=ctx.guild, member=member)
-        
+
         if not warnings or warnings is None:
-            embed = discord.Embed(title="❌ This user has no warnings", color=v.error)
+            embed = discord.Embed(title=v.t.msg(ctx.guild, "unwarn.no_warnings_title"), color=v.error)
             return await ctx.respond(embed=embed)
-        
+
         warning = await delete_member_warning(guild=ctx.guild, member=member, case=case)
         # if warn is None:
         #     embed = discord.Embed(title="❌ Failed to get user warnings", color=v.error)
         #     return await ctx.respond(embed=embed)
         if not warning:
-            embed = discord.Embed(title="❌ Invalid warn ID", color=v.error)
+            embed = discord.Embed(title=v.t.msg(ctx.guild, "unwarn.invalid_case_title"), color=v.error)
             return await ctx.respond(embed=embed)
-        
+
         embed = discord.Embed(color=v.style(ctx.guild.id))
-        embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has been unwarned")
-        embed.add_field(name="Infraction", value=f"{warning.reason} • `{warning.case}`", inline=False)
+        embed.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "unwarn.success_author", member=member))
+        embed.add_field(name=v.t.msg(ctx.guild, "unwarn.infraction_field"), value=v.t.msg(ctx.guild, "unwarn.infraction_value", reason=warning.reason, case=warning.case), inline=False)
         await ctx.respond(embed=embed)
 
         dm_fields = (await Guild.get(str(ctx.guild.id))).dashboard.moderation.settings.warn.dm
@@ -203,23 +238,27 @@ class UnWarn(commands.Cog):
             member=member,
             guild=ctx.guild,
             moderator=ctx.author,
-            action="Unwarned",
+            action=v.t.msg(ctx.guild, "mod.actions.unwarned"),
             reason=warning.reason,
             dm_fields=dm_fields,
         )
 
         logs = discord.Embed(color=v.style(ctx.guild.id))
-        logs.set_author(icon_url=member.display_avatar.url, name=f"[UNWARN] {member}")
-        logs.add_field(name="User", value=member.mention, inline=True)
-        logs.add_field(name="Moderator", value=ctx.author.mention)
-        logs.add_field(name="Reason", value=f"Case `{warning.case}` removed")
+        logs.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "unwarn.log_title", member=member))
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.user"), value=member.mention, inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.moderator"), value=ctx.author.mention)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.reason"), value=v.t.msg(ctx.guild, "unwarn.log_reason_removed", case=warning.case))
         await audit_log(ctx, "ModerationUnwarn", logs)
 
     @unwarn.error
     async def unwarn_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(title="❌ Missing permission", description="You need the `Time out Members` permission.", color=v.error),
+                embed=discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "unwarn.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True
             )
 
@@ -232,8 +271,8 @@ class UnWarn(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Time out Members` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/unwarn)",
+                    title=v.t.msg(ctx.guild, "unwarn.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "unwarn.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/unwarn"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -241,8 +280,8 @@ class UnWarn(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,
@@ -253,10 +292,21 @@ class Warnings(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.slash_command(name="warnings", description="Shows the warnings of a member")
+    @commands.slash_command(
+        name="warnings",
+        description=v.t.msg(None, "warnings.cmd.description"),
+        name_localizations=v.t.localizations("warnings.cmd.name"),
+        description_localizations=v.t.localizations("warnings.cmd.description"),
+    )
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_guild_permissions(moderate_members=True)
-    @discord.option("member", discord.Member,description="The member you want to see the warnings of", required=False)
+    @discord.option(
+        "member", discord.Member,
+        description=v.t.msg(None, "warnings.cmd.options.member.description"),
+        name_localizations=v.t.localizations("warnings.cmd.options.member.name"),
+        description_localizations=v.t.localizations("warnings.cmd.options.member.description"),
+        required=False,
+    )
     async def warnings(self, ctx, member: discord.Member = None):
         member = member or ctx.author
 
@@ -264,7 +314,7 @@ class Warnings(commands.Cog):
 
         if not warnings:
             embed = discord.Embed(color=v.style(ctx.guild.id))
-            embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has no warnings")
+            embed.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "warnings.no_warnings_author", member=member))
             return await ctx.respond(embed=embed)
 
         warnings = sorted(
@@ -281,19 +331,22 @@ class Warnings(commands.Cog):
                 style="R",
             )
             warning_lines.append(
-                f"`{warning.case}` • {created_at} • **{warning.reason}**"
+                v.t.msg(ctx.guild, "warnings.line_format", case=warning.case, time=created_at, reason=warning.reason)
             )
 
         embed = discord.Embed(color=v.style(ctx.guild.id))
-        embed.set_author(icon_url=member.display_avatar.url, name=f"{member}'s warnings")
-        embed.add_field(name="Total", value=f"{len(warnings)} warnings", inline=True)
-        embed.add_field(name="Last 10 warnings", value="\n".join(warning_lines), inline=False)
+        embed.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "warnings.author_title", member=member))
+        embed.add_field(name=v.t.msg(ctx.guild, "warnings.total_field"), value=v.t.msg(ctx.guild, "warnings.total_value", count=len(warnings)), inline=True)
+        embed.add_field(name=v.t.msg(ctx.guild, "warnings.last10_field"), value="\n".join(warning_lines), inline=False)
 
+        # Both view classes are (re)defined per-invocation, not at module level
+        # like the rps/ttt button views - ctx is captured by closure, so unlike
+        # those, these button labels CAN follow the guild's language.
         canInteract = not ctx.author.guild_permissions.moderate_members
         class Confirm(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=None)
-            @discord.ui.button(label="Yes", style=discord.ButtonStyle.red)
+            @discord.ui.button(label=v.t.msg(ctx.guild, "warnings.buttons.yes"), style=discord.ButtonStyle.red)
             async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
                 if not interaction.user.guild_permissions.moderate_members:
                     return
@@ -303,31 +356,28 @@ class Warnings(commands.Cog):
                 await clear_member_warnings(guild=ctx.guild, member=member)
 
                 cleared_embed = discord.Embed(color=v.style(ctx.guild.id))
-                cleared_embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has no warnings")
+                cleared_embed.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "warnings.no_warnings_author", member=member))
                 await interaction.response.edit_message(embed=cleared_embed, view=None)
 
-            @discord.ui.button(label="No", style=discord.ButtonStyle.gray)
+            @discord.ui.button(label=v.t.msg(ctx.guild, "warnings.buttons.no"), style=discord.ButtonStyle.gray)
             async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
                 if not interaction.user.guild_permissions.moderate_members:
                     return
                 for child in self.children:
                     child.disabled = True
-                cancelled_embed = discord.Embed(description="**Cancelled**", color=v.error)
+                cancelled_embed = discord.Embed(description=v.t.msg(ctx.guild, "warnings.cancelled_description"), color=v.error)
                 await interaction.response.edit_message(embed=cancelled_embed, view=self)
 
         class Infractions(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=None)
-            @discord.ui.button(label="Remove all warnings", style=discord.ButtonStyle.red, disabled=canInteract)
+            @discord.ui.button(label=v.t.msg(ctx.guild, "warnings.buttons.remove_all"), style=discord.ButtonStyle.red, disabled=canInteract)
             async def infractions(self, button: discord.ui.Button, interaction: discord.Interaction):
                 if not interaction.user.guild_permissions.moderate_members:
                     return
 
                 confirmation_embed = discord.Embed(
-                    description=(
-                        f"Are you sure you want to remove all of **{member}'s** warnings?"
-                        "\n**This action is irreversible.**"
-                    ),
+                    description=v.t.msg(ctx.guild, "warnings.confirm_description", member=member),
                     color=v.error,
                 )
                 await interaction.response.send_message(embed=confirmation_embed, view=Confirm(), ephemeral=True)
@@ -338,10 +388,14 @@ class Warnings(commands.Cog):
     async def warnings_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(title="❌ Missing permission", description="You need the `Time out Members` permission.", color=v.error),
+                embed=discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "warnings.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True
             )
-        
+
         if isinstance(error, commands.BotMissingPermissions):
             await v.push_notification(
                 ctx.guild, kind="error",
@@ -351,8 +405,8 @@ class Warnings(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Time out Members` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/warnings)",
+                    title=v.t.msg(ctx.guild, "warnings.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "warnings.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/warnings"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -360,8 +414,8 @@ class Warnings(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,

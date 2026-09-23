@@ -6,6 +6,7 @@ import math
 from typing import Optional
 from datetime import datetime
 import time
+from modules import bot as v
 from cogs.money._shop import open_account, update_bank, parse_and_validate_bet
 
 # Only the member who ran /ttt places a bet - a tie refunds nothing (no
@@ -72,27 +73,27 @@ class TicTacToeGame(commands.Cog):
                     break
                     
             if button is None:
-                await interaction.response.send_message("❌ Button not found!", ephemeral=True)
+                await interaction.response.send_message(v.t.msg(self.ctx.guild, "ttt.errors.button_not_found"), ephemeral=True)
                 return
-                
+
             await self._handle_move(interaction, button, button.position)
-            
+
         async def _handle_move(self, interaction: discord.Interaction, button: Button, position: int):
             """Handle a player's move."""
             # Check if game is still active
             if self.ctx.channel.id not in self.cog.games:
                 await interaction.response.send_message(
-                    "❌ This game has already ended!", 
+                    v.t.msg(self.ctx.guild, "ttt.errors.ended"),
                     ephemeral=True
                 )
                 return
-                
+
             # Check if it's the right player's turn
             if self.game_data["mode"] == "multi":
                 expected_player = self.game_data["players"][self.game_data["current_player"]]
                 if interaction.user.id != expected_player:
                     await interaction.response.send_message(
-                        "❌ It's not your turn!", 
+                        v.t.msg(self.ctx.guild, "ttt.errors.not_your_turn"),
                         ephemeral=True
                     )
                     return
@@ -100,15 +101,15 @@ class TicTacToeGame(commands.Cog):
                 # AI mode - only the player can click
                 if interaction.user.id != self.game_data["players"][0]:
                     await interaction.response.send_message(
-                        "❌ Only the player can play against AI!", 
+                        v.t.msg(self.ctx.guild, "ttt.errors.ai_only_player"),
                         ephemeral=True
                     )
                     return
-                    
+
             # Check if position is already taken
             if self.game_data["board"][position] != self.cog.EMPTY:
                 await interaction.response.send_message(
-                    "❌ That position is already taken!", 
+                    v.t.msg(self.ctx.guild, "ttt.errors.taken"),
                     ephemeral=True
                 )
                 return
@@ -147,24 +148,24 @@ class TicTacToeGame(commands.Cog):
                 
                 # Create updated embed
                 embed = discord.Embed(
-                    title="🎯 Tic Tac Toe",
-                    description=f"**{next_player.display_name}**, it's your turn!",
+                    title=v.t.msg(self.ctx.guild, "ttt.title"),
+                    description=v.t.msg(self.ctx.guild, "ttt.next_turn", player=next_player.display_name),
                     color=discord.Color.blue()
                 )
-                embed.set_footer(text=f"Game started at {self.game_data['started'].strftime('%H:%M')}")
-                
+                embed.set_footer(text=v.t.msg(self.ctx.guild, "ttt.footer", time=self.game_data['started'].strftime('%H:%M')))
+
                 # Update both embed and view in one response
                 await interaction.response.edit_message(embed=embed, view=self)
-                
+
             else:
                 # AI mode
                 self.game_data["current"] = ["ai"]
                 embed = discord.Embed(
-                    title="🎯 Tic Tac Toe",
-                    description="🤖 AI is thinking...",
+                    title=v.t.msg(self.ctx.guild, "ttt.title"),
+                    description=v.t.msg(self.ctx.guild, "ttt.ai_thinking"),
                     color=discord.Color.blue()
                 )
-                embed.set_footer(text=f"Game started at {self.game_data['started'].strftime('%H:%M')}")
+                embed.set_footer(text=v.t.msg(self.ctx.guild, "ttt.footer", time=self.game_data['started'].strftime('%H:%M')))
                 
                 # Update the message
                 await interaction.response.edit_message(embed=embed, view=self)
@@ -173,9 +174,26 @@ class TicTacToeGame(commands.Cog):
                 await asyncio.sleep(1)
                 await self.cog._ai_move(self.ctx, self.game_data, self)
                 
-    @commands.slash_command(name="ttt", description="Play Tic Tac Toe and bet coins on the outcome")
-    @discord.option("amount", description="Bet amount", required=True)
-    @discord.option("opponent", description="Challenge another user", required=False)
+    @commands.slash_command(
+        name="ttt",
+        description=v.t.msg(None, "ttt.cmd.description"),
+        name_localizations=v.t.localizations("ttt.cmd.name"),
+        description_localizations=v.t.localizations("ttt.cmd.description"),
+    )
+    @discord.option(
+        "amount",
+        description=v.t.msg(None, "ttt.cmd.options.amount.description"),
+        name_localizations=v.t.localizations("ttt.cmd.options.amount.name"),
+        description_localizations=v.t.localizations("ttt.cmd.options.amount.description"),
+        required=True,
+    )
+    @discord.option(
+        "opponent",
+        description=v.t.msg(None, "ttt.cmd.options.opponent.description"),
+        name_localizations=v.t.localizations("ttt.cmd.options.opponent.name"),
+        description_localizations=v.t.localizations("ttt.cmd.options.opponent.description"),
+        required=False,
+    )
     async def ttt(self, ctx, amount: str, opponent: Optional[discord.Member] = None):
         """Play Tic Tac Toe with buttons!"""
 
@@ -183,8 +201,8 @@ class TicTacToeGame(commands.Cog):
         cooldown_remaining = self.check_cooldown(ctx.author.id)
         if cooldown_remaining:
             embed = discord.Embed(
-                title="⏳ Slow Down!",
-                description=f"Please wait `{cooldown_remaining:.1f}s` before starting another game.",
+                title=v.t.msg(ctx.guild, "ttt.cooldown.title"),
+                description=v.t.msg(ctx.guild, "ttt.cooldown.description", seconds=f"{cooldown_remaining:.1f}"),
                 color=discord.Color.orange()
             )
             await ctx.respond(embed=embed, ephemeral=True)
@@ -193,8 +211,8 @@ class TicTacToeGame(commands.Cog):
         # Check if game already active in this channel
         if ctx.channel.id in self.games:
             embed = discord.Embed(
-                title="❌ Game Already Active!",
-                description="There's already a game in this channel.",
+                title=v.t.msg(ctx.guild, "ttt.already_active.title"),
+                description=v.t.msg(ctx.guild, "ttt.already_active.description"),
                 color=discord.Color.red()
             )
             await ctx.respond(embed=embed, ephemeral=True)
@@ -204,8 +222,8 @@ class TicTacToeGame(commands.Cog):
         is_multiplayer = opponent is not None
         if is_multiplayer and opponent == ctx.author:
             embed = discord.Embed(
-                title="❌ Can't Play Yourself!",
-                description="Challenge someone else to play.",
+                title=v.t.msg(ctx.guild, "ttt.cant_play_self.title"),
+                description=v.t.msg(ctx.guild, "ttt.cant_play_self.description"),
                 color=discord.Color.red()
             )
             await ctx.respond(embed=embed, ephemeral=True)
@@ -213,8 +231,8 @@ class TicTacToeGame(commands.Cog):
 
         if is_multiplayer and opponent.bot:
             embed = discord.Embed(
-                title="❌ Can't Play Bots!",
-                description="Challenge a real user instead.",
+                title=v.t.msg(ctx.guild, "ttt.cant_play_bot.title"),
+                description=v.t.msg(ctx.guild, "ttt.cant_play_bot.description"),
                 color=discord.Color.red()
             )
             await ctx.respond(embed=embed, ephemeral=True)
@@ -257,18 +275,20 @@ class TicTacToeGame(commands.Cog):
         # Create embed
         if is_multiplayer:
             embed = discord.Embed(
-                title="🎯 Tic Tac Toe",
-                description=f"**{ctx.author.display_name}** challenged **{opponent.display_name}** for **`{bet}`** coins!\n\n"
-                           f"{ctx.author.display_name}, it's your turn!",
+                title=v.t.msg(ctx.guild, "ttt.title"),
+                description=v.t.msg(
+                    ctx.guild, "ttt.challenge.description",
+                    challenger=ctx.author.display_name, opponent=opponent.display_name, bet=bet,
+                ),
                 color=discord.Color.blue()
             )
         else:
             embed = discord.Embed(
-                title="🎯 Tic Tac Toe vs AI",
-                description=f"**{ctx.author.display_name}**, it's your turn! Betting **`{bet}`** coins.",
+                title=v.t.msg(ctx.guild, "ttt.vs_ai.title"),
+                description=v.t.msg(ctx.guild, "ttt.vs_ai.description", player=ctx.author.display_name, bet=bet),
                 color=discord.Color.blue()
             )
-        embed.set_footer(text=f"Game started at {datetime.now().strftime('%H:%M')}")
+        embed.set_footer(text=v.t.msg(ctx.guild, "ttt.footer", time=datetime.now().strftime('%H:%M')))
         
         # Create view
         view = self.TTTView(self, ctx, game_data)
@@ -287,8 +307,8 @@ class TicTacToeGame(commands.Cog):
             # Timeout - clean up
             del self.games[ctx.channel.id]
             embed = discord.Embed(
-                title="⏰ Game Timed Out!",
-                description="No one made a move in time.",
+                title=v.t.msg(ctx.guild, "ttt.timed_out.title"),
+                description=v.t.msg(ctx.guild, "ttt.timed_out.description"),
                 color=discord.Color.orange()
             )
             await interaction.edit(embed=embed, view=None)
@@ -344,12 +364,12 @@ class TicTacToeGame(commands.Cog):
             player = ctx.guild.get_member(game_data["players"][0]) or await self.client.fetch_user(game_data["players"][0])
             
             embed = discord.Embed(
-                title="🎯 Tic Tac Toe",
-                description=f"**{player.display_name}**, it's your turn!",
+                title=v.t.msg(ctx.guild, "ttt.title"),
+                description=v.t.msg(ctx.guild, "ttt.next_turn", player=player.display_name),
                 color=discord.Color.blue()
             )
-            embed.set_footer(text=f"Game started at {game_data['started'].strftime('%H:%M')}")
-            
+            embed.set_footer(text=v.t.msg(ctx.guild, "ttt.footer", time=game_data['started'].strftime('%H:%M')))
+
             # Update both embed and view
             await view.message.edit(embed=embed, view=view)
             
@@ -398,9 +418,9 @@ class TicTacToeGame(commands.Cog):
         embed = discord.Embed()
 
         if winner == "tie":
-            embed.title = "🤝 It's a Tie!"
+            embed.title = v.t.msg(ctx.guild, "ttt.tie.title")
             embed.color = discord.Color.blue()
-            embed.description = "The game ended in a draw! Your bet was refunded."
+            embed.description = v.t.msg(ctx.guild, "ttt.tie.description")
             for player_id in game_data["players"]:
                 if player_id not in self.scores:
                     self.scores[player_id] = {"wins": 0, "losses": 0, "ties": 0}
@@ -410,9 +430,9 @@ class TicTacToeGame(commands.Cog):
             bettor = ctx.guild.get_member(bettor_id) or await self.client.fetch_user(bettor_id)
             await update_bank(ctx.guild, bettor, "bank", -bet)
 
-            embed.title = "😔 AI Wins!"
+            embed.title = v.t.msg(ctx.guild, "ttt.ai_wins.title")
             embed.color = discord.Color.red()
-            embed.description = f"The AI beat you! You lost **`{bet}`** coins."
+            embed.description = v.t.msg(ctx.guild, "ttt.ai_wins.description", bet=bet)
             if bettor_id not in self.scores:
                 self.scores[bettor_id] = {"wins": 0, "losses": 0, "ties": 0}
             self.scores[bettor_id]["losses"] += 1
@@ -423,12 +443,15 @@ class TicTacToeGame(commands.Cog):
             change = bet if winner == bettor_id else -bet
             await update_bank(ctx.guild, bettor, "bank", change)
 
-            embed.title = f"🏆 {winner_user.display_name} Wins!"
+            embed.title = v.t.msg(ctx.guild, "ttt.player_wins.title", winner=winner_user.display_name)
             embed.color = discord.Color.green()
             if winner == bettor_id:
-                embed.description = f"Congratulations {winner_user.mention}! You won **`{bet}`** coins!"
+                embed.description = v.t.msg(ctx.guild, "ttt.player_wins.self", winner_mention=winner_user.mention, bet=bet)
             else:
-                embed.description = f"Congratulations {winner_user.mention}! {bettor.display_name} lost **`{bet}`** coins."
+                embed.description = v.t.msg(
+                    ctx.guild, "ttt.player_wins.other",
+                    winner_mention=winner_user.mention, bettor=bettor.display_name, bet=bet,
+                )
 
             for player_id in game_data["players"]:
                 if player_id not in self.scores:
