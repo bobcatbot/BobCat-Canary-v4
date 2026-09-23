@@ -1,9 +1,8 @@
 from quart import g
 from modules import bot as v
 from .config import INVITE_URL
-from .db import get_bell_notifications
 from .plugins import fetch_plugins
-from .utils import get_current_user, GuildModels, _cached_guild
+from .utils import get_current_user, GuildModels, _cached_guild, get_bell_notifications
 
 def register_context_processors(app):
     @app.context_processor

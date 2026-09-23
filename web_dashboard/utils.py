@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 from zenora import APIClient
 
 from modules import bot as v
-from modules.models import Guild
+from modules.models import Guild, Notification
 from cogs._bot.bot_dash import sync_guild_dashboard
 from .config import BOT_TOKEN, CLIENT_SECRET
 from .plugins import PLUGIN_LIST
@@ -69,7 +69,6 @@ def get_current_user() -> SessionUser:
     session["user"] = user.to_session()
     return user
 
-
 async def get_my_guilds():
     """The guilds the signed-in user is in, from Discord (this one does need their OAuth token).
     The HTTP call runs in a thread so it can't stall the shared event loop.
@@ -113,8 +112,6 @@ def login_required(f):
 
 # The people `/dev` commands trust; also who may open the site-wide /admin pages
 DEV_IDS = {int(dev["id"]) for dev in json.load(open("modules/devs.json"))["team"]}
-
-
 def dev_required(f):
     """Site-wide admin routes (not guild-scoped): login, then a devs.json member.
     Anyone else gets the plain 404 page so the route's existence isn't advertised."""
@@ -310,6 +307,27 @@ def plugin_guard(plugin_key, *, require_enabled=True):
             return await f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+async def get_bell_notifications(guild, limit: int = 5) -> dict:
+    """What the navbar bell shows: the `limit` newest unread notifications and
+    the guild's total unread count. Fetches just `limit` docs and uses count()
+    for the total, since the backlog can be large. Shared by the bell's server
+    render and its poll endpoint."""
+    guild_id = str(getattr(guild, "id", guild))
+    # Two queries on purpose: sort()/limit() mutate a query, and count() would
+    # then honour the limit and cap the total at `limit`.
+    def unread():
+        return Notification.find(Notification.guild_id == guild_id, Notification.read == False)
+
+    docs = await unread().sort([(Notification.created_at, -1)]).limit(limit).to_list()
+    return {
+        'unread': [
+            {'id': n.notification_id, 'type': n.type, 'title': n.title, 'description': n.description}
+            for n in docs
+        ],
+        'unread_count': await unread().count(),
+    }
 
 
 # ── GuildModels ───────────────────────────────────────────────────────────────

@@ -6,9 +6,8 @@ from quart import Blueprint, current_app, redirect, render_template, request, se
 from modules import bot as v
 from modules.models import Guild, Notification, Economy, PremiumConfig, SettingsConfig, InsightsDaily
 from ..config import INVITE_URL, REDIRECT_URI
-from ..db import get_bell_notifications
 from ..consts import langs, premium_faqs, premium_plans, tz, RESERVED_SLUGS
-from ..utils import get_my_guilds, get_current_user, ensure_guild_doc, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
+from ..utils import get_bell_notifications, get_my_guilds, get_current_user, ensure_guild_doc, check_guild_permission as _check_guild_permission, guild_guard, login_required, is_premium, plugin_item_cap
 from ..uploads import upload_embed_image, UploadError
 
 dashboard_bp = Blueprint('dashboard', __name__)
