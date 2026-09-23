@@ -8,14 +8,18 @@ class ModClear(commands.Cog):
 
     @commands.slash_command(
         name="clear",
-        description="Clears a certain number of messages",
+        description=v.t.msg(None, "clear.cmd.description"),
+        name_localizations=v.t.localizations("clear.cmd.name"),
+        description_localizations=v.t.localizations("clear.cmd.description"),
     )
     @commands.has_permissions(manage_messages=True)
     @commands.bot_has_guild_permissions(manage_messages=True)
     @discord.option(
         "amount",
         int,
-        description="The number of messages to delete",
+        description=v.t.msg(None, "clear.cmd.options.amount.description"),
+        name_localizations=v.t.localizations("clear.cmd.options.amount.name"),
+        description_localizations=v.t.localizations("clear.cmd.options.amount.description"),
         required=True,
         min_value=1,
         max_value=150,
@@ -29,7 +33,7 @@ class ModClear(commands.Cog):
         )
 
         embed = discord.Embed(
-            description=f"✅ Cleared **{len(deleted)}** messages.",
+            description=v.t.msg(ctx.guild, "clear.cleared", count=len(deleted)),
             color=v.success,
         )
 
@@ -38,7 +42,11 @@ class ModClear(commands.Cog):
     @clear.error
     async def clear_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(title="❌ Missing permission", description="You need the `Manage Messages` permission.", color=v.error)
+            embed = discord.Embed(
+                title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                description=v.t.msg(ctx.guild, "clear.errors.missing_perms_description"),
+                color=v.error,
+            )
             return await ctx.respond(embed=embed, ephemeral=True)
 
         if isinstance(error, commands.BotMissingPermissions):
@@ -50,8 +58,8 @@ class ModClear(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Manage Messages` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/clear)",
+                    title=v.t.msg(ctx.guild, "clear.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "clear.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/clear"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -59,8 +67,8 @@ class ModClear(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,

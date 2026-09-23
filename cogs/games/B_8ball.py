@@ -7,42 +7,36 @@ class Games8ball(commands.Cog):
     def __init__(self, client):
         self.client = client
     
-    @commands.slash_command(name="8ball", description="Ask the magic 8ball a question")
-    @discord.option("question", description="What question do you want to ask", required=True)
-    @discord.option("amount", description="Bet amount", required=True)
+    @commands.slash_command(
+        name="8ball",
+        description=v.t.msg(None, "8ball.cmd.description"),
+        name_localizations=v.t.localizations("8ball.cmd.name"),
+        description_localizations=v.t.localizations("8ball.cmd.description"),
+    )
+    @discord.option(
+        "question",
+        description=v.t.msg(None, "8ball.cmd.options.question.description"),
+        name_localizations=v.t.localizations("8ball.cmd.options.question.name"),
+        description_localizations=v.t.localizations("8ball.cmd.options.question.description"),
+        required=True,
+    )
+    @discord.option(
+        "amount",
+        description=v.t.msg(None, "8ball.cmd.options.amount.description"),
+        name_localizations=v.t.localizations("8ball.cmd.options.amount.name"),
+        description_localizations=v.t.localizations("8ball.cmd.options.amount.description"),
+        required=True,
+    )
     async def _8ball(self, ctx, *, question, amount: int):
-        
+
         embed = discord.Embed(
             color=0x0099ff,
-            description=(
-                f"**Question:** {question}"
-                f"\n**Answer:** {random.choice(responses)}"
+            description=v.t.msg(
+                ctx.guild, "8ball.embed.description",
+                question=question, answer=random.choice(v.t.choices(ctx.guild, "8ball.responses")),
             )
         )
         await ctx.respond(embed=embed)
 
 def setup(client):
     client.add_cog(Games8ball(client))
-
-responses = [
-    "It is certain.",
-    "It is decidedly so.",
-    "Without a doubt.", 
-    "Yes - definitely.",
-    "You may rely on it.",
-    "As I see it, yes.",
-    "Most likely.",
-    "Outlook good.",
-    "Yes.",
-    "Signs point to yes.",
-    "Reply hazy, try again.",
-    "Ask again later.",
-    "Better not tell you now.",
-    "Cannot predict now.",
-    "Concentrate and ask again.",
-    "Don't count on it.",
-    "My send is no.",
-    "My sources say no.",
-    "Outlook not so good.",
-    "Very doubtful."
-]

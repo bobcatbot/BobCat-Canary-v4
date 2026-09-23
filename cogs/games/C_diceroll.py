@@ -18,8 +18,18 @@ class GamesDiceroll(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.slash_command(description="Throw two dice and bet coins on the outcome")
-    @discord.option("amount", description="Bet amount", required=True)
+    @commands.slash_command(
+        description=v.t.msg(None, "diceroll.cmd.description"),
+        name_localizations=v.t.localizations("diceroll.cmd.name"),
+        description_localizations=v.t.localizations("diceroll.cmd.description"),
+    )
+    @discord.option(
+        "amount",
+        description=v.t.msg(None, "diceroll.cmd.options.amount.description"),
+        name_localizations=v.t.localizations("diceroll.cmd.options.amount.name"),
+        description_localizations=v.t.localizations("diceroll.cmd.options.amount.description"),
+        required=True,
+    )
     @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
     async def diceroll(self, ctx, amount: str):
         await open_account(ctx.guild, ctx.user)
@@ -29,7 +39,7 @@ class GamesDiceroll(commands.Cog):
             return await ctx.respond(result, ephemeral=True)
         bet = result
 
-        msg = await ctx.respond(f"{ctx.user.name} throws their dice")
+        msg = await ctx.respond(v.t.msg(ctx.guild, "diceroll.rolling", user=ctx.user.name))
         await asyncio.sleep(2)
 
         die1 = random.randint(1, 6)
@@ -47,13 +57,13 @@ class GamesDiceroll(commands.Cog):
         await update_bank(ctx.guild, ctx.user, "bank", change)
 
         if change > 0:
-            outcome = f"and won **`{change}`** coins!"
+            outcome = v.t.msg(ctx.guild, "diceroll.win", change=change)
             if doubles:
-                outcome += " 🎲 Doubles!"
+                outcome += v.t.msg(ctx.guild, "diceroll.doubles_suffix")
         else:
-            outcome = f"and lost **`{bet}`** coins."
+            outcome = v.t.msg(ctx.guild, "diceroll.lose", bet=bet)
 
-        content = f"{ctx.user.name} rolled **{die1}** and **{die2}** (total **{total}**) {outcome}"
+        content = v.t.msg(ctx.guild, "diceroll.result", user=ctx.user.name, die1=die1, die2=die2, total=total, outcome=outcome)
         await msg.edit_original_response(content=content)
 
 def setup(client):

@@ -7,16 +7,16 @@ class ServerButtons(discord.ui.View):
         super().__init__(timeout=None)
         self.client = client
 
-    @discord.ui.button(label='Infomation', style=discord.ButtonStyle.green, disabled=True)
+    @discord.ui.button(label='Information', style=discord.ButtonStyle.green, disabled=True)
     async def info(self, button: discord.ui.Button, interaction: discord.Interaction):
         for buttons in self.children:
             buttons.style=discord.ButtonStyle.gray
             buttons.disabled = False
         button.disabled = True
         button.style = discord.ButtonStyle.green
-        
+
         created = f'{interaction.guild.created_at.timestamp()}'.split('.')[0]
-        
+
         members = {
             "total": len(interaction.guild.members),
             "humans": len(list(filter(lambda m: not m.bot, interaction.guild.members))),
@@ -31,14 +31,14 @@ class ServerButtons(discord.ui.View):
 
         embed = discord.Embed(
             color=v.style(interaction.guild.id),
-            title=f"{interaction.guild.name}'s Infomation",
-            description=(
-                f"**Name:** {interaction.guild.name}\n > ID: {interaction.guild.id}"
-                f"\n**Owner:** {interaction.guild.owner.mention}"
-                f"\n**Created:** <t:{created}:R>"
-                f"\n**Roles:** {len(interaction.guild.roles)}"
-                f"\n**Members:** {members['total']}"
-                f"\n**Channels:** {channels['total']}\n > Text: {channels['text']}\n > Voice: {channels['voice']}\n > Categories: {channels['categories']}"
+            title=v.t.msg(interaction.guild, "server.info_embed.title", name=interaction.guild.name),
+            description=v.t.msg(
+                interaction.guild, "server.info_embed.description",
+                name=interaction.guild.name, id=interaction.guild.id,
+                owner=interaction.guild.owner.mention, created=created,
+                roles=len(interaction.guild.roles), members=members['total'],
+                channels=channels['total'], text=channels['text'],
+                voice=channels['voice'], categories=channels['categories'],
             )
         )
         await interaction.response.edit_message(embed=embed, view=self)
@@ -51,11 +51,11 @@ class ServerButtons(discord.ui.View):
         button.disabled = True
         button.style = discord.ButtonStyle.green
 
-        embed = discord.Embed(title=f"{interaction.guild.name}'s Avatar", color=v.style(interaction.guild.id))
+        embed = discord.Embed(title=v.t.msg(interaction.guild, "server.avatar_embed.title", name=interaction.guild.name), color=v.style(interaction.guild.id))
         try:
             embed.set_image(url=interaction.guild.icon.url)
         except AttributeError:
-            embed.description += f"I can't find {interaction.guild.name}'s avatar"
+            embed.description += v.t.msg(interaction.guild, "server.avatar_embed.not_found", name=interaction.guild.name)
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label='Banner', style=discord.ButtonStyle.gray)
@@ -68,14 +68,14 @@ class ServerButtons(discord.ui.View):
         try:
             embed = discord.Embed(
                 color=v.style(interaction.guild.id),
-                title=f"{interaction.guild.name}'s Avatar"
+                title=v.t.msg(interaction.guild, "server.banner_embed.title", name=interaction.guild.name)
             )
             embed.set_image(url=interaction.guild.banner.url)
         except AttributeError:
             embed = discord.Embed(
                 color=v.style(interaction.guild.id),
-                title="{0}'s Banner".format(interaction.guild.name),
-                description="I can't find {0}'s banner".format(interaction.guild.name)
+                title=v.t.msg(interaction.guild, "server.banner_embed.title", name=interaction.guild.name),
+                description=v.t.msg(interaction.guild, "server.banner_embed.not_found", name=interaction.guild.name)
             )
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -97,13 +97,14 @@ class ServerButtons(discord.ui.View):
             len(list(filter(lambda m: not m.bot, interaction.guild.members))), # Humans
             len(list(filter(lambda m: m.bot, interaction.guild.members))) # Bots
         ]
-        
+
         embed = discord.Embed(
             color=v.style(interaction.guild.id),
-            title=f"{interaction.guild.name}'s Members",
-            description=(
-                f"**Members:** {len(interaction.guild.members)} \n> Humans: {members[0]} \n> Bots: {members[1]}"
-                f"\n\n**Statuses** \n> 🟢 Online: {statuses[0]} \n> 🟠 Idle: {statuses[1]} \n> 🔴 DND: {statuses[2]} \n> ⚪ Offline: {statuses[3]}"
+            title=v.t.msg(interaction.guild, "server.members_embed.title", name=interaction.guild.name),
+            description=v.t.msg(
+                interaction.guild, "server.members_embed.description",
+                total=len(interaction.guild.members), humans=members[0], bots=members[1],
+                online=statuses[0], idle=statuses[1], dnd=statuses[2], offline=statuses[3],
             )
         )
         await interaction.response.edit_message(embed=embed, view=self)
@@ -117,10 +118,14 @@ class servercmd(commands.Cog):
     def __init__(self, client):
         self.client = client
     
-    @commands.slash_command(description="View information on your server")
+    @commands.slash_command(
+        description=v.t.msg(None, "server.cmd.description"),
+        name_localizations=v.t.localizations("server.cmd.name"),
+        description_localizations=v.t.localizations("server.cmd.description"),
+    )
     async def server(self, ctx):
         created = f'{ctx.guild.created_at.timestamp()}'.split('.')[0]
-        
+
         members = {
             "total": len(ctx.guild.members),
             "humans": len(list(filter(lambda m: not m.bot, ctx.guild.members))),
@@ -135,14 +140,14 @@ class servercmd(commands.Cog):
 
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title=f"{ctx.guild.name}'s Infomation",
-            description=(
-                f"**Name:** {ctx.guild.name}\n > ID: {ctx.guild.id}"
-                f"\n**Owner:** {ctx.guild.owner.mention}"
-                f"\n**Created:** <t:{created}:R>"
-                f"\n**Members:** {members['total']}"
-                f"\n**Roles:** {len(ctx.guild.roles)}"
-                f"\n**Channels:** {channels['total']}\n > Text: {channels['text']}\n > Voice: {channels['voice']}\n > Categories: {channels['categories']}"
+            title=v.t.msg(ctx.guild, "server.info_embed.title", name=ctx.guild.name),
+            description=v.t.msg(
+                ctx.guild, "server.info_embed.description",
+                name=ctx.guild.name, id=ctx.guild.id,
+                owner=ctx.guild.owner.mention, created=created,
+                roles=len(ctx.guild.roles), members=members['total'],
+                channels=channels['total'], text=channels['text'],
+                voice=channels['voice'], categories=channels['categories'],
             )
         )
 

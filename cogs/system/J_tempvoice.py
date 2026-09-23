@@ -126,10 +126,15 @@ class TempVoice(commands.Cog):
             pass
 
     # Manage your voice channel panel
-    @commands.slash_command(name="tempvoice-manage", description="Manage your temporary voice channel")
+    @commands.slash_command(
+        name="tempvoice-manage",
+        description=v.t.msg(None, "tempvoice.cmd.description"),
+        name_localizations=v.t.localizations("tempvoice.cmd.name"),
+        description_localizations=v.t.localizations("tempvoice.cmd.description"),
+    )
     async def tempvoice_manage(self, ctx: discord.ApplicationContext):
         if not ctx.interaction.user.voice:
-            return await ctx.respond("You must be connected to a voice channel to use this command.")
+            return await ctx.respond(v.t.msg(ctx.guild, "tempvoice.not_in_voice"))
 
         tempvoice = await TempChannel.find_one(
             TempChannel.guild_id == str(ctx.guild.id),
@@ -138,7 +143,7 @@ class TempVoice(commands.Cog):
         )
 
         if tempvoice is None:
-            return await ctx.respond("Access denied. You must be in your own voice channel to use this command.", ephemeral=True)
+            return await ctx.respond(v.t.msg(ctx.guild, "tempvoice.access_denied"), ephemeral=True)
         
         view = discord.ui.View()
         
@@ -148,11 +153,11 @@ class TempVoice(commands.Cog):
 
             if channel.user_limit >= 99:
                 return await interaction.response.send_message(
-                    "This channel is already at the maximum limit of 99.", ephemeral=True
+                    v.t.msg(ctx.guild, "tempvoice.max_limit"), ephemeral=True
                 )
 
             await channel.edit(user_limit=channel.user_limit + 1)
-            embed = discord.Embed(color=v.style(ctx.guild.id), description="Voice member limit increased")
+            embed = discord.Embed(color=v.style(ctx.guild.id), description=v.t.msg(ctx.guild, "tempvoice.limit_increased"))
             return await interaction.response.send_message(embed=embed)
         add_space.callback = add_space_callback
         view.add_item(add_space)
@@ -163,11 +168,11 @@ class TempVoice(commands.Cog):
 
             if channel.user_limit <= 0:
                 return await interaction.response.send_message(
-                    "This channel already has no member limit.", ephemeral=True
+                    v.t.msg(ctx.guild, "tempvoice.no_limit"), ephemeral=True
                 )
 
             await channel.edit(user_limit=channel.user_limit - 1)
-            embed = discord.Embed(color=v.style(ctx.guild.id), description="Voice member limit decreased")
+            embed = discord.Embed(color=v.style(ctx.guild.id), description=v.t.msg(ctx.guild, "tempvoice.limit_decreased"))
             return await interaction.response.send_message(embed=embed)
         remove_space.callback = remove_space_callback
         view.add_item(remove_space)
@@ -179,7 +184,7 @@ class TempVoice(commands.Cog):
                     super().__init__(timeout=None)
 
                 @discord.ui.user_select(
-                    placeholder="Select a member to kick",
+                    placeholder=v.t.msg(ctx.guild, "tempvoice.kick_placeholder"),
                     min_values=1,
                     max_values=1,
                 )
@@ -188,20 +193,20 @@ class TempVoice(commands.Cog):
 
                     if not member.voice or member.voice.channel.id != int(tempvoice.channel_id):
                         return await interaction.response.send_message(
-                            f"{member.display_name} isn't in your voice channel.", ephemeral=True
+                            v.t.msg(ctx.guild, "tempvoice.not_in_channel", member=member.display_name), ephemeral=True
                         )
 
                     await member.move_to(None)
 
                     embed = discord.Embed(
                         color=v.style(ctx.guild.id),
-                        description=f"{member.display_name} has been kicked from the voice channel",
+                        description=v.t.msg(ctx.guild, "tempvoice.kicked", member=member.display_name),
                     )
                     return await interaction.response.edit_message(embed=embed, view=None)
-            
+
             embed = discord.Embed(
                 color=v.style(ctx.guild.id),
-                description="Who do you want to kick from the voice channel?",
+                description=v.t.msg(ctx.guild, "tempvoice.who_to_kick"),
             )
             return await interaction.response.send_message(embed=embed, view=UserKickView(), ephemeral=True)
         kick_member.callback = kick_member_callback
@@ -209,12 +214,8 @@ class TempVoice(commands.Cog):
         
         embed = discord.Embed(
             color=v.style(ctx.guild.id),
-            title="Manage your voice channel",
-            description=(
-                f"+ - Add 1 space to your voice channel"
-                f"\n- - Remove 1 space from your voice channel"
-                f"\nK - Kick a member from your voice channel"
-            )
+            title=v.t.msg(ctx.guild, "tempvoice.panel_title"),
+            description=v.t.msg(ctx.guild, "tempvoice.panel_description")
         )
         await ctx.respond(embed=embed, view=view)
     

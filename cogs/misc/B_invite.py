@@ -8,18 +8,23 @@ class MiscInvite(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.slash_command(name="invite", description="Gets a invite link to add me to your server")
+    @commands.slash_command(
+        name="invite",
+        description=v.t.msg(None, "invite.cmd.description"),
+        name_localizations=v.t.localizations("invite.cmd.name"),
+        description_localizations=v.t.localizations("invite.cmd.description"),
+    )
     async def slash_invite(self, ctx):
         view = discord.ui.View()
         view.add_item(discord.ui.Button(
-            label='Invite', 
+            label=v.t.msg(ctx.guild, "invite.button"),
             url=invite_url
         ))
-        
+
         embed=discord.Embed(
             color=v.style(ctx.guild.id),
-            title=f"Invite Bobcat",
-            description=f"Click the button"
+            title=v.t.msg(ctx.guild, "invite.title"),
+            description=v.t.msg(ctx.guild, "invite.description")
         )
         await ctx.respond(embed=embed, view=view)
 

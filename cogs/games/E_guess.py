@@ -4,6 +4,7 @@ import random
 import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
+from modules import bot as v
 from cogs.money._shop import open_account, update_bank, parse_and_validate_bet
 
 # ── guess odds ───────────────────────────────────────────────
@@ -26,16 +27,27 @@ class GuessGame(commands.Cog):
             1, 10, commands.BucketType.user
         )  # 1 game per 10 seconds per user
 
-    @commands.slash_command(name="guess", description="Guess the number between 1 and 100 to win your bet")
-    @discord.option("amount", description="Bet amount", required=True)
+    @commands.slash_command(
+        name="guess",
+        description=v.t.msg(None, "guess.cmd.description"),
+        name_localizations=v.t.localizations("guess.cmd.name"),
+        description_localizations=v.t.localizations("guess.cmd.description"),
+    )
+    @discord.option(
+        "amount",
+        description=v.t.msg(None, "guess.cmd.options.amount.description"),
+        name_localizations=v.t.localizations("guess.cmd.options.amount.name"),
+        description_localizations=v.t.localizations("guess.cmd.options.amount.description"),
+        required=True,
+    )
     async def guess(self, ctx, amount: str):
         # Check cooldown
         bucket = self.cooldown.get_bucket(ctx.interaction)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             embed = discord.Embed(
-                title="⏳ Slow Down!",
-                description=f"Please wait `{retry_after:.1f}s` before starting another game.",
+                title=v.t.msg(ctx.guild, "guess.cooldown.title"),
+                description=v.t.msg(ctx.guild, "guess.cooldown.description", retry_after=f"{retry_after:.1f}"),
                 color=discord.Color.orange()
             )
             return await ctx.send(embed=embed)
@@ -43,8 +55,8 @@ class GuessGame(commands.Cog):
         # Check if user already has a game running
         if ctx.author.id in self.games:
             embed = discord.Embed(
-                title="❌ Game Already Active!",
-                description="You already have a game running. Type `cancel` to stop it.",
+                title=v.t.msg(ctx.guild, "guess.already_active.title"),
+                description=v.t.msg(ctx.guild, "guess.already_active.description"),
                 color=discord.Color.red()
             )
             return await ctx.respond(embed=embed)
@@ -73,12 +85,11 @@ class GuessGame(commands.Cog):
 
         # Create embed
         embed = discord.Embed(
-            title="🎯 Guess the Number!",
-            description=f"Guess a number between `1` and `{GUESS_MAX_NUMBER}`.\n"
-                       f"You bet **`{bet}`** coins. Type `cancel` to end the game and get your bet back.",
+            title=v.t.msg(ctx.guild, "guess.start.title"),
+            description=v.t.msg(ctx.guild, "guess.start.description", max=GUESS_MAX_NUMBER, bet=bet),
             color=discord.Color.blue()
         )
-        embed.set_footer(text=f"Game started by {ctx.author.display_name}")
+        embed.set_footer(text=v.t.msg(ctx.guild, "guess.start.footer", player=ctx.author.display_name))
         embed.timestamp = datetime.now()
 
         await ctx.respond(embed=embed)
@@ -92,8 +103,8 @@ class GuessGame(commands.Cog):
                 del self.games[ctx.author.id]
             await update_bank(ctx.guild, ctx.author, "bank", -bet)
             embed = discord.Embed(
-                title="⏰ Time's Up!",
-                description=f"You took too long to guess. Game ended and you lost your **`{bet}`** coin bet.",
+                title=v.t.msg(ctx.guild, "guess.timeout.title"),
+                description=v.t.msg(ctx.guild, "guess.timeout.description", bet=bet),
                 color=discord.Color.red()
             )
             await ctx.respond(embed=embed)
@@ -128,8 +139,8 @@ class GuessGame(commands.Cog):
             if msg.content.lower() == "cancel":
                 del self.games[player.id]
                 embed = discord.Embed(
-                    title="🚫 Game Cancelled",
-                    description=f"Your **`{game['bet']}`** coin bet was refunded. Better luck next time!",
+                    title=v.t.msg(ctx.guild, "guess.cancelled.title"),
+                    description=v.t.msg(ctx.guild, "guess.cancelled.description", bet=game['bet']),
                     color=discord.Color.orange()
                 )
                 return await ctx.respond(embed=embed)
@@ -152,16 +163,21 @@ class GuessGame(commands.Cog):
                 if change != 0:
                     await update_bank(ctx.guild, player, "bank", change)
 
+                result_text = (
+                    v.t.msg(ctx.guild, "guess.win.won", change=change) if change > 0
+                    else v.t.msg(ctx.guild, "guess.win.refunded")
+                )
                 embed = discord.Embed(
-                    title="🎉 You Got It!",
-                    description=f"The number was **{game['target']}**!\n"
-                               f"You guessed it in **{game['guesses']}** tries and "
-                               + (f"won **`{change}`** coins!" if change > 0 else "got your bet back."),
+                    title=v.t.msg(ctx.guild, "guess.win.title"),
+                    description=v.t.msg(
+                        ctx.guild, "guess.win.description",
+                        target=game['target'], guesses=game['guesses'], result=result_text,
+                    ),
                     color=discord.Color.gold()
                 )
                 embed.add_field(
-                    name="📊 Score",
-                    value=f"Wins: {self.scores.get(player.id, {}).get('wins', 0)}",
+                    name=v.t.msg(ctx.guild, "guess.win.score_field"),
+                    value=v.t.msg(ctx.guild, "guess.win.score_value", wins=self.scores.get(player.id, {}).get('wins', 0)),
                     inline=True
                 )
 
@@ -175,18 +191,19 @@ class GuessGame(commands.Cog):
 
             # Provide feedback
             is_higher = guess > game["target"]
+            direction = v.t.msg(ctx.guild, "guess.hint.too_high" if is_higher else "guess.hint.too_low")
             embed = discord.Embed(
-                title="📈 Hint",
-                description=f"Your guess `{guess}` is **{'too high' if is_higher else 'too low'}**!",
+                title=v.t.msg(ctx.guild, "guess.hint.title"),
+                description=v.t.msg(ctx.guild, "guess.hint.description", guess=guess, direction=direction),
                 color=discord.Color.blue()
             )
 
             # Provide hint after certain number of guesses
             if game["guesses"] >= game["hint_after"] and game["hint_count"] < 3:
-                hint = self._generate_hint(game["target"], game["max"])
+                hint = self._generate_hint(ctx.guild, game["target"], game["max"])
                 embed.add_field(
-                    name="💡 Hint",
-                    value=f"Number is {hint}",
+                    name=v.t.msg(ctx.guild, "guess.hint.hint_field"),
+                    value=v.t.msg(ctx.guild, "guess.hint.hint_value", hint=hint),
                     inline=False
                 )
                 game["hint_count"] += 1
@@ -195,26 +212,26 @@ class GuessGame(commands.Cog):
             if game["guessed_numbers"]:
                 last_guesses = game["guessed_numbers"][-5:]
                 embed.add_field(
-                    name="📋 Recent Guesses",
+                    name=v.t.msg(ctx.guild, "guess.hint.recent_field"),
                     value=", ".join(str(n) for n in last_guesses),
                     inline=False
                 )
 
-            embed.set_footer(text=f"Attempt {game['guesses']} • Type 'cancel' to quit")
+            embed.set_footer(text=v.t.msg(ctx.guild, "guess.hint.footer", guesses=game['guesses']))
             await ctx.respond(embed=embed)
 
-    def _generate_hint(self, target, max_num):
+    def _generate_hint(self, guild, target, max_num):
         """Generate a useful hint."""
         if target < max_num * 0.25:
-            return "very low 🧊"
+            return v.t.msg(guild, "guess.hints.very_low")
         elif target < max_num * 0.5:
-            return "low ⬇️"
+            return v.t.msg(guild, "guess.hints.low")
         elif target < max_num * 0.75:
-            return "medium ↔️"
+            return v.t.msg(guild, "guess.hints.medium")
         elif target < max_num * 0.9:
-            return "high ⬆️"
+            return v.t.msg(guild, "guess.hints.high")
         else:
-            return "very high 🔥"
+            return v.t.msg(guild, "guess.hints.very_high")
 
 def setup(client):
     client.add_cog(GuessGame(client))

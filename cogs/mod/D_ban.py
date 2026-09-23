@@ -9,27 +9,47 @@ class Ban(commands.Cog):
         self.client = client
 
     @commands.slash_command(
-        name="ban", 
-        description="Bans a member from the server"
+        name="ban",
+        description=v.t.msg(None, "ban.cmd.description"),
+        name_localizations=v.t.localizations("ban.cmd.name"),
+        description_localizations=v.t.localizations("ban.cmd.description"),
     )
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_guild_permissions(ban_members=True)
-    @discord.option("member", discord.Member, description="The member you want to ban", required=True)
-    @discord.option("reason", str, description="The reason for the ban", required=False)
-    @discord.option("delete_messages", int, description="The number of previous message days to delete", required=False, min_value=0, max_value=7)
+    @discord.option(
+        "member", discord.Member,
+        description=v.t.msg(None, "ban.cmd.options.member.description"),
+        name_localizations=v.t.localizations("ban.cmd.options.member.name"),
+        description_localizations=v.t.localizations("ban.cmd.options.member.description"),
+        required=True,
+    )
+    @discord.option(
+        "reason", str,
+        description=v.t.msg(None, "ban.cmd.options.reason.description"),
+        name_localizations=v.t.localizations("ban.cmd.options.reason.name"),
+        description_localizations=v.t.localizations("ban.cmd.options.reason.description"),
+        required=False,
+    )
+    @discord.option(
+        "delete_messages", int,
+        description=v.t.msg(None, "ban.cmd.options.delete_messages.description"),
+        name_localizations=v.t.localizations("ban.cmd.options.delete_messages.name"),
+        description_localizations=v.t.localizations("ban.cmd.options.delete_messages.description"),
+        required=False, min_value=0, max_value=7,
+    )
     async def ban(self, ctx: discord.ApplicationContext, member: discord.Member, reason: str = None, delete_messages: int = None):
         allowed, error_message = await can_moderate(ctx.guild, ctx.author, member)
         if not allowed:
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ Ban failed",
+                    title=v.t.msg(ctx.guild, "ban.failed_title"),
                     description=error_message,
                     color=v.error,
                 ),
                 ephemeral=True,
             )
 
-        reason = reason or "Unspecified"
+        reason = reason or v.t.msg(ctx.guild, "mod.helpers.unspecified_reason")
 
         mod_data = (await Guild.get(str(ctx.guild.id))).dashboard.moderation
         dm_fields = mod_data.settings.ban.dm
@@ -52,7 +72,7 @@ class Ban(commands.Cog):
             member=member,
             guild=ctx.guild,
             moderator=ctx.author,
-            action="Banned",
+            action=v.t.msg(ctx.guild, "mod.actions.banned"),
             reason=reason,
             dm_fields=dm_fields,
         )
@@ -65,28 +85,29 @@ class Ban(commands.Cog):
             )
 
         embed = discord.Embed(
-            description=(
-                f"**Reason:** {reason}\n"
-                f"**Deleted message history:** {delete_days} day(s)"
-            ),
+            description=v.t.msg(ctx.guild, "ban.reason_delete_line", reason=reason, days=delete_days),
             color=v.style(ctx.guild),
         )
-        embed.set_author(icon_url=member.display_avatar.url, name=f"{member} has been banned")
+        embed.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "ban.success_author", member=member))
         await ctx.respond(embed=embed)
 
         logs = discord.Embed(color=v.style(ctx.guild))
-        logs.set_author(icon_url=member.display_avatar.url, name=f"[BAN] {member}")
-        logs.add_field(name="User", value=member.mention, inline=True)
-        logs.add_field(name="Moderator", value=ctx.author.mention, inline=True)
-        logs.add_field(name="Reason", value=reason, inline=False)
-        logs.add_field(name="Deleted messages", value=f"{delete_days} day(s)", inline=False)
+        logs.set_author(icon_url=member.display_avatar.url, name=v.t.msg(ctx.guild, "ban.log_title", member=member))
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.user"), value=member.mention, inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.moderator"), value=ctx.author.mention, inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.reason"), value=reason, inline=False)
+        logs.add_field(name=v.t.msg(ctx.guild, "ban.deleted_field"), value=v.t.msg(ctx.guild, "ban.deleted_value", days=delete_days), inline=False)
         await audit_log(ctx, "ModerationBan", logs)
 
     @ban.error
     async def ban_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(title="❌ Missing permission", description="You need the `Ban Members` permission.", color=v.error),
+                embed=discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "ban.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True
             )
 
@@ -99,8 +120,8 @@ class Ban(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Ban Members` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/ban)",
+                    title=v.t.msg(ctx.guild, "ban.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "ban.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/ban"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -108,8 +129,8 @@ class Ban(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,
@@ -122,20 +143,34 @@ class UnBan(commands.Cog):
 
     @commands.slash_command(
         name="unban",
-        description="Unbans a user from the server",
+        description=v.t.msg(None, "unban.cmd.description"),
+        name_localizations=v.t.localizations("unban.cmd.name"),
+        description_localizations=v.t.localizations("unban.cmd.description"),
     )
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_guild_permissions(ban_members=True)
-    @discord.option("user_id", str, description="The ID of the user you want to unban", required=True)
-    @discord.option("reason", str, description="The reason for the unban", required=False)
+    @discord.option(
+        "user_id", str,
+        description=v.t.msg(None, "unban.cmd.options.user_id.description"),
+        name_localizations=v.t.localizations("unban.cmd.options.user_id.name"),
+        description_localizations=v.t.localizations("unban.cmd.options.user_id.description"),
+        required=True,
+    )
+    @discord.option(
+        "reason", str,
+        description=v.t.msg(None, "unban.cmd.options.reason.description"),
+        name_localizations=v.t.localizations("unban.cmd.options.reason.name"),
+        description_localizations=v.t.localizations("unban.cmd.options.reason.description"),
+        required=False,
+    )
     async def unban(self, ctx: discord.ApplicationContext, user_id: str, reason: str = None):
         try:
             parsed_user_id = int(user_id.strip())
         except (TypeError, ValueError):
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ Invalid user ID",
-                    description="Please provide a valid Discord user ID.",
+                    title=v.t.msg(ctx.guild, "unban.invalid_id_title"),
+                    description=v.t.msg(ctx.guild, "unban.invalid_id_description"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -151,10 +186,8 @@ class UnBan(commands.Cog):
         except discord.Forbidden:
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ Unable to check bans",
-                    description=(
-                        "I do not have permission to view the ban list."
-                    ),
+                    title=v.t.msg(ctx.guild, "unban.cannot_check_title"),
+                    description=v.t.msg(ctx.guild, "unban.cannot_check_description"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -163,14 +196,14 @@ class UnBan(commands.Cog):
         if banned_user is None:
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ User not found",
-                    description="That user is not currently banned.",
+                    title=v.t.msg(ctx.guild, "unban.not_found_title"),
+                    description=v.t.msg(ctx.guild, "unban.not_found_description"),
                     color=v.error,
                 ),
                 ephemeral=True
             )
 
-        reason = reason or "Unspecified"
+        reason = reason or v.t.msg(ctx.guild, "mod.helpers.unspecified_reason")
 
         if v.PY_ENV == "production":
             await ctx.guild.unban(
@@ -179,24 +212,28 @@ class UnBan(commands.Cog):
             )
 
         embed = discord.Embed(
-            description=f"**Reason:** {reason}",
+            description=v.t.msg(ctx.guild, "mod.helpers.reason_line", reason=reason),
             color=v.style(ctx.guild),
         )
-        embed.set_author(icon_url=banned_user.display_avatar.url, name=f"{banned_user} has been unbanned")
+        embed.set_author(icon_url=banned_user.display_avatar.url, name=v.t.msg(ctx.guild, "unban.success_author", user=banned_user))
         await ctx.respond(embed=embed)
 
         logs = discord.Embed(color=v.style(ctx.guild))
-        logs.set_author(icon_url=banned_user.display_avatar.url, name=f"[UNBAN] {banned_user}")
-        logs.add_field(name="User", value=f"{banned_user}", inline=True)
-        logs.add_field(name="Moderator", value=ctx.author.mention, inline=True)
-        logs.add_field(name="Reason", value=reason, inline=False)
+        logs.set_author(icon_url=banned_user.display_avatar.url, name=v.t.msg(ctx.guild, "unban.log_title", user=banned_user))
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.user"), value=f"{banned_user}", inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.moderator"), value=ctx.author.mention, inline=True)
+        logs.add_field(name=v.t.msg(ctx.guild, "mod.helpers.log_fields.reason"), value=reason, inline=False)
         await audit_log(ctx, "ModerationUnban", logs)
 
     @unban.error
     async def unban_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             return await ctx.respond(
-                embed=discord.Embed(title="❌ Missing permission", description="You need the `Ban Members` permission.", color=v.error),
+                embed=discord.Embed(
+                    title=v.t.msg(ctx.guild, "mod.common_errors.missing_perms_title"),
+                    description=v.t.msg(ctx.guild, "unban.errors.missing_perms_description"),
+                    color=v.error,
+                ),
                 ephemeral=True
             )
 
@@ -209,8 +246,8 @@ class UnBan(commands.Cog):
             )
             return await ctx.respond(
                 embed=discord.Embed(
-                    title="❌ I am missing the `Ban Members` permission",
-                    description=f"[Permissions Help]({v.docs}/moderation/unban)",
+                    title=v.t.msg(ctx.guild, "unban.errors.bot_missing_response_title"),
+                    description=v.t.msg(ctx.guild, "unban.errors.bot_missing_response_description", docs=f"{v.docs}/moderation/unban"),
                     color=v.error,
                 ),
                 ephemeral=True
@@ -218,8 +255,8 @@ class UnBan(commands.Cog):
 
         await ctx.respond(
             embed=discord.Embed(
-                title="❌ Command failed",
-                description="An unexpected error occurred. Please try again.",
+                title=v.t.msg(ctx.guild, "mod.common_errors.generic_title"),
+                description=v.t.msg(ctx.guild, "mod.common_errors.generic_description"),
                 color=v.error,
             ),
             ephemeral=True,

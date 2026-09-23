@@ -6,15 +6,23 @@ class Games(commands.Cog):
     def __init__(self, client):
         self.client = client
     
-    @commands.slash_command(description="Show the list and information of server's games")
+    @commands.slash_command(
+        description=v.t.msg(None, "games.cmd.description"),
+        name_localizations=v.t.localizations("games.cmd.name"),
+        description_localizations=v.t.localizations("games.cmd.description"),
+    )
     async def games(self, ctx):
-        embed = discord.Embed(title="Discord Games", color=v.style(ctx.guild.id))
-        embed.add_field(name="Magic 8ball", value="`/8ball <question>` \nAsk the magic 8ball a question", inline=False)
-        embed.add_field(name="Diceroll", value="`/diceroll <amount>` \nThrow two dice and bet coins on the outcome", inline=False)
-        embed.add_field(name="Coinflip", value="`/coinflip` \nFlip a coin for Heads/Tails", inline=False)
-        embed.add_field(name="Guess The Number", value="`/guess <amount>` \nGuess the number between 1 and 100 to win your bet", inline=False)
-        embed.add_field(name="Rock Paper Scissors", value="`/rps <amount> <opponent>` \nPlay Rock, Paper, Scissors against AI or another member and bet coins", inline=False)
-        embed.add_field(name="Tic Tac Toe", value="`/ttt <amount> <opponent>` \nPlay Tic Tac Toe against AI or another member and bet coins", inline=False)
+        embed = discord.Embed(title=v.t.msg(ctx.guild, "games.title"), color=v.style(ctx.guild.id))
+        # Each game cog owns its own name/title/description under its own top-level
+        # key (e.g. Languages/en-GB.json -> "coinflip.cmd.*") - pulled from there
+        # instead of a separate games.fields.* block, so there's one place per
+        # game to translate, not two.
+        for command in ("8ball", "diceroll", "coinflip", "guess", "rps", "ttt"):
+            embed.add_field(
+                name=v.t.msg(ctx.guild, f"{command}.cmd.title"),
+                value=f"`/{v.t.msg(ctx.guild, f'{command}.cmd.name')}` \n{v.t.msg(ctx.guild, f'{command}.cmd.description')}",
+                inline=False,
+            )
         await ctx.respond(embed=embed)
 
 def setup(client):

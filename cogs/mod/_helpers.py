@@ -7,26 +7,33 @@ async def can_moderate(guild, moderator, member, action="moderate") -> tuple[boo
     settings = (await Guild.get(str(guild.id))).settings
 
     immune_role_ids = set(
-        settings.get("admin_roles", []) + 
-        settings.get("bot_masters", []) + 
+        settings.get("admin_roles", []) +
+        settings.get("bot_masters", []) +
         settings.get("moderator_roles", [])
     )
 
+    # `action` is always the "moderate" default in this codebase (no caller
+    # overrides it), which maps straight to mod.actions.moderate. A future
+    # custom action word with no matching mod.actions.<word> entry would show
+    # up as that literal dotted key in the message (msg()'s usual missing-key
+    # fallback) rather than crashing - add it to mod.actions if that happens.
+    translated_action = v.t.msg(guild, f"mod.actions.{action}")
+
     if member == guild.owner:
-        return False, f"You cannot {action} the server owner."
+        return False, v.t.msg(guild, "mod.helpers.cannot_owner", action=translated_action)
     if member == moderator:
-        return False, f"You cannot {action} yourself."
+        return False, v.t.msg(guild, "mod.helpers.cannot_self", action=translated_action)
     if member == guild.me:
-        return False, f"You cannot make me {action} myself."
+        return False, v.t.msg(guild, "mod.helpers.cannot_me", action=translated_action)
 
 
     if any(str(role.id) in immune_role_ids for role in member.roles) and moderator != guild.owner:
-        return False, "That member has an immunity role and cannot be moderated."
+        return False, v.t.msg(guild, "mod.helpers.immune_role")
 
     if member.top_role >= guild.me.top_role:
-        return False, "That member's highest role is above or equal to my highest role."
+        return False, v.t.msg(guild, "mod.helpers.role_above_mine")
     if moderator != guild.owner and member.top_role >= moderator.top_role:
-        return False, "That member's highest role is above or equal to your highest role."
+        return False, v.t.msg(guild, "mod.helpers.role_above_yours")
 
     return True, None
 
@@ -42,15 +49,15 @@ async def send_member_dm(
         return
 
     embed = discord.Embed(
-        title=f"You have been {action.lower()}",
+        title=v.t.msg(guild, "mod.helpers.dm_title", action=action.lower()),
         color=v.style(guild),
     )
 
     field_values = {
-        "server": ("Server", guild.name, True),
-        "action": ("Action", action, True),
-        "moderator": ("Moderator", moderator.mention, True),
-        "reason": ("Reason", reason, False),
+        "server": (v.t.msg(guild, "mod.helpers.dm_fields.server"), guild.name, True),
+        "action": (v.t.msg(guild, "mod.helpers.dm_fields.action"), action, True),
+        "moderator": (v.t.msg(guild, "mod.helpers.dm_fields.moderator"), moderator.mention, True),
+        "reason": (v.t.msg(guild, "mod.helpers.dm_fields.reason"), reason, False),
     }
 
     for key in dm_fields:

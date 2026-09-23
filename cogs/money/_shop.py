@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple, Union
+from modules import bot as v
 from modules.models import Guild, Economy, ShopItemConfig
 
 # Fallback currency icon when the guild hasn't set one on the dashboard
@@ -93,23 +94,23 @@ async def parse_and_validate_bet(guild, member, amount: str) -> Tuple[bool, Unio
     if amount.lower() in ("max", "all"):
         bet = wallet if max_gambling is None else min(wallet, max_gambling)
         if bet <= 0:
-            return (False, "❌ You don't have any coins in your wallet to gamble!")
+            return (False, v.t.msg(guild, "economy.bet_errors.no_coins"))
         return (True, bet)
 
     try:
         bet = int(amount)
     except ValueError:
-        return (False, "❌ Please enter a valid number or `max`.")
+        return (False, v.t.msg(guild, "economy.bet_errors.invalid_amount"))
 
     if bet <= 0:
-        return (False, "❌ Amount must be positive!")
+        return (False, v.t.msg(guild, "economy.bet_errors.not_positive"))
 
     if max_gambling is not None and bet > max_gambling:
         icon = await get_currency_icon(guild)
-        return (False, f"❌ You can't gamble more than `{max_gambling}` {icon}")
+        return (False, v.t.msg(guild, "economy.bet_errors.over_max", max=max_gambling, icon=icon))
 
     if bet > wallet:
-        return (False, "❌ You don't have enough coins to gamble this amount!")
+        return (False, v.t.msg(guild, "economy.bet_errors.insufficient_funds"))
 
     return (True, bet)
 

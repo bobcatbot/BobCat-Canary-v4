@@ -1,0 +1,1700 @@
+{
+  "games": {
+    "cmd": {
+      "description": "Show the list and information of server's games",
+      "name": "games"
+    },
+    "title": "Discord Games"
+  },
+  "8ball": {
+    "cmd": {
+      "description": "Ask the magic 8ball a question",
+      "name": "8ball",
+      "options": {
+        "amount": {
+          "description": "Bet amount",
+          "name": "amount"
+        },
+        "question": {
+          "description": "What question do you want to ask",
+          "name": "question"
+        }
+      },
+      "title": "Magic 8ball"
+    },
+    "embed": {
+      "description": "**Question:** {question}\n**Answer:** {answer}"
+    },
+    "responses": [
+      "It is certain.",
+      "It is decidedly so.",
+      "Without a doubt.",
+      "Yes - definitely.",
+      "You may rely on it.",
+      "As I see it, yes.",
+      "Most likely.",
+      "Outlook good.",
+      "Yes.",
+      "Signs point to yes.",
+      "Reply hazy, try again.",
+      "Ask again later.",
+      "Better not tell you now.",
+      "Cannot predict now.",
+      "Concentrate and ask again.",
+      "Don't count on it.",
+      "My send is no.",
+      "My sources say no.",
+      "Outlook not so good.",
+      "Very doubtful."
+    ]
+  },
+  "diceroll": {
+    "cmd": {
+      "description": "Throw two dice and bet coins on the outcome",
+      "name": "diceroll",
+      "options": {
+        "amount": {
+          "description": "Bet amount",
+          "name": "amount"
+        }
+      },
+      "title": "Diceroll"
+    },
+    "doubles_suffix": " 🎲 Doubles!",
+    "lose": "and lost **`{bet}`** coins.",
+    "result": "{user} rolled **{die1}** and **{die2}** (total **{total}**) {outcome}",
+    "rolling": "{user} throws their dice",
+    "win": "and won **`{change}`** coins!"
+  },
+  "coinflip": {
+    "cmd": {
+      "description": "Lets you flip a coin for Heads/Tails",
+      "name": "coinflip",
+      "title": "Coinflip"
+    },
+    "heads": "Heads",
+    "result": "{user} has fliped **{result}**",
+    "tails": "Tales"
+  },
+  "guess": {
+    "already_active": {
+      "description": "You already have a game running. Type `cancel` to stop it.",
+      "title": "❌ Game Already Active!"
+    },
+    "cancelled": {
+      "description": "Your **`{bet}`** coin bet was refunded. Better luck next time!",
+      "title": "🚫 Game Cancelled"
+    },
+    "cmd": {
+      "description": "Guess the number between 1 and 100 to win your bet",
+      "name": "guess",
+      "options": {
+        "amount": {
+          "description": "Bet amount",
+          "name": "amount"
+        }
+      },
+      "title": "Guess The Number"
+    },
+    "cooldown": {
+      "description": "Please wait `{retry_after}s` before starting another game.",
+      "title": "⏳ Slow Down!"
+    },
+    "hint": {
+      "description": "Your guess `{guess}` is **{direction}**!",
+      "footer": "Attempt {guesses} • Type 'cancel' to quit",
+      "hint_field": "💡 Hint",
+      "hint_value": "Number is {hint}",
+      "recent_field": "📋 Recent Guesses",
+      "title": "📈 Hint",
+      "too_high": "too high",
+      "too_low": "too low"
+    },
+    "hints": {
+      "high": "high ⬆️",
+      "low": "low ⬇️",
+      "medium": "medium ↔️",
+      "very_high": "very high 🔥",
+      "very_low": "very low 🧊"
+    },
+    "start": {
+      "description": "Guess a number between `1` and `{max}`.\nYou bet **`{bet}`** coins. Type `cancel` to end the game and get your bet back.",
+      "footer": "Game started by {player}",
+      "title": "🎯 Guess the Number!"
+    },
+    "timeout": {
+      "description": "You took too long to guess. Game ended and you lost your **`{bet}`** coin bet.",
+      "title": "⏰ Time's Up!"
+    },
+    "win": {
+      "description": "The number was **{target}**!\nYou guessed it in **{guesses}** tries and {result}",
+      "refunded": "got your bet back.",
+      "score_field": "📊 Score",
+      "score_value": "Wins: {wins}",
+      "title": "🎉 You Got It!",
+      "won": "won **`{change}`** coins!"
+    }
+  },
+  "rps": {
+    "ai_field": "🤖 AI",
+    "ai_lose": {
+      "description": "{winner_move} beats {loser_move}!\nYou lost **`{bet}`** coins.",
+      "title": "😔 You Lose!"
+    },
+    "ai_win": {
+      "description": "{winner_move} beats {loser_move}!\nYou won **`{bet}`** coins!",
+      "title": "🎉 You Win!"
+    },
+    "already_active": {
+      "description": "There's already a game in this channel.",
+      "title": "❌ Game Already Active!"
+    },
+    "cant_play_bot": {
+      "description": "Challenge a real user instead.",
+      "title": "❌ Can't Play Bots!"
+    },
+    "cant_play_self": {
+      "description": "Challenge someone else to play.",
+      "title": "❌ Can't Play Yourself!"
+    },
+    "challenge": {
+      "description": "**{challenger}** challenged **{opponent}** for **`{bet}`** coins!\n\n{challenger}, choose your move:"
+    },
+    "cmd": {
+      "description": "Play Rock Paper Scissors and bet coins on the outcome",
+      "name": "rps",
+      "options": {
+        "amount": {
+          "description": "Bet amount",
+          "name": "amount"
+        },
+        "opponent": {
+          "description": "Challenge another user",
+          "name": "opponent"
+        }
+      },
+      "title": "Rock Paper Scissors"
+    },
+    "cooldown": {
+      "description": "Please wait `{seconds}s` before starting another game.",
+      "title": "⏳ Slow Down!"
+    },
+    "errors": {
+      "ai_only_player": "❌ Only the player can play against AI!",
+      "ended": "❌ This game has already ended!",
+      "not_your_turn": "❌ It's not your turn!"
+    },
+    "moves": {
+      "paper": "Paper",
+      "rock": "Rock",
+      "scissors": "Scissors"
+    },
+    "multi_lose": {
+      "description": "{winner_move} beats {loser_move}!\n{bettor} lost **`{bet}`** coins.",
+      "title": "🏆 {winner} Wins!"
+    },
+    "multi_win": {
+      "description": "{winner_move} beats {loser_move}!\n{bettor} won **`{bet}`** coins!",
+      "title": "🏆 {winner} Wins!"
+    },
+    "next_turn": "**{player}**, it's your turn! Choose your move:",
+    "tie": {
+      "description": "Both chose {move}!",
+      "title": "🤝 It's a Tie!"
+    },
+    "timed_out": {
+      "description": "No one made a choice in time.",
+      "title": "⏰ Game Timed Out!"
+    },
+    "title": "👊 Rock Paper Scissors!",
+    "vs_ai": {
+      "description": "**{player}**, choose your move! Betting **`{bet}`** coins.",
+      "title": "🤖 Rock Paper Scissors vs AI!"
+    }
+  },
+  "ttt": {
+    "ai_thinking": "🤖 AI is thinking...",
+    "ai_wins": {
+      "description": "The AI beat you! You lost **`{bet}`** coins.",
+      "title": "😔 AI Wins!"
+    },
+    "already_active": {
+      "description": "There's already a game in this channel.",
+      "title": "❌ Game Already Active!"
+    },
+    "cant_play_bot": {
+      "description": "Challenge a real user instead.",
+      "title": "❌ Can't Play Bots!"
+    },
+    "cant_play_self": {
+      "description": "Challenge someone else to play.",
+      "title": "❌ Can't Play Yourself!"
+    },
+    "challenge": {
+      "description": "**{challenger}** challenged **{opponent}** for **`{bet}`** coins!\n\n{challenger}, it's your turn!"
+    },
+    "cmd": {
+      "description": "Play Tic Tac Toe and bet coins on the outcome",
+      "name": "ttt",
+      "options": {
+        "amount": {
+          "description": "Bet amount",
+          "name": "amount"
+        },
+        "opponent": {
+          "description": "Challenge another user",
+          "name": "opponent"
+        }
+      },
+      "title": "Tic Tac Toe"
+    },
+    "cooldown": {
+      "description": "Please wait `{seconds}s` before starting another game.",
+      "title": "⏳ Slow Down!"
+    },
+    "errors": {
+      "ai_only_player": "❌ Only the player can play against AI!",
+      "button_not_found": "❌ Button not found!",
+      "ended": "❌ This game has already ended!",
+      "not_your_turn": "❌ It's not your turn!",
+      "taken": "❌ That position is already taken!"
+    },
+    "footer": "Game started at {time}",
+    "next_turn": "**{player}**, it's your turn!",
+    "player_wins": {
+      "other": "Congratulations {winner_mention}! {bettor} lost **`{bet}`** coins.",
+      "self": "Congratulations {winner_mention}! You won **`{bet}`** coins!",
+      "title": "🏆 {winner} Wins!"
+    },
+    "tie": {
+      "description": "The game ended in a draw! Your bet was refunded.",
+      "title": "🤝 It's a Tie!"
+    },
+    "timed_out": {
+      "description": "No one made a move in time.",
+      "title": "⏰ Game Timed Out!"
+    },
+    "title": "🎯 Tic Tac Toe",
+    "vs_ai": {
+      "description": "**{player}**, it's your turn! Betting **`{bet}`** coins.",
+      "title": "🎯 Tic Tac Toe vs AI"
+    }
+  },
+  "help": {
+    "categories": {
+      "birthdays": {
+        "cmds": {
+          "/birthday": "Show yours or another member's birthday",
+          "/birthdays": "Show all birthdays for the current month",
+          "/next-birthdays": "Shows the next 10 upcoming birthdays",
+          "/remove-birthday": "Remove yours or another member's birthday",
+          "/set-birthday": "Sets yours or another member's birthday"
+        },
+        "menu": "All of bobcats birthdays commands",
+        "name": "Birthdays",
+        "title": "BobCat Birthdays Commands"
+      },
+      "commands": {
+        "cmds": {
+          "/help": "The command you used to get here!",
+          "/invite": "Invite BobCat to your server",
+          "/server": "Get information about a server",
+          "/user": "Get information about a user"
+        },
+        "menu": "All of bobcats commands",
+        "name": "Commands",
+        "title": "BobCat General Commands"
+      },
+      "economy": {
+        "cmds": {
+          "/economy balance": "Shows your balance",
+          "/economy buy": "Buy an item from the shop",
+          "/economy deposit": "Deposit coins to the bank",
+          "/economy inventory": "Shows your inventory",
+          "/economy sell": "Sell an item from your inventory",
+          "/economy shop": "Browse the shop",
+          "/economy withdraw": "Withdraw coins from the bank",
+          "/economy work": "Earn coins"
+        },
+        "menu": "All of bobcats economy commands",
+        "name": "Economy",
+        "staff_cmds": {
+          "/economy give-coins": "🔒 Give coins to a user",
+          "/economy remove-coins": "🔒 Remove coins from a user"
+        },
+        "title": "BobCat Economy Commands"
+      },
+      "games": {
+        "cmds": {
+          "/8ball": "Ask a question to the magic 8ball",
+          "/coinflip": "Flips a coin",
+          "/diceroll": "Rolls a 6 sided dice",
+          "/games": "Shows all of bobcats game commands",
+          "/guess": "Guess the random number between 1 and 100",
+          "/rps": "Play rock, paper, scissors",
+          "/ttt": "Play tic-tac-toe"
+        },
+        "menu": "All of bobcats game commands",
+        "name": "Games",
+        "title": "BobCat Game Commands"
+      },
+      "giveaway": {
+        "cmds": {
+          "/giveaway create": "Create a giveaway",
+          "/giveaway end": "End a giveaway",
+          "/giveaway list": "List all giveaways",
+          "/giveaway reroll": "Reroll a giveaway"
+        },
+        "menu": "All of bobcats giveaway commands",
+        "name": "Giveaway",
+        "title": "BobCat Giveaway Commands"
+      },
+      "leveling": {
+        "cmds": {
+          "/leaderboard": "Shows the leaderboard",
+          "/rank": "Shows your or a member's level and XP"
+        },
+        "menu": "All of bobcats leveling commands",
+        "name": "Leveling",
+        "title": "BobCat Leveling Commands"
+      },
+      "mod": {
+        "cmds": {
+          "/ban": "Bans a user",
+          "/clear": "Clears messages",
+          "/kick": "Kicks a user",
+          "/lockdown add channel": "Locks a channel",
+          "/lockdown add server": "Locks the server",
+          "/lockdown remove channel": "Unlocks a channel",
+          "/lockdown remove server": "Unlocks the server",
+          "/mute": "Mutes a user",
+          "/slowmode": "Sets the slowmode of a channel",
+          "/unban": "Unbans a user",
+          "/unmute": "Unmutes a user",
+          "/unwarn": "Unwarns a user",
+          "/warn": "Warns a user",
+          "/warnings": "Gets the warnings of a user"
+        },
+        "menu": "All of bobcats moderation commands",
+        "name": "Mod",
+        "title": "BobCat Moderation Commands"
+      }
+    },
+    "cmd": {
+      "description": "A list of commands and utilities",
+      "name": "help"
+    },
+    "menu": {
+      "back_button": "Back",
+      "description": "Thanks for using **BobCat**\n**BobCat Prefix:** `{prefix}`\nBobcat is a simple to use bot with entertainment, moderation, administration, and more.",
+      "disabled": "❌ The **{category}** module is disabled for this server.",
+      "invite_button": "Invite",
+      "placeholder": "Browse Categories",
+      "support_button": "Support",
+      "title": "BobCat Help Menu"
+    }
+  },
+  "invite": {
+    "button": "Invite",
+    "cmd": {
+      "description": "Gets a invite link to add me to your server",
+      "name": "invite"
+    },
+    "description": "Click the button",
+    "title": "Invite Bobcat"
+  },
+  "server": {
+    "cmd": {
+      "name": "server",
+      "description": "View information on your server"
+    },
+    "buttons": {
+      "info": "Information",
+      "avatar": "Avatar",
+      "banner": "Banner",
+      "members": "Members"
+    },
+    "info_embed": {
+      "title": "{name}'s Information",
+      "description": "**Name:** {name}\n > ID: {id}\n**Owner:** {owner}\n**Created:** <t:{created}:R>\n**Roles:** {roles}\n**Members:** {members}\n**Channels:** {channels}\n > Text: {text}\n > Voice: {voice}\n > Categories: {categories}"
+    },
+    "avatar_embed": {
+      "title": "{name}'s Avatar",
+      "not_found": "I can't find {name}'s avatar"
+    },
+    "banner_embed": {
+      "title": "{name}'s Banner",
+      "not_found": "I can't find {name}'s banner"
+    },
+    "members_embed": {
+      "title": "{name}'s Members",
+      "description": "**Members:** {total} \n> Humans: {humans} \n> Bots: {bots}\n\n**Statuses** \n> 🟢 Online: {online} \n> 🟠 Idle: {idle} \n> 🔴 DND: {dnd} \n> ⚪ Offline: {offline}"
+    }
+  },
+  "user": {
+    "cmd": {
+      "name": "user",
+      "description": "View yours or a members information",
+      "options": {
+        "member": {
+          "name": "member",
+          "description": "The member to view"
+        }
+      }
+    },
+    "embed": {
+      "title": "{name}'s Information",
+      "description": "**General Information**\n**Name:** `{display_name}`{username_line} \n> Tag: {tag} \n> ID: {id}\n**Created:** <t:{created}:R>\n**Joined:** <t:{joined}:R>\n**Color:** `{color}`\n**Roles:** `{role_count}`\n\n**Account Accessories**\n**Roles**: {roles}",
+      "username_line": "\n> Username: {username}"
+    }
+  },
+  "mod": {
+    "actions": {
+      "banned": "banned",
+      "kicked": "kicked",
+      "moderate": "moderate",
+      "muted": "muted",
+      "timed_out": "timed out",
+      "unmuted": "unmuted",
+      "unwarned": "unwarned",
+      "warned": "warned"
+    },
+    "common_errors": {
+      "generic_description": "An unexpected error occurred. Please try again.",
+      "generic_title": "❌ Command failed",
+      "missing_perms_title": "❌ Missing permission"
+    },
+    "durations": {
+      "five_min": "5 minutes",
+      "one_day": "1 day",
+      "one_hour": "1 hour",
+      "one_week": "1 week",
+      "sixty_sec": "60 seconds",
+      "ten_min": "10 minutes"
+    },
+    "helpers": {
+      "cannot_me": "You cannot make me {action} myself.",
+      "cannot_owner": "You cannot {action} the server owner.",
+      "cannot_self": "You cannot {action} yourself.",
+      "dm_fields": {
+        "action": "Action",
+        "moderator": "Moderator",
+        "reason": "Reason",
+        "server": "Server"
+      },
+      "dm_title": "You have been {action}",
+      "duration_field": "Duration",
+      "immune_role": "That member has an immunity role and cannot be moderated.",
+      "log_fields": {
+        "moderator": "Moderator",
+        "reason": "Reason",
+        "user": "User"
+      },
+      "reason_line": "**Reason:** {reason}",
+      "role_above_mine": "That member's highest role is above or equal to my highest role.",
+      "role_above_yours": "That member's highest role is above or equal to your highest role.",
+      "unspecified_reason": "Unspecified"
+    }
+  },
+  "automod": {
+    "antilink": {
+      "invite_reason": "Sent a server invite",
+      "log_title": "[ANTILINK] {member}",
+      "scam_reason": "Sent a known scam/phishing link"
+    },
+    "antispam": {
+      "log_title": "[ANTISPAM] {member}",
+      "reason": "Spamming messages"
+    },
+    "caps": {
+      "log_title": "[CAPS] {member}",
+      "reason": "Excessive use of capital letters"
+    },
+    "channel_field": "Channel",
+    "ghostping": {
+      "log_title": "[GHOSTPING] {member}",
+      "reason": "Ghost pinged {count} mention(s) then removed the message"
+    },
+    "log_footer": "BobCat Security & Safety"
+  },
+  "clear": {
+    "cleared": "✅ Cleared **{count}** messages.",
+    "cmd": {
+      "description": "Clears a certain number of messages",
+      "name": "clear",
+      "options": {
+        "amount": {
+          "description": "The number of messages to delete",
+          "name": "amount"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The clear command failed because BobCat is missing the Manage Messages permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Manage Messages` permission",
+      "bot_missing_title": "BobCat cannot manage messages",
+      "missing_perms_description": "You need the `Manage Messages` permission."
+    }
+  },
+  "kick": {
+    "cmd": {
+      "description": "Kicks a member from the server",
+      "name": "kick",
+      "options": {
+        "member": {
+          "description": "The member you want to kick",
+          "name": "member"
+        },
+        "reason": {
+          "description": "The reason for the kick",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The kick command failed because BobCat is missing the Kick Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Kick Members` permission",
+      "bot_missing_title": "BobCat cannot kick members",
+      "missing_perms_description": "You need the `Kick Members` permission."
+    },
+    "failed_title": "❌ Kick failed",
+    "log_title": "[KICK] {member}",
+    "success_author": "{member} has been kicked"
+  },
+  "ban": {
+    "cmd": {
+      "description": "Bans a member from the server",
+      "name": "ban",
+      "options": {
+        "delete_messages": {
+          "description": "The number of previous message days to delete",
+          "name": "delete_messages"
+        },
+        "member": {
+          "description": "The member you want to ban",
+          "name": "member"
+        },
+        "reason": {
+          "description": "The reason for the ban",
+          "name": "reason"
+        }
+      }
+    },
+    "deleted_field": "Deleted messages",
+    "deleted_value": "{days} day(s)",
+    "errors": {
+      "bot_missing_description": "The ban command failed because BobCat is missing the Ban Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Ban Members` permission",
+      "bot_missing_title": "BobCat cannot ban members",
+      "missing_perms_description": "You need the `Ban Members` permission."
+    },
+    "failed_title": "❌ Ban failed",
+    "log_title": "[BAN] {member}",
+    "reason_delete_line": "**Reason:** {reason}\n**Deleted message history:** {days} day(s)",
+    "success_author": "{member} has been banned"
+  },
+  "unban": {
+    "cannot_check_description": "I do not have permission to view the ban list.",
+    "cannot_check_title": "❌ Unable to check bans",
+    "cmd": {
+      "description": "Unbans a user from the server",
+      "name": "unban",
+      "options": {
+        "reason": {
+          "description": "The reason for the unban",
+          "name": "reason"
+        },
+        "user_id": {
+          "description": "The ID of the user you want to unban",
+          "name": "user_id"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The unban command failed because BobCat is missing the Ban Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Ban Members` permission",
+      "bot_missing_title": "BobCat cannot unban members",
+      "missing_perms_description": "You need the `Ban Members` permission."
+    },
+    "invalid_id_description": "Please provide a valid Discord user ID.",
+    "invalid_id_title": "❌ Invalid user ID",
+    "log_title": "[UNBAN] {user}",
+    "not_found_description": "That user is not currently banned.",
+    "not_found_title": "❌ User not found",
+    "success_author": "{user} has been unbanned"
+  },
+  "mute": {
+    "already_muted_title": "❌ Member already muted",
+    "cmd": {
+      "description": "Mutes a member in the server",
+      "name": "mute",
+      "options": {
+        "member": {
+          "description": "The member you want to mute",
+          "name": "member"
+        },
+        "reason": {
+          "description": "The reason for the mute",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The mute command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot mute members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "failed_title": "❌ Mute failed",
+    "log_title": "[MUTE] {member}",
+    "role_above_mine": "The Muted role is above or equal to my highest role.",
+    "success_author": "{member} has been muted"
+  },
+  "unmute": {
+    "cmd": {
+      "description": "Unmutes a member",
+      "name": "unmute",
+      "options": {
+        "member": {
+          "description": "The member to unmute",
+          "name": "member"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The unmute command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot unmute members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "failed_title": "❌ Unmute failed",
+    "log_title": "[UNMUTE] {member}",
+    "not_muted_title": "❌ Member is not muted",
+    "not_timed_out_title": "❌ Member is not timed out",
+    "success_author": "{member} has been unmuted"
+  },
+  "timeout": {
+    "cmd": {
+      "description": "Temporarily times out a member",
+      "name": "timeout",
+      "options": {
+        "duration": {
+          "description": "Duration of the timeout",
+          "name": "duration"
+        },
+        "member": {
+          "description": "The member to time out",
+          "name": "member"
+        },
+        "reason": {
+          "description": "Reason for the timeout",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The timeout command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot time out members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "failed_title": "❌ Timeout failed",
+    "footer": "Timed out until",
+    "invalid_duration": "❌ Invalid timeout duration.",
+    "log_title": "[TIMEOUT] {member}",
+    "success_author": "{member} has been timed out for {duration}"
+  },
+  "warn": {
+    "case_field": "Case",
+    "case_value": "`{case}`",
+    "cmd": {
+      "description": "Warns a member from the server",
+      "name": "warn",
+      "options": {
+        "member": {
+          "description": "The member you want to warn",
+          "name": "member"
+        },
+        "reason": {
+          "description": "The reason for the warn",
+          "name": "reason"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The warn command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot warn members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "log_title": "[WARN] {member}",
+    "reason_case_line": "**Reason:** {reason}\n**Case:** `{case}`",
+    "success_author": "{member} has been warned"
+  },
+  "unwarn": {
+    "cmd": {
+      "description": "Unwarns a member from the server",
+      "name": "unwarn",
+      "options": {
+        "case": {
+          "description": "The warn you want to remove",
+          "name": "case"
+        },
+        "member": {
+          "description": "The member you want to unwarn",
+          "name": "member"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The unwarn command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot unwarn members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "infraction_field": "Infraction",
+    "infraction_value": "{reason} • `{case}`",
+    "invalid_case_title": "❌ Invalid warn ID",
+    "log_reason_removed": "Case `{case}` removed",
+    "log_title": "[UNWARN] {member}",
+    "no_warnings_title": "❌ This user has no warnings",
+    "success_author": "{member} has been unwarned"
+  },
+  "warnings": {
+    "author_title": "{member}'s warnings",
+    "buttons": {
+      "no": "No",
+      "remove_all": "Remove all warnings",
+      "yes": "Yes"
+    },
+    "cancelled_description": "**Cancelled**",
+    "cmd": {
+      "description": "Shows the warnings of a member",
+      "name": "warnings",
+      "options": {
+        "member": {
+          "description": "The member you want to see the warnings of",
+          "name": "member"
+        }
+      }
+    },
+    "confirm_description": "Are you sure you want to remove all of **{member}'s** warnings?\n**This action is irreversible.**",
+    "errors": {
+      "bot_missing_description": "The warnings command failed because BobCat is missing the Time out Members permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Time out Members` permission",
+      "bot_missing_title": "BobCat cannot warn members",
+      "missing_perms_description": "You need the `Time out Members` permission."
+    },
+    "last10_field": "Last 10 warnings",
+    "line_format": "`{case}` • {time} • **{reason}**",
+    "no_warnings_author": "{member} has no warnings",
+    "total_field": "Total",
+    "total_value": "{count} warnings"
+  },
+  "slowmode": {
+    "cmd": {
+      "description": "Sets the slowmode of a channel",
+      "name": "slowmode",
+      "options": {
+        "delay": {
+          "description": "Seconds you want to set the slowmode",
+          "name": "delay"
+        }
+      }
+    },
+    "errors": {
+      "bot_missing_description": "The slowmode command failed because BobCat is missing the Manage Channels permission.",
+      "bot_missing_response_description": "[Permissions Help]({docs})",
+      "bot_missing_response_title": "❌ I am missing the `Manage Channels` permission",
+      "bot_missing_title": "BobCat cannot set channel slowmode",
+      "missing_perms_description": "You need the `Manage Channels` permission."
+    },
+    "off": "{channel} is no longer in slowmode",
+    "on": "{channel} is now in slowmode of **{delay} seconds** \n\n(Suggestion: Type /slowmode off when you want to disable slowmode)"
+  },
+  "lockdown": {
+    "access_restored_desc": "You will gain access again once the lockdown is lifted.",
+    "add_group": {
+      "description": "Lockdown commands",
+      "name": "add"
+    },
+    "bot_missing_perms": {
+      "description": "❌ BobCat is missing `{perm}` permission",
+      "title": "Missing Permission"
+    },
+    "group": {
+      "description": "Lockdown a channel/server",
+      "name": "lockdown"
+    },
+    "lock_channel": {
+      "cmd": {
+        "description": "Lockdown a channel",
+        "name": "channel",
+        "options": {
+          "channel": {
+            "description": "Channel to lockdown",
+            "name": "channel"
+          }
+        }
+      },
+      "success_title": "🔒 #{channel} has been locked"
+    },
+    "lock_server": {
+      "cmd": {
+        "description": "Lockdown the server",
+        "name": "server",
+        "options": {
+          "hidden": {
+            "description": "Hide all channels from non-admins",
+            "name": "hidden"
+          }
+        }
+      },
+      "hidden_desc": "All channels are now hidden. A temporary status channel has been created for announcements.",
+      "locked_channel_description": "This server has been fully locked down by staff.\nYou will not be able to see or talk in channels until this is lifted.\n**Please be patient.**",
+      "locked_channel_title": "Server is currently locked",
+      "success_title": "🔒 Server channels have been locked"
+    },
+    "missing_perms": {
+      "description": "❌ You are missing `{perm}` permission",
+      "title": "Missing Permission"
+    },
+    "perms": {
+      "manage_channels": "Manage Channels",
+      "manage_roles": "Manage Roles"
+    },
+    "remove_group": {
+      "description": "Unlock commands",
+      "name": "remove"
+    },
+    "unlock_channel": {
+      "cmd": {
+        "description": "Unlock a channel",
+        "name": "channel",
+        "options": {
+          "channel": {
+            "description": "Channel to unlock",
+            "name": "channel"
+          }
+        }
+      },
+      "success_description": "Everyone now has access to this channel.",
+      "success_title": "🔓 #{channel} has been unlocked"
+    },
+    "unlock_server": {
+      "cmd": {
+        "description": "Unlock the server",
+        "name": "server"
+      },
+      "success_description": "All channels are accessible again.",
+      "success_title": "🔓 Server has been unlocked"
+    }
+  },
+  "economy": {
+    "cmd": {
+      "name": "economy",
+      "description": "Economy commands"
+    },
+    "helpers": {
+      "amount_positive": "Amount must be positive!",
+      "invalid_number_all": "Please enter a valid number or 'all'",
+      "invalid_number_max": "Please enter a valid number or 'max'",
+      "no_account": "You don't have an account yet! Use `/economy balance` to create one.",
+      "requested_by_footer": "Requested by {name}"
+    },
+    "bet_errors": {
+      "insufficient_funds": "❌ You don't have enough coins to gamble this amount!",
+      "invalid_amount": "❌ Please enter a valid number or `max`.",
+      "no_coins": "❌ You don't have any coins in your wallet to gamble!",
+      "not_positive": "❌ Amount must be positive!",
+      "over_max": "❌ You can't gamble more than `{max}` {icon}"
+    },
+    "balance": {
+      "bank_field": "Bank",
+      "cmd": {
+        "description": "Get the balance of a member",
+        "name": "balance"
+      },
+      "error_description": "Could not retrieve balance information.",
+      "error_title": "❌ Error",
+      "title": "{member}'s Balance",
+      "total_field": "Total",
+      "wallet_field": "Wallet"
+    },
+    "buy": {
+      "bank_covered_field": "🏦 Covered by bank",
+      "bank_covered_value": "`{amount}` coins (your wallet didn't cover it)",
+      "cmd": {
+        "description": "Buy an item from the shop",
+        "name": "buy",
+        "options": {
+          "amount": {
+            "description": "The amount of the item you want to buy",
+            "name": "amount"
+          },
+          "item": {
+            "description": "The item you want to buy",
+            "name": "item"
+          }
+        }
+      },
+      "cost_field": "💰 Total Cost",
+      "description_field": "📝 Description",
+      "empty_shop": "The shop is currently empty!",
+      "footer": "Thank you for your purchase, {member}!",
+      "generic_error": "❌ An error occurred: {code}",
+      "insufficient_funds": "❌ You don't have enough coins! You need `{cost}` total across your wallet and bank.",
+      "invalid_amount": "❌ Please select a valid amount (1 or more)!",
+      "item_error": "❌ An error occurred with the shop item!",
+      "item_field": "🛍️ Item",
+      "max_inventory": "❌ You already have the maximum amount of {item} ({limit} items) in your inventory!",
+      "max_limit": "❌ {item} has a max limit of {limit} per purchase!",
+      "no_description": "No description",
+      "not_in_shop": "❌ This item doesn't exist in the shop!",
+      "quantity_field": "📦 Quantity",
+      "remaining_field": "💼 Remaining",
+      "remaining_value": "💰 `{wallet}` wallet · 🏦 `{bank}` bank",
+      "title": "✅ Purchase Successful!"
+    },
+    "daily": {
+      "cmd": {
+        "description": "Claim your daily reward and build up a streak",
+        "name": "daily"
+      },
+      "cooldown_description": "⏰ {member}, you've already claimed your daily reward! Come back in **{time}**.",
+      "error_description": "Something went wrong claiming your daily reward. Please try again later.",
+      "error_title": "❌ Error",
+      "footer": "Come back tomorrow to keep your streak going!",
+      "streak_field": "🔥 Streak",
+      "streak_value": "`{streak}` day{plural}",
+      "success_description": "✅ {member}, you claimed **`{reward}`** coins!",
+      "title": "🎁 Daily Reward Claimed!",
+      "wallet_field": "💰 Wallet"
+    },
+    "deposit": {
+      "bank_field": "🏦 Bank",
+      "cmd": {
+        "description": "Deposit money into your bank",
+        "name": "deposit"
+      },
+      "insufficient": "You only have `{wallet}` coins in your wallet!",
+      "no_wallet_money": "You don't have any money in your wallet!",
+      "title": "🏦 Deposited {amount} coins",
+      "total_field": "📦 Total",
+      "update_failed": "Failed to retrieve updated balance!",
+      "wallet_field": "💰 Wallet"
+    },
+    "give_coins": {
+      "balance_failed": "Failed to get your balance!",
+      "cmd": {
+        "description": "Give coins to another member",
+        "name": "give-coins"
+      },
+      "footer": "Generosity is a virtue!",
+      "insufficient": "You only have `{wallet}` coins in your wallet!",
+      "min_amount": "You must give at least 10 coins!",
+      "no_wallet_coins": "You don't have any coins in your wallet!",
+      "self_error": "❌ You cannot give coins to yourself!",
+      "success_description": "✅ {giver} gave {receiver} **`{amount}`** coins!"
+    },
+    "inventory": {
+      "cmd": {
+        "description": "View your inventory",
+        "name": "inventory"
+      },
+      "empty_description": "🌳 Your inventory is empty! Buy items from the shop!",
+      "footer": "Total items: {count}",
+      "item_value": "Quantity: `{amount}`",
+      "title": "{member}'s Inventory"
+    },
+    "leaderboard": {
+      "cmd": {
+        "description": "Economy leaderboard",
+        "name": "leaderboard"
+      },
+      "error_description": "An error occurred while fetching the leaderboard. Please try again later.",
+      "error_title": "❌ Error",
+      "line": "\n#{rank} ● {name} ● `{cash}` coins{streak}",
+      "no_users_description": "No users found!",
+      "no_users_title": "🏆 Economy Leaderboard",
+      "no_valid_users": "No valid users found!",
+      "streak_suffix": " ● {streak} 🔥",
+      "title": "🏆 Top 10 Richest People",
+      "unknown_user": "Unknown User ({id})"
+    },
+    "remove_coins": {
+      "balance_failed": "Failed to get {member}'s balance!",
+      "cmd": {
+        "description": "Remove coins from a member (admin only)",
+        "name": "remove-coins"
+      },
+      "footer": "Action performed by {member}",
+      "insufficient": "{member} only has `{total}` coins total!",
+      "no_coins": "{member} has no coins to remove!",
+      "self_error": "❌ You cannot remove coins from yourself!",
+      "success_description": "🗑️ Removed **`{amount}`** coins from {member}!"
+    },
+    "rob": {
+      "balance_error": "❌ Failed to retrieve the required balance information.",
+      "bot_error": "❌ You cannot rob a bot!",
+      "caught_description": "🚨 {robber} tried to rob {victim}, but got caught!\n\n💸 You paid **`{fine}`** coins to {victim} as a fine.",
+      "caught_footer": "Your odds were {odds}% • Crime doesn't pay...",
+      "caught_title": "🚨 Caught!",
+      "cmd": {
+        "description": "Try to rob coins from another member",
+        "name": "rob-coins"
+      },
+      "self_error": "❌ You cannot rob yourself!",
+      "success_description": "🔫 {robber} robbed {victim} and got **`{earning}`** coins!",
+      "success_footer": "Your odds were {odds}% • Crime doesn't pay... or does it?",
+      "too_poor": "💀 {member} is too poor to rob! They only have `{wallet}` coins."
+    },
+    "sell": {
+      "cmd": {
+        "description": "Sell an item from your inventory",
+        "name": "sell",
+        "options": {
+          "item": {
+            "description": "The item you want to sell",
+            "name": "item"
+          }
+        }
+      },
+      "description": "✅ You sold **1** **{item}**!",
+      "generic_error": "❌ An error occurred: {code}",
+      "not_enough": "❌ You don't have enough {item} in your inventory!",
+      "not_in_shop": "❌ That item doesn't exist in the shop!",
+      "not_owned": "❌ You don't have any {item} in your inventory!",
+      "title": "💰 Sale Successful!",
+      "wallet_field": "💰 New Wallet Balance"
+    },
+    "shop": {
+      "cmd": {
+        "description": "List items from the shop",
+        "name": "shop"
+      },
+      "empty_description": "The shop is currently empty!",
+      "empty_title": "Shop",
+      "field_value": "{currency} `{price}`\n{description}\nMax: `{limit}`",
+      "no_description": "No description",
+      "no_limit": "No limit",
+      "title": "🛒 Shop",
+      "unknown_name": "Unknown"
+    },
+    "withdraw": {
+      "bank_field": "🏦 Bank",
+      "cmd": {
+        "description": "Withdraw money from your bank",
+        "name": "withdraw"
+      },
+      "insufficient": "You only have `{bank}` coins in your bank!",
+      "no_bank_money": "You don't have any money in your bank!",
+      "title": "💰 Withdrawn {amount} coins",
+      "total_field": "📦 Total",
+      "update_failed": "Failed to retrieve updated balance!",
+      "wallet_field": "💰 Wallet"
+    },
+    "work": {
+      "cmd": {
+        "description": "Work for one hour and come back to claim your paycheck",
+        "name": "work"
+      },
+      "cooldown_description": "⏰ {member}, you're already working! Come back in **{minutes} minutes** to claim your next paycheck.",
+      "create_failed": "Failed to create or retrieve your account!",
+      "footer": "Work smarter, not harder!",
+      "success_description": "✅ {member}, you started working again! You earned `{earnings}` coins in your bank account.\n\n⏰ Come back in 1 hour to claim your next paycheck!",
+      "update_failed": "Failed to update your balance!"
+    }
+  },
+  "insights": {
+    "backfill": {
+      "already_running": "A backfill is already running for this server.",
+      "audit_note_available": "from the audit log (about the last 45 days).",
+      "audit_note_unavailable": "(I can't view the audit log, so none were added).",
+      "cmd": {
+        "description": "Fill in past days of insights from your message history",
+        "name": "backfill",
+        "options": {
+          "days": {
+            "description": "How many days back to fill (default 30)",
+            "name": "days"
+          }
+        }
+      },
+      "errors": {
+        "missing_perms_description": "You need the `Manage Server` permission."
+      },
+      "failed": "❌ The backfill failed. Nothing was saved, so you can run it again.",
+      "progress": "⏳ Scanning channels... {done}/{total}",
+      "skipped_note": "\n{skipped} channels were skipped because I can't read their history.",
+      "starting": "⏳ Backfilling insights... this can take a while on busy servers.",
+      "success": "✅ Backfilled **{days}** days from **{messages:,}** messages in {channels} channels.\nJoins only include members who are still here, and leaves only include kicks and bans {audit_note}"
+    },
+    "group": {
+      "description": "Server insights",
+      "name": "insights"
+    }
+  },
+  "logging": {
+    "channel_created": {
+      "description": "**Name:** {name}\n**Category:** {category}",
+      "title": "{kind} Channel Created"
+    },
+    "channel_deleted": {
+      "description": "**Name:** {name}\n**Category:** {category}",
+      "title": "{kind} Channel Deleted"
+    },
+    "channel_updated": {
+      "bitrate": "**Bitrate:** {kbps}kbps",
+      "category": "**Category:** {value}",
+      "name": "**Name:** {value}",
+      "slowmode": "**Slowmode:** {seconds}s",
+      "title": "{kind} Channel Updated",
+      "topic": "**Topic:** {value}",
+      "user_limit": "**User Limit:** {value}"
+    },
+    "helpers": {
+      "after_field": "After",
+      "before_field": "Before",
+      "channel_id_footer": "Channel ID: {id}",
+      "guild_id_footer": "Guild ID: {id}",
+      "id_footer": "ID: {id}",
+      "kind_channel": "Channel",
+      "kind_text": "Text",
+      "kind_voice": "Voice",
+      "message_id_footer": "Message ID: {id}",
+      "none": "None",
+      "role_id_footer": "Role ID: {id}",
+      "user_id_footer": "User ID: {id}"
+    },
+    "invite": {
+      "channel_field": "Channel",
+      "code_field": "Code",
+      "code_value": "[{code}]({url})",
+      "expires_field": "Expires",
+      "expires_never": "Never",
+      "inviter_field": "Inviter",
+      "inviter_unknown": "Unknown",
+      "max_uses_field": "Max Uses",
+      "max_uses_limit": "{uses} uses",
+      "max_uses_unlimited": "No limit"
+    },
+    "invite_created": {
+      "title": "Invite Created"
+    },
+    "invite_deleted": {
+      "title": "Invite Deleted"
+    },
+    "member_banned": {
+      "title": "Member Banned"
+    },
+    "member_join": {
+      "description": "{member}\n**Roles:** {roles}",
+      "title": "Member Joined"
+    },
+    "member_leave": {
+      "description": "{member}\n**Roles:** {roles}",
+      "title": "Member Left"
+    },
+    "member_unbanned": {
+      "title": "Member Unbanned"
+    },
+    "message_deleted": {
+      "attachments_field": "📎 Attachments",
+      "description": "**Channel:** {channel} `{channel_id}`\n**Author:** {author} `{author_id}`\n**Content:** ```{content}```",
+      "no_content": "*[No text content]*",
+      "title": "Message Deleted"
+    },
+    "message_edited": {
+      "description": "**Author:** {author} `{author_id}`\n**Channel:** {channel} `{channel_id}`\n**Message:** {jump_url}\n\n**Before:** ```{before}```\n**After:** ```{after}```",
+      "title": "Message Edited"
+    },
+    "nickname_changed": {
+      "description": "**Before:** {before}\n**After:** {after}",
+      "title": "Nickname Changed"
+    },
+    "role_created": {
+      "description": "**Name:** {name}\n**Color:** {color}\n**Mentionable:** {mentionable}\n**Hoisted:** {hoisted}",
+      "title": "Role Created"
+    },
+    "role_deleted": {
+      "description": "**Name:** {name}\n**Color:** {color}\n**Mentionable:** {mentionable}\n**Hoisted:** {hoisted}",
+      "title": "Role Deleted"
+    },
+    "role_updated": {
+      "color": "**Color:** {value}",
+      "hoisted": "**Hoisted:** {value}",
+      "mentionable": "**Mentionable:** {value}",
+      "name": "**Name:** {value}",
+      "title": "Role Updated: \"{name}\""
+    },
+    "roles_updated": {
+      "added": "**Roles Added:** {roles}\n",
+      "removed": "**Roles Removed:** {roles}",
+      "title": "Member Roles Updated"
+    },
+    "server_updated": {
+      "afk_channel": "**AFK Channel:** {value}",
+      "afk_timeout": "**AFK Timeout:** {minutes}m",
+      "empty_fallback": "—",
+      "icon_after": "**Icon:** *(see below)*",
+      "icon_before": "**Icon:** *(changed)*",
+      "name": "**Name:** {value}",
+      "title": "Server Updated",
+      "verification": "**Verification:** {value}"
+    }
+  },
+  "leveling": {
+    "helpers": {
+      "disabled": "Leveling is disabled",
+      "guild_not_found": "❌ Guild not found!"
+    },
+    "leaderboard": {
+      "button": "View Full Leaderboard",
+      "cmd": {
+        "description": "View the top 5 users in the server",
+        "name": "leaderboard"
+      },
+      "line": "{medal} ● {name} ● LVL: {lvl}\n",
+      "no_users": "No users ranked yet!",
+      "title": "🏆 {server}'s Leaderboard"
+    },
+    "rank": {
+      "cmd": {
+        "description": "Gives yours or member's ranks",
+        "name": "rank",
+        "options": {
+          "member": {
+            "description": "Select a member",
+            "name": "member"
+          }
+        }
+      },
+      "is_bot": "{member} is a bot! So they have no rank",
+      "no_rank": "**{member}** has no rank. Keep chatting to earn a rank!"
+    }
+  },
+  "starboard": {
+    "jump_button": "Jump to message",
+    "self_star_error": "❌ You cannot star your own messages!"
+  },
+  "ticketing": {
+    "add": {
+      "added": "> **{user}** was added to the ticket.",
+      "cmd": {
+        "description": "Adds a user to a ticket",
+        "name": "ticket-add",
+        "options": {
+          "user": {
+            "description": "The user to add to the ticket",
+            "name": "user"
+          }
+        }
+      }
+    },
+    "auto_close_notice": "🔒 This ticket has been auto-closed due to 24 hours of inactivity.",
+    "claim": {
+      "already_claimed": "> **Warning:** This ticket is already claimed by <@{claimer}>.",
+      "cannot_claim_own": "> **Warning:** You cannot claim your own ticket.",
+      "claimed_button": "Claimed",
+      "claimed_description": "{user}, you claimed the ticket{move_to}",
+      "claimed_notice": "{user} claimed the ticket."
+    },
+    "close": {
+      "closed_description": "{user}, this ticket has been closed{move_to}",
+      "embed_title": "Close ticket with reason",
+      "reason_field": "Reason"
+    },
+    "created": {
+      "as_thread": " as a thread in {channel}.",
+      "description": "{user}, your ticket has been created{location_note}",
+      "field": "Ticket #{number}",
+      "moved_to_category": " and it has been moved to **<#{category}>** category",
+      "title": "Ticket created",
+      "topic": "- Type: {emoji} {label}\n- Created by: {user}"
+    },
+    "delete": {
+      "cannot_delete_own": "> **Warning:** You cannot delete your own ticket. Please close it first.",
+      "confirm_button": "Confirm",
+      "confirm_description": "{user}, are you sure you want to delete this ticket? The channel will be deleted and a transcript will be generated.",
+      "deleted_notice": "{user} deleted the ticket."
+    },
+    "limit": {
+      "noun_plural": "**{count}** open tickets (limit is **{max}**)",
+      "noun_singular": "an open ticket",
+      "warning": "> **Warning:** You already have {noun} on this panel."
+    },
+    "modal": {
+      "reason_label": "Reason",
+      "title": "Close Ticket Reason"
+    },
+    "moved_to_category": " and it has been moved to **{category}** category",
+    "panel_not_found": "> **Warning:** This ticket's panel could not be found.",
+    "remove": {
+      "cmd": {
+        "description": "Removes a user from a ticket",
+        "name": "ticket-remove",
+        "options": {
+          "user": {
+            "description": "The user to remove from the ticket",
+            "name": "user"
+          }
+        }
+      },
+      "removed": "> **{user}** was removed from the ticket."
+    },
+    "reopen": {
+      "embed_title": "Ticket reopened.",
+      "not_closed": "This ticket is not closed yet.",
+      "reopened_by_field": "Reopened by",
+      "reopened_description": "{user}, you reopened this ticket{move_to}"
+    },
+    "service_disabled": "❌ The ticketing service has been disabled. Please contact your server owner.",
+    "transcript": {
+      "claimed_by_field": "Claimed by",
+      "created_by_field": "Created by",
+      "closed_by_field": "Closed by",
+      "deleted_by_field": "Deleted by",
+      "no_participants": "No participants",
+      "participant_line": "{count} messages by <@{user_id}>",
+      "participants_field": "Participants",
+      "reopened_by_field": "Reopened by",
+      "title": "Ticket #{short_id} in {server}",
+      "transcript_button": "Transcript",
+      "type_field": "Type"
+    }
+  },
+  "verification": {
+    "already_active": "⏳ You already have an active verification. Please wait **{remaining}s** or check your DMs.",
+    "already_verified": "✅ {user}, you are already verified.",
+    "captcha_embed": {
+      "description": "**Please type the captcha below to access this server!**\n\n**Instructions:**\n• Type the traced colored characters from left to right\n• Ignore the decoy characters spread around\n• Case doesn't matter (upper/lower both work)\n• You have **{max_attempts}** attempts\n• You have **{timeout}** seconds",
+      "footer": "Verification • {time}",
+      "title": "🔐 Human Verification Required"
+    },
+    "channel": {
+      "answer_button": "🔑 Answer",
+      "cancel_button": "❌ Cancel",
+      "failed_description": "You failed verification in **{server}**.\n**Reason:** Too many failed attempts.\n**Correct answer:** `{answer}`\n{retry_msg}",
+      "modal_input_label": "Enter the captcha code",
+      "modal_placeholder": "Type the characters you see...",
+      "modal_title": "🔐 Captcha Verification",
+      "wrong_answer_suffix": "\nClick **Answer** to try again."
+    },
+    "cooldown": "⏳ Please wait a moment before clicking again.",
+    "dm": {
+      "cancel_button": "❌ Cancel",
+      "cancel_confirm": "Verification cancelled.",
+      "check_dms_button": "📬 Check DMs",
+      "dm_failed": "❌ I wasn't able to DM you. Please open your DMs and try again.",
+      "failed_description": "You failed verification in **{server}**.\n**Reason:** Too many failed attempts.\n**Correct answer:** `{answer}`\n\n{retry_msg}",
+      "footer": "Verification period: {seconds} seconds",
+      "hint_button": "💡 Hint",
+      "hint_text": "**Hint:** `{captcha}`",
+      "starting_description": "📬 **Starting verification... Check your DMs!**",
+      "timeout_description": "You took too long to respond. Please start verification again.",
+      "timeout_title": "⏰ Verification Timed Out"
+    },
+    "fail_action_labels": {
+      "ban": "Banned",
+      "kick": "Kicked",
+      "timeout": "Timed Out (5m)",
+      "unverified": "Kept Unverified"
+    },
+    "guild_not_found": "❌ Guild configuration not found. Please contact an admin.",
+    "helpers": {
+      "cancelled": "❌ Verification cancelled.",
+      "cannot_assign_role": "❌ I couldn't assign the verification role. Please contact an admin.",
+      "incorrect_title": "❌ Incorrect",
+      "not_your_verification": "This isn't your verification!",
+      "retry_hint": "🔄 You can return to <#{channel}> and click Verify to try again.",
+      "verified_description": "You passed verification and can now access **{server}**.",
+      "verified_title": "✅ You have been verified!",
+      "wrong_answer": "Wrong answer. You have **{count}** attempt{plural} left.",
+      "failed_title": "❌ Verification Failed"
+    },
+    "instant": {
+      "no_role_perms": "❌ I don't have permission to assign roles. Please contact an admin.",
+      "success": "✅ You have been verified! You can now access the server channels."
+    },
+    "log": {
+      "created_field": "Account Created",
+      "fail_actions": {
+        "ban": "Banned",
+        "kick": "Kicked",
+        "timeout": "Timed Out",
+        "unverified": "Kept Unverified"
+      },
+      "failed_status": "❌ `{user}` has failed to pass verification.",
+      "passed_status": "✅ `{user}` has successfully passed verification.",
+      "reason_field": "Reason",
+      "reason_value": "Too many failed attempts. This user has been `{label}`.",
+      "status_field": "Status",
+      "title": "{user} Verification Result",
+      "user_field": "User"
+    },
+    "not_configured": "❌ Verification is not fully configured. Please contact your server owner.",
+    "owner_exempt": "👑 You are the server owner — you don't need to verify.",
+    "role_missing": "❌ The verification role no longer exists. Please contact your server owner.",
+    "service_disabled": "❌ The verification service has been disabled. Please contact your server owner.",
+    "web": {
+      "description": "Click the button below to verify through your browser.",
+      "title": "🌐 Web Verification",
+      "verify_button": "🌐 Verify"
+    }
+  },
+  "giveaways": {
+    "cmd": {
+      "name": "giveaway",
+      "description": "Giveaway commands"
+    },
+    "helpers": {
+      "giveaway_summary_btn": "📋 Giveaway Summary",
+      "join_button": "🎯 Join Giveaway"
+    },
+    "embed": {
+      "title": "🎉 {prize} 🎉",
+      "title_ended": "🎉 {prize} 🎉 [ENDED]",
+      "ends_field": "Ends",
+      "ended_field": "Ended",
+      "hosted_by_field": "Hosted by",
+      "winners_field": "Winners",
+      "winners_field_ended": "Winners [{count}]",
+      "participants_field": "Participants",
+      "rewards_field": "🎁 Rewards",
+      "reward_coins": "💰 {amount} coins",
+      "reward_xp": "⭐ {amount} XP",
+      "footer": "Giveaway ID: {id}"
+    },
+    "check": {
+      "not_enough_participants": "❌ There were not enough participants to draw winners."
+    },
+    "log": {
+      "title": "🎉 Giveaway Ended",
+      "prize_field": "Prize",
+      "winners_field": "Winners",
+      "participants_field": "Total Participants",
+      "footer": "ID: {id}"
+    },
+    "join": {
+      "ended": "❌ You cannot enter or leave this giveaway because it has already ended!",
+      "joined": "✅ You're now participating in this giveaway!",
+      "left": "❌ You're not participating in this giveaway anymore!"
+    },
+    "summary": {
+      "not_found": "❌ I could not find this giveaway.",
+      "host_field": "Host",
+      "winners_field": "🏆 Winners [{count}]",
+      "participants_field": "👥 Participants [{count}]",
+      "no_participants": "No participants",
+      "more_participants": "... and {count} more"
+    },
+    "create": {
+      "cmd": {
+        "name": "create",
+        "description": "Create a giveaway",
+        "options": {
+          "prize": {
+            "name": "prize",
+            "description": "The prize of the giveaway",
+            "required": true
+          },
+          "time": {
+            "name": "time",
+            "description": "The amount of time the giveaway should go on for i.e 5d, 6h, 30m",
+            "required": true
+          },
+          "winners": {
+            "name": "winners",
+            "description": "The number of winners",
+            "required": true
+          },
+          "description": {
+            "name": "description",
+            "description": "The description of the giveaway",
+            "required": false
+          },
+          "channel":{
+            "name": "channel",
+            "description": "The channel to create the giveaway in",
+            "required": false
+          },
+          "ping_role": {
+            "name": "ping_role",
+            "description": "The role to ping for the giveaway",
+            "required": false
+          },
+          "coins": {
+            "name": "coins",
+            "description": "The amount of economy coins to give when the user wins the giveaway",
+            "required": false
+          },
+          "xp": {
+            "name": "xp",
+            "description": "The amount of leveling xp to give when the user wins the giveaway",
+            "required": false
+          }
+        }
+      },
+      "no_perm_user": "❌ You don't have permission to send messages in {channel}",
+      "no_perm_bot_send": "❌ I don't have permission to send messages in that channel!",
+      "no_perm_bot_reactions": "❌ I need the `Add Reactions` permission to run giveaways!",
+      "economy_disabled": "❌ Economy is currently disabled!",
+      "leveling_disabled": "❌ Leveling is currently disabled!",
+      "invalid_time": "❌ Invalid time format! Use formats like `5d`, `6h`, `30m`",
+      "success": "✅ Giveaway created successfully!",
+      "forbidden": "❌ I don't have permission to send messages or embed links in that channel!",
+      "failed": "❌ Giveaway creation failed: {error}"
+    },
+    "list": {
+      "cmd": {
+        "name": "list",
+        "description": "List giveaways"
+      },
+      "no_active": "📭 There are **no active giveaways** running.",
+      "winner": "winner",
+      "winners": "winners",
+      "jump": "Jump",
+      "prize": "**Prize:**",
+      "end": "**Ends:**",
+      "embed_title": "🎁 Active Giveaways in {g}",
+      "embed_description_none": "No active giveaways.",
+      "embed_footer": "Total: {count} active giveaways"
+    },
+    "reroll": {
+      "cmd": {
+        "name": "reroll",
+        "description": "Rerolls a new winner from a giveaway",
+        "options": {
+          "giveaway_id": {
+            "name": "giveaway_id",
+            "description": "The ID of the giveaway to reroll",
+            "required": true
+          }
+        }
+      },
+      "failed": "❌ I could not find a giveaway with the ID `{id}`.",
+      "no_winners": "❌ No valid entrants, so a winner could not be determined!",
+      "all_winners": "❌ All participants have already won! No one left to reroll.",
+      "embed_title": "🎉 Giveaway Rerolled!",
+      "rerolled": "{author} rerolled the giveaway!\n\n🏆 New winner: {winner}"
+    },
+    "end": {
+      "cmd": {
+        "name": "end",
+        "description": "Ends a giveaway",
+        "options": {
+          "giveaway_id": {
+            "name": "giveaway_id",
+            "description": "The ID of the giveaway to end",
+            "required": true
+          }
+        }
+      },
+      "no_winners": "No winners",
+      "failed": "❌ I could not find a giveaway with the ID `{id}`.",
+      "already_ended": "❌ This giveaway has already ended!",
+      "giveaway_not_found": "❌ Could not find the giveaway message!",
+      "congratulations": "🎉 Congratulations {text}! You won **{prize}**!",
+      "no_valid_entrants": "❌ No valid entrants, so a winner could not be determined!",
+      "success": "✅ Successfully ended giveaway `{id}`"
+    },
+    "delete": {
+      "cmd": {
+        "name": "delete",
+        "description": "Delete a giveaway",
+        "options": {
+          "giveaway_id": {
+            "name": "giveaway_id",
+            "description": "The ID of the giveaway to delete",
+            "required": true
+          }
+        }
+      },
+      "failed": "❌ Giveaway not found",
+      "deleted": "✅ Deleted giveaway `{id}`"
+    }
+  },
+
+  "tempvoice": {
+    "access_denied": "Access denied. You must be in your own voice channel to use this command.",
+    "cmd": {
+      "description": "Manage your temporary voice channel",
+      "name": "tempvoice-manage"
+    },
+    "kick_placeholder": "Select a member to kick",
+    "kicked": "{member} has been kicked from the voice channel",
+    "limit_decreased": "Voice member limit decreased",
+    "limit_increased": "Voice member limit increased",
+    "max_limit": "This channel is already at the maximum limit of 99.",
+    "no_limit": "This channel already has no member limit.",
+    "not_in_channel": "{member} isn't in your voice channel.",
+    "not_in_voice": "You must be connected to a voice channel to use this command.",
+    "panel_description": "+ - Add 1 space to your voice channel\n- - Remove 1 space from your voice channel\nK - Kick a member from your voice channel",
+    "panel_title": "Manage your voice channel",
+    "who_to_kick": "Who do you want to kick from the voice channel?"
+  },
+
+  "birthdays": {
+    "cmd": {
+      "list": {
+        "name": "birthdays",
+        "description": "Show all birthdays for the current month"
+      },
+      "next": {
+        "name": "next-birthdays",
+        "description": "Shows the next 10 upcoming birthdays"
+      },
+      "view": {
+        "name": "birthday",
+        "description": "Show yours or another member's birthday",
+        "options": {
+          "member": {
+            "name": "member",
+            "description": "The member to view"
+          }
+        }
+      },
+      "set": {
+        "name": "set-birthday",
+        "description": "Set yours or another member's birthday",
+        "options": {
+          "date": {
+            "name": "date",
+            "description": "Birthday date (YYYY-MM-DD)"
+          },
+          "member": {
+            "name": "member",
+            "description": "The member to set the birthday of"
+          }
+        }
+      },
+      "remove": {
+        "name": "remove-birthday",
+        "description": "Remove your birthday"
+      }
+    },
+    "no_birthdays_month": "No birthdays this month.",
+    "month_title": "🎂 Birthdays in {month}",
+    "none_known": "I don't know **any** birthdays **yet**.",
+    "upcoming_title": "📅 Upcoming Birthdays",
+    "no_birthday_set": "{member} has no birthday set.",
+    "info": "{member}'s **{age}** birthday is in **{days}** days on **{date}**.",
+    "already_set": "{member} already has a birthday set.",
+    "invalid_format": "❌ Invalid date format. Please use `YYYY-MM-DD`.",
+    "future_date": "❌ Birthday can't be in the future!",
+    "success": "📝 Duly noted, I'll wish {member}'s **{age}** birthday in **{days}** days on **{date}**.",
+    "not_set": "You have no birthday set.",
+    "removed": "✅ I will no longer wish **your** birthday."
+  }
+}
