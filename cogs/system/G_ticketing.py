@@ -44,6 +44,7 @@ async def get_ticket_transcript(ticket: Ticket) -> list[dict]:
         tz = v.datetimes(ticket.guild_id)
         # Mongo hands datetimes back naive; they were stored as UTC.
         local = lambda dt: dt.replace(tzinfo=timezone.utc).astimezone(tz)
+        fmt = lambda dt: local(dt).strftime("%d/%m/%Y %H:%M:%S") if dt else None
         return [{
             "id": m.id,
             "user": m.user,
@@ -55,7 +56,9 @@ async def get_ticket_transcript(ticket: Ticket) -> list[dict]:
             "edited": m.edited,
             "timestamp": {
                 "created": m.created_at.isoformat(),
-                "formatted": local(m.created_at).strftime("%d/%m/%Y %H:%M:%S"),
+                "formatted": fmt(m.created_at),
+                "edited": fmt(m.edited_at),
+                "deleted": fmt(m.deleted_at),
             },
             "channel": {"id": m.channel_id},
         } for m in records]

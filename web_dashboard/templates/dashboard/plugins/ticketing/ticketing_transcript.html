@@ -31,7 +31,15 @@
         <div class="ticket-info-line" id="ticket-info-messages">
           <span class="ticket-info-label">Messages</span>
           {{ messages | length }}
+          {% set n_edited = messages | selectattr('edited') | list | length %}
+          {% set n_deleted = messages | selectattr('deleted') | list | length %}
+          <span class="ticket-info-sub">· {{ n_edited }} edited · {{ n_deleted }} deleted</span>
         </div>
+        {% if n_deleted %}
+        <label class="ticket-info-toggle">
+          <input type="checkbox" id="hide-deleted"> Hide deleted messages
+        </label>
+        {% endif %}
       </div>
     </div>
 
@@ -46,13 +54,14 @@
             <div>
               <span style="font-weight: bold;">{{message['user']['name']}}</span>
               {% if message['user']['bot'] %}<span class="bot-tag">APP</span>{% endif %}
-              {% if message['deleted'] %}<span class="msg-flag msg-flag-deleted">deleted</span>{% elif message['edited'] %}<span class="msg-flag msg-flag-edited">edited</span>{% endif %}
+              {% if message['pin'] %}<span class="msg-flag" title="Pinned">📌</span>{% endif %}
+              {% if message['deleted'] %}<span class="msg-flag msg-flag-deleted"{% if message['timestamp']['deleted'] %} title="Deleted {{ message['timestamp']['deleted'] }}"{% endif %}>deleted{% if message['timestamp']['deleted'] %} {{ message['timestamp']['deleted'] }}{% endif %}</span>{% elif message['edited'] %}<span class="msg-flag msg-flag-edited"{% if message['timestamp']['edited'] %} title="Edited {{ message['timestamp']['edited'] }}"{% endif %}>edited{% if message['timestamp']['edited'] %} {{ message['timestamp']['edited'] }}{% endif %}</span>{% endif %}
             </div>
             <div>
               <span>{{message['timestamp']['formatted']}}</span>
             </div>
           </div>
-            
+
           <div>
             {% if message['content'] %}
             <p class="message_content">{{ message['content'] }}</p>
@@ -109,6 +118,15 @@
 
         anchor.insertAdjacentElement('beforebegin', line);
       }
+
+      const hideDeleted = document.getElementById('hide-deleted');
+      if (hideDeleted) {
+        hideDeleted.addEventListener('change', () => {
+          for (const el of document.querySelectorAll('#transcript-messsages .profile.is-deleted')) {
+            el.hidden = hideDeleted.checked;
+          }
+        });
+      }
     })();
   </script>
 
@@ -156,6 +174,17 @@
       color: #9195ab;
     }
 
+    .ticket-info-sub {
+      color: #9195ab;
+    }
+
+    .ticket-info-toggle {
+      margin-left: auto;
+      font-size: 12.5px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+
     .messages-card {
       padding: 16px;
       background-color: var(--card-bg);
@@ -174,6 +203,10 @@
 
     .profile:last-child {
       margin-bottom: 0;
+    }
+
+    .profile[hidden] {
+      display: none;
     }
 
     .profile.is-deleted {
