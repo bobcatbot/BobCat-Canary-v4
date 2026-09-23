@@ -20,8 +20,10 @@ YOUTUBE_RED = 0xFF0000
 # Twitch's live preview thumbnail isn't generated the instant a stream starts -
 # fetching stream details (and posting) right on stream.online gets a generic
 # "404 preview" placeholder image instead of a real one. Wait this long before
-# doing either, so the thumbnail's actually ready.
-STREAM_ONLINE_DELAY_SECONDS = 90
+# doing either, so the thumbnail's actually ready. Counted from when the event
+# reaches us, which is ~15-19s after the stream actually starts; the preview has
+# been seen ready anywhere from ~38s to ~63s after the stream starts.
+STREAM_ONLINE_DELAY_SECONDS = 45
 
 social_webhooks_bp = Blueprint('social_webhooks', __name__)
 logger = logging.getLogger(__name__)
@@ -75,12 +77,17 @@ async def _build_notification_embed(streamer: TwitchStreamers, stream: dict | No
     if title:
         embed.description = f"[{title}]({channel_url})"
     if game:
-        embed.add_field(name="Game", value=game, inline=False)
+        embed.add_field(name="Game", value=game, inline=True)
     if streamer.show_viewers and viewer_count is not None:
-        embed.add_field(name="Viewers", value=str(viewer_count), inline=False)
+        embed.add_field(name="Viewers", value=str(viewer_count), inline=True)
 
     if mode != "minimal" and thumbnail_template:
-        embed.set_image(url=thumbnail_template.format(width=440, height=248))
+        # The image URL is one fixed URL per streamer for every stream they ever
+        # do, and Discord caches embed images by URL - so a per-stream query
+        # string forces a fresh fetch (Twitch's CDN ignores it) instead of
+        # reusing an older stream's picture or a placeholder.
+        preview_url = f"{thumbnail_template.format(width=440, height=248)}?stream={stream.get('id')}"
+        embed.set_image(url=preview_url)
 
     if mode == "preview_boxart" and game_id:
         try:
@@ -140,9 +147,18 @@ async def _handle_stream_online(event: dict):
 
     try:
         stream = await twitch.get_stream(broadcaster_id)
+        lookup_ok = True
     except Exception as e:
         logger.warning("Failed to fetch live stream details for %s: %s", broadcaster_id, e)
         stream = None
+        lookup_ok = False
+
+    # The stream this event announced may have ended (or been replaced by a
+    # newer one) during the sleep above - the offline event for it was skipped
+    # since nothing was marked live yet, so posting now would announce a stream
+    # that's already over. A stream's id in Get Streams matches the event's id.
+    if lookup_ok and event.get("type") == "live" and (stream is None or stream.get("id") != event.get("id")):
+        return
 
     for streamer in streamers:
         client = v.get_client(int(streamer.guild_id))
