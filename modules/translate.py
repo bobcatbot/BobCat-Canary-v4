@@ -63,6 +63,31 @@ class Translate:
                 return text.format_map(kwargs) if kwargs else text
         return key
 
+    def resolve_locale(self, *candidates) -> str:
+        """First candidate that has a Languages/<code>.json, matching the exact
+        code first and then the same primary language ("es" or "es-MX" -> "es-ES"),
+        else DEFAULT_LANG. Candidates are viewer signals in priority order, e.g.
+        their Discord locale then their browser's Accept-Language codes."""
+        for candidate in candidates:
+            if not candidate:
+                continue
+            if candidate in self.translation:
+                return candidate
+            primary = candidate.split("-")[0].lower()
+            for code in self.translation:
+                if code.split("-")[0].lower() == primary:
+                    return code
+        return DEFAULT_LANG
+
+    def msg_lang(self, lang: str, key: str, /, **kwargs) -> str:
+        """msg() for a known locale code instead of a guild - the dashboard
+        renders for the viewer's language, not the server's."""
+        for code in (lang, DEFAULT_LANG):
+            text = self._walk(code, key)
+            if isinstance(text, str):
+                return text.format_map(kwargs) if kwargs else text
+        return key
+
     def choices(self, guild, key: str, /) -> list:
         """Same fallback chain as msg(), but for a list of strings (e.g. a
         pool of random reply lines) instead of a single string."""
