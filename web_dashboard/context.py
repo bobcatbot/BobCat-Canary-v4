@@ -4,6 +4,7 @@ from .config import INVITE_URL
 from .db import get_bell_notifications
 from .plugins import fetch_plugins
 from .utils import get_current_user, GuildModels, _cached_guild
+from .i18n import tr, viewer_lang
 
 def register_context_processors(app):
     @app.context_processor
@@ -56,4 +57,6 @@ def register_context_processors(app):
             'guild_models': guild_models,
             'notifications': notifications,
             'inviteURL': INVITE_URL,
+            't': tr,
+            'lang': viewer_lang(),
         }

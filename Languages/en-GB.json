@@ -1696,5 +1696,38 @@
     "success": "📝 Duly noted, I'll wish {member}'s **{age}** birthday in **{days}** days on **{date}**.",
     "not_set": "You have no birthday set.",
     "removed": "✅ I will no longer wish **your** birthday."
+  },
+
+  "dashboard": {
+    "common": {
+      "select_option": "Select an option",
+      "select_role": "Select a role"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Here you can adjust the bots settings",
+      "bot_masters": {
+        "title": "Bot masters",
+        "description": "Bot masters can access your Dashboard and edit every command and plugin configuration. Bot masters also bypass command role checks, see all tickets from the Ticketing plugin, are automatically considered immune in the Moderator plugin and can reset anyone's XP in the Levels plugin!",
+        "admin_roles_label": "Administrator Roles",
+        "admin_roles_hint": "Any role with the Administrator permission is considered as a bot master.",
+        "extra_roles_label": "Additional Bot Master Roles",
+        "extra_roles_hint": "Roles that will also be considered as bot masters, even if they do not have the Administrator permission."
+      },
+      "language": {
+        "title": "Language",
+        "description": "Change the default language of the bot in your server.",
+        "select_prompt": "Select a language"
+      },
+      "timezone": {
+        "title": "Timezone",
+        "description": "Change the default timezone of the bot in your server.",
+        "select_prompt": "Select a timezone"
+      },
+      "color": {
+        "title": "Default embed color",
+        "description": "Change the default colors of the bot in your server."
+      }
+    }
   }
 }
