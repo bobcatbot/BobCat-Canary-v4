@@ -238,7 +238,7 @@ class GiveawayCog(commands.Cog):
                     ephemeral=True
                 )
 
-            date = datetime.fromtimestamp(int(data.end_epoch))
+            date = datetime.fromtimestamp(int(data.end_epoch), v.datetimes(interaction.guild.id))
             date_str = date.strftime("%x, %X %p")
 
             winners = " ".join(f"<@{user_id}>" for user_id in data.winners) or "No winners"
@@ -323,7 +323,7 @@ class GiveawayCog(commands.Cog):
             message_id="",
             author_id=str(ctx.author.id),
             end_epoch=epochEnd,
-            end_timestamp=datetime.fromtimestamp(epochEnd).strftime("%m.%d.%Y %H:%M"),
+            end_timestamp=datetime.fromtimestamp(epochEnd, v.datetimes(ctx.guild.id)).strftime("%m.%d.%Y %H:%M"),
             prize=prize,
             winner_count=winner_count,
             status="Ongoing",

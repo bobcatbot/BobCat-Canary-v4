@@ -6,6 +6,7 @@ import math
 from typing import Optional
 from datetime import datetime
 import time
+from modules import bot as v
 from cogs.money._shop import open_account, update_bank, parse_and_validate_bet
 
 # Only the member who ran /ttt places a bet - a tie refunds nothing (no
@@ -242,7 +243,7 @@ class TicTacToeGame(commands.Cog):
             "moves": 0,
             "active": True,
             "winner": None,
-            "started": datetime.now(),
+            "started": datetime.now(v.datetimes(ctx.guild.id)),
             "message_id": None
         }
         
@@ -268,7 +269,7 @@ class TicTacToeGame(commands.Cog):
                 description=f"**{ctx.author.display_name}**, it's your turn! Betting **`{bet}`** coins.",
                 color=discord.Color.blue()
             )
-        embed.set_footer(text=f"Game started at {datetime.now().strftime('%H:%M')}")
+        embed.set_footer(text=f"Game started at {game_data['started'].strftime('%H:%M')}")
         
         # Create view
         view = self.TTTView(self, ctx, game_data)

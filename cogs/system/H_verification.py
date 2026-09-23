@@ -54,7 +54,7 @@ class Verification(commands.Cog):
         logs.timestamp = datetime.now()
         return logs
 
-    def _build_captcha(self, captcha_text: str) -> tuple[discord.Embed, discord.File, io.BytesIO]:
+    def _build_captcha(self, captcha_text: str, guild_id: int) -> tuple[discord.Embed, discord.File, io.BytesIO]:
         """Generates the captcha image and embed using BytesIO (no file collision!)."""
         image = ImageCaptcha(width=280, height=90)
         
@@ -77,7 +77,7 @@ class Verification(commands.Cog):
             color=discord.Color.blue()
         )
         embed.set_image(url="attachment://captcha.png")
-        embed.set_footer(text=f"Verification • {datetime.now().strftime('%H:%M')}")
+        embed.set_footer(text=f"Verification • {datetime.now(v.datetimes(guild_id)).strftime('%H:%M')}")
         file = discord.File(image_buffer, filename="captcha.png")
         return embed, file, image_buffer
 
@@ -251,7 +251,7 @@ class Verification(commands.Cog):
 
         # ── Generate captcha ──
         captcha_text = "".join(random.sample(string.ascii_letters + string.digits, self.CAPTCHA_LENGTH))
-        captcha_embed, captcha_file, _ = self._build_captcha(captcha_text)
+        captcha_embed, captcha_file, _ = self._build_captcha(captcha_text, interaction.guild.id)
 
         # ── Instant ───────────────────────────────────────────────────────────
         if mode == "instant":
