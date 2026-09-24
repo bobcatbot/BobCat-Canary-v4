@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'sticky_messages') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="sticky-status" class="form-check-input" name="plugin-status" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="sticky-status" class="form-check-input" name="plugin-status" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Add a sticky message</h2>
+            <p class="dash-card-subtitle">The message is re-posted at the bottom of the channel every time someone talks. A channel can only have one sticky, so adding another replaces it.</p>
+          </div>
+        </div>
+
+        <hr>
+        <div class="card-body">
+          <p class="mb-0">Channel</p>
+          <div class="sticky-chan-wrapper single">
+            <div class="select">
+              <div class="select-selected">Select an option</div>
+              <div class="select-options">
+                {% for channel in guild_models(guild).channels.text %}
+                <div class="option" data-type="channel" data-name="{{channel.name}}" data-id="{{channel.id}}">{{channel.name}}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <p class="mb-0">Message</p>
+            <textarea id="sticky-text" class="text-input" maxlength="2000"></textarea>
+          </div>
+
+          <button id="sticky-add" class="btn btn-blurple mt-3">Add sticky</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Sticky messages</h2>
+            <p class="dash-card-subtitle">Removing a sticky stops it from being re-posted. The last message it posted stays in the channel.</p>
+          </div>
+        </div>
+
+        <hr>
+        <div class="card-body">
+          <div id="sticky-list" class="d-grid gap-3"></div>
+          <p id="sticky-empty" class="mb-0 text-muted">No sticky messages yet.</p>
+        </div>
+      </div>
+    </section>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <style>
+    .sm-message {
+      background-color: var(--background-color) !important;
+    }
+  </style>
+
+  <script type="application/json" id="sticky-messages-data">{{ {"messages": messages, "channels": channel_names} | tojson }}</script>
+  <script>
+    const stickyData = JSON.parse(document.getElementById('sticky-messages-data').textContent);
+    let stickies = stickyData.messages;
+    const channelNames = stickyData.channels;
+    let selectedChannel = '';
+
+    new Select('.sticky-chan-wrapper.single', {
+      placeholder: "Select a channel",
+      type: 'channel',
+      multiple: false,
+      maxItems: 1,
+      options: []
+    });
+    
+
+    document.getElementById('sticky-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "sticky_messages.status": e.target.checked }),
+      });
+    });
+    
+
+    async function saveStickies(next) {
+      const res = await fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "sticky_messages.messages": next }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        alert(body.message || "Something went wrong");
+        return false;
+      }
+      stickies = next;
+      render();
+      return true;
+    }
+
+    function render() {
+      const list = document.getElementById('sticky-list');
+      list.replaceChildren();
+      document.getElementById('sticky-empty').hidden = stickies.length > 0;
+
+      stickies.forEach((sticky) => {
+        const row = document.createElement('div');
+        row.className = 'card sm-message flex-row align-items-start justify-content-between gap-3 p-3';
+
+        const info = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'fw-bold';
+        name.textContent = '#' + (channelNames[sticky.channel_id] || 'deleted-channel');
+        const text = document.createElement('div');
+        text.style.whiteSpace = 'pre-wrap';
+        text.textContent = sticky.text;
+        info.append(name, text);
+
+        const remove = document.createElement('button');
+        remove.className = 'btn btn-danger btn-sm';
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-trash-fill';
+        remove.append(icon);
+        remove.addEventListener('click', () => saveStickies(stickies.filter((s) => s !== sticky)));
+
+        row.append(info, remove);
+        list.append(row);
+      });
+    }
+
+    document.getElementById('sticky-add').addEventListener('click', async () => {
+      const textBox = document.getElementById('sticky-text');
+      const text = textBox.value.trim();
+      if (!selectedChannel || !text) {
+        alert("Pick a channel and write a message first.");
+        return;
+      }
+      const next = stickies.filter((s) => s.channel_id !== selectedChannel);
+      next.push({ channel_id: selectedChannel, text });
+      if (await saveStickies(next)) {
+        textBox.value = '';
+        window._selects['.sticky-chan-wrapper.single'].setSelectedOptions([]);
+        selectedChannel = '';
+      }
+    });
+
+    document.querySelector('.sticky-chan-wrapper.single').addEventListener('select:update', (e) => {
+      selectedChannel = e.detail.selectedOptions[0] || '';
+    });
+
+    render();
+  </script>
+</body>
+</html>

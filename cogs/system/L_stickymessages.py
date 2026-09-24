@@ -4,10 +4,14 @@ from discord.ext import commands
 from modules import bot as v
 from modules.models import StickyState
 
+# Wait this long after the last message before reposting, so a burst of chat reposts once.
+REPOST_DELAY = 2
+
 class Sticky(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
         self.locks: dict[int, asyncio.Lock] = {}
+        self.latest: dict[int, int] = {}  # channel_id -> newest message id seen
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -24,23 +28,30 @@ class Sticky(commands.Cog):
         if entry is None:
             return
 
+        # Only the newest message in a burst gets to repost; older ones see they were superseded.
+        self.latest[channel.id] = message.id
+        await asyncio.sleep(REPOST_DELAY)
+        if self.latest[channel.id] != message.id:
+            return
+
         # Two messages landing together would both delete the old sticky and both post a new one,
         # leaving a duplicate nobody tracks. The lock makes the second wait and replace the first's.
         async with self.locks.setdefault(channel.id, asyncio.Lock()):
             state_id = f"{message.guild.id}_{channel.id}"
             state = await StickyState.get(state_id)
-            if state:
-                try:
-                    await channel.get_partial_message(int(state.message_id)).delete()
-                except (discord.NotFound, discord.Forbidden):
-                    pass
 
+            # Send first, then delete the old one, so the channel is never without a sticky.
             try:
                 sent = await channel.send(entry.text)
             except discord.Forbidden:
                 return
 
             if state:
+                try:
+                    await channel.get_partial_message(int(state.message_id)).delete()
+                except discord.NotFound:
+                    pass  # someone already deleted it
+
                 state.message_id = str(sent.id)
                 await state.save()
             else:
