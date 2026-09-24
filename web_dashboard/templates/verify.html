@@ -9,7 +9,7 @@
 <body style="height: 100dvh;display: flex;flex-direction: column;justify-content: center;">
   {% include 'components/PublicNavbar.html' %}
 
-  <main class="main justify-content-center align-items-center" align="center">
+  <main class="main ms-0 justify-content-center align-items-center" align="center">
     <img src="{{url_for('static', filename='img/bobcat.png')}}" alt="">
 
     {% if state == 'login' %}

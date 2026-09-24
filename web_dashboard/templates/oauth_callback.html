@@ -3,10 +3,10 @@
 <body>
 <script>
     if (window.opener) {
-        window.opener.location.href = "{{ redirect_url }}";
+        window.opener.location.href = {{ redirect_url | tojson }};
         window.close();
     } else {
-        window.location.href = "{{ redirect_url }}";
+        window.location.href = {{ redirect_url | tojson }};
     }
 </script>
 </body>
