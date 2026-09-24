@@ -203,6 +203,26 @@
   </div>
 </section>
 
+<section class="sectionn">
+  <div class="card">
+    <div class="dash-card-header">
+      <div>
+        <h2 class="dash-card-title">Automated Actions</h2>
+        <p class="dash-card-subtitle">These allow you to let automod mute, kick or ban automatically when a member collects warnings.</p>
+      </div>
+    </div>
+
+    <hr>
+    <div class="card-body">
+      <div id="escalation-list" class="d-flex flex-column gap-2"></div>
+      <p id="escalation-error" class="text-danger fs-7 mt-2 mb-0" hidden></p>
+      <button type="button" id="escalation-add" class="btn btn-secondary mt-3">
+        <i class="bi bi-plus-lg"></i> Add automated action
+      </button>
+    </div>
+  </div>
+</section>
+
 {% call automod_modal('antilink', 'AntiLink') %}
 <div class="d-flex justify-content-between align-items-center">
   <p class="mb-0">Block server invites</p>
@@ -329,6 +349,35 @@
     padding: 13px;
     background: var(--background-color);
     border: 1px solid var(--sidebar-border);
+    border-radius: var(--radius-md);
+  }
+
+  .escalation-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  /* the widget's menu is as wide as its wrapper, so the wrapper needs a real width */
+  .escalation-panel [class*="escalation-select-"] {
+    flex: 0 0 auto;
+    width: 9.5rem;
+  }
+
+  .escalation-panel .select {
+    width: 100%;
+    background-color: var(--table-hover-bg);
+  }
+
+  .escalation-panel {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-around;
+    gap: 0.75rem 1.25rem;
+    padding: 1.5rem 0.5rem;
+    background: var(--background-color);
     border-radius: var(--radius-md);
   }
 </style>
@@ -561,6 +610,122 @@
     wireAutomodMultiSelect('restricted_channels', 'whitelist_roles', 'role', JSON.parse(`{{ data['automod']['restricted_channels']['whitelist_roles'] | tojson }}`) || []);
     wireAutomodSwitch('restriction-dm', KEY + '.dm', `{{ data['automod']['restricted_channels']['dm'] | tojson }}`);
     wireAutomodSwitch('restriction-reply', KEY + '.reply', `{{ data['automod']['restricted_channels']['reply'] | tojson }}`);
+  })();
+
+  // ── Automated Actions ─────────────────────────────────────────────────
+  // Same list pattern as Restricted Channels: one array under a single key.
+  // Rows are edited in place, and every change rewrites the whole array.
+  (function () {
+    const KEY = 'moderation.automod.automated_actions.rules';
+    const MAX_COUNT = { minutes: 60, hours: 60, days: 365 };
+    const ACTIONS = ['mute', 'kick', 'ban'];
+
+    const saved = JSON.parse(`{{ data['automod'].model_dump()['automated_actions']['rules'] | tojson }}`) || [];
+    let rules = structuredClone(saved);
+
+    const listEl = document.querySelector('#escalation-list');
+    const errorEl = document.querySelector('#escalation-error');
+
+    const sameWindow = (a, b) => a.infractions === b.infractions && a.timeframe_count === b.timeframe_count && a.timeframe_unit === b.timeframe_unit;
+
+    function commit(next) {
+      rules = next;
+      errorEl.hidden = true;
+      render();
+      show_toast(KEY, saved, rules, (baseline) => { rules = structuredClone(baseline); render(); });
+    }
+
+    // Builds a wrapper for the shared Select widget, which attaches to markup already in
+    // the page, so it's initialised by `mountSelects()` once the row has been appended.
+    let uid = 0;
+    let pending = [];
+    function select(options, value, onChange) {
+      const cls = 'escalation-select-' + uid++;
+      const wrapper = document.createElement('div');
+      wrapper.className = cls + ' single';
+      wrapper.innerHTML = '<div class="select"><div class="select-selected"></div><div class="select-options"></div></div>';
+      const menu = wrapper.querySelector('.select-options');
+      options.forEach(([val, label]) => {
+        const opt = document.createElement('div');
+        opt.className = 'option';
+        opt.dataset.value = val;
+        opt.textContent = label;
+        menu.append(opt);
+      });
+      pending.push(() => {
+        new Select('.' + cls, { type: '', maxItems: 1, multiple: false, options: [String(value)] });
+        wrapper.addEventListener('select:update', (event) => {
+          const picked = event.detail.selectedOptions[0];
+          if (picked === String(value)) return;
+          // clicking the selected option clears it, so put it back
+          if (picked === undefined) return window._selects['.' + cls].setSelectedOptions([String(value)]);
+          onChange(picked);
+        });
+      });
+      return wrapper;
+    }
+
+    function mountSelects() {
+      pending.forEach((mount) => mount());
+      pending = [];
+    }
+
+    function text(str) {
+      const span = document.createElement('span');
+      span.className = 'text-muted';
+      span.textContent = str;
+      return span;
+    }
+
+    function render() {
+      listEl.replaceChildren();
+      rules.forEach((rule, i) => {
+        function edit(changes) {
+          const updated = { ...rule, ...changes };
+          updated.timeframe_count = Math.min(updated.timeframe_count, MAX_COUNT[updated.timeframe_unit]);
+          if (rules.some((r, j) => j !== i && sameWindow(r, updated))) {
+            errorEl.textContent = 'Another rule already uses those infractions and timeframe.';
+            errorEl.hidden = false;
+            render();
+            return;
+          }
+          commit(rules.map((r, j) => j === i ? updated : r));
+        }
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn btn-outline-danger btn-icon align-self-start';
+        del.title = 'Delete';
+        del.innerHTML = '<i class="bi bi-trash-fill"></i>';
+        del.addEventListener('click', () => commit(rules.filter((_, j) => j !== i)));
+
+        const range = (max) => Array.from({ length: max }, (_, k) => k + 1);
+        const panel = document.createElement('div');
+        panel.className = 'escalation-panel';
+        panel.append(
+          select(ACTIONS.map((a) => [a, a]), rule.action, (val) => edit({ action: val })),
+          text('when someone has'),
+          select(range(150).map((n) => [n, n + (n === 1 ? ' infraction' : ' infractions')]), rule.infractions, (val) => edit({ infractions: +val })),
+          text('or more in the last'),
+          select(range(MAX_COUNT[rule.timeframe_unit]).map((n) => [n, n]), rule.timeframe_count, (val) => edit({ timeframe_count: +val })),
+          select(Object.keys(MAX_COUNT).map((u) => [u, u]), rule.timeframe_unit, (val) => edit({ timeframe_unit: val })),
+        );
+
+        const row = document.createElement('div');
+        row.className = 'escalation-row';
+        row.append(del, panel);
+        listEl.append(row);
+      });
+      mountSelects();
+    }
+
+    document.querySelector('#escalation-add').addEventListener('click', () => {
+      const rule = { infractions: 3, timeframe_count: 30, timeframe_unit: 'minutes', action: 'mute' };
+      while (rules.some((r) => sameWindow(r, rule))) rule.infractions++;
+      commit([...rules, rule]);
+    });
+
+    render();
   })();
 
   document.addEventListener('DOMContentLoaded', () => {

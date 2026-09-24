@@ -92,6 +92,9 @@ def _default_dashboard() -> dict:
                     "dm": False,
                     "reply": False
                 },
+                "automated_actions": {
+                    "rules": []  # {infractions, timeframe_count, timeframe_unit: minutes|hours|days, action: mute|kick|ban}
+                },
             },
             "settings": {
                 "kick": {

@@ -5,6 +5,7 @@ from discord.ext import commands
 from modules import bot as v
 from modules.models import Guild, Warning
 from ._helpers import can_moderate, send_member_dm, audit_log
+from .A_automod import check_escalation
 
 async def get_member_warnings(
     guild: discord.Guild,
@@ -122,6 +123,8 @@ class Warn(commands.Cog):
         logs.add_field(name="Reason", value=reason)
         logs.add_field(name="Case", value=f"`{warning.case}`")
         await audit_log(ctx, "ModerationWarn", logs)
+
+        await check_escalation(ctx.guild, member)
 
     @warn.error
     async def warn_error(self, ctx, error):

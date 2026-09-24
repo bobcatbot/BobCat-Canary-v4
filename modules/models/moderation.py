@@ -63,6 +63,15 @@ class RestrictedChannelsConfig(DictModel):
     dm: bool = False
     reply: bool = False
 
+class AutomatedActionRule(DictModel):
+    infractions: int = Field(ge=1, le=150)
+    timeframe_count: int = Field(ge=1, le=365)
+    timeframe_unit: Literal["minutes", "hours", "days"] = "days"
+    action: Literal["mute", "kick", "ban"] = "mute"
+
+class AutomatedActionsConfig(DictModel):
+    rules: List[AutomatedActionRule] = Field(default_factory=list)
+
 class AutoModConfig(DictModel):
     antilink: AntiLinkConfig = Field(default_factory=AntiLinkConfig)
     antispam: AntiSpamConfig = Field(default_factory=AntiSpamConfig)
@@ -70,6 +79,7 @@ class AutoModConfig(DictModel):
     caps: ExcessiveCapsConfig = Field(default_factory=ExcessiveCapsConfig)
     emojis: ExcessiveEmojisConfig = Field(default_factory=ExcessiveEmojisConfig)
     restricted_channels: RestrictedChannelsConfig = Field(default_factory=RestrictedChannelsConfig)
+    automated_actions: AutomatedActionsConfig = Field(default_factory=AutomatedActionsConfig)
 
 class LoggingEventsConfig(DictModel):
     ChannelCreate: bool = False
@@ -88,6 +98,7 @@ class LoggingEventsConfig(DictModel):
     ModerationCaps: bool = False
     ModerationEmojis: bool = False
     ModerationChannelRestriction: bool = False
+    ModerationAutomatedAction: bool = False
     ModerationBan: bool = False
     ModerationKick: bool = False
     ModerationMute: bool = False

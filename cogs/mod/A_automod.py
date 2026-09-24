@@ -9,6 +9,7 @@ from discord.ext import commands, tasks
 from modules import bot as v
 from modules.models import Guild, Warning, AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig, RestrictedChannelRule, RestrictedChannelsConfig
 from ._helpers import can_moderate, send_member_dm, audit_log
+from .E_mute import DURATIONS
 from ._scam_domains import SCAM_DOMAINS
 
 INVITE_RE = re.compile(r"(?:discord\.gg|discord(?:app)?\.com/invite)/\S+", re.IGNORECASE)
@@ -25,7 +26,6 @@ UNICODE_EMOJI_RE = re.compile(
     f"|{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?(?:‍{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?)*"
 )
 
-MUTE_DURATION = datetime.timedelta(minutes=10)
 GHOST_PING_MAX_AGE = 600  # hard cap (seconds) on how long an unresolved mention is tracked, regardless of per-guild delete_window
 
 
@@ -107,7 +107,9 @@ async def apply_action(guild: discord.Guild, member: discord.Member, moderator: 
 
         elif action == "mute":
             action_label = "Muted"
-            await member.timeout_for(MUTE_DURATION, reason=reason)
+            mute_settings = (await Guild.get(str(guild.id))).dashboard.moderation.settings.mute
+            duration, _ = DURATIONS.get(mute_settings.duration, DURATIONS["10-min"])
+            await member.timeout_for(duration, reason=reason)
 
         elif action == "kick":
             action_label = "Kicked"
@@ -131,7 +133,48 @@ async def apply_action(guild: discord.Guild, member: discord.Member, moderator: 
         dm_fields=dm,
     )
 
+    if action == "warn":
+        await check_escalation(guild, member)
+
     return action_label
+
+ESCALATION_SEVERITY = {"mute": 0, "kick": 1, "ban": 2}
+ESCALATION_LABELS = {"mute": "Muted", "kick": "Kicked", "ban": "Banned"}
+
+async def check_escalation(guild: discord.Guild, member: discord.Member) -> None:
+    """Called right after a warning is inserted. A rule fires only when the member's
+    warning count in its window equals the threshold exactly, i.e. this warning is the one
+    that crossed it, so lower rules don't re-fire on every later warning. If several rules
+    cross at once (same threshold), the most severe action wins."""
+    guild_config = await Guild.get(str(guild.id))
+    if guild_config is None:
+        return
+    rules = guild_config.dashboard.moderation.automod.automated_actions.rules
+    if not rules:
+        return
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    crossed = []
+    for rule in rules:
+        window = datetime.timedelta(**{rule.timeframe_unit: rule.timeframe_count})
+        count = await Warning.find(
+            Warning.guild_id == str(guild.id),
+            Warning.user_id == str(member.id),
+            Warning.created_at >= now - window,
+        ).count()
+        if count == rule.infractions:
+            crossed.append(rule)
+    if not crossed:
+        return
+
+    rule = max(crossed, key=lambda r: ESCALATION_SEVERITY[r.action])
+    reason = f"Reached {rule.infractions} warnings in {rule.timeframe_count} {rule.timeframe_unit}"
+    action_label = await apply_action(guild, member, guild.me, rule.action, reason, [])
+    if action_label is None:
+        return
+
+    logs = build_log_embed(guild, member, reason, action_label, "AUTOMATED")
+    await audit_log(guild, "ModerationAutomatedAction", logs)
 
 def build_log_embed(guild: discord.Guild, member: discord.Member, reason: str, action_label: str, log_title: str, channel: discord.abc.GuildChannel | None = None) -> discord.Embed:
     logs = discord.Embed(color=v.style(guild), description=f"**Reason:** {reason}")

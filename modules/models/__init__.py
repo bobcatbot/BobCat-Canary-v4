@@ -33,6 +33,8 @@ from .moderation import (
     ExcessiveEmojisConfig,
     RestrictedChannelRule,
     RestrictedChannelsConfig,
+    AutomatedActionRule,
+    AutomatedActionsConfig,
     AutoModConfig,
     LoggingEventsConfig,
     ModerationLoggingConfig,
