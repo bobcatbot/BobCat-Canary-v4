@@ -97,7 +97,8 @@ function Select(el, options = { placeholder: '', type: '', multiple: false, maxI
 
   // Remove selected option
   function removeSelectedOption(option) {
-    selectedOptionsList = selectedOptionsList.filter(selected => selected.id !== option.id && selected.value !== option.value);
+    // Options carry either an id (roles, channels) or a value (plain lists), never both, so compare whichever one is set.
+    selectedOptionsList = selectedOptionsList.filter(selected => (selected.id ?? selected.value) !== (option.id ?? option.value));
     selectedOptionsListVals = selectedOptionsListVals.filter(val => val !== (option.id ?? option.value));
     updateSelectedOptions();
   }
