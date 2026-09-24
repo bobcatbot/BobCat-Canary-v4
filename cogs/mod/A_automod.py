@@ -6,23 +6,32 @@ from collections import defaultdict, deque
 from discord.ext import commands, tasks
 
 from modules import bot as v
-from modules.models import Guild, Warning, AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig
+from modules.models import Guild, Warning, AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig
 from ._helpers import can_moderate, send_member_dm, audit_log
 from ._scam_domains import SCAM_DOMAINS
 
 INVITE_RE = re.compile(r"(?:discord\.gg|discord(?:app)?\.com/invite)/\S+", re.IGNORECASE)
 DOMAIN_RE = re.compile(r"(?:https?://)?([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)", re.IGNORECASE)
+CUSTOM_EMOJI_RE = re.compile(r"<a?:\w+:\d+>")
+# Covers the main emoji blocks (not the full Unicode list) and counts a whole sequence as one emoji:
+# flags, keycaps, and a base with a variation selector, skin tone and ZWJ-joined parts.
+_EMOJI_CHAR = "[\U0001F300-\U0001FAFF☀-➿⭐⭕⌚⌛⏩-⏳⏸-⏺\U0001F004\U0001F0CF]"
+UNICODE_EMOJI_RE = re.compile(
+    "[\U0001F1E6-\U0001F1FF]{2}"
+    "|[0-9#*]️?⃣"
+    f"|{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?(?:‍{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?)*"
+)
 
 MUTE_DURATION = datetime.timedelta(minutes=10)
 GHOST_PING_MAX_AGE = 600  # hard cap (seconds) on how long an unresolved mention is tracked, regardless of per-guild delete_window
 
 
-async def get_automod_config(guild: discord.Guild) -> tuple[AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig]:
+async def get_automod_config(guild: discord.Guild) -> tuple[AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig]:
     guild_config = await Guild.get(str(guild.id))
     if guild_config is None:
-        return AntiLinkConfig(), AntiSpamConfig(), GhostPingConfig(), ExcessiveCapsConfig()
+        return AntiLinkConfig(), AntiSpamConfig(), GhostPingConfig(), ExcessiveCapsConfig(), ExcessiveEmojisConfig()
     automod = guild_config.dashboard.moderation.automod
-    return automod.antilink, automod.antispam, automod.ghostping, automod.caps
+    return automod.antilink, automod.antispam, automod.ghostping, automod.caps, automod.emojis
 
 def extract_domains(content: str) -> set[str]:
     return {match.group(1).lower() for match in DOMAIN_RE.finditer(content)}
@@ -35,6 +44,10 @@ def caps_percentage(content: str) -> float:
         return 0.0
     upper = sum(1 for c in letters if c.isupper())
     return (upper / len(letters)) * 100
+
+def emoji_count(content: str) -> int:
+    """Custom Discord emojis plus Unicode emojis in a message."""
+    return len(CUSTOM_EMOJI_RE.findall(content)) + len(UNICODE_EMOJI_RE.findall(content))
 
 def is_whitelisted(channel: discord.abc.GuildChannel, roles: list[discord.Role], config) -> bool:
     if str(channel.id) in config.whitelist_channels:
@@ -224,7 +237,7 @@ class GhostPing(commands.Cog):
         if not self._has_mention(message):
             return
 
-        _, _, ghostping, _ = await get_automod_config(message.guild)
+        _, _, ghostping, *_ = await get_automod_config(message.guild)
         if not ghostping.status:
             return
 
@@ -262,7 +275,7 @@ class GhostPing(commands.Cog):
         if guild is None:
             return
 
-        _, _, ghostping, _ = await get_automod_config(guild)
+        _, _, ghostping, *_ = await get_automod_config(guild)
         if not ghostping.status:
             return
 
@@ -295,7 +308,7 @@ class ExcessiveCaps(commands.Cog):
         if message.author.bot or message.guild is None:
             return
 
-        *_, caps = await get_automod_config(message.guild)
+        _, _, _, caps, _ = await get_automod_config(message.guild)
         if not caps.status:
             return
 
@@ -312,8 +325,31 @@ class ExcessiveCaps(commands.Cog):
         await punish(message, caps, "Excessive use of capital letters", "ModerationCaps", "CAPS")
 
 
+class ExcessiveEmojis(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or message.guild is None:
+            return
+
+        *_, emojis = await get_automod_config(message.guild)
+        if not emojis.status:
+            return
+
+        if is_whitelisted(message.channel, message.author.roles, emojis):
+            return
+
+        if emoji_count(message.content) <= emojis.threshold:
+            return
+
+        await punish(message, emojis, "Excessive use of emojis", "ModerationEmojis", "EMOJIS")
+
+
 def setup(client):
     client.add_cog(AntiLink(client))
     client.add_cog(AntiSpam(client))
     client.add_cog(GhostPing(client))
     client.add_cog(ExcessiveCaps(client))
+    client.add_cog(ExcessiveEmojis(client))

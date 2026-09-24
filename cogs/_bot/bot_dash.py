@@ -77,6 +77,14 @@ def _default_dashboard() -> dict:
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
                 },
+                "emojis": {
+                    "status": False,
+                    "threshold": 10,
+                    "action": "delete", # delete | warn | mute | kick | ban
+                    "whitelist_channels": [],
+                    "whitelist_roles": [],
+                    "dm": []  # server | action | moderator | reason
+                },
             },
             "settings": {
                 "kick": {

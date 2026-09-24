@@ -30,6 +30,7 @@ from .moderation import (
     AntiSpamConfig,
     GhostPingConfig,
     ExcessiveCapsConfig,
+    ExcessiveEmojisConfig,
     AutoModConfig,
     LoggingEventsConfig,
     ModerationLoggingConfig,

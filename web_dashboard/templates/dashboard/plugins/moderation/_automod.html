@@ -106,6 +106,7 @@
       {{ ruleset_column('antispam', 'Anti Spam', 'bi-chat-square-text') }}
       {{ ruleset_column('ghostping', 'Ghost Pings', 'bi-incognito') }}
       {{ ruleset_column('caps', 'Excessive Caps', 'bi-megaphone') }}
+      {{ ruleset_column('emojis', 'Excessive Emojis', 'bi-emoji-smile') }}
     </div>
   </div>
 </section>
@@ -171,6 +172,16 @@
 {{ automod_common_settings('caps', 'Excessive Caps') }}
 {% endcall %}
 
+{% call automod_modal('emojis', 'Excessive Emojis') %}
+<div>
+  <p class="mb-0">Maximum emojis</p>
+  <p class="mb-1 fs-7 text-muted">Messages with more emojis than this are flagged. Custom server emojis and standard emojis both count.</p>
+  <input type="number" id="emojis-threshold" class="form-control text-input" min="1" max="50"
+    value="{{data['automod']['emojis']['threshold']}}">
+</div>
+{{ automod_common_settings('emojis', 'Excessive Emojis') }}
+{% endcall %}
+
 <style>
   .automod-rulesets-caret {
     transition: transform 0.2s ease;
@@ -185,7 +196,8 @@
   }
 
   .automod-ruleset {
-    flex: 1 1 220px;
+    /* three per row: (100% - two 1.5rem gaps) / 3. Fewer per row when narrow, min-width wraps them */
+    flex: 0 1 calc((100% - 3rem) / 3);
     min-width: 220px;
   }
 
@@ -310,6 +322,13 @@
   wireAutomodDm('caps', JSON.parse(`{{data["automod"]["caps"]["dm"] | tojson}}`) || []);
   wireAutomodMultiSelect('caps', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["caps"]["whitelist_channels"] | tojson}}`) || []);
   wireAutomodMultiSelect('caps', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["caps"]["whitelist_roles"] | tojson}}`) || []);
+
+  // Excessive Emojis
+  wireAutomodCombined('emojis', `{{data['automod']['emojis']['status'] | tojson}}`, `{{data["automod"]["emojis"]["action"]}}`);
+  wireAutomodNumber('emojis-threshold', 'moderation.automod.emojis.threshold', `{{data['automod']['emojis']['threshold'] | tojson}}`);
+  wireAutomodDm('emojis', JSON.parse(`{{data["automod"]["emojis"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('emojis', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["emojis"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('emojis', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["emojis"]["whitelist_roles"] | tojson}}`) || []);
 
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll("input[name='automod-switch']").forEach((checkbox) => {

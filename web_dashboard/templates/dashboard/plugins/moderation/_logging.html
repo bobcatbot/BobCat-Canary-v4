@@ -44,15 +44,15 @@
             {{ event_switch('ModerationUnmute', 'Moderation unmuted') }}
             {{ event_switch('ModerationWarn', 'Moderation warned') }}
             {{ event_switch('ModerationUnwarn', 'Moderation unwarned') }}
+          </div>
+
+          <div class="automod">
+            <h5 class="m-0 fs-6">AutoMod</h5>
             {{ event_switch('ModerationAntiLink', 'AntiLink triggered') }}
             {{ event_switch('ModerationAntiSpam', 'AntiSpam triggered') }}
             {{ event_switch('ModerationGhostPing', 'GhostPing caught') }}
             {{ event_switch('ModerationCaps', 'Excessive Caps triggered') }}
-          </div>
-  
-          <div class="systems">
-            <h5 class="m-0 fs-6">Systems</h5>
-            {{ event_switch('Verification', 'Verification') }}
+            {{ event_switch('ModerationEmojis', 'Excessive Emojis triggered') }}
           </div>
   
           <div class="member">
@@ -90,6 +90,11 @@
             {{ event_switch('ChannelUpdate', 'Channel updated', title='Edit: Name, Topic, Category, Slowmode') }}
             {{ event_switch('ChannelCreate', 'Channel created') }}
             {{ event_switch('ChannelDelete', 'Channel deleted') }}
+          </div>
+
+          <div class="systems">
+            <h5 class="m-0 fs-6">Systems</h5>
+            {{ event_switch('Verification', 'Verification') }}
           </div>
         </div>
       </div>

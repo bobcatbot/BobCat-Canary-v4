@@ -42,11 +42,20 @@ class ExcessiveCapsConfig(DictModel):
     whitelist_roles: List[str] = Field(default_factory=list)
     dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
 
+class ExcessiveEmojisConfig(DictModel):
+    status: bool = False
+    threshold: int = 10
+    action: Literal["delete", "warn", "mute", "kick", "ban"] = "delete"
+    whitelist_channels: List[str] = Field(default_factory=list)
+    whitelist_roles: List[str] = Field(default_factory=list)
+    dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
+
 class AutoModConfig(DictModel):
     antilink: AntiLinkConfig = Field(default_factory=AntiLinkConfig)
     antispam: AntiSpamConfig = Field(default_factory=AntiSpamConfig)
     ghostping: GhostPingConfig = Field(default_factory=GhostPingConfig)
     caps: ExcessiveCapsConfig = Field(default_factory=ExcessiveCapsConfig)
+    emojis: ExcessiveEmojisConfig = Field(default_factory=ExcessiveEmojisConfig)
 
 class LoggingEventsConfig(DictModel):
     ChannelCreate: bool = False
@@ -63,6 +72,7 @@ class LoggingEventsConfig(DictModel):
     ModerationAntiSpam: bool = False
     ModerationGhostPing: bool = False
     ModerationCaps: bool = False
+    ModerationEmojis: bool = False
     ModerationBan: bool = False
     ModerationKick: bool = False
     ModerationMute: bool = False
