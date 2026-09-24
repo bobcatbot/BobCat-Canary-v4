@@ -16,10 +16,13 @@ from cogs.money._shop import open_account, update_bank
 FALLBACK_CARD = "blurple-rank.png"
 
 # Translucent dark box drawn behind the text and bar on every card, so backgrounds are just pictures.
+# Edged with a faint light outline so the box still reads on darker art.
 # Keep in sync with .rcm-panel in dashboard/plugins/leveling.html and dashboard/admin/rank_cards.html.
 PANEL_BOX = (16, 12, 884, 288)
 PANEL_RADIUS = 20
-PANEL_FILL = (0, 0, 0, 100)
+PANEL_FILL = (0, 0, 0, 125)
+PANEL_OUTLINE = (255, 255, 255, 45)
+PANEL_OUTLINE_WIDTH = 2
 
 # Progress Bar rendering
 bar_y = 220
@@ -84,7 +87,10 @@ class Leveling(commands.Cog):
         background = Editor(card_cfg["background"])
 
         overlay = Image.new("RGBA", background.image.size, (0, 0, 0, 0))
-        ImageDraw.Draw(overlay).rounded_rectangle(PANEL_BOX, radius=PANEL_RADIUS, fill=PANEL_FILL)
+        ImageDraw.Draw(overlay).rounded_rectangle(
+            PANEL_BOX, radius=PANEL_RADIUS, fill=PANEL_FILL,
+            outline=PANEL_OUTLINE, width=PANEL_OUTLINE_WIDTH,
+        )
         background.image = Image.alpha_composite(background.image, overlay)
 
         # easy_pil's load_image fetches from a URL and converts to RGBA itself
