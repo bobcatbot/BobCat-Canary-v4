@@ -71,6 +71,7 @@ from .leveling import (
     Leveling,
 )
 from .birthdays import BirthdaysConfig, Birthday
+from .invites import InviteTrackerConfig, PersonalInvite, InviteJoin
 from .giveaways import GiveawaysConfig, Giveaway
 from .economy import ShopItemConfig, EconomyConfig, Economy
 from .insights import InsightsDaily
@@ -105,6 +106,8 @@ ALL_MODELS = [
     TicketMessage,
     TempChannel,
     Birthday,
+    PersonalInvite,
+    InviteJoin,
     InsightsDaily,
     TwitchStreamer,
     TwitchSubscription,

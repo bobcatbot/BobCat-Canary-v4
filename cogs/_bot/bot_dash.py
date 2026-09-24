@@ -175,6 +175,7 @@ def _default_dashboard() -> dict:
             "autoStar": [],
         },
         "forms": {"status": False},
+        "invite_tracker": {"status": False},
         "temporary_channels": {
             "status": False,
             "hubs": []

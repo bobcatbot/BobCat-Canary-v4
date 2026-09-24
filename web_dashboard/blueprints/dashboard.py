@@ -530,7 +530,7 @@ async def data_post(guild_id):
     DASHBOARD_PLUGIN_KEYS = [
         'welcome', 'moderation', 'verification', 'starboard', 'forms',
         'temporary_channels', 'ticketing', 'stats', 'leveling',
-        'birthdays', 'giveaways', 'economy', 'twitch', 'youtube',
+        'birthdays', 'invite_tracker', 'giveaways', 'economy', 'twitch', 'youtube',
     ]
 
     # Get the guild document once

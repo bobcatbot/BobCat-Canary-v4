@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        {% with plugin = get_plugin(guild, 'invite_tracker') %}
+          <h1>{{plugin['title']}}</h1>
+          <p class="m-0">{{plugin['description']}}</p>
+        {% endwith %}
+      </div>
+      <div class="form-switch">
+        {% if data['status'] == True %}
+        <input type="checkbox" id="invite-tracker-status" class="form-check-input" name="plugin-status" role="switch" checked>
+        {% else %}
+        <input type="checkbox" id="invite-tracker-status" class="form-check-input" name="plugin-status" role="switch">
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="sectionn">
+      <div class="card join">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">How does it work?</h2>
+          </div>
+        </div>
+
+        <hr>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0 d-grid gap-2">
+            <li class="d-flex align-items-center gap-2"><i class="bi bi-check-square fs-5"></i><span class="fs-6">Get your personal invite link instantly by using the <code>/invites</code> command</span></li>
+            <li class="d-flex align-items-center gap-2"><i class="bi bi-check-square fs-5"></i><span class="fs-6">When someone joins through your invite link, your invite score and ranking will rise</span></li>
+            <li class="d-flex align-items-center gap-2"><i class="bi bi-check-square fs-5"></i><span class="fs-6">Track and check your members invites with the <code>/invites-leaderboard</code> command</span></li>
+            <li class="d-flex align-items-center gap-2"><i class="bi bi-check-square fs-5"></i><span class="fs-6">To prevent fraudulent invites, the inviter's score will decrease if the member they invited leaves within 24 hours</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    {% include 'components/PremiumModal.html' %}
+    {% include 'components/save-toast.html' %}
+  </main>
+
+  <script>
+    document.querySelector('#invite-tracker-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "invite_tracker.status": e.target.checked }),
+      });
+    })
+  </script>
+</body>
+</html>

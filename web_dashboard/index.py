@@ -25,6 +25,7 @@ from .blueprints.admin import admin_bp
 from .blueprints.plugins.welcome import welcome_bp
 from .blueprints.plugins.moderation import moderation_bp
 from .blueprints.plugins.verification import verification_bp
+from .blueprints.plugins.invite import invite_bp
 
 # ── Utilities ──────────────────────────────────────────────────────────────
 from .blueprints.plugins.starboard import starboard_bp
@@ -88,6 +89,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(welcome_bp)
 app.register_blueprint(moderation_bp)
 app.register_blueprint(verification_bp)
+app.register_blueprint(invite_bp)
 
 # Utilities
 app.register_blueprint(starboard_bp)

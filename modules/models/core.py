@@ -183,6 +183,7 @@ from .ticketing import TicketingConfig
 from .stats import StatsConfig
 from .leveling import LevelingConfig
 from .birthdays import BirthdaysConfig
+from .invites import InviteTrackerConfig
 from .giveaways import GiveawaysConfig
 from .economy import EconomyConfig
 from .social import TwitchConfig, YoutubeConfig
@@ -208,6 +209,7 @@ class DashConfig(BaseModel):
     # Engagement & economy
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     birthdays: BirthdaysConfig = Field(default_factory=BirthdaysConfig)
+    invite_tracker: InviteTrackerConfig = Field(default_factory=InviteTrackerConfig)
     giveaways: GiveawaysConfig = Field(default_factory=GiveawaysConfig)
     economy: EconomyConfig = Field(default_factory=EconomyConfig)
 

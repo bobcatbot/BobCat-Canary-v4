@@ -101,6 +101,16 @@ COMMANDS = {
             "/set-birthday": "Sets yours or another member's birthday",
             "/remove-birthday": "Remove yours or another member's birthday",
         }
+    },
+    "Invite Tracker": {
+        "menu": "All of bobcats invite tracker commands",
+        "title": "BobCat Invite Tracker Commands",
+        "gate": "invite_tracker",
+        "cmds": {
+            "/invites": "Display your invite link and your invite stats",
+            "/invites-leaderboard": "Display the invites leaderboard",
+            "/inviter": "Check who invited a particular member",
+        }
     }
 }
 
