@@ -176,6 +176,7 @@ def _default_dashboard() -> dict:
         },
         "forms": {"status": False},
         "invite_tracker": {"status": False},
+        "sticky_messages": {"status": False, "messages": []},
         "temporary_channels": {
             "status": False,
             "hubs": []

@@ -184,6 +184,7 @@ from .stats import StatsConfig
 from .leveling import LevelingConfig
 from .birthdays import BirthdaysConfig
 from .invites import InviteTrackerConfig
+from .sticky_messages import StickyMessagesConfig
 from .giveaways import GiveawaysConfig
 from .economy import EconomyConfig
 from .social import TwitchConfig, YoutubeConfig
@@ -210,6 +211,7 @@ class DashConfig(BaseModel):
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     birthdays: BirthdaysConfig = Field(default_factory=BirthdaysConfig)
     invite_tracker: InviteTrackerConfig = Field(default_factory=InviteTrackerConfig)
+    sticky_messages: StickyMessagesConfig = Field(default_factory=StickyMessagesConfig)
     giveaways: GiveawaysConfig = Field(default_factory=GiveawaysConfig)
     economy: EconomyConfig = Field(default_factory=EconomyConfig)
 
@@ -217,7 +219,6 @@ class DashConfig(BaseModel):
     twitch: TwitchConfig = Field(default_factory=TwitchConfig)
     youtube: YoutubeConfig = Field(default_factory=YoutubeConfig)
 
-    # sticky_messages: Dict[str, Any] = Field(default_factory=dict)
 
 # =========================================================
 # COLLECTIONS
