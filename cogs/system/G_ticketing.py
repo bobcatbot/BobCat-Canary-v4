@@ -291,7 +291,7 @@ class TicketControls(discord.ui.View):
             return await interaction.response.send_message("> **Warning:** You cannot claim your own ticket.", ephemeral=True)
 
         if ticket.claimed['status'] == True:
-            return await interaction.response.send_message(f"> **Warning:** This ticket is already claimed by <@{ticket.claimed['user']}>.", ephemeral=True)
+            return await interaction.response.send_message(f"> **Warning:** This ticket is already claimed by <@{ticket.claimed['user']['id']}>.", ephemeral=True)
 
         move_to = await _move_to_category(interaction.channel, panel.category_claimed, interaction.guild)
 

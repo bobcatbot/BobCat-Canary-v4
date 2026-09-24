@@ -9,6 +9,8 @@
   {% include 'components/DashSidebar.html' %}
 
   {% set plugin = get_plugin(guild, 'ticketing') %}
+
+  {% set pannels = data.get('panels') or [] %}
   
   <!-- ======= Main ======= -->
   <main id="main" class="main main-content page-dashboard">
@@ -26,35 +28,52 @@
       </div>
     </div>
 
-    {% set at_cap = data['panels'] | length >= item_cap %}
-    {% set cap_msg = "You've reached your limit of " ~ item_cap ~ " ticket panels." ~ ("" if is_premium else " Upgrade to premium for up to " ~ item_cap_premium ~ ".") %}
     <section class="sectionn">
-      <div class="card">
-        <span class="tooltipp" style="display:block">
-          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="ticketing/creation"{% endif %} id="create-hub-btn">
-            <div class="dash-card-header">
-              <h2 class="dash-card-title">Create a new panel</h2>
-              <div>
-                <i class="bi bi-plus-lg"></i>
-              </div>
+      <div class="row g-4">
+        <!-- Tickets -->
+        <div class="col-lg-6 mt-3 mt-md-4">
+          <a href="ticketing/tickets" class="card widget-blog-card text-decoration-none">
+            <div class="card-body" style="padding: var(--spacing-md);">
+              <i class="bi bi-ticket-perforated-fill | fs-5 mb-1"></i>
+              <h6 class="widget-blog-title">View Tickets</h6>
+              <p class="m-0">View and manage your tickets</p>
             </div>
           </a>
-          <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
-        </span>
+        </div>
+        <!-- Transcripts -->
+        <div class="col-lg-6 mt-2 mt-md-4">
+          <a href="ticketing/transcripts" class="card widget-blog-card text-decoration-none">
+            <div class="card-body" style="padding: var(--spacing-md);">
+              <i class="bi bi-file-earmark-text-fill | fs-5 mb-1"></i>
+              <h6 class="widget-blog-title">Transcripts</h6>
+              <p class="m-0">View and manage your transcripts</p>
+            </div>
+          </a>
+        </div>
       </div>
     </section>
     
     <section class="sectionn">
+      {% set at_cap = pannels | length >= item_cap %}
+      {% set cap_msg = "You've reached your limit of " ~ item_cap ~ " ticket panels." ~ ("" if is_premium else " Upgrade to premium for up to " ~ item_cap_premium ~ ".") %}
       <div class="card">
         <div class="dash-card-header">
-          <h2 class="dash-card-title">Your Hubs</h2>
+          <h2 class="dash-card-title">Your Panels</h2>
           
-          <span id="item-count" data-cap="{{ item_cap }}">{{ data['panels'] | length }} / {{ item_cap }}</span>
+          <div class="d-flex align-items-center gap-2">
+            <span id="item-count" data-cap="{{ item_cap }}">{{ pannels | length }} / {{ item_cap }}</span>
+            <span class="tooltipp">
+              <button id="add-counter-btn" class="btn btn-blurple" data-bs-toggle="modal" data-bs-target="#AddCounterModal"{% if at_cap %} disabled{% endif %}>
+                <i class="bi bi-plus-lg"></i> Create Panel
+              </button>
+              <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
+            </span>
+          </div>
         </div>
         <hr>
         
         <div class="card-body">
-          {% if data['panels'] == [] %}
+          {% if pannels == [] %}
           <div class="d-flex flex-column justify-content-center align-items-center user-select-none py-4">
             <svg class="ticket-empty-art" width="420" height="220" viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No ticket panels yet">
               <!-- backdrop -->
@@ -87,7 +106,7 @@
           </div>
           {% endif %}
           
-          {% if data['panels'] != [] %}
+          {% if pannels != [] %}
           <div class="search-container">
             <i class="bi bi-search"></i>
             <input
@@ -100,7 +119,7 @@
           <hr>
           {% endif %}
           
-          {% for panel in data['panels'] %}
+          {% for panel in pannels %}
           <div class="ticket-card">
             <a href="ticketing/{{panel['id']}}/edition" class="card-link d-flex justify-content-between align-items-center">
               <div class="title">
@@ -115,6 +134,7 @@
                 <i class="bi bi-trash-fill"></i>
               </button>
             </a>
+
             <!-- DeleteModal - id/data-bs-target are per-panel: a shared literal
                  id here would mean data-bs-target always resolves (via
                  querySelector) to the FIRST modal in the DOM, deleting the
@@ -218,6 +238,9 @@
   </script>
   
   <style>
+    /* the two hub cards are links now; keep their text the normal color, not link blue */
+    a.widget-blog-card { color: var(--default-color); }
+
     #item-count {
       font-size: 13px;
       padding: 4px 14px;

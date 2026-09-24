@@ -1,4 +1,6 @@
 import logging
+import re
+from datetime import timezone
 import discord
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -129,6 +131,68 @@ async def ticketing(guild_id):
     )
 
 
+TICKETS_PER_PAGE = 25
+
+async def _ticket_list(guild_id, statuses, mode):
+    """Shared body of the Tickets (open) and Transcripts (closed) pages: same table,
+    different status filter. Optional ?panel= and ?q= (ticket id, user id or name)."""
+    guild = v.get_client(guild_id).get_guild(guild_id)
+    if guild is None:
+        return await render_template("error/404.html"), 404
+
+    config = (await Guild.get(str(guild.id))).dashboard.ticketing
+    panel_names = {p.id: p.panel_name for p in config.panels}
+
+    panel_id = request.args.get('panel', '')
+    q = request.args.get('q', '').strip()
+    page = max(request.args.get('page', 1, type=int), 1)
+
+    query = {"guild_id": str(guild.id), "status": {"$in": statuses}}
+    if panel_id:
+        query["panel_id"] = panel_id
+    if q:
+        text = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [{"_id": text}, {"creator_id": text}, {"creator.name": text}]
+
+    total = await Ticket.find(query).count()
+    tickets = await Ticket.find(query).sort(-Ticket.created_at).skip((page - 1) * TICKETS_PER_PAGE).limit(TICKETS_PER_PAGE).to_list()
+
+    tz = v.datetimes(str(guild.id))
+    rows = [{
+        "id": t.id,
+        "panel": panel_names.get(t.panel_id, "Deleted panel"),
+        "creator": t.creator.get('name') or t.creator_id,
+        # Mongo hands datetimes back naive; they were stored as UTC.
+        "opened": t.created_at.replace(tzinfo=timezone.utc).astimezone(tz).strftime("%d/%m/%Y %H:%M"),
+        "claimed_by": (t.claimed.get('user') or {}).get('name') if t.claimed.get('status') else None,
+        "close_reason": t.closed.get('reason') or None,
+    } for t in tickets]
+
+    return await render_template(
+        "dashboard/plugins/ticketing/ticketing_tickets.html",
+        user=get_current_user(),
+        guild=guild,
+        mode=mode,
+        rows=rows,
+        panels=config.panels,
+        panel_id=panel_id,
+        q=q,
+        page=page,
+        pages=max(-(-total // TICKETS_PER_PAGE), 1),
+        total=total,
+    )
+
+@ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/tickets")
+@plugin_guard('ticketing')
+async def ticketing_tickets(guild_id):
+    return await _ticket_list(guild_id, ["open"], "tickets")
+
+@ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/transcripts")
+@plugin_guard('ticketing')
+async def ticketing_transcripts(guild_id):
+    return await _ticket_list(guild_id, ["closed", "deleted"], "transcripts")
+
+
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/creation", methods=['GET', 'POST'])
 @plugin_guard('ticketing')
 async def ticketing_create(guild_id):
@@ -195,7 +259,6 @@ async def ticketing_create(guild_id):
         data=TicketPanelConfig(),
         is_edit=False,
     )
-
 
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/edition", methods=['GET', 'POST'])
 @plugin_guard('ticketing')
@@ -272,7 +335,6 @@ async def ticketing_edit(guild_id, ticket_id):
         data=tk_data,
         is_edit=True,
     )
-
 
 @ticketing_bp.route("/dashboard/<int:guild_id>/ticketing/<ticket_id>/delete", methods=['DELETE'])
 @plugin_guard('ticketing')

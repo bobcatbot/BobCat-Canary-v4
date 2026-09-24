@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  {% set is_open = mode == 'tickets' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        <a href="/dashboard/{{ guild.id }}/ticketing" class="text-decoration-none small"><i class="bi bi-chevron-left"></i> Ticketing</a>
+        <h1>{{ 'Tickets' if is_open else 'Transcripts' }}</h1>
+        <p class="m-0">
+          {{ 'Tickets that are currently open.' if is_open else 'Closed tickets and their full message history.' }}
+        </p>
+      </div>
+    </div>
+
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title" id="ticket-total">{{ total }} {{ 'open ticket' if is_open else 'transcript' }}{{ '' if total == 1 else 's' }}</h2>
+        </div>
+        <hr>
+        <div class="card-body">
+          <form method="get" id="ticket-filters" class="row g-2 mb-3">
+            <div class="col-md-4">
+              <select name="panel" class="form-select" >
+                <option value="">All panels</option>
+                {% for p in panels %}
+                <option value="{{ p.id }}"{% if p.id == panel_id %} selected{% endif %}>{{ p.panel_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-8">
+              <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search by ticket ID, user ID or username...">
+            </div>
+          </form>
+
+          <div id="ticket-results">
+          {% if rows %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Panel</th>
+                  <th>User</th>
+                  <th>Opened</th>
+                  {% if is_open %}<th>Claimed by</th>{% else %}<th>Close reason</th>{% endif %}
+                  {% if not is_open %}<th class="text-end">Actions</th>{% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in rows %}
+                <tr>
+                  <td>{{ r.id }}</td>
+                  <td>{{ r.panel }}</td>
+                  <td>{{ r.creator }}</td>
+                  <td>{{ r.opened }}</td>
+                  {% if is_open %}
+                  <td>{{ r.claimed_by or 'Unclaimed' }}</td>
+                  {% else %}
+                  <td>{{ r.close_reason or '-' }}</td>
+                  {% endif %}
+                  {% if not is_open %}
+                  <td class="text-end">
+                    <a href="/t/{{ guild.id }}/{{ r.id }}" class="btn btn-blurple btn-sm"><i class="bi bi-eye-fill"></i> View</a>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% if pages > 1 %}
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-page="{{ page - 1 }}"{% if page <= 1 %} disabled{% endif %}>Previous</button>
+            <span>Page {{ page }} of {{ pages }}</span>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-page="{{ page + 1 }}"{% if page >= pages %} disabled{% endif %}>Next</button>
+          </div>
+          {% endif %}
+
+          {% else %}
+          <p class="m-0 py-4 text-center fs-5">
+            {{ 'No open tickets.' if is_open else 'No closed tickets yet.' }}
+          </p>
+          {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Filter/paginate in the background: a full reload resets the sidebar scroll.
+    const form = document.querySelector('#ticket-filters');
+    const results = document.querySelector('#ticket-results');
+    const total = document.querySelector('#ticket-total');
+    let timer;
+
+    async function load(page) {
+      const params = new URLSearchParams(location.search);
+      params.set('panel', form.panel.value);
+      params.set('q', form.q.value.trim());
+      params.set('page', page);
+      const url = '?' + params;
+      const doc = new DOMParser().parseFromString(await (await fetch(url)).text(), 'text/html');
+      results.innerHTML = doc.querySelector('#ticket-results').innerHTML;
+      total.textContent = doc.querySelector('#ticket-total').textContent;
+      history.replaceState(null, '', url);
+    }
+
+    form.addEventListener('submit', (e) => { e.preventDefault(); load(1); });
+    form.panel.addEventListener('change', () => load(1));
+    form.q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(1), 300); });
+    results.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-page]');
+      if (btn) load(btn.dataset.page);
+    });
+  </script>
+
+  <style>
+    /* Bootstrap's .table paints dark text on a light background by default */
+    .table {
+      --bs-table-color: var(--default-color);
+      --bs-table-bg: transparent;
+      --bs-table-border-color: var(--sidebar-border);
+    }
+    .table thead th {
+      color: var(--heading-color);
+      font-weight: 600;
+    }
+  </style>
+</body>
+</html>
