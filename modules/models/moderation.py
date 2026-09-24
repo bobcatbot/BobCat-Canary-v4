@@ -50,12 +50,26 @@ class ExcessiveEmojisConfig(DictModel):
     whitelist_roles: List[str] = Field(default_factory=list)
     dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
 
+class RestrictedChannelRule(DictModel):
+    channel_id: str
+    commands: bool = False
+    images: bool = False
+    videos: bool = False
+
+class RestrictedChannelsConfig(DictModel):
+    channels: List[RestrictedChannelRule] = Field(default_factory=list)
+    action: Literal["delete", "warn", "mute", "kick", "ban"] = "delete"
+    whitelist_roles: List[str] = Field(default_factory=list)
+    dm: bool = False
+    reply: bool = False
+
 class AutoModConfig(DictModel):
     antilink: AntiLinkConfig = Field(default_factory=AntiLinkConfig)
     antispam: AntiSpamConfig = Field(default_factory=AntiSpamConfig)
     ghostping: GhostPingConfig = Field(default_factory=GhostPingConfig)
     caps: ExcessiveCapsConfig = Field(default_factory=ExcessiveCapsConfig)
     emojis: ExcessiveEmojisConfig = Field(default_factory=ExcessiveEmojisConfig)
+    restricted_channels: RestrictedChannelsConfig = Field(default_factory=RestrictedChannelsConfig)
 
 class LoggingEventsConfig(DictModel):
     ChannelCreate: bool = False
@@ -73,6 +87,7 @@ class LoggingEventsConfig(DictModel):
     ModerationGhostPing: bool = False
     ModerationCaps: bool = False
     ModerationEmojis: bool = False
+    ModerationChannelRestriction: bool = False
     ModerationBan: bool = False
     ModerationKick: bool = False
     ModerationMute: bool = False

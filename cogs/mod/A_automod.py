@@ -2,16 +2,19 @@ import re
 import time
 import datetime
 import discord
+from types import SimpleNamespace
 from collections import defaultdict, deque
 from discord.ext import commands, tasks
 
 from modules import bot as v
-from modules.models import Guild, Warning, AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig
+from modules.models import Guild, Warning, AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig, RestrictedChannelRule, RestrictedChannelsConfig
 from ._helpers import can_moderate, send_member_dm, audit_log
 from ._scam_domains import SCAM_DOMAINS
 
 INVITE_RE = re.compile(r"(?:discord\.gg|discord(?:app)?\.com/invite)/\S+", re.IGNORECASE)
 DOMAIN_RE = re.compile(r"(?:https?://)?([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)", re.IGNORECASE)
+IMAGE_LINK_RE = re.compile(r"https?://\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?|https?://(?:[\w-]+\.)?(?:tenor|giphy|imgur)\.com/\S+", re.IGNORECASE)
+VIDEO_LINK_RE = re.compile(r"https?://\S+\.(?:mp4|mov|webm|mkv)(?:\?\S*)?|https?://(?:[\w-]+\.)?(?:youtube\.com|youtu\.be|twitch\.tv|streamable\.com|vimeo\.com)/\S+", re.IGNORECASE)
 CUSTOM_EMOJI_RE = re.compile(r"<a?:\w+:\d+>")
 # Covers the main emoji blocks (not the full Unicode list) and counts a whole sequence as one emoji:
 # flags, keycaps, and a base with a variation selector, skin tone and ZWJ-joined parts.
@@ -48,6 +51,29 @@ def caps_percentage(content: str) -> float:
 def emoji_count(content: str) -> int:
     """Custom Discord emojis plus Unicode emojis in a message."""
     return len(CUSTOM_EMOJI_RE.findall(content)) + len(UNICODE_EMOJI_RE.findall(content))
+
+async def get_restricted_channels(guild: discord.Guild) -> RestrictedChannelsConfig:
+    guild_config = await Guild.get(str(guild.id))
+    if guild_config is None:
+        return RestrictedChannelsConfig()
+    return guild_config.dashboard.moderation.automod.restricted_channels
+
+def has_media(message: discord.Message, mode: str) -> bool:
+    """True if the message carries an attachment of this type ("image" or "video")
+    or a link to one. Links are matched by pattern, since Discord fills in embeds
+    after the message event."""
+    if any((a.content_type or "").startswith(f"{mode}/") for a in message.attachments):
+        return True
+    link_re = IMAGE_LINK_RE if mode == "image" else VIDEO_LINK_RE
+    return bool(link_re.search(message.content))
+
+def is_allowed_in_restricted_channel(message: discord.Message, rule: RestrictedChannelRule, prefix: str) -> bool:
+    """A message passes if it matches at least one of the content types the channel allows."""
+    if rule.commands and prefix and message.content.startswith(prefix):
+        return True
+    if rule.images and has_media(message, "image"):
+        return True
+    return rule.videos and has_media(message, "video")
 
 def is_whitelisted(channel: discord.abc.GuildChannel, roles: list[discord.Role], config) -> bool:
     if str(channel.id) in config.whitelist_channels:
@@ -347,9 +373,66 @@ class ExcessiveEmojis(commands.Cog):
         await punish(message, emojis, "Excessive use of emojis", "ModerationEmojis", "EMOJIS")
 
 
+class RestrictedChannels(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or message.guild is None:
+            return
+
+        if message.type not in (discord.MessageType.default, discord.MessageType.reply):
+            return
+
+        restricted = await get_restricted_channels(message.guild)
+        if not restricted.channels:
+            return
+
+        # A thread or forum post inherits the rule of the channel it lives in
+        channel_ids = {str(message.channel.id), str(getattr(message.channel, "parent_id", None))}
+        rule = next((r for r in restricted.channels if r.channel_id in channel_ids), None)
+        if rule is None:
+            return
+
+        # A rule with nothing allowed would delete every message, so treat it as off
+        allowed = [name for name, on in (("commands", rule.commands), ("images", rule.images), ("videos", rule.videos)) if on]
+        if not allowed:
+            return
+
+        role_ids = {str(role.id) for role in message.author.roles}
+        if role_ids & set(restricted.whitelist_roles):
+            return
+
+        if is_allowed_in_restricted_channel(message, rule, self.client.command_prefix):
+            return
+
+        allowed_text = ", ".join(allowed[:-2] + [" or ".join(allowed[-2:])])
+        await punish(
+            message,
+            SimpleNamespace(action=restricted.action, dm=[]),
+            f"Only {allowed_text} are allowed in this channel",
+            "ModerationChannelRestriction",
+            "CHANNEL",
+        )
+
+        if restricted.dm:
+            try:
+                await message.author.send(f"Your message in {message.channel.mention} was removed because only {allowed_text} are allowed there.")
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+        if restricted.reply:
+            try:
+                await message.channel.send(f"{message.author.mention} only {allowed_text} are allowed in this channel.", delete_after=10)
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+
 def setup(client):
     client.add_cog(AntiLink(client))
     client.add_cog(AntiSpam(client))
     client.add_cog(GhostPing(client))
     client.add_cog(ExcessiveCaps(client))
     client.add_cog(ExcessiveEmojis(client))
+    client.add_cog(RestrictedChannels(client))

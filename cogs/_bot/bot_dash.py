@@ -85,6 +85,13 @@ def _default_dashboard() -> dict:
                     "whitelist_roles": [],
                     "dm": []  # server | action | moderator | reason
                 },
+                "restricted_channels": {
+                    "channels": [],  # {channel_id, commands, images, videos}
+                    "action": "delete", # delete | warn | mute | kick | ban
+                    "whitelist_roles": [],
+                    "dm": False,
+                    "reply": False
+                },
             },
             "settings": {
                 "kick": {
