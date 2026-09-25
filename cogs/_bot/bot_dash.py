@@ -174,9 +174,16 @@ def _default_dashboard() -> dict:
             "embedNsfwImages": False,
             "autoStar": [],
         },
-        "forms": {"status": False},
-        "invite_tracker": {"status": False},
-        "sticky_messages": {"status": False, "messages": []},
+        "forms": {
+            "status": False
+        },
+        "invite_tracker": {
+            "status": False
+        },
+        "sticky_messages": {
+            "status": False, 
+            "messages": []
+        },
         "temporary_channels": {
             "status": False,
             "hubs": []
@@ -193,6 +200,7 @@ def _default_dashboard() -> dict:
             "message": "**Happy birthday, {user.mention}!** They are now {age} years old.",
         },
         "giveaways": {
+            "status": False,
         },
         "economy": {
             "status": False,
@@ -211,6 +219,12 @@ def _default_dashboard() -> dict:
             "status": False,
             "counters": []
         },
+        "twitch": {
+            "status": False,
+        },
+        "youtube": {
+            "status": False,
+        }
     }
 
 async def init_database(guild: discord.Guild) -> bool:

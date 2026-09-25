@@ -32,6 +32,17 @@
     "premium": false,
     "status": false
   },
+  "invite_tracker": {
+    "title": "Invite Tracker",
+    "description": "See who invited each member, track invite counts and show an invites leaderboard",
+    "db_key": "invite_tracker",
+    "icon": "person_add",
+    "url": "invite-tracker",
+    "badge": "beta",
+    "category": "management",
+    "premium": false,
+    "status": false
+  },
   "starboard": {
     "title": "Starboard",
     "description": "Allows users to react to a message with your severs star emoji and send the message to a channel",
@@ -95,6 +106,17 @@
     "max": 5,
     "max_premium": 10
   },
+  "sticky_messages": {
+    "title": "Sticky Messages",
+    "description": "Keep an important message pinned to the bottom of a channel, reposted automatically as chat moves",
+    "db_key": "sticky_messages",
+    "icon": "push_pin",
+    "url": "sticky-messages",
+    "badge": "beta",
+    "category": "utilities",
+    "premium": false,
+    "status": false
+  },
   "leveling": {
     "title": "Leveling",
     "description": "Give your members XP and Levels when they send messages",
@@ -106,7 +128,7 @@
     "premium": false,
     "status": false
   },
-  "birthdays": { 
+  "birthdays": {
     "title": "Birthdays",
     "description": "Track your members birthdays and wish them a happy birthday",
     "db_key": "birthdays",
@@ -117,7 +139,7 @@
     "premium": true,
     "status": false
   },
-  "giveaway": { 
+  "giveaway": {
     "title": "Giveaways",
     "description": "Launch giveaways and lotteries in your server in one click",
     "db_key": "giveaways",

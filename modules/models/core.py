@@ -199,6 +199,7 @@ class DashConfig(BaseModel):
     welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
     moderation: ModerationConfig = Field(default_factory=ModerationConfig)
     verification: VerificationConfig = Field(default_factory=VerificationConfig)
+    invite_tracker: InviteTrackerConfig = Field(default_factory=InviteTrackerConfig)
 
     # Server utility
     starboard: StarboardConfig = Field(default_factory=StarboardConfig)
@@ -206,12 +207,11 @@ class DashConfig(BaseModel):
     temporary_channels: TemporaryChannelsConfig = Field(default_factory=TemporaryChannelsConfig)
     ticketing: TicketingConfig = Field(default_factory=TicketingConfig)
     stats: StatsConfig = Field(default_factory=StatsConfig)
+    sticky_messages: StickyMessagesConfig = Field(default_factory=StickyMessagesConfig)
 
     # Engagement & economy
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)
     birthdays: BirthdaysConfig = Field(default_factory=BirthdaysConfig)
-    invite_tracker: InviteTrackerConfig = Field(default_factory=InviteTrackerConfig)
-    sticky_messages: StickyMessagesConfig = Field(default_factory=StickyMessagesConfig)
     giveaways: GiveawaysConfig = Field(default_factory=GiveawaysConfig)
     economy: EconomyConfig = Field(default_factory=EconomyConfig)
 
