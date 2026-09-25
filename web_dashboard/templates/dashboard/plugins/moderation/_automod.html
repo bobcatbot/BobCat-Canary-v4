@@ -107,6 +107,7 @@
       {{ ruleset_column('ghostping', 'Ghost Pings', 'bi-incognito') }}
       {{ ruleset_column('caps', 'Excessive Caps', 'bi-megaphone') }}
       {{ ruleset_column('emojis', 'Excessive Emojis', 'bi-emoji-smile') }}
+      {{ ruleset_column('profanity', 'Profanity', 'bi-emoji-angry') }}
     </div>
   </div>
 </section>
@@ -294,6 +295,15 @@
 {{ automod_common_settings('emojis', 'Excessive Emojis') }}
 {% endcall %}
 
+{% call automod_modal('profanity', 'Profanity') %}
+<div>
+  <p class="mb-0">Blocked words</p>
+  <p class="mb-1 fs-7 text-muted">Separated by commas or new lines. Add your own or remove any you don't want. Matching also catches stretched letters, spacing and leetspeak (fuuuck, f.u.c.k, sh1t), so you only need the plain word.</p>
+  <textarea id="profanity-words" class="form-control text-input" rows="10">{{ data['automod']['profanity']['words'] | join(', ') }}</textarea>
+</div>
+{{ automod_common_settings('profanity', 'Profanity') }}
+{% endcall %}
+
 <style>
   .automod-rulesets-caret {
     transition: transform 0.2s ease;
@@ -462,6 +472,16 @@
     });
   }
 
+  // A textarea of words saved as one array: split on commas/new lines, lowercase, dedupe.
+  function wireAutomodWords(id, dbKey, saved) {
+    const el = document.querySelector('#' + id);
+    const parse = () => [...new Set(el.value.split(/[,\n]/).map((w) => w.trim().toLowerCase()).filter(Boolean))];
+    const revert = () => { el.value = saved.join(', '); };
+    // `input` fires while typing so the save toast appears right away; `change` (on blur) tidies the text
+    el.addEventListener('input', () => show_toast(dbKey, saved, parse(), revert));
+    el.addEventListener('change', () => { el.value = parse().join(', '); });
+  }
+
   // AntiLink
   wireAutomodCombined('antilink', `{{data['automod']['antilink']['status'] | tojson}}`, `{{data["automod"]["antilink"]["action"]}}`);
   wireAutomodSwitch('antilink-block-invites', 'moderation.automod.antilink.block_invites', `{{data['automod']['antilink']['block_invites'] | tojson}}`);
@@ -499,6 +519,13 @@
   wireAutomodDm('emojis', JSON.parse(`{{data["automod"]["emojis"]["dm"] | tojson}}`) || []);
   wireAutomodMultiSelect('emojis', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["emojis"]["whitelist_channels"] | tojson}}`) || []);
   wireAutomodMultiSelect('emojis', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["emojis"]["whitelist_roles"] | tojson}}`) || []);
+
+  // Profanity
+  wireAutomodCombined('profanity', `{{data['automod']['profanity']['status'] | tojson}}`, `{{data["automod"]["profanity"]["action"]}}`);
+  wireAutomodWords('profanity-words', 'moderation.automod.profanity.words', JSON.parse(`{{data["automod"]["profanity"]["words"] | tojson}}`) || []);
+  wireAutomodDm('profanity', JSON.parse(`{{data["automod"]["profanity"]["dm"] | tojson}}`) || []);
+  wireAutomodMultiSelect('profanity', 'whitelist-channels', 'channel', JSON.parse(`{{data["automod"]["profanity"]["whitelist_channels"] | tojson}}`) || []);
+  wireAutomodMultiSelect('profanity', 'whitelist-roles', 'role', JSON.parse(`{{data["automod"]["profanity"]["whitelist_roles"] | tojson}}`) || []);
 
   // ── Restricted Channels ───────────────────────────────────────────────
   // The list of channels is one array under a single key, so every add,

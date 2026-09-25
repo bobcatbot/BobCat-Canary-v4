@@ -3,6 +3,7 @@ from pydantic import Field
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 from .core import DictModel
+from .profanity_words import PROFANITY_WORDS
 
 # ---------------------------------------------------------
 # Moderation plugin
@@ -50,6 +51,14 @@ class ExcessiveEmojisConfig(DictModel):
     whitelist_roles: List[str] = Field(default_factory=list)
     dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
 
+class ProfanityConfig(DictModel):
+    status: bool = False
+    words: List[str] = Field(default_factory=lambda: sorted(PROFANITY_WORDS))
+    action: Literal["delete", "warn", "mute", "kick", "ban"] = "delete"
+    whitelist_channels: List[str] = Field(default_factory=list)
+    whitelist_roles: List[str] = Field(default_factory=list)
+    dm: List[Literal["server", "action", "moderator", "reason"]] = Field(default_factory=list)
+
 class RestrictedChannelRule(DictModel):
     channel_id: str
     commands: bool = False
@@ -78,6 +87,7 @@ class AutoModConfig(DictModel):
     ghostping: GhostPingConfig = Field(default_factory=GhostPingConfig)
     caps: ExcessiveCapsConfig = Field(default_factory=ExcessiveCapsConfig)
     emojis: ExcessiveEmojisConfig = Field(default_factory=ExcessiveEmojisConfig)
+    profanity: ProfanityConfig = Field(default_factory=ProfanityConfig)
     restricted_channels: RestrictedChannelsConfig = Field(default_factory=RestrictedChannelsConfig)
     automated_actions: AutomatedActionsConfig = Field(default_factory=AutomatedActionsConfig)
 
@@ -97,6 +107,7 @@ class LoggingEventsConfig(DictModel):
     ModerationGhostPing: bool = False
     ModerationCaps: bool = False
     ModerationEmojis: bool = False
+    ModerationProfanity: bool = False
     ModerationChannelRestriction: bool = False
     ModerationAutomatedAction: bool = False
     ModerationBan: bool = False

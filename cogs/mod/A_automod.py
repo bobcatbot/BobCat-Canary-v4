@@ -12,6 +12,8 @@ from ._helpers import can_moderate, send_member_dm, audit_log
 from .E_mute import DURATIONS
 from ._scam_domains import SCAM_DOMAINS
 
+GHOST_PING_MAX_AGE = 600  # hard cap (seconds) on how long an unresolved mention is tracked, regardless of per-guild delete_window
+
 INVITE_RE = re.compile(r"(?:discord\.gg|discord(?:app)?\.com/invite)/\S+", re.IGNORECASE)
 DOMAIN_RE = re.compile(r"(?:https?://)?([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)", re.IGNORECASE)
 IMAGE_LINK_RE = re.compile(r"https?://\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?|https?://(?:[\w-]+\.)?(?:tenor|giphy|imgur)\.com/\S+", re.IGNORECASE)
@@ -26,7 +28,28 @@ UNICODE_EMOJI_RE = re.compile(
     f"|{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?(?:‍{_EMOJI_CHAR}️?[\U0001F3FB-\U0001F3FF]?)*"
 )
 
-GHOST_PING_MAX_AGE = 600  # hard cap (seconds) on how long an unresolved mention is tracked, regardless of per-guild delete_window
+LEET_TABLE = str.maketrans({"@": "a", "$": "s", "0": "o", "1": "i", "3": "e"})
+
+def _word_pattern(word: str) -> str:
+    """Each letter may repeat ("fuuuck"), and words of 4+ letters may have one separator
+    between letters ("f u c k", "f.u.c.k"). Short words skip that so "a s s" style
+    false positives on ordinary text don't happen."""
+    sep = r"[\s.\-_*]?" if len(word) >= 4 else ""
+    return sep.join(re.escape(c) + "+" for c in word)
+
+def _profanity_regex(words) -> re.Pattern | None:
+    # words get the same leetspeak translation as the message, so an owner-typed "l33t" still matches
+    patterns = [_word_pattern(w.lower().translate(LEET_TABLE)) for w in words if w]
+    if not patterns:
+        return None
+    return re.compile(rf"(?<![a-z0-9])(?:{'|'.join(patterns)})s?(?![a-z0-9])")
+
+def has_profanity(content: str, words: list[str]) -> bool:
+    """True if the message contains any word from the server's list.
+    Custom emojis are stripped first so an emoji named after a word doesn't trip the filter."""
+    regex = _profanity_regex(words)
+    text = CUSTOM_EMOJI_RE.sub("", content).lower().translate(LEET_TABLE)
+    return bool(regex and regex.search(text))
 
 
 async def get_automod_config(guild: discord.Guild) -> tuple[AntiLinkConfig, AntiSpamConfig, GhostPingConfig, ExcessiveCapsConfig, ExcessiveEmojisConfig]:
@@ -416,6 +439,31 @@ class ExcessiveEmojis(commands.Cog):
         await punish(message, emojis, "Excessive use of emojis", "ModerationEmojis", "EMOJIS")
 
 
+class Profanity(commands.Cog):
+    def __init__(self, client):
+        self.client = client
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or message.guild is None:
+            return
+
+        guild_config = await Guild.get(str(message.guild.id))
+        if guild_config is None:
+            return
+        profanity = guild_config.dashboard.moderation.automod.profanity
+        if not profanity.status:
+            return
+
+        if is_whitelisted(message.channel, message.author.roles, profanity):
+            return
+
+        if not has_profanity(message.content, profanity.words):
+            return
+
+        await punish(message, profanity, "Profanity", "ModerationProfanity", "PROFANITY")
+
+
 class RestrictedChannels(commands.Cog):
     def __init__(self, client):
         self.client = client
@@ -478,4 +526,5 @@ def setup(client):
     client.add_cog(GhostPing(client))
     client.add_cog(ExcessiveCaps(client))
     client.add_cog(ExcessiveEmojis(client))
+    client.add_cog(Profanity(client))
     client.add_cog(RestrictedChannels(client))

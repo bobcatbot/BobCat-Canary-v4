@@ -31,6 +31,7 @@ from .moderation import (
     GhostPingConfig,
     ExcessiveCapsConfig,
     ExcessiveEmojisConfig,
+    ProfanityConfig,
     RestrictedChannelRule,
     RestrictedChannelsConfig,
     AutomatedActionRule,
