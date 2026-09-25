@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include 'include/dash-links.html' %}
+</head>
+<body>
+  <!-- ======= Header & Sidebar ======= -->
+  {% include 'components/DashNavbar.html' %}
+  {% include 'components/DashSidebar.html' %}
+
+  {% set plugin = get_plugin(guild, 'custom_commands') %}
+  {% set commands = data.commands %}
+  {% set match_labels = {'exact': 'Exact match', 'startswith': 'Starts with', 'contains': 'Contains'} %}
+  {% set action_labels = {'reply': 'Bot response', 'add_role': 'Gives role', 'remove_role': 'Removes role'} %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content page-dashboard">
+    <div class="pagetitle plugin">
+      <div>
+        <h1>{{plugin['title']}}</h1>
+        <p class="m-0">{{plugin['description']}}</p>
+      </div>
+      <div class="form-switch">
+        <input type="checkbox" id="cc-status" class="form-check-input" role="switch" {% if data.status %}checked{% endif %}>
+      </div>
+    </div>
+
+    <section class="sectionn">
+      <div class="card">
+        <a href="custom-commands/creation">
+          <div class="dash-card-header">
+            <h2 class="dash-card-title">New custom command</h2>
+            <i class="bi bi-plus-lg"></i>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <div>
+            <h2 class="dash-card-title">Your Commands</h2>
+            <p class="dash-card-subtitle">Matching ignores capitals and the first matching command wins.</p>
+          </div>
+        </div>
+        <hr>
+
+        <div class="card-body">
+          {% if not commands %}
+          <div class="d-flex flex-column justify-content-center align-items-center user-select-none py-4">
+            <i class="bi bi-chat-square-text" style="font-size: 64px; color: var(--text-muted);"></i>
+            <p class="m-0 mt-3 fs-4">You don't have any custom commands yet.</p>
+          </div>
+          {% else %}
+          <div class="search-container">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" id="search" placeholder="Search..." />
+          </div>
+          <hr>
+          {% endif %}
+
+          {% for command in commands %}
+          <div class="cc-card">
+            <div class="d-flex justify-content-between align-items-center">
+              <a href="custom-commands/{{ command.id }}/edition" class="card-link title">
+                <h5>{{ command.trigger }}</h5>
+                <p class="m-0 cc-summary">
+                  {{ action_labels[command.action] }}{% if command.action != 'reply' %} @{{ role_names.get(command.role_id, 'deleted-role') }}{% endif %} · {{ match_labels[command.match] }}
+                </p>
+              </a>
+
+              <div class="d-flex align-items-center gap-3">
+                <div class="form-switch">
+                  <input type="checkbox" class="form-check-input cc-toggle" role="switch" data-id="{{ command.id }}" {% if command.enabled %}checked{% endif %}>
+                </div>
+                <div class="dropdown">
+                  <button type="button" class="btn btn-secondary cc-menu-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><button type="button" class="dropdown-item cc-duplicate" data-id="{{ command.id }}"><i class="bi bi-copy me-2"></i>Duplicate</button></li>
+                    <li><button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#DeleteModal-{{ command.id }}"><i class="bi bi-trash me-2"></i>Delete</button></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- DeleteModal - id/data-bs-target are per-command id so each trash icon opens its own modal. -->
+            <div class="modal fade dark" id="DeleteModal-{{ command.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Do you really want to delete this?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    This action is irreversible. If you change your mind later, you will have to create it again from scratch.
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger delete-cmd" data-id="{{ command.id }}">Yes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="toast-container w-100 p-3" style="position: absolute;top: 0;right: 0;">
+      {% for category, message in messages %}
+        <div id="toastFlash" class="toast show text-bg-{{category}} w-100" data-autohide="10000" role="alert">
+          <div class="d-flex">
+            <div class="toast-body">{{message}}</div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}
+
+    {% include 'components/PremiumModal.html' %}
+  </main>
+
+  <script>
+    var toastFlash = document.getElementById('toastFlash')
+    if (toastFlash) {
+      setTimeout(function() {
+        toastFlash.classList.remove('show')
+      }, parseInt(toastFlash.dataset.autohide));
+    }
+
+    document.querySelector('#cc-status').addEventListener('change', (e) => {
+      fetch("/dashboard/{{guild.id}}/data/post", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ "custom_commands.status": e.target.checked }),
+      });
+    })
+
+    // search
+    const searchInput = document.querySelector('#search')
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const search = e.target.value.toLowerCase();
+        document.querySelectorAll('.cc-card').forEach((card) => {
+          card.style.display = card.textContent.toLowerCase().includes(search) ? 'block' : 'none';
+        });
+      });
+    }
+
+    document.querySelectorAll('.cc-toggle').forEach(toggle => {
+      toggle.addEventListener('change', (e) => {
+        fetch(`/dashboard/{{guild.id}}/custom-commands/${e.target.dataset.id}/toggle`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ enabled: e.target.checked }),
+        }).then(response => {
+          if (!response.ok) e.target.checked = !e.target.checked;
+        });
+      });
+    });
+
+    document.querySelectorAll('.cc-duplicate').forEach(button => {
+      button.addEventListener('click', () => {
+        fetch(`/dashboard/{{guild.id}}/custom-commands/${button.dataset.id}/duplicate`, { method: "POST" })
+        .then(response => { if (response.ok) window.location.reload(); });
+      });
+    });
+
+    document.querySelectorAll('.delete-cmd').forEach(button => {
+      button.addEventListener('click', function(event) {
+        const id = event.target.closest('button').dataset.id;
+
+        fetch(`/dashboard/{{guild.id}}/custom-commands/${id}/delete`, { method: "DELETE" })
+        .then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            console.error("Failed to delete");
+          }
+        })
+        .catch(error => console.error("Error:", error));
+      });
+    });
+  </script>
+
+  <style>
+    .search-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .search-container i {
+      margin-right: 1.25rem;
+      color: var(--text-color);
+      font-size: large;
+    }
+
+    .search-container input {
+      width: 100%;
+      background-color: transparent;
+      color: var(--text-color);
+      font-weight: 600;
+      border: none;
+    }
+    .search-container input:focus-visible {
+      border: none;
+      outline: none;
+    }
+
+    .cc-card {
+      margin-bottom: 8px;
+      padding: 13px;
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      transition: border-color var(--transition-fast);
+    }
+    .cc-card:hover {
+      border-color: var(--accent-color);
+    }
+    .cc-card:last-child {
+      margin-bottom: 0;
+    }
+    .cc-card .card-link {
+      color: var(--default-color);
+    }
+    .cc-card .title h5 {
+      margin: 0;
+      color: var(--heading-color);
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    /* min-width: 0 lets the flex child shrink so a long reply truncates instead of stretching the card */
+    .cc-card .title {
+      min-width: 0;
+      flex: 1;
+    }
+    .cc-summary {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-muted);
+    }
+  </style>
+</body>
+</html>
