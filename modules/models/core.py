@@ -185,6 +185,7 @@ from .leveling import LevelingConfig
 from .birthdays import BirthdaysConfig
 from .invites import InviteTrackerConfig
 from .sticky_messages import StickyMessagesConfig
+from .custom_commands import CustomCommandsConfig
 from .giveaways import GiveawaysConfig
 from .economy import EconomyConfig
 from .social import TwitchConfig, YoutubeConfig
@@ -208,6 +209,7 @@ class DashConfig(BaseModel):
     ticketing: TicketingConfig = Field(default_factory=TicketingConfig)
     stats: StatsConfig = Field(default_factory=StatsConfig)
     sticky_messages: StickyMessagesConfig = Field(default_factory=StickyMessagesConfig)
+    custom_commands: CustomCommandsConfig = Field(default_factory=CustomCommandsConfig)
 
     # Engagement & economy
     leveling: LevelingConfig = Field(default_factory=LevelingConfig)

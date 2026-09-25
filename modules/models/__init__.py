@@ -74,6 +74,7 @@ from .leveling import (
 from .birthdays import BirthdaysConfig, Birthday
 from .invites import InviteTrackerConfig, PersonalInvite, InviteJoin
 from .sticky_messages import StickyMessage, StickyMessagesConfig, StickyState
+from .custom_commands import CustomCommand, CustomCommandsConfig
 from .giveaways import GiveawaysConfig, Giveaway
 from .economy import ShopItemConfig, EconomyConfig, Economy
 from .insights import InsightsDaily

@@ -184,6 +184,10 @@ def _default_dashboard() -> dict:
             "status": False, 
             "messages": []
         },
+        "custom_commands": {
+            "status": False,
+            "commands": []
+        },
         "temporary_channels": {
             "status": False,
             "hubs": []

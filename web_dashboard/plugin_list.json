@@ -139,6 +139,17 @@
     "premium": true,
     "status": false
   },
+  "custom_commands": {
+    "title": "Custom Commands",
+    "description": "Reply automatically when a message matches a trigger you set, like !rules or !discord",
+    "db_key": "custom_commands",
+    "icon": "chat",
+    "url": "custom-commands",
+    "badge": "beta",
+    "category": "utilities",
+    "premium": true,
+    "status": false
+  },
   "giveaway": {
     "title": "Giveaways",
     "description": "Launch giveaways and lotteries in your server in one click",

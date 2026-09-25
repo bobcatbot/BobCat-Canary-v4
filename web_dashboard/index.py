@@ -27,6 +27,7 @@ from .blueprints.plugins.moderation import moderation_bp
 from .blueprints.plugins.verification import verification_bp
 from .blueprints.plugins.invite import invite_bp
 from .blueprints.plugins.sticky_messages import sticky_messages_bp
+from .blueprints.plugins.custom_commands import custom_commands_bp
 
 # ── Utilities ──────────────────────────────────────────────────────────────
 from .blueprints.plugins.starboard import starboard_bp
@@ -92,6 +93,7 @@ app.register_blueprint(moderation_bp)
 app.register_blueprint(verification_bp)
 app.register_blueprint(invite_bp)
 app.register_blueprint(sticky_messages_bp)
+app.register_blueprint(custom_commands_bp)
 
 # Utilities
 app.register_blueprint(starboard_bp)
