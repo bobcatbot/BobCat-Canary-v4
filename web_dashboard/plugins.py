@@ -15,10 +15,17 @@ plugin_registry = pymongo.MongoClient(mongoURI_db)['Bot']['plugin_registry']
 
 PLUGIN_LIST: dict = {}
 
+CATEGORY_ORDER = ['management', 'utilities', 'fun', 'social']  # same order as the sidebar headings
+
 def by_order(docs):
-  """Registry docs in sidebar order. `order` is set by dragging in /admin/plugins; docs
-  without one (never dragged, or newly added) keep their natural order after the ordered ones."""
-  return sorted(docs, key=lambda d: d.get('order', float('inf')))
+  """Registry docs in sidebar order: by category, then by `order` within it (set by dragging in
+  /admin/plugins). Docs without one (never dragged, or newly added) keep their natural order
+  after the ordered ones in their category."""
+  def rank(d):
+    cat = d.get('category')
+    return (CATEGORY_ORDER.index(cat) if cat in CATEGORY_ORDER else len(CATEGORY_ORDER),
+            d.get('order', float('inf')))
+  return sorted(docs, key=rank)
 
 def reload_plugin_list() -> None:
   """Refresh PLUGIN_LIST from Mongo. Called once at boot (main.py, right after the
