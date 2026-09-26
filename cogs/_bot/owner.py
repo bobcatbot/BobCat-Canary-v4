@@ -53,10 +53,15 @@ class Owner(commands.Cog):
 
     @dev_command.command(name="uptime", description="Gets the bots uptime")
     async def uptime(self, ctx):
+        now = discord.utils.utcnow()
+        lines = [
+            f"<:blurpledot:1178837842936483890> **Shard {shard_id}:** {humanize.precisedelta(now - since, minimum_unit='seconds')} (since {discord.utils.format_dt(since, 'R')})"
+            for shard_id, since in sorted(self.client.shard_uptime.items())
+        ]
         embed = discord.Embed(
             color=0x5865f2,
-            title="Uptime", 
-            description=self.get_bot_uptime()
+            title="Uptime",
+            description="\n".join(lines) or "No shards connected"
         )
         await ctx.respond(embed=embed)
     
