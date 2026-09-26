@@ -63,6 +63,7 @@ async def admin_rank_cards():
   return await render_template(
     "dashboard/admin/rank_cards.html",
     user=get_current_user(),
+    **_sidebar_context(),
     cards=cards,
     theme_defaults=THEME_DEFAULTS,
     fallback_card=FALLBACK_CARD,
@@ -119,6 +120,20 @@ async def delete_rank_card(card):
 
 # ── Site-wide admin: Plugin registry ────────────────────────────────────────
 BADGE_CHOICES = ["", "new", "beta", "soon", "prem"]
+# (heading, category value) - keep in sync with plugin_categories in components/DashSidebar.html
+CATEGORIES = [
+  ("Server Management", "management"),
+  ("Utilities", "utilities"),
+  ("Games & Fun", "fun"),
+  ("Social", "social"),
+]
+
+def _sidebar_context():
+  """What components/AdminSidebar.html needs on every admin page."""
+  return {
+    "plugins": list(plugin_registry.find({}, {'_id': 0}).sort("category")),
+    "categories": CATEGORIES,
+  }
 
 def _plugin_form_fields(form):
   return {
@@ -139,6 +154,7 @@ def _plugin_form_fields(form):
 @dev_required
 async def admin_plugins():
   error = None
+  add_values = None  # set on a failed add so the form re-opens with what was typed
 
   if request.method == "POST":
     form = await request.form
@@ -155,13 +171,14 @@ async def admin_plugins():
       await flash(f"Added {fields['title']}.", "success")
       return redirect(url_for('admin.admin_plugins'))
 
-  plugins = list(plugin_registry.find({}, {'_id': 0}).sort("category"))
+    add_values = {**fields, "key": key}
 
   return await render_template(
     "dashboard/admin/plugins.html",
     user=get_current_user(),
-    plugins=plugins,
+    **_sidebar_context(),
     badge_choices=BADGE_CHOICES,
+    add_values=add_values,
     error=error,
   )
 

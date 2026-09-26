@@ -1,0 +1,106 @@
+<!-- Admin sidebar: same shell/classes as DashSidebar.html, but plugin links and the +
+     go to the plugin editor (/admin/plugins#key, /admin/plugins?add=category) instead of guild
+     pages; that page also intercepts them to switch editors without a reload. No
+     data-key on the links on purpose - main.js binds premium/disabled handling to that.
+     Needs: plugins, categories, active_page ('plugins' | 'rank_cards'). -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <a href="/dashboard" class="sidebar-logo">
+      <span class="sidebar-logo-mark"><i class="bi bi-lightning-charge-fill"></i></span>
+      <span class="sidebar-logo-text">BobCat</span>
+    </a>
+    <button class="sidebar-close">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <ul class="nav-menu">
+      <li class="nav-heading"><span>Admin</span></li>
+      <li class="nav-item" data-active="{{ 'True' if active_page == 'plugins' else 'False' }}">
+        <a class="nav-link" href="{{ url_for('admin.admin_plugins') }}">
+          <span class="nav-icon material-icons">extension</span>
+          <span class="nav-text">Plugins</span>
+        </a>
+      </li>
+      <li class="nav-item" data-active="{{ 'True' if active_page == 'rank_cards' else 'False' }}">
+        <a class="nav-link" href="{{ url_for('admin.admin_rank_cards') }}">
+          <span class="nav-icon material-icons">style</span>
+          <span class="nav-text">Rank Cards</span>
+        </a>
+      </li>
+
+      {% for title, category in categories %}
+      <li class="nav-heading admin-heading" data-category="{{ category }}">
+        <button type="button" class="admin-heading-toggle" aria-expanded="true">
+          <i class="bi bi-chevron-down"></i><span>{{ title }}</span>
+        </button>
+        <a class="admin-heading-add" href="{{ url_for('admin.admin_plugins') }}?add={{ category }}" data-category="{{ category }}" title="Add a plugin to {{ title }}" aria-label="Add a plugin to {{ title }}">
+          <i class="bi bi-plus-lg"></i>
+        </a>
+      </li>
+
+      {% for p in plugins %}
+      {% if p.category == category %}
+      <li class="nav-item plugin" data-category="{{ category }}" data-active="False">
+        <a class="nav-link" href="{{ url_for('admin.admin_plugins') }}#{{ p.key }}" data-plugin-key="{{ p.key }}">
+          <div class="info">
+            <span class="nav-icon material-icons">{{ p.icon }}</span>
+            <span class="nav-text">{{ p.title }}</span>
+          </div>
+
+          {% if p.badge == 'new' %} {% include 'components/badges/new.html' %}
+          {% elif p.badge == 'beta' %} {% include 'components/badges/beta.html' %}
+          {% elif p.badge == 'soon' %} {% include 'components/badges/soon.html' %}
+          {% elif p.badge == 'prem' %} {% include 'components/badges/prem.html' %}
+          {% endif %}
+        </a>
+      </li>
+      {% endif %}
+      {% endfor %}
+      {% endfor %}
+    </ul>
+  </nav>
+</aside>
+<div class="sidebar-overlay"></div>
+
+<script>
+  // chevron collapses a category
+  document.querySelectorAll('.admin-heading-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const heading = btn.closest('.admin-heading');
+      const collapsed = heading.classList.toggle('collapsed');
+      btn.setAttribute('aria-expanded', !collapsed);
+      document.querySelectorAll('.sidebar .nav-item.plugin').forEach((item) => {
+        if (item.dataset.category === heading.dataset.category) item.hidden = collapsed;
+      });
+    });
+  });
+</script>
+
+<style>
+  /* Category headers: collapse chevron on the left, Discord-style + on the right */
+  .sidebar .admin-heading { padding-right: 0; }
+  .sidebar .admin-heading::after { order: 1; }
+  .sidebar .admin-heading-toggle,
+  .sidebar .admin-heading-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 0;
+    padding: 2px 4px;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .sidebar .admin-heading-add { order: 2; font-size: .85rem; }
+  .sidebar .admin-heading-toggle:hover,
+  .sidebar .admin-heading-add:hover { color: var(--contrast-color); }
+  .sidebar .admin-heading-toggle .bi { font-size: .6rem; transition: transform var(--transition-fast); }
+  .sidebar .admin-heading.collapsed .admin-heading-toggle .bi { transform: rotate(-90deg); }
+</style>

@@ -5,10 +5,22 @@
   {% include 'include/dash-links.html' %}
 </head>
 <body>
-  <main class="rc-page">
-    <div class="rc-head">
-      <h1 class="rc-title">Plugin Registry</h1>
-      <p class="rc-sub">Dashboard plugin cards - title, description, badge, category, item caps. Saved here, live on the next page load, no restart.</p>
+  <!-- ======= Header & Sidebar ======= -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <button class="sidebar-toggle" title="Toggle Sidebar"><i class="bi bi-list"></i></button>
+      </div>
+    </div>
+  </header>
+  {% set active_page = 'plugins' %}
+  {% include 'components/AdminSidebar.html' %}
+
+  <!-- ======= Main ======= -->
+  <main id="main" class="main main-content">
+    <div class="pagetitle">
+      <h1>Plugin Registry</h1>
+      <p class="m-0">Dashboard plugin cards - title, description, badge, category, item caps. Pick a plugin on the left to edit it, or hit + on a category to add one. Saved here, live on the next page load, no restart.</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=True) %}
@@ -23,202 +35,168 @@
     <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endif %}
 
-    <!-- ======= Add ======= -->
-    <section class="card rc-panel">
-      <h2 class="rc-h2">Add a plugin</h2>
+    <section class="card ap-panel" id="EmptyState">
+      <p class="m-0 ap-muted">{{ plugins | length }} plugins registered. Select one from the sidebar.</p>
+    </section>
 
-      <form method="POST" class="rc-form" id="AddForm">
-        <div>
-          <label class="form-label" for="AddKey">Key</label>
-          <input type="text" name="key" id="AddKey" class="form-control" required>
-          <div class="rc-hint">Unique and permanent - blueprints reference this key directly.</div>
+    <section class="card ap-panel" id="EditorPanel" hidden>
+      <h2 class="ap-h2" id="EditorTitle"></h2>
+
+      <form method="POST" class="ap-form" id="EditorForm">
+        <div id="KeyAdd">
+          <label class="form-label" for="FKey">Key</label>
+          <input type="text" name="key" id="FKey" class="form-control" required>
+          <div class="ap-hint">Unique and permanent - blueprints reference this key directly.</div>
+        </div>
+        <div id="KeyEdit" hidden>
+          <div class="ap-hint">Key: <code id="FKeyShown"></code> (can't change - blueprints reference it directly)</div>
         </div>
         <div>
-          <label class="form-label" for="AddTitle">Title</label>
-          <input type="text" name="title" id="AddTitle" class="form-control" required>
+          <label class="form-label" for="FTitle">Title</label>
+          <input type="text" name="title" id="FTitle" class="form-control" required>
         </div>
         <div>
-          <label class="form-label" for="AddDescription">Description</label>
-          <input type="text" name="description" id="AddDescription" class="form-control">
+          <label class="form-label" for="FDescription">Description</label>
+          <input type="text" name="description" id="FDescription" class="form-control">
         </div>
         <div>
-          <label class="form-label" for="AddDbKey">db_key</label>
-          <input type="text" name="db_key" id="AddDbKey" class="form-control" required>
-          <div class="rc-hint">Field name on DashConfig, e.g. "twitch" for dashboard.twitch.</div>
+          <label class="form-label" for="FDbKey">db_key</label>
+          <input type="text" name="db_key" id="FDbKey" class="form-control" required>
+          <div class="ap-hint">Field name on DashConfig, e.g. "twitch" for dashboard.twitch.</div>
         </div>
         <div>
-          <label class="form-label" for="AddIcon">Icon</label>
-          <input type="text" name="icon" id="AddIcon" class="form-control">
-          <div class="rc-hint">Material Symbols name.</div>
+          <label class="form-label" for="FIcon">Icon</label>
+          <input type="text" name="icon" id="FIcon" class="form-control">
+          <div class="ap-hint">Material Symbols name.</div>
         </div>
         <div>
-          <label class="form-label" for="AddUrl">URL slug</label>
-          <input type="text" name="url" id="AddUrl" class="form-control" required>
+          <label class="form-label" for="FUrl">URL slug</label>
+          <input type="text" name="url" id="FUrl" class="form-control" required>
         </div>
         <div>
-          <label class="form-label" for="AddBadge">Badge</label>
-          <select name="badge" id="AddBadge" class="form-select">
+          <label class="form-label" for="FBadge">Badge</label>
+          <select name="badge" id="FBadge" class="form-select">
             {% for badge in badge_choices %}
             <option value="{{ badge }}">{{ badge or '(none)' }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="form-label" for="AddCategory">Category</label>
-          <input type="text" name="category" id="AddCategory" class="form-control" required>
-          <div class="rc-hint">e.g. management, utilities, fun, social.</div>
+          <label class="form-label" for="FCategory">Category</label>
+          <select name="category" id="FCategory" class="form-select" required>
+            {% for title, category in categories %}
+            <option value="{{ category }}">{{ title }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-check">
-          <input type="checkbox" name="premium" id="AddPremium" class="form-check-input">
-          <label class="form-check-label" for="AddPremium">Premium-gated</label>
+          <input type="checkbox" name="premium" id="FPremium" class="form-check-input">
+          <label class="form-check-label" for="FPremium">Premium-gated</label>
         </div>
         <div>
-          <label class="form-label" for="AddMax">Item cap (free)</label>
-          <input type="number" name="max" id="AddMax" class="form-control" min="0">
+          <label class="form-label" for="FMax">Item cap (free)</label>
+          <input type="number" name="max" id="FMax" class="form-control" min="0">
         </div>
         <div>
-          <label class="form-label" for="AddMaxPremium">Item cap (premium)</label>
-          <input type="number" name="max_premium" id="AddMaxPremium" class="form-control" min="0">
+          <label class="form-label" for="FMaxPremium">Item cap (premium)</label>
+          <input type="number" name="max_premium" id="FMaxPremium" class="form-control" min="0">
         </div>
 
-        <button type="submit" class="btn btn-blurple">Add plugin</button>
+        <button type="submit" class="btn btn-blurple" id="FSubmit"></button>
       </form>
-    </section>
-
-    <!-- ======= Existing ======= -->
-    <section class="card rc-panel">
-      <h2 class="rc-h2">Plugins ({{ plugins | length }})</h2>
-      <div class="rc-grid">
-        {% for p in plugins %}
-        <div class="rc-item">
-          <div class="rc-item-body">
-            <div class="rc-name" title="{{ p.title }}">{{ p.title }} {% if p.badge %}<span class="badge bg-secondary">{{ p.badge }}</span>{% endif %}</div>
-            <div class="rc-key" title="{{ p.key }}">{{ p.key }}</div>
-            <div class="rc-key">{{ p.category }}{% if p.premium %} · premium{% endif %}</div>
-          </div>
-          <div class="rc-actions">
-            <button type="button" class="btn btn-sm btn-blurple" data-bs-toggle="modal" data-bs-target="#EditModal"
-              data-key="{{ p.key }}" data-title="{{ p.title }}" data-description="{{ p.description }}"
-              data-db-key="{{ p.db_key }}" data-icon="{{ p.icon }}" data-url="{{ p.url }}"
-              data-badge="{{ p.badge }}" data-category="{{ p.category }}" data-premium="{{ p.premium | tojson }}"
-              data-max="{{ p.max if p.max is not none else '' }}" data-max-premium="{{ p.max_premium if p.max_premium is not none else '' }}">Edit</button>
-          </div>
-        </div>
-        {% else %}
-        <p class="rc-sub m-0">No plugins registered yet.</p>
-        {% endfor %}
-      </div>
     </section>
   </main>
 
-  <!-- ======= Edit modal ======= -->
-  <div class="modal fade" id="EditModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <form method="POST" class="modal-content" id="EditForm">
-        <div class="modal-header">
-          <h5 class="modal-title">Edit plugin</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body rc-form">
-          <div class="rc-hint">Key: <code id="EditKey"></code> (can't change - blueprints reference it directly)</div>
-          <div>
-            <label class="form-label" for="EditTitle">Title</label>
-            <input type="text" name="title" id="EditTitle" class="form-control" required>
-          </div>
-          <div>
-            <label class="form-label" for="EditDescription">Description</label>
-            <input type="text" name="description" id="EditDescription" class="form-control">
-          </div>
-          <div>
-            <label class="form-label" for="EditDbKey">db_key</label>
-            <input type="text" name="db_key" id="EditDbKey" class="form-control" required>
-          </div>
-          <div>
-            <label class="form-label" for="EditIcon">Icon</label>
-            <input type="text" name="icon" id="EditIcon" class="form-control">
-          </div>
-          <div>
-            <label class="form-label" for="EditUrl">URL slug</label>
-            <input type="text" name="url" id="EditUrl" class="form-control" required>
-          </div>
-          <div>
-            <label class="form-label" for="EditBadge">Badge</label>
-            <select name="badge" id="EditBadge" class="form-select">
-              {% for badge in badge_choices %}
-              <option value="{{ badge }}">{{ badge or '(none)' }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div>
-            <label class="form-label" for="EditCategory">Category</label>
-            <input type="text" name="category" id="EditCategory" class="form-control" required>
-          </div>
-          <div class="form-check">
-            <input type="checkbox" name="premium" id="EditPremium" class="form-check-input">
-            <label class="form-check-label" for="EditPremium">Premium-gated</label>
-          </div>
-          <div>
-            <label class="form-label" for="EditMax">Item cap (free)</label>
-            <input type="number" name="max" id="EditMax" class="form-control" min="0">
-          </div>
-          <div>
-            <label class="form-label" for="EditMaxPremium">Item cap (premium)</label>
-            <input type="number" name="max_premium" id="EditMaxPremium" class="form-control" min="0">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-blurple">Save changes</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <!-- Badge markup for the live sidebar preview (same partials the sidebar renders) -->
+  <template id="Badge-new">{% include 'components/badges/new.html' %}</template>
+  <template id="Badge-beta">{% include 'components/badges/beta.html' %}</template>
+  <template id="Badge-soon">{% include 'components/badges/soon.html' %}</template>
+  <template id="Badge-prem">{% include 'components/badges/prem.html' %}</template>
 
   <script>
+    const ADD_URL = "{{ url_for('admin.admin_plugins') }}";
     const EDIT_URL = "{{ url_for('admin.edit_plugin', key='__KEY__') }}";
+    const PLUGINS = JSON.parse('{{ plugins | tojson }}');
+    const ADD_VALUES = JSON.parse('{{ add_values | tojson }}');
 
-    document.querySelectorAll('[data-bs-target="#EditModal"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const d = btn.dataset;
-        document.querySelector('#EditForm').action = EDIT_URL.replace('__KEY__', encodeURIComponent(d.key));
-        document.querySelector('#EditKey').textContent = d.key;
-        document.querySelector('#EditTitle').value = d.title;
-        document.querySelector('#EditDescription').value = d.description || '';
-        document.querySelector('#EditDbKey').value = d.dbKey;
-        document.querySelector('#EditIcon').value = d.icon || '';
-        document.querySelector('#EditUrl').value = d.url;
-        document.querySelector('#EditBadge').value = d.badge || '';
-        document.querySelector('#EditCategory').value = d.category;
-        document.querySelector('#EditPremium').checked = d.premium === 'true';
-        document.querySelector('#EditMax').value = d.max || '';
-        document.querySelector('#EditMaxPremium').value = d.maxPremium || '';
+    const $ = (id) => document.getElementById(id);
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item.plugin');
+
+    function fill(v) {
+      $('FKey').value = v.key || '';
+      $('FTitle').value = v.title || '';
+      $('FDescription').value = v.description || '';
+      $('FDbKey').value = v.db_key || '';
+      $('FIcon').value = v.icon || '';
+      $('FUrl').value = v.url || '';
+      $('FBadge').value = v.badge || '';
+      $('FCategory').value = v.category || $('FCategory').options[0].value;
+      $('FPremium').checked = !!v.premium;
+      $('FMax').value = v.max ?? '';
+      $('FMaxPremium').value = v.max_premium ?? '';
+    }
+
+    function openEditor(mode, v) {
+      const adding = mode === 'add';
+      fill(v);
+      $('EditorForm').action = adding ? ADD_URL : EDIT_URL.replace('__KEY__', encodeURIComponent(v.key));
+      $('EditorTitle').textContent = adding ? 'Add a plugin' : `Edit ${v.title}`;
+      $('FSubmit').textContent = adding ? 'Add plugin' : 'Save changes';
+      $('KeyAdd').hidden = !adding;
+      $('FKey').disabled = !adding;
+      $('KeyEdit').hidden = adding;
+      $('FKeyShown').textContent = v.key;
+      $('EmptyState').hidden = true;
+      $('EditorPanel').hidden = false;
+
+      navItems.forEach((item) => {
+        const on = !adding && item.querySelector('.nav-link').dataset.pluginKey === v.key;
+        item.dataset.active = on ? 'True' : 'False';
+        item.querySelector('.nav-link').classList.toggle('active', on);
+      });
+    }
+
+    // Badge dropdown updates the sidebar badge of the plugin being edited, before saving
+    $('FBadge').addEventListener('change', () => {
+      const link = document.querySelector('.sidebar .nav-item.plugin .nav-link.active');
+      if (!link) return;
+      link.querySelector('.badge')?.remove();
+      const tpl = $('Badge-' + $('FBadge').value);
+      if (tpl) link.append(tpl.content.cloneNode(true));
+    });
+
+    // Sidebar links: switch editors without a reload (the hrefs also work from other admin pages)
+    navItems.forEach((item) => {
+      item.querySelector('.nav-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        openEditor('edit', PLUGINS.find((p) => p.key === e.currentTarget.dataset.pluginKey));
       });
     });
+    document.querySelectorAll('.admin-heading-add').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openEditor('add', { category: btn.dataset.category });
+      });
+    });
+
+    // Landing from another page (or a bookmark): /admin/plugins#key or ?add=category
+    const params = new URLSearchParams(location.search);
+    if (ADD_VALUES) openEditor('add', ADD_VALUES);
+    else if (params.get('add')) openEditor('add', { category: params.get('add') });
+    else if (location.hash) {
+      const plugin = PLUGINS.find((p) => p.key === decodeURIComponent(location.hash.slice(1)));
+      if (plugin) openEditor('edit', plugin);
+    }
   </script>
 
   <style>
     body { background: var(--background-color); }
 
-    .rc-page {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: var(--spacing-xl) var(--spacing-md) 4rem;
-    }
-    .rc-head { margin-bottom: var(--spacing-lg); }
-    .rc-title { font-size: 2.25rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
-    .rc-sub { color: var(--muted-color); margin: 0; }
-    .rc-h2 { font-size: 1.35rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
-
-    .rc-panel { padding: var(--spacing-lg); margin: 0 0 var(--spacing-md); background: var(--surface-color); }
-
-    .rc-form { display: flex; flex-direction: column; gap: var(--spacing-md); max-width: 480px; }
-    .rc-hint { font-size: .8rem; color: var(--muted-color); margin-top: var(--spacing-xs); }
-
-    .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
-    .rc-item { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-sm); }
-    .rc-name { font-weight: 600; color: var(--heading-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rc-key { font-size: .8rem; color: var(--muted-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rc-actions { display: flex; gap: var(--spacing-sm); }
+    .ap-panel { padding: var(--spacing-lg); margin: 0 0 var(--spacing-md); background: var(--surface-color); max-width: 620px; }
+    .ap-h2 { font-size: 1.35rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-md); }
+    .ap-muted { color: var(--muted-color); }
+    .ap-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+    .ap-hint { font-size: .8rem; color: var(--muted-color); margin-top: var(--spacing-xs); }
   </style>
 </body>
 </html>

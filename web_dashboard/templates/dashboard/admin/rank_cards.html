@@ -6,7 +6,18 @@
   <script src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"></script>
 </head>
 <body>
-  <main class="rc-page">
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <button class="sidebar-toggle" title="Toggle Sidebar"><i class="bi bi-list"></i></button>
+      </div>
+    </div>
+  </header>
+  {% set active_page = 'rank_cards' %}
+  {% include 'components/AdminSidebar.html' %}
+
+  <main id="main" class="main main-content">
+  <div class="rc-page">
     <div class="rc-head">
       <h1 class="rc-title">Rank Cards</h1>
       <p class="rc-sub">The catalog servers pick from in Leveling. Add a card, or tweak the colors of an existing one.</p>
@@ -118,6 +129,7 @@
       </div>
     </section>
     {% endfor %}
+  </div>
   </main>
 
   <!-- ======= Edit modal ======= -->
@@ -335,9 +347,9 @@
     body { background: var(--background-color); }
 
     .rc-page {
-      max-width: 1100px;
+      /* max-width: 1100px;
       margin: 0 auto;
-      padding: var(--spacing-xl) var(--spacing-md) 4rem;
+      padding: var(--spacing-xl) var(--spacing-md) 4rem; */
     }
     .rc-head { margin-bottom: var(--spacing-lg); }
     .rc-title { font-size: 2.25rem; font-weight: 700; color: var(--heading-color); margin: 0 0 var(--spacing-xs); }
