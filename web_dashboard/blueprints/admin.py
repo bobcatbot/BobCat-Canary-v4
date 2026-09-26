@@ -3,7 +3,7 @@ from modules.models import Guild
 from web_dashboard.utils import dev_required, get_current_user
 from .plugins.leveling import rank_cards
 from ..uploads import UploadError, upload_rank_card_image
-from ..plugins import plugin_registry, reload_plugin_list
+from ..plugins import plugin_registry, reload_plugin_list, by_order
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -131,7 +131,7 @@ CATEGORIES = [
 def _sidebar_context():
   """What components/AdminSidebar.html needs on every admin page."""
   return {
-    "plugins": list(plugin_registry.find({}, {'_id': 0}).sort("category")),
+    "plugins": by_order(plugin_registry.find({}, {'_id': 0})),
     "categories": CATEGORIES,
   }
 
@@ -166,7 +166,8 @@ async def admin_plugins():
     elif plugin_registry.find_one({"key": key}):
       error = f"'{key}' already exists."
     else:
-      plugin_registry.insert_one({"key": key, **fields})
+      last = plugin_registry.find_one({"category": fields["category"]}, sort=[("order", -1)])
+      plugin_registry.insert_one({"key": key, **fields, "order": (last.get("order", -1) + 1) if last else 0})
       reload_plugin_list()
       await flash(f"Added {fields['title']}.", "success")
       return redirect(url_for('admin.admin_plugins'))
@@ -181,6 +182,16 @@ async def admin_plugins():
     add_values=add_values,
     error=error,
   )
+
+# Body: {"keys": [...]} - one category's plugin keys in their new sidebar order.
+@admin_bp.route("/admin/plugins/reorder", methods=["POST"])
+@dev_required
+async def reorder_plugins():
+  keys = (await request.get_json()).get("keys", [])
+  for position, key in enumerate(keys):
+    plugin_registry.update_one({"key": key}, {"$set": {"order": position}})
+  reload_plugin_list()
+  return {"ok": True}
 
 @admin_bp.route("/admin/plugins/<key>/edit", methods=["POST"])
 @dev_required

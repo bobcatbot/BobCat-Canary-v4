@@ -20,7 +20,7 @@
   <main id="main" class="main main-content">
     <div class="pagetitle">
       <h1>Plugin Registry</h1>
-      <p class="m-0">Dashboard plugin cards - title, description, badge, category, item caps. Pick a plugin on the left to edit it, or hit + on a category to add one. Saved here, live on the next page load, no restart.</p>
+      <p class="m-0">Dashboard plugin cards - title, description, badge, category, item caps. Pick a plugin on the left to edit it, drag to reorder within a category, or hit + on a category to add one. Saved here, live on the next page load, no restart.</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=True) %}
@@ -156,6 +156,50 @@
       });
     }
 
+    // Drag a plugin up/down within its category; saved on drop, live on every server's dashboard
+    const REORDER_URL = "{{ url_for('admin.reorder_plugins') }}";
+    // Reads the live DOM (navItems is a snapshot from page load, so it can't see the new order)
+    const keysIn = (category) => [...document.querySelectorAll(`.sidebar .nav-item.plugin[data-category="${category}"] .nav-link`)]
+      .map((link) => link.dataset.pluginKey);
+
+    let dragged = null;
+    let keysBefore = null;
+    navItems.forEach((item) => {
+      item.draggable = true;
+
+      item.addEventListener('dragstart', (e) => {
+        dragged = item;
+        keysBefore = keysIn(item.dataset.category).join();
+        e.dataTransfer.effectAllowed = 'move';
+        item.classList.add('dragging');
+      });
+
+      // Reorders live while dragging; a plugin can't leave its category
+      item.addEventListener('dragover', (e) => {
+        if (!dragged || dragged === item || dragged.dataset.category !== item.dataset.category) return;
+        e.preventDefault();
+        const below = e.clientY > item.getBoundingClientRect().top + item.offsetHeight / 2;
+        item.parentNode.insertBefore(dragged, below ? item.nextSibling : item);
+      });
+
+      item.addEventListener('dragend', async () => {
+        item.classList.remove('dragging');
+        const keys = keysIn(item.dataset.category);
+        dragged = null;
+        if (keys.join() === keysBefore) return;
+
+        const res = await fetch(REORDER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys }),
+        }).catch(() => null);
+        if (!res?.ok) {
+          alert("Couldn't save the new order - reloading.");
+          location.reload();
+        }
+      });
+    });
+
     // Badge dropdown updates the sidebar badge of the plugin being edited, before saving
     $('FBadge').addEventListener('change', () => {
       const link = document.querySelector('.sidebar .nav-item.plugin .nav-link.active');
@@ -197,6 +241,9 @@
     .ap-muted { color: var(--muted-color); }
     .ap-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
     .ap-hint { font-size: .8rem; color: var(--muted-color); margin-top: var(--spacing-xs); }
+
+    .sidebar .nav-item.plugin { cursor: grab; }
+    .sidebar .nav-item.plugin.dragging { opacity: .4; }
   </style>
 </body>
 </html>

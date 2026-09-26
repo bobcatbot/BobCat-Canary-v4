@@ -15,6 +15,11 @@ plugin_registry = pymongo.MongoClient(mongoURI_db)['Bot']['plugin_registry']
 
 PLUGIN_LIST: dict = {}
 
+def by_order(docs):
+  """Registry docs in sidebar order. `order` is set by dragging in /admin/plugins; docs
+  without one (never dragged, or newly added) keep their natural order after the ordered ones."""
+  return sorted(docs, key=lambda d: d.get('order', float('inf')))
+
 def reload_plugin_list() -> None:
   """Refresh PLUGIN_LIST from Mongo. Called once at boot (main.py, right after the
   database connects) and again after every /admin/plugins create/edit, so a saved
@@ -32,7 +37,7 @@ def reload_plugin_list() -> None:
 
   fresh = {
     doc['key']: {k: v for k, v in doc.items() if k not in ('_id', 'key')}
-    for doc in plugin_registry.find({})
+    for doc in by_order(plugin_registry.find({}))
   }
   PLUGIN_LIST.clear()
   PLUGIN_LIST.update(fresh)
