@@ -38,7 +38,7 @@
       sidebarToggle.addEventListener('click', function(e) {
         e.preventDefault();
 
-        if (window.innerWidth >= 1200) {
+        if (window.innerWidth >= 992) {
           // Desktop: Toggle collapsed state
           body.classList.toggle('sidebar-collapsed');
           localStorage.setItem('sidebar-collapsed', body.classList.contains('sidebar-collapsed'));
@@ -65,7 +65,7 @@
     }
 
     // Restore collapsed state from localStorage
-    if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 1200) {
+    if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
       body.classList.add('sidebar-collapsed');
     }
 
@@ -74,7 +74,7 @@
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
-        if (window.innerWidth >= 1200) {
+        if (window.innerWidth >= 992) {
           body.classList.remove('sidebar-open');
         }
       }, 250);
@@ -99,7 +99,7 @@
         const submenu = parent.querySelector(':scope > .nav-submenu');
 
         // If sidebar is collapsed on desktop, don't toggle
-        if (document.body.classList.contains('sidebar-collapsed') && window.innerWidth >= 1200) {
+        if (document.body.classList.contains('sidebar-collapsed') && window.innerWidth >= 992) {
           return;
         }
 

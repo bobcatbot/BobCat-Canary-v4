@@ -1455,7 +1455,7 @@ button {
 }
 
 /* Shift header when sidebar is visible */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .header {
     left: var(--sidebar-width);
   }
@@ -1549,7 +1549,7 @@ button {
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-toggle {
     display: none;
   }
@@ -2744,7 +2744,7 @@ a.header-action:hover {
 }
 
 /* Mobile: Hidden by default */
-@media (max-width: 1199px) {
+@media (max-width: 991.98px) {
   .sidebar {
     transform: translateX(-100%);
   }
@@ -2755,7 +2755,7 @@ a.header-action:hover {
 }
 
 /* Sidebar Collapsed State (Desktop) */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-collapsed .sidebar {
     width: var(--sidebar-collapsed-width);
     overflow: visible;
@@ -2845,7 +2845,7 @@ a.header-action:hover {
   color: var(--contrast-color);
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-close {
     display: none;
   }
@@ -3061,7 +3061,7 @@ a.header-action:hover {
 /*--------------------------------------------------------------
 # Collapsed Sidebar State
 --------------------------------------------------------------*/
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-collapsed .sidebar-nav {
     padding-left: var(--spacing-sm);
     padding-right: var(--spacing-sm);
@@ -3172,7 +3172,7 @@ a.header-action:hover {
 /*--------------------------------------------------------------
 # Collapsed Sidebar - Flyout Submenus
 --------------------------------------------------------------*/
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-collapsed .sidebar .nav-submenu {
     display: none !important;
     max-height: none !important;
@@ -3328,7 +3328,7 @@ a.header-action:hover {
 }
 
 /* Collapsed state */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-collapsed .sidebar-footer {
     padding: var(--spacing-sm);
   }
@@ -3383,7 +3383,7 @@ a.header-action:hover {
   visibility: visible;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-overlay {
     display: none;
   }
@@ -3536,7 +3536,7 @@ a.header-action:hover {
 }
 
 /* Desktop: Account for sidebar */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .main {
     margin-left: var(--sidebar-width);
   }

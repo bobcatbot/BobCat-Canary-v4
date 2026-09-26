@@ -420,7 +420,7 @@ body::-webkit-scrollbar-thumb {
   line-height: 1;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .logo {
     width: 280px;
   }

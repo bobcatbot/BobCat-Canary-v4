@@ -414,6 +414,13 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Markup puts the avatar / login before the links (right for the mobile bar); on desktop the links go first */
+@media (min-width: 992px) {
+  .navbar > .navbar-ul {
+    order: -1;
+  }
+}
+
 .navbar-mobile {
   position: fixed;
   overflow: hidden;

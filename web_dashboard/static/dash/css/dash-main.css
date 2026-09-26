@@ -123,7 +123,7 @@
 
 /* Collapsed sidebar rail (desktop): just the server icon, and the dropdown
    flies out to the right of the rail (.sidebar is overflow: visible here). */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .sidebar-collapsed .guild-selector {
     padding-left: var(--spacing-sm);
     padding-right: var(--spacing-sm);
