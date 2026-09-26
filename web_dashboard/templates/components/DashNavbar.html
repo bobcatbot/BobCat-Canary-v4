@@ -144,6 +144,25 @@
                 My Servers
                 <i class="bi bi-caret-right user-menu-item-caret"></i>
               </a>
+              <!-- Theme color (season.js wires this up; saved in localStorage) -->
+              <div class="accent-picker" id="accentPicker">
+                <span class="accent-picker-label">Theme color</span>
+                <div class="accent-picker-swatches">
+                  <button type="button" class="accent-swatch" data-color="#5865F2" style="--c: #5865F2" title="Blurple (default)" aria-label="Blurple (default)" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#ee6fa8" style="--c: #ee6fa8" title="Pink" aria-label="Pink" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#e5383b" style="--c: #e5383b" title="Red" aria-label="Red" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#ff7a1a" style="--c: #ff7a1a" title="Orange" aria-label="Orange" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#f5b301" style="--c: #f5b301" title="Gold" aria-label="Gold" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#34c77b" style="--c: #34c77b" title="Green" aria-label="Green" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#1fc8b0" style="--c: #1fc8b0" title="Teal" aria-label="Teal" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#4cb8ff" style="--c: #4cb8ff" title="Sky" aria-label="Sky" aria-pressed="false"></button>
+                  <button type="button" class="accent-swatch" data-color="#a855f7" style="--c: #a855f7" title="Violet" aria-label="Violet" aria-pressed="false"></button>
+                  <label class="accent-swatch accent-custom" title="Custom color">
+                    <input type="color" id="accentCustom" value="#5865f2" aria-label="Custom color">
+                  </label>
+                </div>
+                <small class="accent-picker-note" id="accentNote" hidden>A seasonal theme is showing right now. Your color comes back afterward.</small>
+              </div>
             </div>
             <div class="user-menu-footer">
               <a href="/oauth/logout" class="user-menu-signout">

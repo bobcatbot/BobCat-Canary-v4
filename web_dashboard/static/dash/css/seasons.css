@@ -1,0 +1,233 @@
+/*--------------------------------------------------------------
+# Seasonal themes
+# Loaded after ta-main.css and dash-style.css. season.js sets
+# data-season on <html>; with no attribute, none of this applies.
+# Preview any season with ?theme=<name> (off / auto to clear).
+--------------------------------------------------------------*/
+
+/* Per-season palette. Everything else below derives from these. */
+:root[data-season="christmas"] {
+  --accent-color: #e5383b;
+  --btn-hover-bg: #a4161a;
+  --background-color: #0b1410;
+  --surface-color: #12211a;
+  --sidebar-bg: #0d1a14;
+  --sidebar-border: #24402f;
+}
+
+:root[data-season="halloween"] {
+  --accent-color: #ff7a1a;
+  --btn-hover-bg: #b8500a;
+  --background-color: #0f0a14;
+  --surface-color: #1b1220;
+  --sidebar-bg: #140c18;
+  --sidebar-border: #3a1f2b;
+}
+
+:root[data-season="winter"] {
+  --accent-color: #4cb8ff;
+  --btn-hover-bg: #2b86c5;
+  --background-color: #0a1120;
+  --surface-color: #101c33;
+  --sidebar-bg: #0c1629;
+  --sidebar-border: #1d3357;
+}
+
+:root[data-season="spring"] {
+  --accent-color: #ee6fa8;
+  --btn-hover-bg: #b8457a;
+  --background-color: #120d1c;
+  --surface-color: #1e1428;
+  --sidebar-bg: #160f21;
+  --sidebar-border: #3a2350;
+}
+
+:root[data-season="summer"] {
+  --accent-color: #1fc8b0;
+  --btn-hover-bg: #128a7a;
+  --background-color: #08131a;
+  --surface-color: #0f1f29;
+  --sidebar-bg: #0a1820;
+  --sidebar-border: #17404a;
+}
+
+:root[data-season="autumn"] {
+  --accent-color: #e0952d;
+  --btn-hover-bg: #a86414;
+  --background-color: #130d0a;
+  --surface-color: #211510;
+  --sidebar-bg: #18100c;
+  --sidebar-border: #46291a;
+}
+
+/* User-picked color (season.js sets --accent-color and data-accent, but only
+   while no season is active). Surfaces are tinted from the same hue. */
+:root[data-accent] {
+  --btn-hover-bg: color-mix(in srgb, var(--accent-color) 78%, #000);
+  --background-color: color-mix(in srgb, var(--accent-color) 7%, #07070c);
+  --surface-color: color-mix(in srgb, var(--accent-color) 11%, #0c0c12);
+  --sidebar-bg: color-mix(in srgb, var(--accent-color) 9%, #09090e);
+  --sidebar-border: color-mix(in srgb, var(--accent-color) 22%, #0c0c12);
+}
+
+/* Shared wiring: maps the seasonal / user values onto both palettes */
+:root[data-season],
+:root[data-accent] {
+  /* ta-main.css */
+  --sidebar-active-bg: var(--accent-color);
+  --border-color-dark: var(--btn-hover-bg);
+  --border-color-light: var(--surface-color);
+  --card-bg: var(--surface-color);
+  --header-bg: var(--surface-color);
+  --table-header-bg: var(--background-color);
+  --table-hover-bg: color-mix(in srgb, var(--accent-color) 14%, var(--surface-color));
+  --table-stripe-bg: color-mix(in srgb, var(--accent-color) 5%, var(--surface-color));
+  --input-focus-ring: color-mix(in srgb, var(--accent-color) 25%, transparent);
+  /* dash-style.css */
+  --blurple: var(--accent-color);
+  --btn-bg: var(--accent-color);
+  --btn-active-bg: var(--btn-hover-bg);
+}
+
+/* dash-style.css hardcodes these on the button itself */
+:root[data-season] .btn-blurple,
+:root[data-season] .btn[variant="default"],
+:root[data-accent] .btn-blurple,
+:root[data-accent] .btn[variant="default"] {
+  --bs-btn-bg: var(--btn-bg);
+  --bs-btn-border-color: var(--btn-bg);
+  --bs-btn-hover-bg: var(--btn-hover-bg);
+  --bs-btn-hover-border-color: var(--btn-hover-bg);
+  --bs-btn-active-bg: var(--btn-active-bg);
+  --bs-btn-active-border-color: var(--btn-active-bg);
+  --bs-btn-disabled-bg: var(--btn-bg);
+  --bs-btn-disabled-border-color: var(--btn-bg);
+}
+
+/*--------------------------------------------------------------
+# Christmas extras
+--------------------------------------------------------------*/
+/* Candy-cane stripe under a green-to-red header. Layered backgrounds
+   follow the pill's border-radius, so dropdowns don't get clipped. */
+:root[data-season="christmas"] .header-inner {
+  border-color: transparent;
+  background:
+    repeating-linear-gradient(135deg, #e5383b 0 10px, #fff 10px 20px, #2f9e5b 20px 30px) bottom / 100% 4px no-repeat,
+    linear-gradient(90deg, #0f3d2a, var(--surface-color) 48%, #5a1a1d);
+}
+
+:root[data-season="christmas"] .btn-blurple {
+  background-image: linear-gradient(135deg, #e5383b, #2f9e5b);
+  border-color: transparent;
+}
+
+:root[data-season="christmas"] .btn-blurple:hover {
+  filter: brightness(0.9);
+}
+
+/* Santa hat on both logo marks */
+:root[data-season="christmas"] .header-logo-mark,
+:root[data-season="christmas"] .sidebar-logo-mark {
+  position: relative;
+}
+
+:root[data-season="christmas"] .header-logo-mark::before,
+:root[data-season="christmas"] .sidebar-logo-mark::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 24px;
+  width: 27px;
+  height: 22px;
+  transform: rotate(
+32deg);
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 26'%3E%3Cpath d='M4 20C6 7 15 2 26 9c-4 2-6 6-6 11z' fill='%23e5383b'/%3E%3Crect x='1' y='17' width='22' height='7' rx='3.5' fill='%23fff'/%3E%3Ccircle cx='27' cy='9' r='3.6' fill='%23fff'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+:root[data-season="christmas"] .header-logo-text::after,
+:root[data-season="christmas"] .sidebar-logo-text::after {
+  content: " \1F384";
+  font-size: 0.9em;
+}
+
+:root[data-season="halloween"] .header-logo-text::after,
+:root[data-season="halloween"] .sidebar-logo-text::after {
+  content: " \1F383";
+  font-size: 0.9em;
+}
+
+/*--------------------------------------------------------------
+# Falling particles (canvas made by season.js)
+--------------------------------------------------------------*/
+.season-fx {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 900; /* under .header (1000) */
+}
+
+/*--------------------------------------------------------------
+# Theme color picker (user dropdown, see DashNavbar.html)
+--------------------------------------------------------------*/
+.accent-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+}
+
+.accent-picker-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sidebar-muted-color);
+}
+
+.accent-picker-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.accent-swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--c);
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--surface-color);
+}
+
+.accent-swatch[aria-pressed="true"] {
+  border-color: #fff;
+}
+
+.accent-swatch:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.accent-custom {
+  background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e);
+}
+
+.accent-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.accent-picker-note {
+  font-size: 0.75rem;
+  color: var(--muted-color);
+}
