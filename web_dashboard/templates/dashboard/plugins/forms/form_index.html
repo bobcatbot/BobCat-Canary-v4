@@ -11,7 +11,7 @@
   {% set plugin = get_plugin(guild, 'forms') %}
   
   <!-- ======= Main ======= -->
-  <main id="main" class="main position-relative">
+  <main id="main" class="main main-content dashboard-page">
     <div class="pagetitle plugin">
       <div>
         <h1>{{plugin['title']}}</h1>
@@ -28,73 +28,71 @@
 
     {% set at_cap = data | length >= item_cap %}
     {% set cap_msg = "You've reached your limit of " ~ item_cap ~ " forms." ~ ("" if is_premium else " Upgrade to premium for up to " ~ item_cap_premium ~ ".") %}
-    <section class="section">
-      <div class="feature_card" style="border: 2px solid var(--color-primary);">
+    <section class="sectionn">
+      <div class="card">
         <span class="tooltipp" style="display:block">
-          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="forms/creation"{% endif %} id="create-hub-btn"><div class="title d-flex justify-content-between align-items-center">
-            <h2>Create form</h2>
-            <div>
+          <a {% if at_cap %}class="at-cap" aria-disabled="true"{% else %}href="temporary-channels/creation"{% endif %} id="create-hub-btn">
+            <div class="dash-card-header">
+              <h2 class="dash-card-title">New Form</h2>
               <i class="bi bi-plus-lg"></i>
             </div>
-          </div></a>
+          </a>
           <span class="tooltiptext" id="cap-tip"{% if not at_cap %} hidden{% endif %}>{{ cap_msg }}</span>
         </span>
       </div>
     </section>
     
-    <section class="section">
-      <div class="feature_card">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="title">
-            <h2>Your forms</h2>
-          </div>
+    <section class="sectionn">
+      <div class="card">
+        <div class="dash-card-header">
+          <h2 class="dash-card-title">Your forms</h2>
 
           <span id="item-count" data-cap="{{ item_cap }}">{{ data | length }} / {{ item_cap }}</span>
         </div>
         <hr>
         
-        {% if not data %}
-        <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
-          <!-- <img src="https://images.unsplash.com/photo-1618785571861-121c007e7165?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80" alt="" style="width: 300px;"> -->
-          <p class="m-0 mt-2">You have no forms yet.</p>
-        </div>
-        {% endif %}
-
-        <div class="grid grid-cols">
-          {% for form in data %}
-          <div id="{{form.id}}" class="card">
-            <div class="title mb-2">
-              <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{{form.name}}</h5>
-                
-                <div class="form-switch ps-0">
-                  {% if form.status == True %}
-                  <input type="checkbox" id="status" class="form-check-input m-0" role="switch" checked>
-                  {% else %}
-                  <input type="checkbox" id="status" class="form-check-input m-0" role="switch">
-                  {% endif %}
-                </div>
-              </div>
-              
-              <p class="m-0">{{form.description}}</p>
-            </div>
-
-            <div class="controls">
-              <a href="/form/{{guild.id}}/{{form.id}}" class="btn btn-blurple">
-                <i class="bi bi-eye-fill"></i>
-                View
-              </a>
-              <a href="forms/{{form.id}}/edit" class="btn btn-blurple">
-                <i class="bi bi-pencil-square"></i>
-                Edit
-              </a>
-              <a href="/form/{{guild.id}}/{{form.id}}/submissions" class="btn btn-blurple">
-                <i class="bi bi-envelope-fill"></i>
-                Submissions
-              </a>
-            </div>
+        <div class="card-body">
+          {% if data == [] %}
+          <div class="d-flex flex-column justify-content-center align-items-center user-select-none">
+            <p class="m-0 mt-2">You have no forms yet.</p>
           </div>
-          {% endfor %}
+          {% endif %}
+
+          <div class="grid grid-cols">
+            {% for form in data %}
+            <div id="{{form.id}}" class="f-card">
+              <div class="title mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">{{form.name}}</h5>
+          
+                  <div class="form-switch ps-0">
+                    {% if form.status == True %}
+                    <input type="checkbox" id="status" class="form-check-input m-0" role="switch" checked>
+                    {% else %}
+                    <input type="checkbox" id="status" class="form-check-input m-0" role="switch">
+                    {% endif %}
+                  </div>
+                </div>
+          
+                <p class="m-0">{{form.description}}</p>
+              </div>
+              <div class="controls">
+                <a href="forms/{{form.id}}/edit" class="btn btn-blurple btn-sm">
+                  <i class="bi bi-pencil"></i>
+                  Edit
+                </a>
+                <a href="/form/{{guild.id}}/{{form.id}}" class="btn btn-blurple btn-sm">
+                  <i class="bi bi-eye-fill"></i>
+                  View
+                </a>
+                <a href="/form/{{guild.id}}/{{form.id}}/submissions" class="btn btn-blurple btn-sm">
+                  <i class="bi bi-envelope-fill"></i>
+                  Submissions
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </section>
@@ -150,22 +148,23 @@
       font-size: 13px;
       padding: 4px 14px;
       border-radius: 20px;
-      background: var(--color-secondary-3);
-      color: var(--text-color);
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      color: var(--muted-color);
       font-weight: 500;
     }
     #create-hub-btn.at-cap { opacity: .4; pointer-events: none; }
     .tooltipp .tooltiptext { max-width: 220px; font-size: 12px; }
 
-    .card {
-      --bs-card-bg: rgb(23, 24, 30);
-      --bs-card-border-color: rgb(23, 24, 30);
-
+    .f-card {
       padding: 13px;
-      color: #fff;
+      background: var(--background-color);
+      border: 1px solid var(--sidebar-border);
+      border-radius: var(--radius-md);
+      transition: border-color var(--transition-fast);
     }
 
-    .card .title h5 {
+    .f-card .title h5 {
       font-weight: 700;
       
       width: 65%;
@@ -174,7 +173,7 @@
       text-overflow: ellipsis;
       overflow: hidden;
     }
-    .card .title p {
+    .f-card .title p {
       display: -webkit-box;
       -webkit-line-clamp: 4;
       -webkit-box-orient: vertical;
@@ -182,7 +181,7 @@
       line-clamp: 4;
     }
     
-    .card .controls {
+    .f-card .controls {
       margin-bottom: 0;
       display: flex;
       gap: 5px;
