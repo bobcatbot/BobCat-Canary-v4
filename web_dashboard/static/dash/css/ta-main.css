@@ -1525,13 +1525,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  font-size: 1rem;
-  color: var(--contrast-color);
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color), var(--danger-color) 45%));
+  width: 42px;
+  height: 42px;
 }
 
 .header-logo-text {
@@ -2795,19 +2790,15 @@ a.header-action:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
-  font-size: 1.125rem;
-  color: var(--contrast-color);
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color), var(--danger-color) 45%));
-  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--accent-color), transparent 40%);
 }
 
 .sidebar-logo-text {
   font-family: var(--heading-font);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--contrast-color);
@@ -33019,14 +33010,9 @@ textarea.form-control {
 /* Gradient brand elements - keep the vivid violet->pink gradient in dark
    mode (the pastel dark-mode accent lacks contrast under white text) */
 [data-theme=dark] .create-btn,
-[data-theme=dark] .header-logo-mark,
 [data-theme=dark] .footer-brand-mark,
 [data-theme=dark] .back-to-top,
 [data-theme=dark] .user-menu-avatar {
-  background: var(--accent-color);
-}
-
-[data-theme=dark] .sidebar-logo-mark {
   background: var(--accent-color);
 }
 
