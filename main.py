@@ -4,6 +4,7 @@ import asyncio
 import discord
 import traceback
 import pathlib
+import logging
 from beanie import init_beanie
 from pymongo import AsyncMongoClient
 from datetime import datetime
@@ -16,6 +17,8 @@ client = v.client
 
 client.shard_uptime = {}
 client.beanie_initialized = False
+
+logging.getLogger("discord.gateway").setLevel(logging.DEBUG)
 
 async def initialise_database() -> None:
     if client.beanie_initialized:
@@ -128,7 +131,7 @@ async def on_ready():
     print(f"✅ Shards: {len(client.shards)}")
     print(f"✅ Started at: {datetime.now()}")
     print("─" * 50)
-    await update_shard_presence()
+    # await update_shard_presence()
 
 @client.event
 async def on_shard_ready(shard_id: int):
@@ -151,6 +154,7 @@ async def start() -> None:
     print("─" * 60)
 
     await initialise_database()
+    await v.refresh_settings_cache()
     reload_plugin_list()
     load_extensions()
 

@@ -2,7 +2,6 @@ import os
 import re
 import pytz
 import random
-import pymongo
 import discord
 from dotenv import load_dotenv
 from typing import Literal, Optional, Union
@@ -18,13 +17,7 @@ token = os.getenv('BOT_TOKEN')
 mongoURI_db = os.getenv('mongoURI_db')
 mongo_cdn = os.getenv('mongoURI_cdn')
 
-# Dedicated *synchronous* pymongo handle for the hot, sync-only config reads
-# (`style`, `datetimes`). Beanie/motor is async and loop-bound, so it can't be
-# used from the many synchronous call sites (e.g. `discord.Embed(color=v.style(...))`).
-# This is a read-only path; all writes still go through Beanie.
-_sync_data = pymongo.MongoClient(mongoURI_db)["Data"]
-_sync_guilds = _sync_data["guilds"]
-_sync_notifs = _sync_data["notifications"]
+_settings: dict[str, dict] = {}
 
 client = commands.AutoShardedBot(
   command_prefix = prefix,
@@ -66,19 +59,24 @@ clear = 0x2b2d31
 error = red
 success = green
 
+async def refresh_settings_cache():
+    cursor = Guild.get_pymongo_collection().find(
+        {}, {"settings.color": 1, "settings.timezone": 1, "premium": 1}
+    )
+    fresh = {doc["_id"]: doc async for doc in cursor}
+    _settings.clear()
+    _settings.update(fresh)
+
+def _guild_doc(guild) -> dict:
+    return _settings.get(str(getattr(guild, "id", guild)), {})
+
 async def dashboard(guild) -> DashConfig | None:
     guild_id = str(getattr(guild, "id", guild))
     data = await Guild.get(guild_id)
     return data.dashboard if data else None
 
 def style(guild) -> int:
-    guild_id = str(getattr(guild, "id", guild))
-    guild_data = _sync_guilds.find_one({"_id": guild_id}, {"settings.color": 1})
-    color = (
-        (guild_data.get("settings") or {}).get("color", "#5865F2")
-        if guild_data
-        else "#5865F2"
-    )
+    color = (_guild_doc(guild).get("settings") or {}).get("color", "#5865F2")
     try:
         return int(str(color).removeprefix("#"), 16)
     except (TypeError, ValueError):
@@ -86,28 +84,14 @@ def style(guild) -> int:
 
 def datetimes(guild):
     FALLBACK = "UTC"
-    guild_id = str(getattr(guild, "id", guild))
-    guild_data = _sync_guilds.find_one({"_id": guild_id}, {"settings.timezone": 1})
-    timezone_name = (
-        (guild_data.get("settings") or {}).get("timezone", FALLBACK)
-        if guild_data
-        else FALLBACK
-    )
+    timezone_name = (_guild_doc(guild).get("settings") or {}).get("timezone", FALLBACK)
     try:
         return pytz.timezone(str(timezone_name))
     except pytz.UnknownTimeZoneError:
         return pytz.timezone(FALLBACK)
 
-def is_premium_sync(guild) -> bool:
-    """Synchronous premium check for sync-only call sites (GuildModels /
-    async-Jinja templates). Mirrors web_dashboard.utils.is_premium; read-only."""
-    guild_id = str(getattr(guild, "id", guild))
-    doc = _sync_guilds.find_one({"_id": guild_id}, {"premium": 1})
-    premium = (doc or {}).get("premium") or {}
-    return bool(premium.get("status") and premium.get("active"))
-
 _MISSING = object()
-def render_placeholders(text: str, **context) -> str:
+def c(text: str, **context) -> str:
     def replace(match: re.Match) -> str:
         parts = match.group(1).split(".")
         base = parts[0]
